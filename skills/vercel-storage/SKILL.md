@@ -87,8 +87,6 @@ Serverless Postgres with branching, auto-scaling, and connection pooling.
 
 ```bash
 npm install @neondatabase/serverless
-# OR for drop-in replacement:
-npm install @neondatabase/vercel-postgres-compat
 ```
 
 ```ts
@@ -155,9 +153,6 @@ Install via Vercel Marketplace for automatic environment variable provisioning.
 + import { neon } from '@neondatabase/serverless'
 + const sql = neon(process.env.DATABASE_URL!)
 
-// Or use the compatibility package for zero-change migration:
-- import { sql } from '@vercel/postgres'
-+ import { sql } from '@neondatabase/vercel-postgres-compat'
 ```
 
 ### From @vercel/kv → Upstash Redis
