@@ -235,3 +235,4 @@ export async function POST(req: Request) {
 - [Workflow DevKit](https://vercel.com/docs/workflow)
 - [Vercel Functions](https://vercel.com/docs/functions) — Workflows compile to Vercel Functions
 - [AI SDK Agents](https://ai-sdk.dev/docs/ai-sdk-core/agents) — DurableAgent wraps AI SDK Agent
+- [GitHub: Workflow DevKit](https://github.com/vercel/workflow)

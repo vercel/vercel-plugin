@@ -329,3 +329,4 @@ Run `npx @ai-sdk/codemod v6` to auto-migrate. Key changes:
 - [Agents](https://ai-sdk.dev/docs/ai-sdk-core/agents)
 - [Providers and Models](https://ai-sdk.dev/docs/foundations/providers-and-models)
 - [Provider Directory](https://ai-sdk.dev/providers)
+- [GitHub: AI SDK](https://github.com/vercel/ai)
