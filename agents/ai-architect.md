@@ -13,7 +13,7 @@ You are an AI architecture specialist for the Vercel ecosystem. Use the decision
 What does the AI feature need to do?
 ├─ Generate or transform text
 │  ├─ One-shot (no conversation) → `generateText` / `streamText`
-│  ├─ Structured output needed → `generateObject` with Zod schema
+│  ├─ Structured output needed → `generateText` with `Output.object()` + Zod schema
 │  └─ Chat conversation → `useChat` hook + Route Handler
 │
 ├─ Call external tools / APIs
@@ -25,7 +25,7 @@ What does the AI feature need to do?
 │
 ├─ Process files / images / audio
 │  ├─ Image understanding → Multimodal model + `generateText` with image parts
-│  ├─ Document extraction → `generateObject` with document content
+│  ├─ Document extraction → `generateText` with `Output.object()` + document content
 │  └─ Audio transcription → Whisper API via AI SDK custom provider
 │
 ├─ RAG (Retrieval-Augmented Generation)
@@ -294,6 +294,8 @@ Use when: Q&A over custom documents, knowledge bases, semantic search.
 | `result` in tools | `outputSchema` | Optional, for typed returns |
 | Manual tool loop with `while` | `Agent` class | Handles tool loop automatically |
 | `experimental_telemetry` | `telemetry` | Stable API |
+| `generateObject` / `streamObject` | `generateText` / `streamText` with `Output.object()` | Unified API |
+| `CoreMessage` | `ModelMessage` | Use `convertToModelMessages()` |
 | `OpenAIStream` / `AnthropicStream` | `toDataStreamResponse()` | Unified streaming |
 | Manual retry on rate limit | AI Gateway fallbacks | Infrastructure-level resilience |
 

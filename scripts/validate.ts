@@ -225,18 +225,16 @@ async function validateOrphanSkills() {
 // 2. Validate SKILL.md frontmatter
 // ---------------------------------------------------------------------------
 
-async function validateSkillFrontmatter(): Promise<string[]> {
+async function validateSkillFrontmatter(): Promise<void> {
   section("[2] SKILL.md YAML frontmatter");
 
   const skillsDir = join(ROOT, "skills");
   const dirs = await readdir(skillsDir);
-  const skillNames: string[] = [];
 
   for (const dir of dirs.sort()) {
     const skillPath = join(skillsDir, dir, "SKILL.md");
     if (!(await exists(skillPath))) continue;
 
-    skillNames.push(dir);
     const content = await readFile(skillPath, "utf-8");
     const fm = parseFrontmatter(content);
 
@@ -265,22 +263,20 @@ async function validateSkillFrontmatter(): Promise<string[]> {
       pass(`skills/${dir}/SKILL.md — name: "${fm.name}", description present`);
     }
   }
-
-  return skillNames;
 }
 
 // ---------------------------------------------------------------------------
 // 3. Validate plugin.json enumerates all capabilities
 // ---------------------------------------------------------------------------
 
-async function validatePluginJson(skillNames: string[]) {
-  section("[3] plugin.json completeness");
+async function validatePluginJson() {
+  section("[3] plugin.json validity");
 
   const manifestPath = join(ROOT, ".plugin", "plugin.json");
   if (!(await exists(manifestPath))) {
     fail("MANIFEST_MISSING", ".plugin/plugin.json not found", {
       file: ".plugin/plugin.json",
-      hint: "Create .plugin/plugin.json with skills, agents, commands, and rules arrays",
+      hint: "Create .plugin/plugin.json with name, version, and description",
     });
     return;
   }
@@ -296,67 +292,22 @@ async function validatePluginJson(skillNames: string[]) {
     return;
   }
 
-  // Skills
-  const declaredSkills: string[] = manifest.skills ?? [];
-  for (const name of skillNames) {
-    if (declaredSkills.includes(name)) {
-      pass(`plugin.json lists skill "${name}"`);
+  // Required metadata fields (open-plugin spec — components are discovered from directories)
+  for (const field of ["name", "version", "description"]) {
+    if (manifest[field]) {
+      pass(`plugin.json has "${field}": "${String(manifest[field]).slice(0, 60)}${String(manifest[field]).length > 60 ? "…" : ""}"`);
     } else {
-      fail("MANIFEST_SKILL_MISSING", `plugin.json missing skill "${name}"`, {
+      fail("MANIFEST_FIELD_MISSING", `plugin.json missing required field "${field}"`, {
         file: ".plugin/plugin.json",
-        hint: `Add "${name}" to the skills array`,
-      });
-    }
-  }
-  for (const name of declaredSkills) {
-    if (!skillNames.includes(name)) {
-      fail("MANIFEST_SKILL_ORPHAN", `plugin.json lists skill "${name}" but skills/${name}/SKILL.md not found`, {
-        file: ".plugin/plugin.json",
-        hint: `Remove "${name}" from the skills array or create skills/${name}/SKILL.md`,
+        hint: `Add "${field}" to .plugin/plugin.json`,
       });
     }
   }
 
-  // Agents
-  const agentsDir = join(ROOT, "agents");
-  if (await exists(agentsDir)) {
-    const agentFiles = (await readdir(agentsDir)).filter((f) => f.endsWith(".md")).sort();
-    const declaredAgents: string[] = manifest.agents ?? [];
-    for (const f of agentFiles) {
-      if (declaredAgents.includes(f)) {
-        pass(`plugin.json lists agent "${f}"`);
-      } else {
-        fail("MANIFEST_AGENT_MISSING", `plugin.json missing agent "${f}"`, {
-          file: ".plugin/plugin.json",
-          hint: `Add "${f}" to the agents array in .plugin/plugin.json`,
-        });
-      }
-    }
-  }
-
-  // Commands (exclude _-prefixed meta-documents like _conventions.md)
-  const commandsDir = join(ROOT, "commands");
-  if (await exists(commandsDir)) {
-    const cmdFiles = (await readdir(commandsDir))
-      .filter((f) => f.endsWith(".md") && !f.startsWith("_"))
-      .sort();
-    const declaredCmds: string[] = manifest.commands ?? [];
-    for (const f of cmdFiles) {
-      if (declaredCmds.includes(f)) {
-        pass(`plugin.json lists command "${f}"`);
-      } else {
-        fail("MANIFEST_CMD_MISSING", `plugin.json missing command "${f}"`, {
-          file: ".plugin/plugin.json",
-          hint: `Add "${f}" to the commands array in .plugin/plugin.json`,
-        });
-      }
-    }
-  }
-
-  // CLAUDE.md (conventions live here now, not in rules/)
-  const claudeMd = join(ROOT, "CLAUDE.md");
-  if (await exists(claudeMd)) {
-    pass("CLAUDE.md exists (ecosystem graph + conventions)");
+  // vercel.md (ecosystem graph + conventions)
+  const vercelMd = join(ROOT, "vercel.md");
+  if (await exists(vercelMd)) {
+    pass("vercel.md exists (ecosystem graph + conventions)");
   }
 }
 
@@ -622,8 +573,8 @@ async function main() {
 
   await timed("graphSkillRefs", () => validateGraphSkillRefs());
   await timed("orphanSkills", () => validateOrphanSkills());
-  const skillNames = await timed("skillFrontmatter", () => validateSkillFrontmatter());
-  await timed("pluginJson", () => validatePluginJson(skillNames));
+  await timed("skillFrontmatter", () => validateSkillFrontmatter());
+  await timed("pluginJson", () => validatePluginJson());
   await timed("hooksJson", () => validateHooksJson());
   await timed("coverageBaseline", () => validateCoverageBaseline());
   await timed("commandConventions", () => validateCommandConventions());

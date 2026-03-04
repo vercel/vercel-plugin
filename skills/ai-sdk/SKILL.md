@@ -53,19 +53,21 @@ for await (const chunk of result.textStream) {
 
 ### Structured Output
 ```ts
-import { generateObject } from 'ai'
+import { generateText, Output } from 'ai'
 import { z } from 'zod'
 
-const { object } = await generateObject({
+const { output } = await generateText({
   model: openai('gpt-5-mini'),
-  schema: z.object({
-    recipe: z.object({
-      name: z.string(),
-      ingredients: z.array(z.object({
+  output: Output.object({
+    schema: z.object({
+      recipe: z.object({
         name: z.string(),
-        amount: z.string(),
-      })),
-      steps: z.array(z.string()),
+        ingredients: z.array(z.object({
+          name: z.string(),
+          amount: z.string(),
+        })),
+        steps: z.array(z.string()),
+      }),
     }),
   }),
   prompt: 'Generate a recipe for chocolate chip cookies.',
@@ -304,7 +306,7 @@ npx @ai-sdk/devtools
 ## Key Patterns
 
 1. **Always stream for user-facing AI** — use `streamText` + `useChat`, not `generateText`
-2. **Use structured output** for extracting data — `generateObject` with Zod schemas
+2. **Use structured output** for extracting data — `generateText` with `Output.object()` and Zod schemas
 3. **Use the Agent class** for multi-step reasoning — not manual loops
 4. **Use DurableAgent** (from Workflow DevKit) for production agents that must survive crashes
 5. **Use AI Gateway** for model routing and cost tracking in production
@@ -313,8 +315,11 @@ npx @ai-sdk/devtools
 ## Migration from AI SDK 5
 
 Run `npx @ai-sdk/codemod v6` to auto-migrate. Key changes:
+- `generateObject` / `streamObject` → `generateText` / `streamText` with `Output.object()`
 - `parameters` → `inputSchema`
 - `result` → `output`
+- `CoreMessage` → `ModelMessage` (use `convertToModelMessages()`)
+- `Experimental_Agent` → `ToolLoopAgent` (`system` → `instructions`)
 - `experimental_createMCPClient` → `createMCPClient` (stable)
 - UIMessage / ModelMessage types introduced
 

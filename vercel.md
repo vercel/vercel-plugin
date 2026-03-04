@@ -1,4 +1,4 @@
-# Vercel Ecosystem — Relational Knowledge Graph
+# Vercel Ecosystem — Relational Knowledge Graph (as of Mar 4, 2026)
 
 > This document is the master reference for understanding the entire Vercel ecosystem.
 > It maps every product, library, CLI, API, and service — how they relate, when to use each,
@@ -153,7 +153,7 @@ OTHER SUPPORTED FRAMEWORKS
 AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https://sdk.vercel.ai/docs
 ├── Core
 │   ⊃ generateText / streamText
-│   ⊃ generateObject / streamObject (structured output)
+│   ⊃ generateText / streamText with Output.object() (structured output)
 │   ⊃ generateImage / editImage
 │   ⊃ embed / embedMany (vector embeddings)
 │   ⊃ rerank (relevance reordering)
@@ -578,7 +578,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Need | Use | Why |
 |------|-----|-----|
 | Chat interface | AI SDK `useChat` + `streamText` | Streaming UI, provider-agnostic |
-| Structured data extraction | AI SDK `generateObject` | Type-safe, schema-validated |
+| Structured data extraction | AI SDK `generateText` + `Output.object()` | Type-safe, schema-validated |
 | Multi-step agent | AI SDK `Agent` class | Loop control, tool calling |
 | Production agent (must not lose state) | Workflow DevKit `DurableAgent` | Survives crashes, observable |
 | Model routing / failover | AI Gateway | Provider routing, cost tracking |
@@ -704,8 +704,11 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | Sync Request APIs (Next.js 16) | Async Request APIs | `await cookies()`, `await headers()`, etc. |
 | PPR (Next.js 15 canary) | Cache Components | Follow Vercel migration guide |
 | AI SDK 5 | AI SDK 6 | Run `npx @ai-sdk/codemod v6` |
+| `generateObject` / `streamObject` | `generateText` / `streamText` + `Output.object()` | Unified structured output API |
 | `parameters` (AI SDK tools) | `inputSchema` | Aligned with MCP spec |
 | `result` (AI SDK tools) | `output` | Aligned with MCP spec |
+| `CoreMessage` | `ModelMessage` | Use `convertToModelMessages()` |
+| `Experimental_Agent` | `ToolLoopAgent` | `system` → `instructions` |
 
 ---
 
