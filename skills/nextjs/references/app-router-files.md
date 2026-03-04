@@ -13,6 +13,8 @@
 | `template.tsx` | Layout that remounts on navigation | Server (default) |
 | `default.tsx` | Parallel route fallback | Server (default) |
 | `proxy.ts` | Network proxy (replaces middleware) | Server (Node.js) |
+| `opengraph-image.tsx` | Auto-generated OG image for route | Server (Edge) |
+| `twitter-image.tsx` | Auto-generated Twitter card image | Server (Edge) |
 
 ## Route Segments
 

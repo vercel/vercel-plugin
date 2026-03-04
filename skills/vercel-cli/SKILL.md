@@ -134,6 +134,56 @@ vercel teams ls
 vercel teams switch my-team
 ```
 
+### Cache Management
+
+```bash
+# Purge all cache (CDN + Data cache) for current project
+vercel cache purge
+
+# Purge only CDN cache
+vercel cache purge --type cdn
+
+# Purge only Data cache
+vercel cache purge --type data
+
+# Purge without confirmation prompt
+vercel cache purge --yes
+
+# Invalidate by tag (stale-while-revalidate)
+vercel cache invalidate --tag blog-posts
+
+# Invalidate multiple tags
+vercel cache invalidate --tag blog-posts,user-profiles,homepage
+
+# Hard delete by tag (blocks until revalidated — use with caution)
+vercel cache dangerously-delete --tag blog-posts
+
+# Hard delete with revalidation deadline (deletes only if not accessed within N seconds)
+vercel cache dangerously-delete --tag blog-posts --revalidation-deadline-seconds 3600
+
+# Invalidate cached image transformations by source path
+vercel cache invalidate --srcimg /api/avatar/1
+
+# Hard delete cached image transformations
+vercel cache dangerously-delete --srcimg /api/avatar/1
+```
+
+**Key distinction:** `invalidate` serves STALE and revalidates in the background. `dangerously-delete` serves MISS and blocks while revalidating. Prefer `invalidate` unless you need immediate freshness.
+
+**Note:** `--tag` and `--srcimg` cannot be used together.
+
+### MCP Server Integration
+
+```bash
+# Initialize global MCP client configuration for your Vercel account
+vercel mcp
+
+# Set up project-specific MCP access for the linked project
+vercel mcp --project
+```
+
+The `vercel mcp` command links your local MCP client configuration to a Vercel Project. It generates connection details so AI agents and tools can call your MCP endpoints deployed on Vercel securely.
+
 ### Marketplace Integrations (2026)
 
 ```bash
@@ -199,6 +249,8 @@ vercel               # Creates preview deployment, returns URL
 ## Official Documentation
 
 - [Vercel CLI](https://vercel.com/docs/cli)
+- [Cache Management](https://vercel.com/docs/cli/cache)
+- [MCP Integration](https://vercel.com/docs/cli/mcp)
 - [Deployments](https://vercel.com/docs/deployments)
 - [REST API](https://vercel.com/docs/rest-api/reference)
 - [GitHub: Vercel CLI](https://github.com/vercel/vercel)

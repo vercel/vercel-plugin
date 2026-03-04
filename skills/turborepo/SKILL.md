@@ -407,6 +407,108 @@ This performs intelligent graph traversal:
 3. Includes all dependent packages (transitively)
 4. Runs tasks only for the affected subgraph
 
+## Microfrontends & Multi-App Composition
+
+Turborepo is the recommended orchestration layer for Vercel's Microfrontends architecture — composing multiple independently-deployed apps behind a single URL.
+
+### Monorepo Structure for Microfrontends
+
+```
+my-platform/
+├── turbo.json
+├── package.json
+├── apps/
+│   ├── shell/          # Layout / shell app (owns top-level routing)
+│   ├── dashboard/      # Micro-app: dashboard features
+│   ├── settings/       # Micro-app: settings features
+│   └── marketing/      # Micro-app: public marketing site
+└── packages/
+    ├── ui/             # Shared component library
+    ├── auth/           # Shared auth utilities
+    └── config/         # Shared tsconfig, eslint
+```
+
+### Independent Deploys
+
+Each micro-app is a separate Vercel project with its own build and deploy lifecycle:
+
+```bash
+# Deploy only the dashboard micro-app
+turbo build --filter=dashboard
+
+# Deploy all micro-apps in parallel
+turbo build --filter=./apps/*
+
+# Deploy only micro-apps that changed since main
+turbo build --filter=./apps/*...[main]
+```
+
+### Shared Packages Across Micro-Apps
+
+Use Turborepo's dependency graph to share code without coupling deploys:
+
+```json
+{
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "dist/**"]
+    }
+  }
+}
+```
+
+Shared packages (`ui`, `auth`, `config`) are built first via `^build`, then each micro-app builds against the latest shared code. Remote caching ensures shared package builds are never repeated across micro-app deploys.
+
+### Multi-Zone Patterns
+
+Next.js multi-zones let each micro-app own a URL path prefix while sharing a single domain:
+
+```js
+// apps/shell/next.config.js
+module.exports = {
+  async rewrites() {
+    return [
+      { source: '/dashboard/:path*', destination: 'https://dashboard.example.com/dashboard/:path*' },
+      { source: '/settings/:path*', destination: 'https://settings.example.com/settings/:path*' },
+    ];
+  },
+};
+```
+
+Combine with Turborepo boundary rules to enforce architectural isolation:
+
+```json
+{
+  "boundaries": {
+    "tags": {
+      "apps/*": ["micro-app"],
+      "packages/ui": ["shared"],
+      "packages/auth": ["shared"]
+    },
+    "rules": [
+      { "from": ["micro-app"], "allow": ["shared"] },
+      { "from": ["shared"], "deny": ["micro-app"] }
+    ]
+  }
+}
+```
+
+### When to Use Turborepo for Microfrontends
+
+| Scenario | Recommended? |
+|----------|-------------|
+| Multiple teams owning independent features | Yes — independent deploys + shared packages |
+| Single team, single app | No — standard Next.js is simpler |
+| Shared component library across apps | Yes — `packages/ui` with boundary rules |
+| Gradual migration from monolith | Yes — extract features into micro-apps incrementally |
+| Need version-skew protection | Yes — isolated builds per micro-app |
+
+### Related Documentation
+
+- [Vercel Microfrontends](https://vercel.com/docs/microfrontends)
+- [Next.js Multi-Zones](https://nextjs.org/docs/app/building-your-application/deploying/multi-zones)
+
 ## Deploying to Vercel
 
 Vercel auto-detects Turborepo and optimizes builds. Each app in `apps/` can be a separate Vercel project with automatic dependency detection.

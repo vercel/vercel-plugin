@@ -134,6 +134,72 @@ export const config = { matcher: ['/dashboard/:path*'] }
 | Client Components | Interactive UI, browser APIs needed |
 | Streaming (Suspense) | Show content progressively as data loads |
 
+## OG Image Generation
+
+Next.js supports file-based OG image generation via `opengraph-image.tsx` and `twitter-image.tsx` special files. These use `@vercel/og` (built on Satori) to render JSX to images at the Edge runtime.
+
+### File Convention
+
+Place an `opengraph-image.tsx` (or `twitter-image.tsx`) in any route segment to auto-generate social images for that route:
+
+```tsx
+// app/blog/[slug]/opengraph-image.tsx
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+export const alt = 'Blog post'
+export const size = { width: 1200, height: 630 }
+export const contentType = 'image/png'
+
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await fetch(`https://api.example.com/posts/${slug}`).then(r => r.json())
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          fontSize: 48,
+          background: 'linear-gradient(to bottom, #000, #111)',
+          color: 'white',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 48,
+        }}
+      >
+        {post.title}
+      </div>
+    ),
+    { ...size }
+  )
+}
+```
+
+### Key Points
+
+- **`ImageResponse`** — Import from `next/og` (re-exports `@vercel/og`). Renders JSX to PNG/SVG images.
+- **Edge runtime** — OG image routes run on the Edge runtime by default. Export `runtime = 'edge'` explicitly for clarity.
+- **Exports** — `alt`, `size`, and `contentType` configure the generated `<meta>` tags automatically.
+- **Static or dynamic** — Without params, the image is generated at build time. With dynamic segments, it generates per-request.
+- **Supported CSS** — Satori supports a Flexbox subset. Use inline `style` objects (no Tailwind). `display: 'flex'` is required on containers.
+- **Fonts** — Load custom fonts via `fetch` and pass to `ImageResponse` options: `{ fonts: [{ name, data, style, weight }] }`.
+- **Twitter fallback** — If no `twitter-image.tsx` exists, `opengraph-image.tsx` is used for Twitter cards too.
+
+### When to Use
+
+| Approach | When |
+|----------|------|
+| `opengraph-image.tsx` file | Dynamic per-route OG images with data fetching |
+| Static `opengraph-image.png` file | Same image for every page in a segment |
+| `generateMetadata` with `openGraph.images` | Point to an external image URL |
+
 ## Deployment on Vercel
 
 - Zero-config: Vercel auto-detects Next.js and optimizes
