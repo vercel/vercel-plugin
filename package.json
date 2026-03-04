@@ -2,6 +2,7 @@
   "name": "vercel-plugin",
   "private": true,
   "scripts": {
-    "test": "bun run scripts/validate.ts"
+    "validate": "bun run scripts/validate.ts",
+    "test": "bun test"
   }
 }
