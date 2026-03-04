@@ -353,21 +353,10 @@ async function validatePluginJson(skillNames: string[]) {
     }
   }
 
-  // Rules
-  const rulesDir = join(ROOT, "rules");
-  if (await exists(rulesDir)) {
-    const ruleFiles = (await readdir(rulesDir)).filter((f) => f.endsWith(".mdc")).sort();
-    const declaredRules: string[] = manifest.rules ?? [];
-    for (const f of ruleFiles) {
-      if (declaredRules.includes(f)) {
-        pass(`plugin.json lists rule "${f}"`);
-      } else {
-        fail("MANIFEST_RULE_MISSING", `plugin.json missing rule "${f}"`, {
-          file: ".plugin/plugin.json",
-          hint: `Add "${f}" to the rules array in .plugin/plugin.json`,
-        });
-      }
-    }
+  // CLAUDE.md (conventions live here now, not in rules/)
+  const claudeMd = join(ROOT, "CLAUDE.md");
+  if (await exists(claudeMd)) {
+    pass("CLAUDE.md exists (ecosystem graph + conventions)");
   }
 }
 

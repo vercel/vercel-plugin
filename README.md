@@ -1,6 +1,6 @@
 # vercel-plugin
 
-A comprehensive [Open Plugin](https://github.com/anthropics/open-plugin) that turns any AI agent into a Vercel expert.
+A comprehensive [Open Plugin](https://github.com/vercel-labs/open-plugin) that turns any AI agent into a Vercel expert.
 
 ## What It Does
 
@@ -8,7 +8,7 @@ This plugin pre-loads AI agents with a **relational knowledge graph** of the ent
 
 ## Components
 
-### Ecosystem Graph (`assets/vercel-ecosystem-graph.md`)
+### Ecosystem Graph (`CLAUDE.md`)
 
 A text-form relational graph covering:
 - All Vercel products and their relationships
@@ -59,11 +59,9 @@ A text-form relational graph covering:
 | `/vercel-plugin:status` | Project status overview |
 | `/vercel-plugin:marketplace` | Discover and install marketplace integrations |
 
-### Rules (3 always-on conventions)
+### CLAUDE.md (always-in-context conventions)
 
-- **Next.js 16 conventions** — Server Components by default, async APIs, proxy.ts, Cache Components
-- **AI SDK v6 conventions** — inputSchema/outputSchema, streaming, DurableAgent
-- **Vercel best practices** — env vars, Fluid Compute, CI/CD patterns
+The ecosystem knowledge graph and coding conventions (Next.js 16, AI SDK v6, Vercel platform best practices) are shipped as `CLAUDE.md` so they're automatically loaded into context for every session.
 
 ### Hooks
 
@@ -80,8 +78,8 @@ claude --plugin-dir ./vercel-plugin
 /vercel-plugin:ai-sdk
 /vercel-plugin:deploy prod
 
-# The ecosystem graph and rules load automatically,
-# giving the agent full Vercel context from the start.
+# CLAUDE.md loads automatically with the ecosystem graph
+# and conventions, giving the agent full Vercel context.
 ```
 
 ## Architecture
@@ -115,7 +113,7 @@ vercel-plugin/
 │   └── workflow/
 ├── agents/                          # 3 specialist agents
 ├── commands/                        # 4 slash commands
-├── rules/                           # 3 convention rules
+├── CLAUDE.md                        # Ecosystem graph + conventions (always in context)
 └── hooks/                           # Deprecation guard
 ```
 
