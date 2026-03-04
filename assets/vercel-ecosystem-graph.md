@@ -465,10 +465,11 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │   ⊃ Branch-scoped variables
 │   ⊃ Sensitive variables (write-only)
 │
-├── Marketplace (NEW in 2026)
-│   ⊃ vercel integration discover (find integrations)
-│   ⊃ vercel integration guide (setup instructions)
-│   ⊃ --format=json (agent-friendly output)
+├── Marketplace Integrations
+│   ⊃ vercel integration add (install integration)
+│   ⊃ vercel integration list (list installed)
+│   ⊃ vercel integration open (open dashboard)
+│   ⊃ vercel integration remove (uninstall)
 │
 ├── Other
 │   ⊃ vercel logs (view function logs)
@@ -545,7 +546,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 │   ⊃ Unified billing
 │   ⊃ One-click install
 │   ⊃ Auto-provisioned environment variables
-│   ⊃ CLI discovery (vercel integration discover/guide)
+│   ⊃ CLI management (vercel integration add/list/open/remove)
 │
 └── Integration
     ↔ Vercel CLI (agent-friendly discovery)

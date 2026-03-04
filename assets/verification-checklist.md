@@ -106,8 +106,8 @@
 
 | # | Claim | Files | Source URL | Last Verified |
 |---|-------|-------|------------|---------------|
-| 38 | `vercel integration discover` and `vercel integration guide` (new in 2026) | `skills/vercel-cli/SKILL.md`, `assets/vercel-ecosystem-graph.md` (lines 393–396) | https://vercel.com/docs/cli | 2026-03-03 |
-| 39 | `--format=json` for agent-friendly output | `skills/vercel-cli/SKILL.md`, `assets/vercel-ecosystem-graph.md` (line 396) | https://vercel.com/docs/cli | 2026-03-03 |
+| 38 | `vercel integration` subcommands: `add`, `list`/`ls`, `open`, `remove` | `skills/vercel-cli/SKILL.md`, `assets/vercel-ecosystem-graph.md` | https://vercel.com/docs/cli | 2026-03-04 |
+| 39 | Log Drains configured via Dashboard or REST API (not CLI) | `skills/observability/SKILL.md` | https://vercel.com/docs/drains | 2026-03-04 |
 
 ## v0
 

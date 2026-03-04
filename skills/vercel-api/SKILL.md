@@ -104,6 +104,12 @@ const vercel = new Vercel({ bearerToken: process.env.VERCEL_TOKEN });
 | `/v6/domains` | POST | Add a domain |
 | `/v1/edge-config` | GET | List Edge Configs |
 | `/v1/firewall` | GET | List firewall rules |
+| `/v1/drains` | GET | List all drains |
+| `/v1/drains` | POST | Create a drain |
+| `/v1/drains/:id/test` | POST | Test a drain |
+| `/v1/drains/:id` | PATCH | Update a drain |
+| `/v1/drains/:id` | DELETE | Delete a drain |
+| `/v3/deployments/:id/events` | GET | Stream runtime logs |
 
 ### SDK Examples
 
@@ -156,6 +162,50 @@ for (const d of domains) {
 }
 ```
 
+## Observability APIs
+
+### Drains (`/v1/drains`)
+
+Drains forward logs, traces, speed insights, and web analytics data to external endpoints. All drain management is REST API or Dashboard only — no CLI commands exist.
+
+```typescript
+import { Vercel } from '@vercel/sdk';
+
+const vercel = new Vercel({ bearerToken: process.env.VERCEL_TOKEN });
+
+// List all drains
+const drains = await vercel.logDrains.getLogDrains({ teamId: 'team_xxxxx' });
+
+// Create a drain
+await vercel.logDrains.createLogDrain({
+  teamId: 'team_xxxxx',
+  requestBody: {
+    url: 'https://your-endpoint.example.com/logs',
+    type: 'json',
+    sources: ['lambda', 'edge', 'static'],
+    environments: ['production'],
+  },
+});
+```
+
+> For payload schemas (JSON, NDJSON), signature verification, and vendor integration setup, see `⤳ skill: observability`.
+
+### Runtime Logs (`/v3/deployments/:id/events`)
+
+Stream runtime logs for a deployment. The response uses `application/stream+json` — each line is a separate JSON object. Always set a timeout to avoid hanging on long-lived streams.
+
+```typescript
+// Query via MCP (recommended for agents)
+// Use the get_runtime_logs MCP tool for structured log access
+
+// Direct REST alternative (streaming)
+const res = await fetch(
+  `https://api.vercel.com/v3/deployments/${deploymentId}/events`,
+  { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } }
+);
+// Parse as NDJSON — see observability skill for streaming code patterns
+```
+
 ## When to Use MCP vs CLI vs REST API
 
 | Scenario | Use | Why |
@@ -173,6 +223,7 @@ for (const d of domains) {
 - **Storage APIs** → `⤳ skill: vercel-storage`
 - **Firewall rules** → `⤳ skill: vercel-firewall`
 - **AI SDK MCP client** → `⤳ skill: ai-sdk` (section: MCP Integration)
+- **Drains, log streaming, analytics export** → `⤳ skill: observability`
 
 ## Official Documentation
 

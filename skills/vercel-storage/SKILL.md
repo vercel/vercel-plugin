@@ -168,17 +168,18 @@ Install via Vercel Marketplace for automatic environment variable provisioning.
 
 ## Installing Marketplace Storage
 
-Use the Vercel CLI for agent-friendly discovery:
+Use the Vercel CLI or Marketplace dashboard:
 
 ```bash
-# Discover available storage integrations
-vercel integration discover --format=json
+# Install a storage integration (auto-provisions env vars)
+vercel integration add neon
+vercel integration add upstash
 
-# Get setup guide for a specific integration
-vercel integration guide neon
+# List installed integrations
+vercel integration list
 ```
 
-This automatically provisions accounts, creates databases, and sets environment variables.
+Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard automatically provisions accounts, creates databases, and sets environment variables.
 
 ## Official Documentation
 

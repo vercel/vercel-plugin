@@ -12,15 +12,31 @@ You are an expert in the Vercel Marketplace — the integration platform that co
 ### Discovering Integrations
 
 ```bash
-# Browse available integrations
+# Search the Marketplace catalog from CLI
 vercel integration discover
 
-# Get guided setup for a category
-vercel integration guide database
+# Filter by category
+vercel integration discover --category databases
+vercel integration discover --category monitoring
 
-# Search for a specific integration
-vercel integration discover --search "redis"
+# List integrations already installed on this project
+vercel integration list
 ```
+
+For browsing the full catalog interactively, use the [Vercel Marketplace](https://vercel.com/marketplace) dashboard.
+
+### Getting Setup Guidance
+
+```bash
+# Get agent-friendly setup guide for a specific integration
+vercel integration guide <name>
+
+# Examples
+vercel integration guide neon
+vercel integration guide datadog
+```
+
+The guide returns structured setup steps including required environment variables, SDK packages, and code snippets — ideal for agentic workflows.
 
 ### Installing an Integration
 
@@ -34,6 +50,7 @@ vercel integration add upstash       # Redis / Kafka
 vercel integration add clerk         # Authentication
 vercel integration add sentry        # Error monitoring
 vercel integration add sanity        # CMS
+vercel integration add datadog       # Observability (auto-configures drain)
 ```
 
 ### Auto-Provisioned Environment Variables
@@ -89,6 +106,9 @@ export async function GET() {
 # List installed integrations
 vercel integration ls
 
+# Check usage and billing for an integration
+vercel integration balance <name>
+
 # Remove an integration
 vercel integration remove <integration-name>
 ```
@@ -101,6 +121,12 @@ Marketplace integrations use Vercel's unified billing system:
 - **Usage-based**: Pay for what you use, scaled per integration's pricing model
 - **Team-level billing**: Charges roll up to the Vercel team account
 - **No separate accounts**: No need to manage billing with each provider individually
+
+```bash
+# Check current usage balance for an integration
+vercel integration balance datadog
+vercel integration balance neon
+```
 
 ## Building Integrations
 
@@ -228,19 +254,35 @@ async function provisionEnvVars(
 
 ### Integration CLI Commands
 
+The `vercel integration` CLI supports these subcommands:
+
 ```bash
-# Develop integration locally
-vercel integration dev
+# Discover integrations in the Marketplace catalog
+vercel integration discover
+vercel integration discover --category <category>
 
-# Deploy integration
-vercel integration deploy
+# Get agent-friendly setup guide
+vercel integration guide <name>
 
-# Publish to marketplace (requires review)
-vercel integration publish
+# Add (install) an integration
+vercel integration add <name>
 
-# Check integration status
-vercel integration status
+# List installed integrations
+vercel integration list    # alias: vercel integration ls
+
+# Check usage / billing balance
+vercel integration balance <name>
+
+# Open integration dashboard in browser
+vercel integration open <name>
+
+# Remove an integration
+vercel integration remove <name>
 ```
+
+> **Building integrations?** Use `npx create-vercel-integration` to scaffold, then deploy your
+> integration app to Vercel normally with `vercel --prod`. Publish to the Marketplace via the
+> [Vercel Partner Dashboard](https://vercel.com/docs/integrations).
 
 ## Common Integration Categories
 
@@ -254,17 +296,116 @@ vercel integration status
 | Payments | Stripe | `STRIPE_SECRET_KEY` |
 | Feature Flags | LaunchDarkly, Statsig | `LAUNCHDARKLY_SDK_KEY` |
 
+## Observability Integration Path
+
+Marketplace observability integrations (Datadog, Sentry, Axiom, Honeycomb, etc.) connect to Vercel's **Drains** system to receive telemetry. Understanding the data-type split is critical for correct setup.
+
+### Data-Type Split
+
+| Data Type | Delivery Mechanism | Integration Setup |
+|-----------|--------------------|-------------------|
+| **Logs** | Native drain (auto-configured by Marketplace install) | `vercel integration add <vendor>` auto-creates drain |
+| **Traces** | Native drain (OpenTelemetry-compatible) | Same — auto-configured on install |
+| **Speed Insights** | Custom drain endpoint only | Requires manual drain creation via REST API or Dashboard |
+| **Web Analytics** | Custom drain endpoint only | Requires manual drain creation via REST API or Dashboard |
+
+> **Key distinction:** When you install an observability vendor via the Marketplace, it auto-configures drains for **logs and traces** only. Speed Insights and Web Analytics data require a separate, manually configured drain pointing to a custom endpoint. See `⤳ skill: observability` for drain setup details.
+
+### Agentic Flow: Observability Vendor Setup
+
+Follow this sequence when setting up an observability integration:
+
+#### 1. Pick Vendor
+
+```bash
+# Discover observability integrations
+vercel integration discover --category monitoring
+
+# Get setup guide for chosen vendor
+vercel integration guide datadog
+```
+
+#### 2. Install Integration
+
+```bash
+# Install — auto-provisions env vars and creates log/trace drains
+vercel integration add datadog
+```
+
+#### 3. Verify Drain Created
+
+```bash
+# Confirm drain was auto-configured
+curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" | jq '.[] | {id, url, type, sources}'
+```
+
+Check the response for a drain pointing to the vendor's ingestion endpoint. If no drain appears, the integration may need manual drain setup — see `⤳ skill: observability` for REST API drain creation.
+
+#### 4. Validate Endpoint
+
+```bash
+# Send a test payload to the drain
+curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v1/drains/<drain-id>/test?teamId=$TEAM_ID"
+```
+
+Confirm the vendor dashboard shows the test event arriving.
+
+#### 5. Smoke Log Check
+
+```bash
+# Trigger a deployment and check logs flow through
+vercel logs <deployment-url> --follow --since 5m
+
+# Check integration balance to confirm data is flowing
+vercel integration balance datadog
+```
+
+Verify that logs appear both in Vercel's runtime logs and in the vendor's dashboard.
+
+> **For drain payload formats and signature verification**, see `⤳ skill: observability` — the Drains section covers JSON/NDJSON schemas and `x-vercel-signature` HMAC-SHA1 verification.
+
+### Speed Insights + Web Analytics Drains
+
+For observability vendors that also want Speed Insights or Web Analytics data, configure a separate drain manually:
+
+```bash
+# Create a drain for Speed Insights + Web Analytics
+curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" \
+  -d '{
+    "url": "https://your-vendor-endpoint.example.com/vercel-analytics",
+    "type": "json",
+    "sources": ["lambda"],
+    "environments": ["production"]
+  }'
+```
+
+> **Payload schema reference:** See `⤳ skill: observability` for Web Analytics drain payload formats (JSON array of `{type, url, referrer, timestamp, geo, device}` events).
+
 ## Decision Matrix
 
 | Need | Use | Why |
 |------|-----|-----|
 | Add a database to your project | `vercel integration add neon` | Auto-provisioned, unified billing |
-| Browse available services | `vercel integration discover` | CLI-native discovery |
+| Browse available services | `vercel integration discover` | CLI-native catalog search |
+| Get setup steps for an integration | `vercel integration guide <name>` | Agent-friendly structured guide |
+| Check integration usage/cost | `vercel integration balance <name>` | Billing visibility per integration |
 | Build a SaaS integration | Integration SDK + manifest | Full lifecycle management |
 | Centralize billing | Marketplace integrations | Single Vercel invoice |
 | Auto-inject credentials | Marketplace auto-provisioning | No manual env var management |
+| Add observability vendor | `vercel integration add <vendor>` | Auto-creates log/trace drains |
+| Export Speed Insights / Web Analytics | Manual drain via REST API | Not auto-configured by vendor install |
 | Manage integrations programmatically | Vercel REST API | `/v1/integrations` endpoints |
-| Test integration locally | `vercel integration dev` | Local development server |
+| Test integration locally | `vercel dev` | Local development server with Vercel features |
+
+## Cross-References
+
+- **Drain configuration, payload formats, signature verification** → `⤳ skill: observability`
+- **Drains REST API endpoints** → `⤳ skill: vercel-api`
+- **CLI log streaming (`--follow`, `--since`, `--level`)** → `⤳ skill: vercel-cli`
 
 ## Official Documentation
 
@@ -273,3 +414,5 @@ vercel integration status
 - [Integration CLI](https://vercel.com/docs/cli/integration)
 - [Integration Webhooks](https://vercel.com/docs/integrations#webhooks)
 - [Environment Variables](https://vercel.com/docs/environment-variables)
+- [Drains Overview](https://vercel.com/docs/drains)
+- [Drains Security](https://vercel.com/docs/drains/security)

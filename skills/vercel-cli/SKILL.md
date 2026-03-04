@@ -88,18 +88,39 @@ vercel env pull .env.production.local --environment=production
 ### Logs & Inspection
 
 ```bash
-# View function logs (real-time)
+# View runtime/function logs (real-time)
 vercel logs <deployment-url>
 
-# View build logs
-vercel logs <deployment-url> --build
+# Follow logs in real-time (streaming mode)
+vercel logs <deployment-url> --follow
 
-# Inspect a deployment
+# Filter by time range
+vercel logs <deployment-url> --since 1h
+vercel logs <deployment-url> --since 30m
+
+# Filter by log level
+vercel logs <deployment-url> --level error
+vercel logs <deployment-url> --level warning
+
+# Output as JSON (for piping to jq or other tools)
+vercel logs <deployment-url> --json
+
+# Combine filters: stream errors from the last hour as JSON
+vercel logs <deployment-url> --follow --since 1h --level error --json
+
+# Inspect a deployment (build details, metadata, function list)
 vercel inspect <deployment-url>
 
 # List recent deployments
 vercel ls
 ```
+
+> **Note:** `vercel logs` shows runtime request logs only. For build output, use
+> `vercel inspect <deployment-url>` or view build logs in the Vercel Dashboard.
+>
+> **Drains and advanced observability:** Log drains, trace export, and analytics data forwarding are
+> configured via the Vercel Dashboard or REST API (`/v1/drains`), not the CLI. See `⤳ skill: observability`
+> for drain setup, payload schemas, and signature verification.
 
 ### Domains
 
@@ -184,17 +205,25 @@ vercel mcp --project
 
 The `vercel mcp` command links your local MCP client configuration to a Vercel Project. It generates connection details so AI agents and tools can call your MCP endpoints deployed on Vercel securely.
 
-### Marketplace Integrations (2026)
+### Marketplace Integrations
 
 ```bash
-# Discover available integrations (agent-friendly JSON output)
-vercel integration discover --format=json
+# List installed integrations
+vercel integration list
 
-# Get setup instructions for an integration
-vercel integration guide neon
+# Add an integration (auto-provisions env vars)
+vercel integration add neon
 
-# The guide output is markdown — AI agents can parse and execute setup steps
+# Open an integration's dashboard
+vercel integration open neon
+
+# Remove an integration
+vercel integration remove neon
 ```
+
+> **Browsing available integrations:** Use the [Vercel Marketplace](https://vercel.com/marketplace)
+> dashboard or the [REST API](https://vercel.com/docs/rest-api) (`/v1/integrations`) to discover
+> integrations. The CLI `vercel integration` subcommands are: `add`, `list` (alias `ls`), `open`, `remove`.
 
 ## CI/CD Integration
 

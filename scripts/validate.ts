@@ -334,10 +334,12 @@ async function validatePluginJson(skillNames: string[]) {
     }
   }
 
-  // Commands
+  // Commands (exclude _-prefixed meta-documents like _conventions.md)
   const commandsDir = join(ROOT, "commands");
   if (await exists(commandsDir)) {
-    const cmdFiles = (await readdir(commandsDir)).filter((f) => f.endsWith(".md")).sort();
+    const cmdFiles = (await readdir(commandsDir))
+      .filter((f) => f.endsWith(".md") && !f.startsWith("_"))
+      .sort();
     const declaredCmds: string[] = manifest.commands ?? [];
     for (const f of cmdFiles) {
       if (declaredCmds.includes(f)) {
@@ -429,6 +431,189 @@ async function validateCoverageBaseline() {
 }
 
 // ---------------------------------------------------------------------------
+// 6. Validate command conventions (required sections)
+// ---------------------------------------------------------------------------
+
+const CRITICAL_COMMAND_SECTIONS = ["Preflight", "Verification"];
+const RECOMMENDED_COMMAND_SECTIONS = ["Plan", "Commands", "Summary", "Next Steps"];
+const ALL_COMMAND_SECTIONS = [...CRITICAL_COMMAND_SECTIONS, ...RECOMMENDED_COMMAND_SECTIONS];
+
+const DESTRUCTIVE_PATTERNS = [
+  /vercel\s+--prod\b/,
+  /vercel\s+deploy\s+--prod\b/,
+  /vercel\s+env\s+rm\b/,
+  /vercel\s+env\s+remove\b/,
+];
+
+const SAFETY_PATTERNS = [/confirm/i, /⚠/, /explicit/i];
+
+async function validateCommandConventions() {
+  section("[6] Command conventions (sections, CLI examples, safety)");
+
+  const commandsDir = join(ROOT, "commands");
+  if (!(await exists(commandsDir))) {
+    fail("COMMANDS_DIR_MISSING", "commands/ directory not found", {
+      file: "commands/",
+      hint: "Create a commands/ directory with slash command .md files",
+    });
+    return;
+  }
+
+  const cmdFiles = (await readdir(commandsDir))
+    .filter((f) => f.endsWith(".md") && !f.startsWith("_"))
+    .sort();
+
+  if (cmdFiles.length === 0) {
+    warn("NO_COMMANDS", "No command files found in commands/", {
+      file: "commands/",
+      hint: "Add .md command files to commands/",
+    });
+    return;
+  }
+
+  for (const file of cmdFiles) {
+    const filePath = join(commandsDir, file);
+    const content = await readFile(filePath, "utf-8");
+
+    // Check frontmatter
+    const fm = parseFrontmatter(content);
+    if (!fm || !fm.description) {
+      fail("CMD_NO_DESCRIPTION", `commands/${file} — missing frontmatter description`, {
+        file: `commands/${file}`,
+        line: 1,
+        hint: "Add YAML frontmatter with a 'description' field",
+      });
+    }
+
+    // Check required sections (look for ## headings containing the section name)
+    const missingSections: string[] = [];
+    for (const sectionName of ALL_COMMAND_SECTIONS) {
+      const pattern = new RegExp(`^#{2,3}\\s+.*${sectionName.replace(/\s+/g, "\\s+")}`, "im");
+      if (!pattern.test(content)) {
+        missingSections.push(sectionName);
+      }
+    }
+
+    if (missingSections.length > 0) {
+      const critical = missingSections.filter((s) => CRITICAL_COMMAND_SECTIONS.includes(s));
+      const recommended = missingSections.filter((s) => RECOMMENDED_COMMAND_SECTIONS.includes(s));
+
+      if (critical.length > 0) {
+        fail("CMD_MISSING_CRITICAL_SECTIONS", `commands/${file} — missing critical sections: ${critical.join(", ")}`, {
+          file: `commands/${file}`,
+          hint: `Add the following required sections: ${critical.join(", ")}. See commands/_conventions.md for details.`,
+        });
+      }
+      if (recommended.length > 0) {
+        warn("CMD_MISSING_SECTIONS", `commands/${file} — missing recommended sections: ${recommended.join(", ")}`, {
+          file: `commands/${file}`,
+          hint: `Add the following sections: ${recommended.join(", ")}. See commands/_conventions.md for details.`,
+        });
+      }
+    } else {
+      pass(`commands/${file} — all required sections present`);
+    }
+
+    // Check for at least one backtick-fenced vercel CLI example
+    const codeBlocks = [...content.matchAll(/```[a-z]*\n([\s\S]*?)```/g)];
+    const hasVercelCliExample = codeBlocks.some((m) => /\bvercel\b/.test(m[1]));
+
+    if (!hasVercelCliExample) {
+      fail("CMD_NO_CLI_EXAMPLE", `commands/${file} — no backtick-fenced vercel CLI example found`, {
+        file: `commands/${file}`,
+        hint: "Add at least one fenced code block containing a vercel CLI command (e.g., ```bash\\nvercel deploy\\n```)",
+      });
+    } else {
+      pass(`commands/${file} — contains vercel CLI example(s)`);
+    }
+
+    // Check that destructive commands include confirmation/safety language
+    const hasDestructiveOps = DESTRUCTIVE_PATTERNS.some((p) => p.test(content));
+    if (hasDestructiveOps) {
+      const hasSafetyLanguage = SAFETY_PATTERNS.some((p) => p.test(content));
+      if (!hasSafetyLanguage) {
+        fail("CMD_UNSAFE_DESTRUCTIVE", `commands/${file} — contains destructive operations without confirmation/safety language`, {
+          file: `commands/${file}`,
+          hint: "Add confirmation prompts and safety warnings (⚠️, explicit confirmation) for destructive operations like --prod deploys and env rm",
+        });
+      } else {
+        pass(`commands/${file} — destructive operations include safety language`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. Validate CLI banned patterns in code fences
+// ---------------------------------------------------------------------------
+
+const CLI_BANNED_PATTERNS: { pattern: RegExp; hint: string }[] = [
+  {
+    pattern: /vercel\s+logs\s+.*--build/,
+    hint: "Build logs are not available via 'vercel logs'. Use 'vercel inspect <deployment> --logs' instead.",
+  },
+  {
+    pattern: /vercel\s+logs\s+drain/,
+    hint: "Log drains are configured via the Vercel Dashboard or REST API, not 'vercel logs drain'.",
+  },
+  {
+    pattern: /vercel\s+integration\s+(dev|deploy|publish|status)/,
+    hint: "This 'vercel integration' subcommand does not exist. Valid subcommands include: add, open, list, remove, discover, guide, balance. Check 'vercel integration --help'.",
+  },
+];
+
+async function validateCliBannedPatterns() {
+  section("[7] CLI banned-pattern scan (skills + commands)");
+
+  const dirs = [join(ROOT, "skills"), join(ROOT, "commands")];
+  const mdFiles: { relPath: string; absPath: string }[] = [];
+
+  for (const dir of dirs) {
+    if (!(await exists(dir))) continue;
+    const entries = await readdir(dir, { recursive: true });
+    for (const entry of entries) {
+      if (!entry.endsWith(".md") || entry.startsWith("_")) continue;
+      const absPath = join(dir, entry);
+      const relPath = absPath.slice(ROOT.length + 1);
+      mdFiles.push({ relPath, absPath });
+    }
+  }
+
+  let violations = 0;
+
+  for (const { relPath, absPath } of mdFiles) {
+    const content = await readFile(absPath, "utf-8");
+    // Extract code fence contents
+    const fences = [...content.matchAll(/```[a-z]*\n([\s\S]*?)```/g)];
+
+    for (const fence of fences) {
+      const fenceText = fence[1];
+      const fenceStartIdx = content.indexOf(fence[0]);
+      const fenceStartLine = content.slice(0, fenceStartIdx).split("\n").length;
+
+      for (const { pattern, hint } of CLI_BANNED_PATTERNS) {
+        const lines = fenceText.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+          if (pattern.test(lines[i])) {
+            violations++;
+            const line = fenceStartLine + 1 + i; // +1 for the opening ``` line
+            fail("CLI_BANNED_PATTERN", `${relPath}:${line} — banned CLI pattern: ${lines[i].trim()}`, {
+              file: relPath,
+              line,
+              hint,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (violations === 0) {
+    pass("No banned CLI patterns found in code fences");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -452,6 +637,8 @@ async function main() {
   await timed("pluginJson", () => validatePluginJson(skillNames));
   await timed("hooksJson", () => validateHooksJson());
   await timed("coverageBaseline", () => validateCoverageBaseline());
+  await timed("commandConventions", () => validateCommandConventions());
+  await timed("cliBannedPatterns", () => validateCliBannedPatterns());
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;

@@ -1,11 +1,11 @@
 ---
 name: observability
-description: Vercel Observability expert guidance — Web Analytics, Speed Insights, runtime logs, custom events, Log Drains, OpenTelemetry integration, and monitoring dashboards. Use when instrumenting, debugging, or optimizing application performance and user experience on Vercel.
+description: Vercel Observability expert guidance — Drains (logs, traces, speed insights, web analytics), Web Analytics, Speed Insights, runtime logs, custom events, OpenTelemetry integration, and monitoring dashboards. Use when instrumenting, debugging, or optimizing application performance and user experience on Vercel.
 ---
 
 # Vercel Observability
 
-You are an expert in Vercel's observability stack — Web Analytics, Speed Insights, runtime logs, Log Drains, and monitoring integrations.
+You are an expert in Vercel's observability stack — Drains, Web Analytics, Speed Insights, runtime logs, and monitoring integrations.
 
 ## Web Analytics
 
@@ -169,63 +169,245 @@ export async function register() {
 }
 ```
 
-## Log Drains
+### Runtime Logs via REST API
 
-Export logs and telemetry data to external observability platforms.
-
-### Supported Drain Types
-
-| Drain Type | Protocol | Best For |
-|-----------|----------|----------|
-| JSON | HTTPS POST | Custom backends, generic log collectors |
-| NDJSON | HTTPS POST | Streaming-friendly consumers |
-| Syslog | TLS syslog | Traditional log management |
-
-### Setting Up via CLI
+Query deployment runtime logs programmatically. The endpoint returns `application/stream+json` — a streaming response where each line is a separate JSON object.
 
 ```bash
-# List existing drains
-vercel logs drain ls
-
-# Add a JSON drain
-vercel logs drain add <endpoint-url> --type json
-
-# Add a drain with filtering
-vercel logs drain add <endpoint-url> --type json --environment production
+# Stream runtime logs for a deployment (returns application/stream+json)
+curl -N -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v3/deployments/<deployment-id>/events" \
+  --max-time 120
 ```
+
+> **Streaming guidance:** The response is unbounded — always set a timeout (`--max-time` in curl, `AbortController` with `setTimeout` in fetch). Parse line-by-line as NDJSON. Each line contains `{ timestamp, text, level, source }`.
+
+```ts
+// Programmatic streaming with timeout
+const controller = new AbortController()
+const timeout = setTimeout(() => controller.abort(), 60_000) // 60s max
+
+const res = await fetch(
+  `https://api.vercel.com/v3/deployments/${deploymentId}/events`,
+  {
+    headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+    signal: controller.signal,
+  }
+)
+
+const reader = res.body!.getReader()
+const decoder = new TextDecoder()
+let buffer = ''
+
+try {
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop()! // keep incomplete line in buffer
+    for (const line of lines) {
+      if (!line.trim()) continue
+      const event = JSON.parse(line)
+      console.log(`[${event.level}] ${event.text}`)
+    }
+  }
+} finally {
+  clearTimeout(timeout)
+}
+```
+
+> **MCP alternative:** Use `get_runtime_logs` via the Vercel MCP server for agent-friendly log queries without managing streams directly. See `⤳ skill: vercel-api`.
+
+## Drains
+
+Drains forward observability data from Vercel to external endpoints. They are the primary mechanism for exporting logs, traces, Speed Insights, and Web Analytics data to third-party platforms.
+
+> **Plan requirement:** Drains require a **Pro or Enterprise** plan. For Hobby plans, see the [Fallback Guidance](#fallback-guidance-no-drains) section below.
+
+### Data Types
+
+Drains can forward multiple categories of telemetry:
+
+| Data Type | What It Contains | Use Case |
+|-----------|-----------------|----------|
+| **Logs** | Runtime function logs, build logs, static access logs | Centralized log aggregation |
+| **Traces** | OpenTelemetry-compatible distributed traces | End-to-end request tracing |
+| **Speed Insights** | Core Web Vitals and performance metrics | Performance monitoring pipelines |
+| **Web Analytics** | Pageviews, custom events, visitor data | Analytics data warehousing |
+
+### Supported Formats
+
+| Format | Protocol | Best For |
+|--------|----------|----------|
+| JSON | HTTPS POST | Custom backends, generic log collectors |
+| NDJSON | HTTPS POST | Streaming-friendly consumers, high-volume pipelines |
+| Syslog | TLS syslog | Traditional log management (rsyslog, syslog-ng) |
+
+### Setting Up Drains
+
+Drains are configured via the **Vercel Dashboard** or **REST API** — there is no CLI command for drains.
+
+#### Via Dashboard
+
+1. Go to **Team Settings → Log Drains** in the Vercel Dashboard
+2. Click **Add Log Drain**
+3. Select format (JSON, NDJSON, or Syslog)
+4. Enter your endpoint URL
+5. Choose data sources to include (Static, Lambda, Edge, Build, External)
+6. Optionally filter by project or environment
+7. Save — Vercel sends a verification request with `x-vercel-signature` header
+
+#### Via REST API (`/v1/drains`)
+
+```bash
+# List all drains
+curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" | jq
+
+# Create a JSON drain
+curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" \
+  -d '{
+    "url": "https://your-endpoint.example.com/logs",
+    "type": "json",
+    "sources": ["lambda", "edge", "static"],
+    "environments": ["production"]
+  }'
+
+# Test a drain (sends a test payload to your endpoint)
+curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v1/drains/<drain-id>/test?teamId=$TEAM_ID"
+
+# Update a drain (change URL, sources, or environments)
+curl -X PATCH -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  "https://api.vercel.com/v1/drains/<drain-id>?teamId=$TEAM_ID" \
+  -d '{
+    "url": "https://new-endpoint.example.com/logs",
+    "environments": ["production", "preview"]
+  }'
+
+# Delete a drain
+curl -X DELETE -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v1/drains/<drain-id>?teamId=$TEAM_ID"
+```
+
+### Web Analytics Drains Reference
+
+When a drain is configured to receive Web Analytics data, payloads arrive as batched events. The format depends on your drain type.
+
+#### JSON Payload Schema
+
+```json
+[
+  {
+    "type": "pageview",
+    "url": "https://example.com/blog/post-1",
+    "referrer": "https://google.com",
+    "timestamp": 1709568000000,
+    "geo": { "country": "US", "region": "CA", "city": "San Francisco" },
+    "device": { "os": "macOS", "browser": "Chrome", "isBot": false },
+    "projectId": "prj_xxxxx",
+    "environment": "production"
+  },
+  {
+    "type": "custom_event",
+    "name": "purchase",
+    "url": "https://example.com/checkout",
+    "properties": { "product": "pro-plan", "value": 20 },
+    "timestamp": 1709568100000,
+    "geo": { "country": "US" },
+    "device": { "os": "macOS", "browser": "Chrome", "isBot": false },
+    "projectId": "prj_xxxxx",
+    "environment": "production"
+  }
+]
+```
+
+#### NDJSON Payload Format
+
+Each line is a separate JSON object (one event per line):
+
+```
+{"type":"pageview","url":"https://example.com/","timestamp":1709568000000,"geo":{"country":"US"},"device":{"browser":"Chrome"},...}
+{"type":"pageview","url":"https://example.com/about","timestamp":1709568001000,"geo":{"country":"DE"},"device":{"browser":"Firefox"},...}
+{"type":"custom_event","name":"signup","url":"https://example.com/register","timestamp":1709568002000,...}
+```
+
+> **Ingestion tip:** For NDJSON, process line-by-line as events arrive. This format is preferred for high-volume pipelines where batch parsing overhead matters.
+
+### Security: Signature Verification
+
+Vercel signs every drain payload with an HMAC-SHA1 signature in the `x-vercel-signature` header. **Always verify signatures in production** to prevent spoofed data.
+
+> **Critical:** You must verify against the **raw request body** (not a parsed/re-serialized version). JSON parsing and re-stringifying can change key order or whitespace, breaking the signature match.
+
+```ts
+import { createHmac, timingSafeEqual } from 'crypto'
+
+function verifyDrainSignature(rawBody: string, signature: string, secret: string): boolean {
+  const expected = createHmac('sha1', secret).update(rawBody).digest('hex')
+  // Use timing-safe comparison to prevent timing attacks
+  if (expected.length !== signature.length) return false
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+}
+```
+
+Usage in a drain endpoint:
+
+```ts
+// app/api/drain/route.ts
+export async function POST(req: Request) {
+  const rawBody = await req.text()
+  const signature = req.headers.get('x-vercel-signature')
+  const secret = process.env.DRAIN_SECRET!
+
+  if (!signature || !verifyDrainSignature(rawBody, signature, secret)) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const events = JSON.parse(rawBody)
+  // Process verified events...
+  return new Response('OK', { status: 200 })
+}
+```
+
+> **Secret management:** The drain signing secret is shown once when you create the drain. Store it in an environment variable (e.g., `DRAIN_SECRET`). If lost, delete and recreate the drain.
 
 ### OpenTelemetry Integration
 
-Vercel exports traces in OpenTelemetry-compatible format via Log Drains.
+Vercel exports traces in OpenTelemetry-compatible format via Drains. Configure an OTel-compatible drain endpoint via the Dashboard or REST API (see above).
+
+### Vendor Integrations
 
 ```bash
-# Configure OTel-compatible drain
-vercel logs drain add <otel-collector-url> --type json
-```
-
-### Datadog Integration
-
-```bash
-# Install via Marketplace (recommended)
+# Install via Marketplace (recommended — auto-configures drain)
 vercel integration add datadog
-
-# Or configure manually via drain
-vercel logs drain add https://http-intake.logs.datadoghq.com/api/v2/logs \
-  --type json \
-  --headers "DD-API-KEY:<your-key>"
 ```
 
-### Honeycomb Integration
+Or manually create a drain via Dashboard / REST API pointing to:
 
-```bash
-# Install via Marketplace
-vercel integration add honeycomb
+| Vendor | Endpoint | Auth Header |
+|--------|----------|-------------|
+| **Datadog** | `https://http-intake.logs.datadoghq.com/api/v2/logs` | `DD-API-KEY` |
+| **Honeycomb** | `https://api.honeycomb.io/1/batch/<dataset>` | `X-Honeycomb-Team` |
 
-# Or manual drain setup
-vercel logs drain add https://api.honeycomb.io/1/batch/<dataset> \
-  --type json \
-  --headers "X-Honeycomb-Team:<your-key>"
-```
+### Fallback Guidance (No Drains)
+
+If drains are unavailable (Hobby plan or not yet configured), use these alternatives:
+
+| Need | Alternative | How |
+|------|-------------|-----|
+| View runtime logs | **Vercel Dashboard** | Deployments → select deployment → Logs tab |
+| Stream logs from terminal | **Vercel CLI** | `vercel logs <deployment-url> --follow` (see `⤳ skill: vercel-cli`) |
+| Query logs programmatically | **MCP / REST API** | `get_runtime_logs` tool or `/v3/deployments/:id/events` (see `⤳ skill: vercel-api`) |
+| Monitor errors post-deploy | **CLI** | `vercel logs <url> --level error --since 1h` |
+| Web Analytics data | **Dashboard only** | Analytics tab in project dashboard (no export without drains) |
+| Performance metrics | **Dashboard only** | Speed Insights tab in project dashboard |
+
+> **Upgrade path:** When ready for centralized observability, upgrade to Pro and configure drains via REST API or Dashboard. The drain setup is typically < 5 minutes.
 
 ## Monitoring Dashboard Patterns
 
@@ -310,20 +492,29 @@ export async function reportError(error: unknown, context: Record<string, unknow
 | Page views, traffic sources | Web Analytics | First-party, privacy-friendly |
 | Business event tracking | Web Analytics custom events | Track conversions, feature usage |
 | Core Web Vitals monitoring | Speed Insights | Real user data per route |
-| Function debugging | Runtime Logs | Real-time, per-invocation logs |
-| Export to Datadog/Honeycomb | Log Drains | Centralize observability |
-| OpenTelemetry traces | Log Drains (OTel) | Standards-based export |
+| Function debugging | Runtime Logs (CLI / Dashboard / REST) | Real-time, per-invocation logs |
+| Export logs to external platform | Drains (JSON/NDJSON/Syslog) | Centralize observability (Pro+) |
+| Export analytics data | Drains (Web Analytics type) | Warehouse pageviews + custom events (Pro+) |
+| OpenTelemetry traces | Drains (OTel-compatible endpoint) | Standards-based distributed tracing (Pro+) |
 | Post-response telemetry | `waitUntil` + custom reporting | Non-blocking metrics |
 | Server-side event tracking | `@vercel/analytics/server` | Track API-triggered events |
+| Hobby plan log access | CLI `vercel logs` + Dashboard | No drains needed |
+
+## Cross-References
+
+- **Drains REST API & runtime logs endpoint** → `⤳ skill: vercel-api` (Observability APIs section)
+- **CLI log streaming (`--follow`, `--since`, `--level`)** → `⤳ skill: vercel-cli` (Logs & Inspection section)
+- **Marketplace vendor integrations** → `⤳ skill: marketplace`
 
 ## Official Documentation
 
 - [Vercel Analytics](https://vercel.com/docs/analytics)
 - [Speed Insights](https://vercel.com/docs/speed-insights)
 - [Runtime Logs](https://vercel.com/docs/logs/runtime)
-- [Log Drains](https://vercel.com/docs/drains)
+- [Drains Overview](https://vercel.com/docs/drains)
+- [Drains REST API](https://vercel.com/docs/rest-api/reference/endpoints/drains/retrieve-a-list-of-all-drains)
+- [Drains Security](https://vercel.com/docs/drains/security)
+- [Web Analytics Drains Reference](https://vercel.com/docs/drains/reference/analytics)
 - [Monitoring](https://vercel.com/docs/query/monitoring)
 - [@vercel/analytics npm](https://www.npmjs.com/package/@vercel/analytics)
 - [@vercel/speed-insights npm](https://www.npmjs.com/package/@vercel/speed-insights)
-- [GitHub: @vercel/analytics](https://github.com/vercel/analytics)
-- [GitHub: @vercel/speed-insights](https://github.com/vercel/speed-insights)
