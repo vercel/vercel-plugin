@@ -84,8 +84,7 @@ claude --plugin-dir ./vercel-plugin
 ```
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
-├── assets/
-│   └── vercel-ecosystem-graph.md    # Master relational knowledge graph
+├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
 ├── skills/                          # 21 deep-dive skills
 │   ├── ai-gateway/
 │   ├── ai-sdk/

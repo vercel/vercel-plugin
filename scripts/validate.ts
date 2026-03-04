@@ -140,11 +140,11 @@ function lineOf(content: string, needle: string): number | undefined {
 async function validateGraphSkillRefs() {
   section("[1] Ecosystem graph → skill cross-references");
 
-  const graphPath = join(ROOT, "assets", "vercel-ecosystem-graph.md");
+  const graphPath = join(ROOT, "vercel.md");
   if (!(await exists(graphPath))) {
-    fail("GRAPH_MISSING", "assets/vercel-ecosystem-graph.md not found", {
-      file: "assets/vercel-ecosystem-graph.md",
-      hint: "Create assets/vercel-ecosystem-graph.md with ⤳ skill: references",
+    fail("GRAPH_MISSING", "vercel.md not found", {
+      file: "vercel.md",
+      hint: "Create vercel.md with ⤳ skill: references",
     });
     return;
   }
@@ -157,7 +157,7 @@ async function validateGraphSkillRefs() {
 
   if (refs.length === 0) {
     fail("GRAPH_NO_REFS", "No ⤳ skill: references found in ecosystem graph", {
-      file: "assets/vercel-ecosystem-graph.md",
+      file: "vercel.md",
       hint: "Add ⤳ skill:<name> references to link graph nodes to bundled skills",
     });
     return;
@@ -172,7 +172,7 @@ async function validateGraphSkillRefs() {
       pass(`⤳ skill:${name} → skills/${name}/SKILL.md`);
     } else {
       fail("SKILL_REF_BROKEN", `⤳ skill:${name} referenced in graph but skills/${name}/SKILL.md not found`, {
-        file: "assets/vercel-ecosystem-graph.md",
+        file: "vercel.md",
         line,
         hint: `Create skills/${name}/SKILL.md or remove the reference`,
       });
@@ -189,7 +189,7 @@ const orphanSkills: string[] = [];
 async function validateOrphanSkills() {
   section("[1b] Orphan skill detection (skills/ dirs without graph references)");
 
-  const graphPath = join(ROOT, "assets", "vercel-ecosystem-graph.md");
+  const graphPath = join(ROOT, "vercel.md");
   if (!(await exists(graphPath))) return; // already reported in [1]
 
   const graph = await readFile(graphPath, "utf-8");
@@ -211,7 +211,7 @@ async function validateOrphanSkills() {
       orphanSkills.push(dir);
       fail("ORPHAN_SKILL", `skills/${dir} has no ⤳ skill:${dir} reference in ecosystem graph`, {
         file: `skills/${dir}/SKILL.md`,
-        hint: `Add "⤳ skill: ${dir}" to the appropriate section in assets/vercel-ecosystem-graph.md`,
+        hint: `Add "⤳ skill: ${dir}" to the appropriate section in vercel.md`,
       });
     }
   }

@@ -28,7 +28,7 @@ describe("validate.ts", () => {
   }, 30_000);
 
   test("every graph skill ref resolves to an existing skill directory", async () => {
-    const graphPath = join(ROOT, "assets", "vercel-ecosystem-graph.md");
+    const graphPath = join(ROOT, "vercel.md");
     const graph = await readFile(graphPath, "utf-8");
     const refs = [...new Set(
       [...graph.matchAll(/⤳\s*skill:\s*([a-z][a-z0-9-]*)/g)].map((m) => m[1]),
@@ -80,7 +80,7 @@ describe("validate.ts", () => {
   }, 30_000);
 
   test("current state has 0 orphan skills", async () => {
-    const graphPath = join(ROOT, "assets", "vercel-ecosystem-graph.md");
+    const graphPath = join(ROOT, "vercel.md");
     const graph = await readFile(graphPath, "utf-8");
     const referencedSkills = new Set(
       [...graph.matchAll(/⤳\s*skill:\s*([a-z][a-z0-9-]*)/g)].map((m) => m[1]),
@@ -262,7 +262,7 @@ describe("validate.ts", () => {
 
   test("graph skill ref errors include line numbers", async () => {
     // Parse the graph directly and verify that lineOf produces numbers for skill refs
-    const graphPath = join(ROOT, "assets", "vercel-ecosystem-graph.md");
+    const graphPath = join(ROOT, "vercel.md");
     const graph = await readFile(graphPath, "utf-8");
     const refs = [...graph.matchAll(/⤳\s*skill:\s*([a-z][a-z0-9-]*)/g)];
 
