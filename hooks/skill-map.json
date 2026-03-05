@@ -2,6 +2,7 @@
   "$schema": "Maps Vercel plugin skills to file-path globs and bash-command regexes for PreToolUse hook injection.",
   "skills": {
     "nextjs": {
+      "priority": 5,
       "pathPatterns": [
         "next.config.*",
         "next-env.d.ts",
@@ -12,39 +13,66 @@
         "tailwind.config.*",
         "postcss.config.*",
         "tsconfig.json",
-        "tsconfig.*.json"
+        "tsconfig.*.json",
+        "apps/*/app/**",
+        "apps/*/pages/**",
+        "apps/*/src/app/**",
+        "apps/*/src/pages/**",
+        "apps/*/next.config.*"
       ],
       "bashPatterns": [
         "\\bnext\\s+(dev|build|start|lint)\\b",
         "\\bnpx\\s+create-next-app\\b",
-        "\\bbunx\\s+create-next-app\\b"
+        "\\bbunx\\s+create-next-app\\b",
+        "\\bnpm\\s+run\\s+(dev|build|start)\\b",
+        "\\bpnpm\\s+(dev|build)\\b",
+        "\\bbun\\s+run\\s+(dev|build)\\b"
       ]
     },
     "ai-sdk": {
+      "priority": 8,
       "pathPatterns": [
         "app/api/chat/**",
         "app/api/completion/**",
         "src/app/api/chat/**",
         "src/app/api/completion/**",
+        "pages/api/chat.*",
+        "pages/api/chat/**",
+        "pages/api/completion.*",
+        "pages/api/completion/**",
+        "src/pages/api/chat.*",
+        "src/pages/api/chat/**",
+        "src/pages/api/completion.*",
+        "src/pages/api/completion/**",
         "lib/ai/**",
         "src/lib/ai/**",
-        "ai/**"
+        "lib/ai.*",
+        "src/lib/ai.*",
+        "ai/**",
+        "apps/*/app/api/chat/**",
+        "apps/*/app/api/completion/**",
+        "apps/*/src/app/api/chat/**",
+        "apps/*/src/app/api/completion/**",
+        "apps/*/lib/ai/**",
+        "apps/*/src/lib/ai/**"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bai\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bai\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bai\\b",
         "\\byarn\\s+add\\s+[^\\n]*\\bai\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/",
+        "\\byarn\\s+add\\s+[^\\n]*@ai-sdk/",
         "\\bnpx\\s+@ai-sdk/devtools\\b",
         "\\bnpx\\s+@ai-sdk/codemod\\b",
         "\\bnpx\\s+mcp-to-ai-sdk\\b"
       ]
     },
     "ai-gateway": {
-      "pathPatterns": [
-        ".env",
-        ".env.*"
-      ],
+      "priority": 7,
+      "pathPatterns": [],
       "bashPatterns": [
         "\\bvercel\\s+env\\s+pull\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
@@ -53,7 +81,16 @@
         "\\byarn\\s+add\\s+[^\\n]*@ai-sdk/gateway\\b"
       ]
     },
+    "cron-jobs": {
+      "priority": 6,
+      "pathPatterns": [
+        "vercel.json",
+        "apps/*/vercel.json"
+      ],
+      "bashPatterns": []
+    },
     "routing-middleware": {
+      "priority": 6,
       "pathPatterns": [
         "middleware.ts",
         "middleware.js",
@@ -65,28 +102,49 @@
         "proxy.mjs",
         "src/middleware.ts",
         "src/middleware.js",
+        "src/middleware.mts",
+        "src/middleware.mjs",
         "src/proxy.ts",
-        "src/proxy.js"
+        "src/proxy.js",
+        "src/proxy.mts",
+        "src/proxy.mjs",
+        "vercel.json",
+        "apps/*/vercel.json"
       ],
       "bashPatterns": []
     },
     "vercel-cli": {
+      "priority": 4,
       "pathPatterns": [
         "vercel.json",
+        "vercel.ts",
         ".vercel/**",
+        ".vercelignore",
         "now.json"
       ],
       "bashPatterns": [
         "^\\s*vercel(?:\\s|$)",
         "^\\s*vc(?:\\s|$)",
-        "\\bnpx\\s+vercel\\b"
+        "\\bnpx\\s+vercel\\b",
+        "\\bpnpm\\s+dlx\\s+vercel\\b",
+        "\\bbunx\\s+vercel\\b",
+        "\\byarn\\s+dlx\\s+vercel\\b"
       ]
     },
     "vercel-functions": {
+      "priority": 8,
       "pathPatterns": [
-        "api/**",
+        "api/**/*.*",
         "pages/api/**",
-        "src/pages/api/**"
+        "src/pages/api/**",
+        "app/**/route.*",
+        "src/app/**/route.*",
+        "apps/*/api/**/*.*",
+        "apps/*/app/**/route.*",
+        "apps/*/src/app/**/route.*",
+        "apps/*/pages/api/**",
+        "vercel.json",
+        "apps/*/vercel.json"
       ],
       "bashPatterns": [
         "\\bvercel\\s+dev\\b",
@@ -94,6 +152,7 @@
       ]
     },
     "turborepo": {
+      "priority": 5,
       "pathPatterns": [
         "turbo.json",
         "turbo/**"
@@ -105,6 +164,7 @@
       ]
     },
     "turbopack": {
+      "priority": 4,
       "pathPatterns": [
         "next.config.*"
       ],
@@ -114,11 +174,18 @@
       ]
     },
     "vercel-storage": {
+      "priority": 7,
       "pathPatterns": [
         "lib/blob/**",
         "lib/storage/**",
         "src/lib/blob/**",
-        "src/lib/storage/**"
+        "src/lib/storage/**",
+        "lib/blob.*",
+        "lib/storage.*",
+        "lib/edge-config.*",
+        "src/lib/blob.*",
+        "src/lib/storage.*",
+        "src/lib/edge-config.*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/blob\\b",
@@ -128,13 +195,32 @@
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b"
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@upstash/redis\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@upstash/redis\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@upstash/redis\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@upstash/redis\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kv\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kv\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/kv\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/kv\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/postgres\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/postgres\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/postgres\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/postgres\\b"
       ]
     },
     "runtime-cache": {
+      "priority": 6,
       "pathPatterns": [
         "lib/cache/**",
-        "src/lib/cache/**"
+        "src/lib/cache/**",
+        "lib/cache.*",
+        "src/lib/cache.*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/functions\\b",
@@ -144,6 +230,7 @@
       ]
     },
     "vercel-firewall": {
+      "priority": 5,
       "pathPatterns": [
         ".vercel/firewall/**"
       ],
@@ -152,13 +239,16 @@
       ]
     },
     "vercel-flags": {
+      "priority": 6,
       "pathPatterns": [
         "flags.ts",
         "flags.js",
         "src/flags.ts",
         "src/flags.js",
         "lib/flags/**",
-        "src/lib/flags/**"
+        "src/lib/flags/**",
+        "lib/flags.*",
+        "src/lib/flags.*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/flags\\b",
@@ -168,9 +258,14 @@
       ]
     },
     "vercel-queues": {
+      "priority": 5,
       "pathPatterns": [
         "lib/queues/**",
-        "src/lib/queues/**"
+        "src/lib/queues/**",
+        "lib/queues.*",
+        "lib/queue.*",
+        "src/lib/queues.*",
+        "src/lib/queue.*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
@@ -180,24 +275,38 @@
       ]
     },
     "workflow": {
+      "priority": 6,
       "pathPatterns": [
         "lib/workflow/**",
         "src/lib/workflow/**",
-        "workflows/**"
+        "workflows/**",
+        "lib/workflow.*",
+        "workflow.*"
       ],
       "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bworkflow\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bworkflow\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bworkflow\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bworkflow\\b"
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/workflow\\b"
       ]
     },
     "observability": {
+      "priority": 6,
       "pathPatterns": [
         "instrumentation.ts",
         "instrumentation.js",
         "src/instrumentation.ts",
-        "src/instrumentation.js"
+        "src/instrumentation.js",
+        "app/layout.*",
+        "src/app/layout.*",
+        "pages/_app.*",
+        "src/pages/_app.*",
+        "apps/*/instrumentation.ts",
+        "apps/*/instrumentation.js",
+        "apps/*/app/layout.*",
+        "apps/*/src/app/layout.*",
+        "apps/*/pages/_app.*",
+        "apps/*/src/pages/_app.*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/analytics\\b",
@@ -211,6 +320,7 @@
       ]
     },
     "marketplace": {
+      "priority": 3,
       "pathPatterns": [
         "integration.json"
       ],
@@ -219,6 +329,7 @@
       ]
     },
     "v0-dev": {
+      "priority": 5,
       "pathPatterns": [],
       "bashPatterns": [
         "\\bnpx\\s+v0\\b",
@@ -227,14 +338,21 @@
       ]
     },
     "vercel-agent": {
+      "priority": 4,
       "pathPatterns": [
-        ".github/workflows/**"
+        ".github/workflows/vercel*.yml",
+        ".github/workflows/vercel*.yaml",
+        ".github/workflows/deploy*.yml",
+        ".github/workflows/deploy*.yaml",
+        ".github/workflows/preview*.yml",
+        ".github/workflows/preview*.yaml"
       ],
       "bashPatterns": [
         "\\bvercel\\s+agent\\b"
       ]
     },
     "vercel-sandbox": {
+      "priority": 4,
       "pathPatterns": [],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
@@ -244,6 +362,7 @@
       ]
     },
     "sign-in-with-vercel": {
+      "priority": 6,
       "pathPatterns": [
         "app/api/auth/**",
         "app/login/**",
@@ -254,6 +373,7 @@
       "bashPatterns": []
     },
     "vercel-api": {
+      "priority": 7,
       "pathPatterns": [
         ".mcp.json",
         ".vercel/project.json"
@@ -262,10 +382,13 @@
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sdk\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sdk\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/sdk\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@vercel/sdk\\b"
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/sdk\\b",
+        "\\bclaude\\s+mcp\\s+add\\b[^\\n]*\\bvercel\\b",
+        "\\bmcp\\.vercel\\.com\\b"
       ]
     },
     "ai-elements": {
+      "priority": 5,
       "pathPatterns": [
         "components/ai-elements/**",
         "src/components/ai-elements/**"
@@ -280,17 +403,64 @@
       ]
     },
     "shadcn": {
+      "priority": 5,
       "pathPatterns": [
         "components.json",
         "components/ui/**",
-        "src/components/ui/**"
+        "src/components/ui/**",
+        "apps/*/components/ui/**",
+        "apps/*/src/components/ui/**",
+        "packages/*/components/ui/**",
+        "packages/*/src/components/ui/**"
       ],
       "bashPatterns": [
         "\\bnpx\\s+shadcn\\b",
         "\\bnpx\\s+shadcn@latest\\s+(init|add|build|search|list|migrate)\\b"
       ]
     },
+    "env-vars": {
+      "priority": 7,
+      "pathPatterns": [
+        ".env",
+        ".env.*",
+        ".env.local",
+        ".env.production",
+        ".env.development",
+        ".env.test",
+        ".env.production.local",
+        ".env.development.local",
+        ".env.test.local",
+        ".env.example"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+env\\s+pull\\b",
+        "\\bvercel\\s+env\\s+add\\b",
+        "\\bvercel\\s+env\\s+rm\\b",
+        "\\bvercel\\s+env\\s+ls\\b"
+      ]
+    },
+    "deployments-cicd": {
+      "priority": 6,
+      "pathPatterns": [
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+        ".gitlab-ci.yml",
+        "bitbucket-pipelines.yml",
+        "vercel.json",
+        "apps/*/vercel.json"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+deploy\\b",
+        "\\bvercel\\s+--prod\\b",
+        "\\bvercel\\s+promote\\b",
+        "\\bvercel\\s+rollback\\b",
+        "\\bvercel\\s+inspect\\b",
+        "\\bvercel\\s+build\\b",
+        "\\bvercel\\s+deploy\\s+--prebuilt\\b"
+      ]
+    },
     "json-render": {
+      "priority": 4,
       "pathPatterns": [
         "components/chat/**",
         "components/chat-*.tsx",
