@@ -272,17 +272,15 @@ Drains can forward multiple categories of telemetry:
 
 ### Setting Up Drains
 
-Drains are configured via the **Vercel Dashboard** or **REST API** — there is no CLI command for drains.
+Drains are configured via the **Vercel Dashboard** at `https://vercel.com/dashboard/{team}/~/settings/log-drains` or the **REST API**.
 
 #### Via Dashboard
 
-1. Go to **Team Settings → Log Drains** in the Vercel Dashboard
+1. Open `https://vercel.com/dashboard/{team}/~/settings/log-drains` (replace `{team}` with your team slug)
 2. Click **Add Log Drain**
-3. Select format (JSON, NDJSON, or Syslog)
-4. Enter your endpoint URL
-5. Choose data sources to include (Static, Lambda, Edge, Build, External)
-6. Optionally filter by project or environment
-7. Save — Vercel sends a verification request with `x-vercel-signature` header
+3. Select the drain type (JSON, NDJSON, or syslog) and enter the endpoint URL
+4. Choose which environments and sources to include
+5. Click **Create** to activate the drain
 
 #### Via REST API (`/v1/drains`)
 
@@ -404,7 +402,7 @@ export async function POST(req: Request) {
 
 ### OpenTelemetry Integration
 
-Vercel exports traces in OpenTelemetry-compatible format via Drains. Configure an OTel-compatible drain endpoint via the Dashboard or REST API (see above).
+Vercel exports traces in OpenTelemetry-compatible format via Drains. Configure an OTel-compatible drain endpoint at `https://vercel.com/dashboard/{team}/~/settings/log-drains` → **Add Log Drain** → select **OTLP** format, or via the REST API.
 
 ### Vendor Integrations
 
@@ -413,7 +411,7 @@ Vercel exports traces in OpenTelemetry-compatible format via Drains. Configure a
 vercel integration add datadog
 ```
 
-Or manually create a drain via Dashboard / REST API pointing to:
+Or manually create a drain at `https://vercel.com/dashboard/{team}/~/settings/log-drains` → **Add Log Drain**, or via REST API, pointing to:
 
 | Vendor | Endpoint | Auth Header |
 |--------|----------|-------------|
@@ -426,14 +424,14 @@ If drains are unavailable (Hobby plan or not yet configured), use these alternat
 
 | Need | Alternative | How |
 |------|-------------|-----|
-| View runtime logs | **Vercel Dashboard** | Deployments → select deployment → Logs tab |
+| View runtime logs | **Vercel Dashboard** | `https://vercel.com/{team}/{project}/deployments` → select deployment → Logs tab |
 | Stream logs from terminal | **Vercel CLI** | `vercel logs <deployment-url> --follow` (see `⤳ skill: vercel-cli`) |
 | Query logs programmatically | **MCP / REST API** | `get_runtime_logs` tool or `/v3/deployments/:id/events` (see `⤳ skill: vercel-api`) |
 | Monitor errors post-deploy | **CLI** | `vercel logs <url> --level error --since 1h` |
-| Web Analytics data | **Dashboard only** | Analytics tab in project dashboard (no export without drains) |
-| Performance metrics | **Dashboard only** | Speed Insights tab in project dashboard |
+| Web Analytics data | **Dashboard only** | `https://vercel.com/{team}/{project}/analytics` |
+| Performance metrics | **Dashboard only** | `https://vercel.com/{team}/{project}/speed-insights` |
 
-> **Upgrade path:** When ready for centralized observability, upgrade to Pro and configure drains via REST API or Dashboard. The drain setup is typically < 5 minutes.
+> **Upgrade path:** When ready for centralized observability, upgrade to Pro and configure drains at `https://vercel.com/dashboard/{team}/~/settings/log-drains` or via REST API. The drain setup is typically < 5 minutes.
 
 ## Monitoring Dashboard Patterns
 
@@ -518,13 +516,13 @@ export async function reportError(error: unknown, context: Record<string, unknow
 | Page views, traffic sources | Web Analytics | First-party, privacy-friendly |
 | Business event tracking | Web Analytics custom events | Track conversions, feature usage |
 | Core Web Vitals monitoring | Speed Insights | Real user data per route |
-| Function debugging | Runtime Logs (CLI / Dashboard / REST) | Real-time, per-invocation logs |
+| Function debugging | Runtime Logs (CLI `vercel logs` / Dashboard (`https://vercel.com/{team}/{project}/logs`) / REST) | Real-time, per-invocation logs |
 | Export logs to external platform | Drains (JSON/NDJSON/Syslog) | Centralize observability (Pro+) |
 | Export analytics data | Drains (Web Analytics type) | Warehouse pageviews + custom events (Pro+) |
 | OpenTelemetry traces | Drains (OTel-compatible endpoint) | Standards-based distributed tracing (Pro+) |
 | Post-response telemetry | `waitUntil` + custom reporting | Non-blocking metrics |
 | Server-side event tracking | `@vercel/analytics/server` | Track API-triggered events |
-| Hobby plan log access | CLI `vercel logs` + Dashboard | No drains needed |
+| Hobby plan log access | CLI `vercel logs` + Dashboard (`https://vercel.com/{team}/{project}/logs`) | No drains needed |
 
 ## Cross-References
 
