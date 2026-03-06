@@ -12,12 +12,12 @@
  * Debug: Set VERCEL_PLUGIN_DEBUG=1 (or VERCEL_PLUGIN_HOOK_DEBUG=1) to emit JSON-lines debug events to stderr.
  */
 
-import { readFileSync, writeFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { join, dirname, basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { buildSkillMap, validateSkillMap } from "./skill-map-frontmatter.mjs";
-import { globToRegex, readSeenSkillsFile, appendSeenSkill } from "./patterns.mjs";
+import { globToRegex, parseSeenSkills, appendSeenSkill } from "./patterns.mjs";
 
 const MAX_SKILLS = 3;
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -75,12 +75,11 @@ function emitComplete(reason, counts = {}, timing = null) {
   });
 }
 
-/** @returns {string | null} */
-function getSeenSkillsFile() {
-  const value = process.env.VERCEL_PLUGIN_SEEN_SKILLS;
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+/** @returns {string} comma-delimited seen skills from env, or "" */
+function getSeenSkillsEnv() {
+  return typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string"
+    ? process.env.VERCEL_PLUGIN_SEEN_SKILLS
+    : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -197,35 +196,15 @@ function run() {
     }).filter(Boolean),
   }));
 
-  // ---- Session dedup ----
+  // ---- Session dedup (env-var based) ----
   const dedupOff = process.env.VERCEL_PLUGIN_HOOK_DEDUP === "off";
-  const seenSkillsFile = getSeenSkillsFile();
-  const useEnvFileDedup = !dedupOff && seenSkillsFile !== null;
-  const dedupStrategy = dedupOff ? "disabled" : useEnvFileDedup ? "env-file" : "memory-only";
+  const seenEnv = getSeenSkillsEnv();
+  const hasEnvDedup = !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string";
+  const dedupStrategy = dedupOff ? "disabled" : hasEnvDedup ? "env-var" : "memory-only";
 
-  dbg("dedup-strategy", { strategy: dedupStrategy, sessionId, seenSkillsFile });
+  dbg("dedup-strategy", { strategy: dedupStrategy, sessionId, seenEnv });
 
-  if (process.env.RESET_DEDUP === "1" && useEnvFileDedup) {
-    try {
-      writeFileSync(seenSkillsFile, "");
-      dbg("dedup-reset", { seenSkillsFile });
-    } catch (err) {
-      emitIssue("DEDUP_RESET_FAIL", "Failed to reset dedup file", "Check write permissions for VERCEL_PLUGIN_SEEN_SKILLS path", { seenSkillsFile, error: String(err) });
-    }
-  }
-
-  let injectedSkills;
-  if (useEnvFileDedup) {
-    try {
-      injectedSkills = readSeenSkillsFile(seenSkillsFile);
-    } catch (err) {
-      emitIssue("DEDUP_READ_FAIL", "Failed to read or parse dedup state file", "Check file permissions for VERCEL_PLUGIN_SEEN_SKILLS path; dedup will reset for this invocation", { seenSkillsFile, error: String(err) });
-      injectedSkills = new Set();
-    }
-  } else {
-    // memory-only: fresh set each invocation, no persistence
-    injectedSkills = new Set();
-  }
+  let injectedSkills = hasEnvDedup ? parseSeenSkills(seenEnv) : new Set();
 
   // ---- Determine matched skills (using precompiled regexes) ----
   let tMatch = DEBUG ? safeNow() : 0;
@@ -311,12 +290,10 @@ function run() {
         `<!-- skill:${skill} -->\n${content}\n<!-- /skill:${skill} -->`,
       );
       injectedSkills.add(skill);
-      if (useEnvFileDedup) {
-        try {
-          appendSeenSkill(seenSkillsFile, skill);
-        } catch (err) {
-          emitIssue("DEDUP_WRITE_FAIL", "Failed to persist dedup state", "Check write permissions for VERCEL_PLUGIN_SEEN_SKILLS path; skills may re-inject next invocation", { seenSkillsFile, skill, error: String(err) });
-        }
+      if (hasEnvDedup) {
+        process.env.VERCEL_PLUGIN_SEEN_SKILLS = appendSeenSkill(
+          process.env.VERCEL_PLUGIN_SEEN_SKILLS, skill
+        );
       }
     } catch (err) {
       emitIssue("SKILL_FILE_MISSING", `SKILL.md not found for skill "${skill}"`, `Create skills/${skill}/SKILL.md with valid frontmatter`, { skillPath, error: String(err) });

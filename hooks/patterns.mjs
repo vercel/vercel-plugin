@@ -2,7 +2,6 @@
  * Shared pattern utilities for converting glob patterns to RegExp.
  * Used by the PreToolUse hook and the validation script.
  */
-import { readFileSync, appendFileSync } from "node:fs";
 
 /**
  * Convert a simple glob pattern to a regex.
@@ -49,16 +48,15 @@ export function globToRegex(pattern) {
 }
 
 /**
- * Parse newline-delimited seen-skill slugs into an ordered set.
+ * Parse comma-delimited seen-skill slugs from env var into a Set.
  */
-export function parseSeenSkillsFile(contents) {
-  if (typeof contents !== "string") {
-    throw new TypeError(`parseSeenSkillsFile: expected string, got ${typeof contents}`);
+export function parseSeenSkills(envValue) {
+  if (typeof envValue !== "string" || envValue.trim() === "") {
+    return new Set();
   }
-
   const seen = new Set();
-  for (const line of contents.split(/\r?\n/)) {
-    const skill = line.trim();
+  for (const part of envValue.split(",")) {
+    const skill = part.trim();
     if (skill !== "") {
       seen.add(skill);
     }
@@ -67,35 +65,10 @@ export function parseSeenSkillsFile(contents) {
 }
 
 /**
- * Read and parse seen-skill state from disk.
+ * Return updated comma-delimited string with a new skill appended.
  */
-export function readSeenSkillsFile(filePath) {
-  const pathValue = typeof filePath === "string" ? filePath : "";
-  if (pathValue.trim() === "") {
-    return new Set();
-  }
-
-  try {
-    const contents = readFileSync(pathValue, "utf8");
-    return parseSeenSkillsFile(contents);
-  } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-      return new Set();
-    }
-    throw error;
-  }
-}
-
-/**
- * Append one seen-skill slug as newline-delimited plain text.
- */
-export function appendSeenSkill(filePath, skill) {
-  const pathValue = typeof filePath === "string" ? filePath : "";
-  const skillValue = typeof skill === "string" ? skill : "";
-
-  if (pathValue.trim() === "" || skillValue.trim() === "") {
-    return;
-  }
-
-  appendFileSync(pathValue, `${skillValue}\n`, "utf8");
+export function appendSeenSkill(envValue, skill) {
+  if (typeof skill !== "string" || skill.trim() === "") return envValue || "";
+  const current = typeof envValue === "string" ? envValue.trim() : "";
+  return current === "" ? skill : `${current},${skill}`;
 }

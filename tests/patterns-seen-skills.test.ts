@@ -1,64 +1,59 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { parseSeenSkillsFile, readSeenSkillsFile, appendSeenSkill } from "../hooks/patterns.mjs";
+import { describe, test, expect } from "bun:test";
+import { parseSeenSkills, appendSeenSkill } from "../hooks/patterns.mjs";
 
-let tempDir: string;
-let seenSkillsFile: string;
+describe("parseSeenSkills", () => {
+  test("parses comma-delimited string into a Set", () => {
+    const parsed = parseSeenSkills("nextjs,ai-sdk,workflow");
+    expect([...parsed]).toEqual(["nextjs", "ai-sdk", "workflow"]);
+  });
 
-beforeEach(() => {
-  tempDir = mkdtempSync(join(tmpdir(), "vercel-plugin-seen-skills-"));
-  seenSkillsFile = join(tempDir, "seen-skills.txt");
-});
+  test("handles empty string", () => {
+    expect([...parseSeenSkills("")]).toEqual([]);
+  });
 
-afterEach(() => {
-  rmSync(tempDir, { recursive: true, force: true });
-});
+  test("handles whitespace-only", () => {
+    expect([...parseSeenSkills("   ")]).toEqual([]);
+  });
 
-describe("parseSeenSkillsFile", () => {
-  test("parses CRLF content and removes blank lines", () => {
-    const parsed = parseSeenSkillsFile("nextjs\r\n\r\nai-sdk\r\n   \r\n");
+  test("handles undefined/non-string", () => {
+    expect([...parseSeenSkills(undefined)]).toEqual([]);
+  });
+
+  test("trims whitespace around skills", () => {
+    const parsed = parseSeenSkills(" nextjs , ai-sdk , workflow ");
+    expect([...parsed]).toEqual(["nextjs", "ai-sdk", "workflow"]);
+  });
+
+  test("deduplicates skills", () => {
+    const parsed = parseSeenSkills("nextjs,ai-sdk,nextjs");
     expect([...parsed]).toEqual(["nextjs", "ai-sdk"]);
   });
 
-  test("collapses duplicate slugs while preserving first-seen order", () => {
-    const parsed = parseSeenSkillsFile("nextjs\nai-sdk\nnextjs\nai-sdk\nworkflow\n");
-    expect([...parsed]).toEqual(["nextjs", "ai-sdk", "workflow"]);
-  });
-});
-
-describe("readSeenSkillsFile", () => {
-  test("returns an empty set for a missing file", () => {
-    const parsed = readSeenSkillsFile(seenSkillsFile);
-    expect([...parsed]).toEqual([]);
-  });
-
-  test("returns an empty set for undefined and blank path inputs", () => {
-    expect([...readSeenSkillsFile(undefined)]).toEqual([]);
-    expect([...readSeenSkillsFile("")]).toEqual([]);
-    expect([...readSeenSkillsFile("   ")]).toEqual([]);
+  test("skips empty segments from trailing commas", () => {
+    const parsed = parseSeenSkills("nextjs,,ai-sdk,");
+    expect([...parsed]).toEqual(["nextjs", "ai-sdk"]);
   });
 });
 
 describe("appendSeenSkill", () => {
-  test("no-ops for undefined/blank path and blank skill", () => {
-    appendSeenSkill(undefined, "nextjs");
-    appendSeenSkill("", "nextjs");
-    appendSeenSkill("   ", "nextjs");
-    appendSeenSkill(seenSkillsFile, "");
-    appendSeenSkill(seenSkillsFile, "   ");
-    expect(existsSync(seenSkillsFile)).toBe(false);
+  test("appends to empty string", () => {
+    expect(appendSeenSkill("", "nextjs")).toBe("nextjs");
   });
 
-  test("appends newline-delimited content that round-trips through readSeenSkillsFile", () => {
-    appendSeenSkill(seenSkillsFile, "nextjs");
-    appendSeenSkill(seenSkillsFile, "ai-sdk");
+  test("appends with comma to existing", () => {
+    expect(appendSeenSkill("nextjs", "ai-sdk")).toBe("nextjs,ai-sdk");
+  });
 
-    const raw = readFileSync(seenSkillsFile, "utf8");
-    expect(raw).toBe("nextjs\nai-sdk\n");
+  test("appends to multi-skill string", () => {
+    expect(appendSeenSkill("nextjs,ai-sdk", "workflow")).toBe("nextjs,ai-sdk,workflow");
+  });
 
-    const parsed = readSeenSkillsFile(seenSkillsFile);
-    expect([...parsed]).toEqual(["nextjs", "ai-sdk"]);
+  test("no-ops for blank skill", () => {
+    expect(appendSeenSkill("nextjs", "")).toBe("nextjs");
+    expect(appendSeenSkill("nextjs", "   ")).toBe("nextjs");
+  });
+
+  test("handles undefined envValue", () => {
+    expect(appendSeenSkill(undefined, "nextjs")).toBe("nextjs");
   });
 });
