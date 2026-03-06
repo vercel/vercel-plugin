@@ -142,6 +142,68 @@ describe("explain --project validation", () => {
 });
 
 // ---------------------------------------------------------------------------
+// budget-aware injection
+// ---------------------------------------------------------------------------
+
+describe("budget-aware injection", () => {
+  test("json includes injectionMode and budget fields", async () => {
+    const { stdout } = await runCli("explain", "vercel.json", "--json");
+    const result = JSON.parse(stdout);
+    expect(typeof result.budgetBytes).toBe("number");
+    expect(typeof result.usedBytes).toBe("number");
+    expect(typeof result.droppedByBudgetCount).toBe("number");
+    expect(typeof result.summaryOnlyCount).toBe("number");
+    for (const m of result.matches) {
+      expect(m).toHaveProperty("injectionMode");
+      expect(m).toHaveProperty("bodyBytes");
+      expect(["full", "summary", "droppedByCap", "droppedByBudget"]).toContain(m.injectionMode);
+    }
+  });
+
+  test("usedBytes does not exceed budgetBytes", async () => {
+    const { stdout } = await runCli("explain", "vercel.json", "--json");
+    const result = JSON.parse(stdout);
+    expect(result.usedBytes).toBeLessThanOrEqual(result.budgetBytes);
+  });
+
+  test("tiny budget forces budget drops", async () => {
+    const { stdout } = await runCli("explain", "vercel.json", "--json", "--budget", "100");
+    const result = JSON.parse(stdout);
+    // First skill always injected regardless of budget, rest should be budget-dropped
+    const fullCount = result.matches.filter((m: any) => m.injectionMode === "full").length;
+    expect(fullCount).toBe(1);
+    if (result.matches.length > 1) {
+      expect(result.droppedByBudgetCount).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// profiler boost (--likely-skills)
+// ---------------------------------------------------------------------------
+
+describe("profiler boost", () => {
+  test("--likely-skills boosts effective priority by 5", async () => {
+    const { stdout } = await runCli("explain", "vercel.json", "--json", "--likely-skills", "vercel-cli");
+    const result = JSON.parse(stdout);
+    const boosted = result.matches.find((m: any) => m.skill === "vercel-cli");
+    expect(boosted).toBeDefined();
+    // vercel-cli base priority is 4, boosted should be 9
+    expect(boosted.effectivePriority).toBe(boosted.priority + 5);
+  });
+
+  test("--likely-skills reorders ranking", async () => {
+    const { stdout: before } = await runCli("explain", "vercel.json", "--json");
+    const { stdout: after } = await runCli("explain", "vercel.json", "--json", "--likely-skills", "vercel-cli");
+    const resultBefore = JSON.parse(before);
+    const resultAfter = JSON.parse(after);
+    // Without boost, vercel-cli should not be first; with boost it should be
+    expect(resultAfter.matches[0].skill).toBe("vercel-cli");
+    expect(resultBefore.matches[0].skill).not.toBe("vercel-cli");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // collision detection
 // ---------------------------------------------------------------------------
 
@@ -159,14 +221,26 @@ describe("collision detection", () => {
 // ---------------------------------------------------------------------------
 
 describe("cap behavior", () => {
-  test("vercel.json shows capped skills when >3 match", async () => {
+  test("vercel.json shows capped/budget-dropped skills when >3 match", async () => {
     const { stdout } = await runCli("explain", "vercel.json", "--json");
     const result = JSON.parse(stdout);
-    // vercel.json should match >=4 skills so cap applies
+    // vercel.json matches multiple skills; some should be capped or budget-dropped
     if (result.matches.length > 3) {
-      expect(result.cappedCount).toBeGreaterThan(0);
-      const capped = result.matches.filter((m: any) => m.capped);
-      expect(capped.length).toBe(result.cappedCount);
+      // Total capped = droppedByCap + droppedByBudget
+      const notInjected = result.matches.filter((m: any) => m.capped);
+      expect(notInjected.length).toBe(result.cappedCount);
+    }
+  });
+
+  test("large budget allows MAX_SKILLS cap to apply", async () => {
+    const { stdout } = await runCli("explain", "vercel.json", "--json", "--budget", "999999");
+    const result = JSON.parse(stdout);
+    if (result.matches.length > 3) {
+      // With infinite budget, cap should still apply at 3
+      const injected = result.matches.filter((m: any) => m.injected);
+      expect(injected.length).toBeLessThanOrEqual(3);
+      const cappedByHardCeiling = result.matches.filter((m: any) => m.injectionMode === "droppedByCap");
+      expect(cappedByHardCeiling.length).toBeGreaterThan(0);
     }
   });
 });

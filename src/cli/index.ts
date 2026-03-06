@@ -23,6 +23,8 @@ Commands:
 Options for explain:
   --json              Output machine-readable JSON
   --project <path>    Project root (default: current plugin directory)
+  --likely-skills s1,s2  Simulate session-start profiler boost (+5 priority)
+  --budget <bytes>    Override injection byte budget (default: 12000)
   --help, -h          Show this help message
 
 Examples:
@@ -53,6 +55,8 @@ function runExplain(explainArgs: string[]) {
   let target = "";
   let jsonOutput = false;
   let projectRoot = resolve(import.meta.dir, "../..");
+  let likelySkills: string | undefined;
+  let budgetBytes: number | undefined;
 
   for (let i = 0; i < explainArgs.length; i++) {
     const arg = explainArgs[i];
@@ -65,6 +69,24 @@ function runExplain(explainArgs: string[]) {
         process.exit(1);
       }
       projectRoot = resolve(explainArgs[i]);
+    } else if (arg === "--likely-skills") {
+      i++;
+      if (i >= explainArgs.length) {
+        console.error("Error: --likely-skills requires a comma-delimited list");
+        process.exit(1);
+      }
+      likelySkills = explainArgs[i];
+    } else if (arg === "--budget") {
+      i++;
+      if (i >= explainArgs.length) {
+        console.error("Error: --budget requires a byte count");
+        process.exit(1);
+      }
+      budgetBytes = parseInt(explainArgs[i], 10);
+      if (!Number.isFinite(budgetBytes) || budgetBytes <= 0) {
+        console.error("Error: --budget must be a positive integer");
+        process.exit(1);
+      }
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -93,7 +115,7 @@ function runExplain(explainArgs: string[]) {
   }
 
   try {
-    const result = explain(target, projectRoot);
+    const result = explain(target, projectRoot, { likelySkills, budgetBytes });
 
     if (jsonOutput) {
       console.log(JSON.stringify(result, null, 2));

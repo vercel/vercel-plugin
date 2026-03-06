@@ -1,0 +1,18 @@
+{
+  "description": "Golden snapshot: Edit app/api/chat/route.ts triggers ai-sdk, vercel-functions, and nextjs",
+  "input": {
+    "tool_name": "Edit",
+    "tool_input": { "file_path": "/Users/me/project/app/api/chat/route.ts" }
+  },
+  "expected": {
+    "skillInjection": {
+      "version": 1,
+      "toolName": "Edit",
+      "toolTarget": "/Users/me/project/app/api/chat/route.ts",
+      "matchedSkills": ["ai-sdk", "nextjs", "vercel-functions"],
+      "injectedSkills": ["ai-sdk", "vercel-functions", "nextjs"],
+      "droppedByCap": [],
+      "droppedByBudget": []
+    }
+  }
+}

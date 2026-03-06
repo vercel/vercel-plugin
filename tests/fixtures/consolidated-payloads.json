@@ -1,0 +1,95 @@
+{
+  "description": "Consolidated golden snapshot fixtures for hook payload assertions",
+  "fixtures": [
+    {
+      "name": "vercel.json edit — cap collision",
+      "input": {
+        "tool_name": "Edit",
+        "tool_input": { "file_path": "/Users/me/project/vercel.json" }
+      },
+      "expected": {
+        "skillInjection": {
+          "version": 1,
+          "toolName": "Edit",
+          "toolTarget": "/Users/me/project/vercel.json",
+          "matchedSkills": ["cron-jobs", "deployments-cicd", "routing-middleware", "vercel-cli", "vercel-functions"],
+          "injectedSkills": ["vercel-functions", "cron-jobs", "deployments-cicd"],
+          "droppedByCap": ["routing-middleware", "vercel-cli"],
+          "droppedByBudget": []
+        }
+      }
+    },
+    {
+      "name": "next.config.ts read",
+      "input": {
+        "tool_name": "Read",
+        "tool_input": { "file_path": "/Users/me/project/next.config.ts" }
+      },
+      "expected": {
+        "skillInjection": {
+          "version": 1,
+          "toolName": "Read",
+          "toolTarget": "/Users/me/project/next.config.ts",
+          "matchedSkills": ["nextjs", "turbopack"],
+          "injectedSkills": ["nextjs", "turbopack"],
+          "droppedByCap": [],
+          "droppedByBudget": []
+        }
+      }
+    },
+    {
+      "name": "bash deploy command",
+      "input": {
+        "tool_name": "Bash",
+        "tool_input": { "command": "vercel deploy --prod" }
+      },
+      "expected": {
+        "skillInjection": {
+          "version": 1,
+          "toolName": "Bash",
+          "toolTarget": "vercel deploy --prod",
+          "matchedSkills": ["deployments-cicd", "vercel-cli"],
+          "injectedSkills": ["deployments-cicd", "vercel-cli"],
+          "droppedByCap": [],
+          "droppedByBudget": []
+        }
+      }
+    },
+    {
+      "name": "AI SDK file edit",
+      "input": {
+        "tool_name": "Edit",
+        "tool_input": { "file_path": "/Users/me/project/app/api/chat/route.ts" }
+      },
+      "expected": {
+        "skillInjection": {
+          "version": 1,
+          "toolName": "Edit",
+          "toolTarget": "/Users/me/project/app/api/chat/route.ts",
+          "matchedSkills": ["ai-sdk", "nextjs", "vercel-functions"],
+          "injectedSkills": ["ai-sdk", "vercel-functions", "nextjs"],
+          "droppedByCap": [],
+          "droppedByBudget": []
+        }
+      }
+    },
+    {
+      "name": "bash cap collision — npm install triggers 4 skills",
+      "input": {
+        "tool_name": "Bash",
+        "tool_input": { "command": "npm install ai @vercel/analytics @vercel/flags @vercel/workflow" }
+      },
+      "expected": {
+        "skillInjection": {
+          "version": 1,
+          "toolName": "Bash",
+          "toolTarget": "npm install ai @vercel/analytics @vercel/flags @vercel/workflow",
+          "matchedSkills": ["ai-sdk", "observability", "vercel-flags", "workflow"],
+          "injectedSkills": ["ai-sdk", "observability", "vercel-flags"],
+          "droppedByCap": ["workflow"],
+          "droppedByBudget": []
+        }
+      }
+    }
+  ]
+}

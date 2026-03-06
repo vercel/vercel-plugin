@@ -12,11 +12,13 @@
  */
 
 import { readdir, readFile, stat } from "node:fs/promises";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { checkCoverage, type CoverageResult } from "./coverage-baseline";
 import { extractFrontmatter, parseSkillFrontmatter, buildSkillMap, validateSkillMap } from "../hooks/skill-map-frontmatter.mjs";
 import { globToRegex, importPatternToRegex } from "../hooks/patterns.mjs";
+import { buildManifest } from "./build-manifest";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1136,6 +1138,20 @@ async function main() {
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
+
+  // Generate skill-manifest.json when validation passes (no errors)
+  if (errorCount === 0) {
+    const outDir = join(ROOT, "generated");
+    const outFile = join(outDir, "skill-manifest.json");
+    const { manifest, errors: manifestErrors } = buildManifest(join(ROOT, "skills"));
+    if (manifestErrors.length === 0) {
+      mkdirSync(outDir, { recursive: true });
+      writeFileSync(outFile, JSON.stringify(manifest, null, 2) + "\n");
+      if (FORMAT === "pretty") {
+        console.log(`\n✓ Generated ${outFile} (${Object.keys(manifest.skills).length} skills)`);
+      }
+    }
+  }
 
   if (FORMAT === "json") {
     const report: ValidationReport = {
