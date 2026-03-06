@@ -51,6 +51,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine
 │   ↔ Vercel CLI (vercel env)
 │   ↔ Marketplace Integrations (auto-provisioned)
+│   ⤳ skill:bootstrap
 │
 ├── Secure Compute (isolated infrastructure for compliance workloads)
 │   → Deployment Engine (opt-in per project)

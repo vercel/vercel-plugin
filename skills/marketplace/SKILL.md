@@ -443,6 +443,7 @@ curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
 - **Drain configuration, payload formats, signature verification** → `⤳ skill: observability`
 - **Drains REST API endpoints** → `⤳ skill: vercel-api`
 - **CLI log streaming (`--follow`, `--since`, `--level`)** → `⤳ skill: vercel-cli`
+- **Safe project setup sequencing (link, env pull, then run db/dev)** → `⤳ skill:bootstrap`
 
 ## Official Documentation
 

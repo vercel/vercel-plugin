@@ -1,5 +1,6 @@
 {
-  "generatedAt": "2026-03-06T17:36:17.872Z",
+  "generatedAt": "2026-03-06T18:44:31.355Z",
+  "version": 2,
   "skills": {
     "vercel-agent": {
       "priority": 4,
@@ -16,7 +17,19 @@
         "\\bvercel\\s+agent\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-agent/SKILL.md"
+      "bodyPath": "skills/vercel-agent/SKILL.md",
+      "pathRegexSources": [
+        "^\\.github\\/workflows\\/vercel[^/]*\\.yml$",
+        "^\\.github\\/workflows\\/vercel[^/]*\\.yaml$",
+        "^\\.github\\/workflows\\/deploy[^/]*\\.yml$",
+        "^\\.github\\/workflows\\/deploy[^/]*\\.yaml$",
+        "^\\.github\\/workflows\\/preview[^/]*\\.yml$",
+        "^\\.github\\/workflows\\/preview[^/]*\\.yaml$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+agent\\b"
+      ],
+      "importRegexSources": []
     },
     "routing-middleware": {
       "priority": 6,
@@ -43,7 +56,29 @@
       ],
       "bashPatterns": [],
       "importPatterns": [],
-      "bodyPath": "skills/routing-middleware/SKILL.md"
+      "bodyPath": "skills/routing-middleware/SKILL.md",
+      "pathRegexSources": [
+        "^middleware\\.ts$",
+        "^middleware\\.js$",
+        "^middleware\\.mts$",
+        "^middleware\\.mjs$",
+        "^proxy\\.ts$",
+        "^proxy\\.js$",
+        "^proxy\\.mts$",
+        "^proxy\\.mjs$",
+        "^src\\/middleware\\.ts$",
+        "^src\\/middleware\\.js$",
+        "^src\\/middleware\\.mts$",
+        "^src\\/middleware\\.mjs$",
+        "^src\\/proxy\\.ts$",
+        "^src\\/proxy\\.js$",
+        "^src\\/proxy\\.mts$",
+        "^src\\/proxy\\.mjs$",
+        "^vercel\\.json$",
+        "^apps\\/[^/]*\\/vercel\\.json$"
+      ],
+      "bashRegexSources": [],
+      "importRegexSources": []
     },
     "agent-browser": {
       "priority": 3,
@@ -75,7 +110,34 @@
         "\\bcypress\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/agent-browser/SKILL.md"
+      "bodyPath": "skills/agent-browser/SKILL.md",
+      "pathRegexSources": [
+        "^agent-browser\\.json$",
+        "^playwright\\.config\\.[^/]*$",
+        "^e2e\\/.*$",
+        "^tests\\/e2e\\/.*$",
+        "^test\\/e2e\\/.*$",
+        "^cypress\\/.*$",
+        "^cypress\\.config\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bagent-browser\\b",
+        "\\bnext\\s+dev\\b",
+        "\\bnpm\\s+run\\s+dev\\b",
+        "\\bpnpm\\s+dev\\b",
+        "\\bbun\\s+run\\s+dev\\b",
+        "\\byarn\\s+dev\\b",
+        "\\bvite\\b",
+        "\\bnuxt\\s+dev\\b",
+        "\\bvercel\\s+dev\\b",
+        "\\blocalhost:\\d+",
+        "\\b127\\.0\\.0\\.1:\\d+",
+        "\\bcurl\\s+.*localhost",
+        "\\bopen\\s+https?://",
+        "\\bplaywright\\b",
+        "\\bcypress\\b"
+      ],
+      "importRegexSources": []
     },
     "json-render": {
       "priority": 4,
@@ -92,7 +154,19 @@
       ],
       "bashPatterns": [],
       "importPatterns": [],
-      "bodyPath": "skills/json-render/SKILL.md"
+      "bodyPath": "skills/json-render/SKILL.md",
+      "pathRegexSources": [
+        "^components\\/chat\\/.*$",
+        "^components\\/chat-[^/]*\\.tsx$",
+        "^components\\/chat-[^/]*\\.ts$",
+        "^src\\/components\\/chat\\/.*$",
+        "^src\\/components\\/chat-[^/]*\\.tsx$",
+        "^src\\/components\\/chat-[^/]*\\.ts$",
+        "^components\\/message[^/]*\\.tsx$",
+        "^src\\/components\\/message[^/]*\\.tsx$"
+      ],
+      "bashRegexSources": [],
+      "importRegexSources": []
     },
     "deployments-cicd": {
       "priority": 6,
@@ -115,7 +189,25 @@
         "\\bvercel\\s+deploy\\s+--prebuilt\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/deployments-cicd/SKILL.md"
+      "bodyPath": "skills/deployments-cicd/SKILL.md",
+      "pathRegexSources": [
+        "^\\.github\\/workflows\\/[^/]*\\.yml$",
+        "^\\.github\\/workflows\\/[^/]*\\.yaml$",
+        "^\\.gitlab-ci\\.yml$",
+        "^bitbucket-pipelines\\.yml$",
+        "^vercel\\.json$",
+        "^apps\\/[^/]*\\/vercel\\.json$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+deploy\\b",
+        "\\bvercel\\s+--prod\\b",
+        "\\bvercel\\s+promote\\b",
+        "\\bvercel\\s+rollback\\b",
+        "\\bvercel\\s+inspect\\b",
+        "\\bvercel\\s+build\\b",
+        "\\bvercel\\s+deploy\\s+--prebuilt\\b"
+      ],
+      "importRegexSources": []
     },
     "vercel-storage": {
       "priority": 7,
@@ -159,7 +251,135 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/postgres\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-storage/SKILL.md"
+      "bodyPath": "skills/vercel-storage/SKILL.md",
+      "pathRegexSources": [
+        "^lib\\/blob\\/.*$",
+        "^lib\\/storage\\/.*$",
+        "^src\\/lib\\/blob\\/.*$",
+        "^src\\/lib\\/storage\\/.*$",
+        "^lib\\/blob\\.[^/]*$",
+        "^lib\\/storage\\.[^/]*$",
+        "^lib\\/edge-config\\.[^/]*$",
+        "^src\\/lib\\/blob\\.[^/]*$",
+        "^src\\/lib\\/storage\\.[^/]*$",
+        "^src\\/lib\\/edge-config\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/blob\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/blob\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/blob\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/blob\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@neondatabase/serverless\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@upstash/redis\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@upstash/redis\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@upstash/redis\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@upstash/redis\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kv\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kv\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/kv\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/kv\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/postgres\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/postgres\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/postgres\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/postgres\\b"
+      ],
+      "importRegexSources": []
+    },
+    "bootstrap": {
+      "priority": 8,
+      "summary": "",
+      "pathPatterns": [
+        ".env.example",
+        ".env.sample",
+        ".env.template",
+        "README*",
+        "docs/**/setup*",
+        "package.json",
+        "drizzle.config.*",
+        "prisma/schema.prisma",
+        "auth.*",
+        "src/**/auth.*"
+      ],
+      "bashPatterns": [
+        "\\\\bcp\\\\s+\\\\.env\\\\.(?:example|sample|template)\\\\s+\\\\.env\\\\.local\\\\b",
+        "\\\\b(?:npm|pnpm|bun|yarn)\\\\s+run\\\\s+db:(?:push|seed|migrate|generate)\\\\b",
+        "\\\\b(?:npm|pnpm|bun|yarn)\\\\s+run\\\\s+dev\\\\b",
+        "\\\\bvercel\\\\s+link\\\\b",
+        "\\\\bvercel\\\\s+integration\\\\s+(?:add|install)\\\\b",
+        "\\\\bvercel\\\\s+env\\\\s+pull\\\\b"
+      ],
+      "importPatterns": [
+        "@neondatabase/serverless",
+        "drizzle-orm",
+        "@upstash/redis",
+        "@vercel/blob",
+        "@vercel/edge-config",
+        "next-auth",
+        "@auth/core",
+        "better-auth"
+      ],
+      "bodyPath": "skills/bootstrap/SKILL.md",
+      "pathRegexSources": [
+        "^\\.env\\.example$",
+        "^\\.env\\.sample$",
+        "^\\.env\\.template$",
+        "^README[^/]*$",
+        "^docs\\/(?:[^/]+\\/)*setup[^/]*$",
+        "^package\\.json$",
+        "^drizzle\\.config\\.[^/]*$",
+        "^prisma\\/schema\\.prisma$",
+        "^auth\\.[^/]*$",
+        "^src\\/(?:[^/]+\\/)*auth\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\\\bcp\\\\s+\\\\.env\\\\.(?:example|sample|template)\\\\s+\\\\.env\\\\.local\\\\b",
+        "\\\\b(?:npm|pnpm|bun|yarn)\\\\s+run\\\\s+db:(?:push|seed|migrate|generate)\\\\b",
+        "\\\\b(?:npm|pnpm|bun|yarn)\\\\s+run\\\\s+dev\\\\b",
+        "\\\\bvercel\\\\s+link\\\\b",
+        "\\\\bvercel\\\\s+integration\\\\s+(?:add|install)\\\\b",
+        "\\\\bvercel\\\\s+env\\\\s+pull\\\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@neondatabase\\/serverless(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]drizzle-orm(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@upstash\\/redis(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/blob(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/edge-config(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]next-auth(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@auth\\/core(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]better-auth(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "vercel-cli": {
       "priority": 4,
@@ -180,7 +400,23 @@
         "\\byarn\\s+dlx\\s+vercel\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-cli/SKILL.md"
+      "bodyPath": "skills/vercel-cli/SKILL.md",
+      "pathRegexSources": [
+        "^vercel\\.json$",
+        "^vercel\\.ts$",
+        "^\\.vercel\\/.*$",
+        "^\\.vercelignore$",
+        "^now\\.json$"
+      ],
+      "bashRegexSources": [
+        "^\\s*vercel(?:\\s|$)",
+        "^\\s*vc(?:\\s|$)",
+        "\\bnpx\\s+vercel\\b",
+        "\\bpnpm\\s+dlx\\s+vercel\\b",
+        "\\bbunx\\s+vercel\\b",
+        "\\byarn\\s+dlx\\s+vercel\\b"
+      ],
+      "importRegexSources": []
     },
     "runtime-cache": {
       "priority": 6,
@@ -198,7 +434,20 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/functions\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/runtime-cache/SKILL.md"
+      "bodyPath": "skills/runtime-cache/SKILL.md",
+      "pathRegexSources": [
+        "^lib\\/cache\\/.*$",
+        "^src\\/lib\\/cache\\/.*$",
+        "^lib\\/cache\\.[^/]*$",
+        "^src\\/lib\\/cache\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/functions\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/functions\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/functions\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/functions\\b"
+      ],
+      "importRegexSources": []
     },
     "ai-gateway": {
       "priority": 7,
@@ -214,7 +463,21 @@
       "importPatterns": [
         "@ai-sdk/gateway"
       ],
-      "bodyPath": "skills/ai-gateway/SKILL.md"
+      "bodyPath": "skills/ai-gateway/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bvercel\\s+env\\s+pull\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@ai-sdk/gateway\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@ai-sdk\\/gateway(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "vercel-queues": {
       "priority": 5,
@@ -234,7 +497,22 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/queue\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-queues/SKILL.md"
+      "bodyPath": "skills/vercel-queues/SKILL.md",
+      "pathRegexSources": [
+        "^lib\\/queues\\/.*$",
+        "^src\\/lib\\/queues\\/.*$",
+        "^lib\\/queues\\.[^/]*$",
+        "^lib\\/queue\\.[^/]*$",
+        "^src\\/lib\\/queues\\.[^/]*$",
+        "^src\\/lib\\/queue\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/queue\\b"
+      ],
+      "importRegexSources": []
     },
     "turbopack": {
       "priority": 4,
@@ -247,7 +525,15 @@
         "\\bnext\\s+dev\\s+--turbopack\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/turbopack/SKILL.md"
+      "bodyPath": "skills/turbopack/SKILL.md",
+      "pathRegexSources": [
+        "^next\\.config\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnext\\s+dev\\s+--turbo\\b",
+        "\\bnext\\s+dev\\s+--turbopack\\b"
+      ],
+      "importRegexSources": []
     },
     "marketplace": {
       "priority": 3,
@@ -259,7 +545,14 @@
         "\\bvercel\\s+integration\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/marketplace/SKILL.md"
+      "bodyPath": "skills/marketplace/SKILL.md",
+      "pathRegexSources": [
+        "^integration\\.json$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+integration\\b"
+      ],
+      "importRegexSources": []
     },
     "vercel-flags": {
       "priority": 6,
@@ -281,7 +574,24 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/flags\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-flags/SKILL.md"
+      "bodyPath": "skills/vercel-flags/SKILL.md",
+      "pathRegexSources": [
+        "^flags\\.ts$",
+        "^flags\\.js$",
+        "^src\\/flags\\.ts$",
+        "^src\\/flags\\.js$",
+        "^lib\\/flags\\/.*$",
+        "^src\\/lib\\/flags\\/.*$",
+        "^lib\\/flags\\.[^/]*$",
+        "^src\\/lib\\/flags\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/flags\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/flags\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/flags\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/flags\\b"
+      ],
+      "importRegexSources": []
     },
     "shadcn": {
       "priority": 5,
@@ -300,7 +610,21 @@
         "\\bnpx\\s+shadcn@latest\\s+(init|add|build|search|list|migrate)\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/shadcn/SKILL.md"
+      "bodyPath": "skills/shadcn/SKILL.md",
+      "pathRegexSources": [
+        "^components\\.json$",
+        "^components\\/ui\\/.*$",
+        "^src\\/components\\/ui\\/.*$",
+        "^apps\\/[^/]*\\/components\\/ui\\/.*$",
+        "^apps\\/[^/]*\\/src\\/components\\/ui\\/.*$",
+        "^packages\\/[^/]*\\/components\\/ui\\/.*$",
+        "^packages\\/[^/]*\\/src\\/components\\/ui\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpx\\s+shadcn\\b",
+        "\\bnpx\\s+shadcn@latest\\s+(init|add|build|search|list|migrate)\\b"
+      ],
+      "importRegexSources": []
     },
     "cron-jobs": {
       "priority": 6,
@@ -311,7 +635,13 @@
       ],
       "bashPatterns": [],
       "importPatterns": [],
-      "bodyPath": "skills/cron-jobs/SKILL.md"
+      "bodyPath": "skills/cron-jobs/SKILL.md",
+      "pathRegexSources": [
+        "^vercel\\.json$",
+        "^apps\\/[^/]*\\/vercel\\.json$"
+      ],
+      "bashRegexSources": [],
+      "importRegexSources": []
     },
     "observability": {
       "priority": 6,
@@ -343,7 +673,34 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/speed-insights\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/observability/SKILL.md"
+      "bodyPath": "skills/observability/SKILL.md",
+      "pathRegexSources": [
+        "^instrumentation\\.ts$",
+        "^instrumentation\\.js$",
+        "^src\\/instrumentation\\.ts$",
+        "^src\\/instrumentation\\.js$",
+        "^app\\/layout\\.[^/]*$",
+        "^src\\/app\\/layout\\.[^/]*$",
+        "^pages\\/_app\\.[^/]*$",
+        "^src\\/pages\\/_app\\.[^/]*$",
+        "^apps\\/[^/]*\\/instrumentation\\.ts$",
+        "^apps\\/[^/]*\\/instrumentation\\.js$",
+        "^apps\\/[^/]*\\/app\\/layout\\.[^/]*$",
+        "^apps\\/[^/]*\\/src\\/app\\/layout\\.[^/]*$",
+        "^apps\\/[^/]*\\/pages\\/_app\\.[^/]*$",
+        "^apps\\/[^/]*\\/src\\/pages\\/_app\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/analytics\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/analytics\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/analytics\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/analytics\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/speed-insights\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/speed-insights\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/speed-insights\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/speed-insights\\b"
+      ],
+      "importRegexSources": []
     },
     "workflow": {
       "priority": 6,
@@ -362,7 +719,21 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/workflow\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/workflow/SKILL.md"
+      "bodyPath": "skills/workflow/SKILL.md",
+      "pathRegexSources": [
+        "^lib\\/workflow\\/.*$",
+        "^src\\/lib\\/workflow\\/.*$",
+        "^workflows\\/.*$",
+        "^lib\\/workflow\\.[^/]*$",
+        "^workflow\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/workflow\\b"
+      ],
+      "importRegexSources": []
     },
     "nextjs": {
       "priority": 5,
@@ -393,7 +764,33 @@
         "\\bbun\\s+run\\s+(dev|build)\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/nextjs/SKILL.md"
+      "bodyPath": "skills/nextjs/SKILL.md",
+      "pathRegexSources": [
+        "^next\\.config\\.[^/]*$",
+        "^next-env\\.d\\.ts$",
+        "^app\\/.*$",
+        "^pages\\/.*$",
+        "^src\\/app\\/.*$",
+        "^src\\/pages\\/.*$",
+        "^tailwind\\.config\\.[^/]*$",
+        "^postcss\\.config\\.[^/]*$",
+        "^tsconfig\\.json$",
+        "^tsconfig\\.[^/]*\\.json$",
+        "^apps\\/[^/]*\\/app\\/.*$",
+        "^apps\\/[^/]*\\/pages\\/.*$",
+        "^apps\\/[^/]*\\/src\\/app\\/.*$",
+        "^apps\\/[^/]*\\/src\\/pages\\/.*$",
+        "^apps\\/[^/]*\\/next\\.config\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnext\\s+(dev|build|start|lint)\\b",
+        "\\bnpx\\s+create-next-app\\b",
+        "\\bbunx\\s+create-next-app\\b",
+        "\\bnpm\\s+run\\s+(dev|build|start)\\b",
+        "\\bpnpm\\s+(dev|build)\\b",
+        "\\bbun\\s+run\\s+(dev|build)\\b"
+      ],
+      "importRegexSources": []
     },
     "ai-elements": {
       "priority": 5,
@@ -411,7 +808,20 @@
         "\\bnpx\\s+shadcn@latest\\s+add\\s+[^\\n]*elements\\.ai-sdk\\.dev\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/ai-elements/SKILL.md"
+      "bodyPath": "skills/ai-elements/SKILL.md",
+      "pathRegexSources": [
+        "^components\\/ai-elements\\/.*$",
+        "^src\\/components\\/ai-elements\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpx\\s+ai-elements\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bai-elements\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bai-elements\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bai-elements\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bai-elements\\b",
+        "\\bnpx\\s+shadcn@latest\\s+add\\s+[^\\n]*elements\\.ai-sdk\\.dev\\b"
+      ],
+      "importRegexSources": []
     },
     "vercel-sandbox": {
       "priority": 4,
@@ -424,7 +834,15 @@
         "\\byarn\\s+add\\s+[^\\n]*@vercel/sandbox\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-sandbox/SKILL.md"
+      "bodyPath": "skills/vercel-sandbox/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/sandbox\\b"
+      ],
+      "importRegexSources": []
     },
     "chat-sdk": {
       "priority": 8,
@@ -489,7 +907,67 @@
         "\\byarn\\s+add\\s+[^\\n]*@chat-adapter/telegram"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/chat-sdk/SKILL.md"
+      "bodyPath": "skills/chat-sdk/SKILL.md",
+      "pathRegexSources": [
+        "^app\\/api\\/chat-bot\\/.*$",
+        "^app\\/api\\/bot\\/.*$",
+        "^app\\/api\\/slack\\/.*$",
+        "^app\\/api\\/teams\\/.*$",
+        "^app\\/api\\/discord\\/.*$",
+        "^app\\/api\\/gchat\\/.*$",
+        "^app\\/api\\/telegram\\/.*$",
+        "^app\\/api\\/github-bot\\/.*$",
+        "^app\\/api\\/linear-bot\\/.*$",
+        "^app\\/api\\/webhooks\\/slack\\/.*$",
+        "^app\\/api\\/webhooks\\/teams\\/.*$",
+        "^app\\/api\\/webhooks\\/discord\\/.*$",
+        "^app\\/api\\/webhooks\\/gchat\\/.*$",
+        "^app\\/api\\/webhooks\\/telegram\\/.*$",
+        "^app\\/api\\/webhooks\\/github\\/.*$",
+        "^app\\/api\\/webhooks\\/linear\\/.*$",
+        "^src\\/app\\/api\\/chat-bot\\/.*$",
+        "^src\\/app\\/api\\/bot\\/.*$",
+        "^src\\/app\\/api\\/slack\\/.*$",
+        "^src\\/app\\/api\\/teams\\/.*$",
+        "^src\\/app\\/api\\/discord\\/.*$",
+        "^src\\/app\\/api\\/gchat\\/.*$",
+        "^src\\/app\\/api\\/telegram\\/.*$",
+        "^lib\\/bot\\.[^/]*$",
+        "^lib\\/bot\\/.*$",
+        "^src\\/lib\\/bot\\.[^/]*$",
+        "^src\\/lib\\/bot\\/.*$",
+        "^lib\\/chat-bot\\/.*$",
+        "^src\\/lib\\/chat-bot\\/.*$",
+        "^bot\\/.*$",
+        "^pages\\/api\\/bot\\.[^/]*$",
+        "^pages\\/api\\/bot\\/.*$",
+        "^src\\/pages\\/api\\/bot\\.[^/]*$",
+        "^src\\/pages\\/api\\/bot\\/.*$",
+        "^tests\\/(?:[^/]+\\/)*bot[^/]*$",
+        "^test\\/(?:[^/]+\\/)*bot[^/]*$",
+        "^fixtures\\/replay\\/.*$",
+        "^apps\\/[^/]*\\/app\\/api\\/bot\\/.*$",
+        "^apps\\/[^/]*\\/app\\/api\\/slack\\/.*$",
+        "^apps\\/[^/]*\\/app\\/api\\/teams\\/.*$",
+        "^apps\\/[^/]*\\/app\\/api\\/discord\\/.*$",
+        "^apps\\/[^/]*\\/lib\\/bot\\/.*$",
+        "^apps\\/[^/]*\\/src\\/lib\\/bot\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bchat\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bchat\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bchat\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bchat\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@chat-adapter/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@chat-adapter/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@chat-adapter/",
+        "\\byarn\\s+add\\s+[^\\n]*@chat-adapter/",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@chat-adapter/telegram",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@chat-adapter/telegram",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@chat-adapter/telegram",
+        "\\byarn\\s+add\\s+[^\\n]*@chat-adapter/telegram"
+      ],
+      "importRegexSources": []
     },
     "turborepo": {
       "priority": 5,
@@ -504,7 +982,17 @@
         "\\bbunx\\s+turbo\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/turborepo/SKILL.md"
+      "bodyPath": "skills/turborepo/SKILL.md",
+      "pathRegexSources": [
+        "^turbo\\.json$",
+        "^turbo\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bturbo\\s+(run|build|test|lint|dev)\\b",
+        "\\bnpx\\s+turbo\\b",
+        "\\bbunx\\s+turbo\\b"
+      ],
+      "importRegexSources": []
     },
     "ai-sdk": {
       "priority": 8,
@@ -551,7 +1039,55 @@
         "ai",
         "@ai-sdk/*"
       ],
-      "bodyPath": "skills/ai-sdk/SKILL.md"
+      "bodyPath": "skills/ai-sdk/SKILL.md",
+      "pathRegexSources": [
+        "^app\\/api\\/chat\\/.*$",
+        "^app\\/api\\/completion\\/.*$",
+        "^src\\/app\\/api\\/chat\\/.*$",
+        "^src\\/app\\/api\\/completion\\/.*$",
+        "^pages\\/api\\/chat\\.[^/]*$",
+        "^pages\\/api\\/chat\\/.*$",
+        "^pages\\/api\\/completion\\.[^/]*$",
+        "^pages\\/api\\/completion\\/.*$",
+        "^src\\/pages\\/api\\/chat\\.[^/]*$",
+        "^src\\/pages\\/api\\/chat\\/.*$",
+        "^src\\/pages\\/api\\/completion\\.[^/]*$",
+        "^src\\/pages\\/api\\/completion\\/.*$",
+        "^lib\\/ai\\/.*$",
+        "^src\\/lib\\/ai\\/.*$",
+        "^lib\\/ai\\.[^/]*$",
+        "^src\\/lib\\/ai\\.[^/]*$",
+        "^ai\\/.*$",
+        "^apps\\/[^/]*\\/app\\/api\\/chat\\/.*$",
+        "^apps\\/[^/]*\\/app\\/api\\/completion\\/.*$",
+        "^apps\\/[^/]*\\/src\\/app\\/api\\/chat\\/.*$",
+        "^apps\\/[^/]*\\/src\\/app\\/api\\/completion\\/.*$",
+        "^apps\\/[^/]*\\/lib\\/ai\\/.*$",
+        "^apps\\/[^/]*\\/src\\/lib\\/ai\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bai\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bai\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bai\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bai\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/",
+        "\\byarn\\s+add\\s+[^\\n]*@ai-sdk/",
+        "\\bnpx\\s+@ai-sdk/devtools\\b",
+        "\\bnpx\\s+@ai-sdk/codemod\\b",
+        "\\bnpx\\s+mcp-to-ai-sdk\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]ai(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@ai-sdk\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "v0-dev": {
       "priority": 5,
@@ -566,7 +1102,23 @@
         "@v0/sdk",
         "v0"
       ],
-      "bodyPath": "skills/v0-dev/SKILL.md"
+      "bodyPath": "skills/v0-dev/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpx\\s+v0\\b",
+        "\\bbunx\\s+v0\\b",
+        "\\bv0\\s+(generate|dev|chat)\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@v0\\/sdk(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]v0(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "env-vars": {
       "priority": 7,
@@ -590,7 +1142,26 @@
         "\\bvercel\\s+env\\s+ls\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/env-vars/SKILL.md"
+      "bodyPath": "skills/env-vars/SKILL.md",
+      "pathRegexSources": [
+        "^\\.env$",
+        "^\\.env\\.[^/]*$",
+        "^\\.env\\.local$",
+        "^\\.env\\.production$",
+        "^\\.env\\.development$",
+        "^\\.env\\.test$",
+        "^\\.env\\.production\\.local$",
+        "^\\.env\\.development\\.local$",
+        "^\\.env\\.test\\.local$",
+        "^\\.env\\.example$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+env\\s+pull\\b",
+        "\\bvercel\\s+env\\s+add\\b",
+        "\\bvercel\\s+env\\s+rm\\b",
+        "\\bvercel\\s+env\\s+ls\\b"
+      ],
+      "importRegexSources": []
     },
     "vercel-api": {
       "priority": 7,
@@ -608,7 +1179,20 @@
         "\\bmcp\\.vercel\\.com\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-api/SKILL.md"
+      "bodyPath": "skills/vercel-api/SKILL.md",
+      "pathRegexSources": [
+        "^\\.mcp\\.json$",
+        "^\\.vercel\\/project\\.json$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sdk\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sdk\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/sdk\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/sdk\\b",
+        "\\bclaude\\s+mcp\\s+add\\b[^\\n]*\\bvercel\\b",
+        "\\bmcp\\.vercel\\.com\\b"
+      ],
+      "importRegexSources": []
     },
     "sign-in-with-vercel": {
       "priority": 6,
@@ -622,7 +1206,16 @@
       ],
       "bashPatterns": [],
       "importPatterns": [],
-      "bodyPath": "skills/sign-in-with-vercel/SKILL.md"
+      "bodyPath": "skills/sign-in-with-vercel/SKILL.md",
+      "pathRegexSources": [
+        "^app\\/api\\/auth\\/.*$",
+        "^app\\/login\\/.*$",
+        "^src\\/app\\/api\\/auth\\/.*$",
+        "^src\\/app\\/login\\/.*$",
+        "^pages\\/api\\/auth\\/.*$"
+      ],
+      "bashRegexSources": [],
+      "importRegexSources": []
     },
     "vercel-firewall": {
       "priority": 5,
@@ -634,7 +1227,14 @@
         "\\bvercel\\s+firewall\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-firewall/SKILL.md"
+      "bodyPath": "skills/vercel-firewall/SKILL.md",
+      "pathRegexSources": [
+        "^\\.vercel\\/firewall\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+firewall\\b"
+      ],
+      "importRegexSources": []
     },
     "vercel-functions": {
       "priority": 8,
@@ -657,7 +1257,25 @@
         "\\bvercel\\s+logs\\b"
       ],
       "importPatterns": [],
-      "bodyPath": "skills/vercel-functions/SKILL.md"
+      "bodyPath": "skills/vercel-functions/SKILL.md",
+      "pathRegexSources": [
+        "^api\\/(?:[^/]+\\/)*[^/]*\\.[^/]*$",
+        "^pages\\/api\\/.*$",
+        "^src\\/pages\\/api\\/.*$",
+        "^app\\/(?:[^/]+\\/)*route\\.[^/]*$",
+        "^src\\/app\\/(?:[^/]+\\/)*route\\.[^/]*$",
+        "^apps\\/[^/]*\\/api\\/(?:[^/]+\\/)*[^/]*\\.[^/]*$",
+        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*route\\.[^/]*$",
+        "^apps\\/[^/]*\\/src\\/app\\/(?:[^/]+\\/)*route\\.[^/]*$",
+        "^apps\\/[^/]*\\/pages\\/api\\/.*$",
+        "^vercel\\.json$",
+        "^apps\\/[^/]*\\/vercel\\.json$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+dev\\b",
+        "\\bvercel\\s+logs\\b"
+      ],
+      "importRegexSources": []
     }
   }
 }
