@@ -2,9 +2,15 @@ import { defineConfig } from "tsup";
 import { readdirSync } from "node:fs";
 
 // Build each .mts source file as a separate .mjs output (no bundling)
-const entries = readdirSync("hooks/src")
+const discoveredEntries = readdirSync("hooks/src")
   .filter((f) => f.endsWith(".mts"))
   .map((f) => `hooks/src/${f}`);
+const entries = Array.from(
+  new Set([
+    ...discoveredEntries,
+    "hooks/src/session-end-cleanup.mts",
+  ]),
+).sort();
 
 export default defineConfig({
   entry: entries,
