@@ -32,6 +32,36 @@ metadata:
 
 You are an expert in Next.js 16 with the App Router. Always prefer the App Router over the legacy Pages Router unless the user's project explicitly uses Pages Router.
 
+## Critical Pattern: Safe Project Init in Existing Repos
+
+When scaffolding with `create-next-app` in a directory that already contains `.claude/`, **temporarily move `.claude/` out first**, run scaffolding, then move it back. This prevents the "directory contains files that could conflict" failure.
+
+```bash
+mv .claude /tmp/_claude_backup && npx create-next-app@latest . && mv /tmp/_claude_backup .claude
+```
+
+If you need custom `create-next-app` flags, keep the same backup/restore pattern and add flags to the middle command.
+
+## Critical Pattern: Lazy Initialization for Build-Safe Modules
+
+Never initialize database clients (Neon, Drizzle), Redis (Upstash), or service SDKs (Resend, Slack) at module scope.
+
+During `next build`, static generation can evaluate modules before runtime env vars are present, which causes startup crashes. Always initialize these clients lazily inside getter functions.
+
+```ts
+import { drizzle } from 'drizzle-orm/neon-http'
+import { neon } from '@neondatabase/serverless'
+
+let _db: ReturnType<typeof drizzle> | null = null
+
+export function getDb() {
+  if (!_db) _db = drizzle(neon(process.env.DATABASE_URL!))
+  return _db
+}
+```
+
+Apply the same lazy singleton pattern to Redis and SDK clients (`getRedis()`, `getResend()`, `getSlackClient()`) instead of creating them at import time.
+
 ## Scaffolding
 
 When running `create-next-app`, **always** pass `--yes` to skip interactive prompts (e.g., the React Compiler question) that block non-interactive shells:
