@@ -113,6 +113,17 @@ const SETUP_RESOURCE_DEPENDENCIES: Record<string, string> = {
 };
 
 const SETUP_MODE_THRESHOLD = 3;
+const GREENFIELD_DEFAULT_SKILLS: string[] = [
+  "nextjs",
+  "ai-sdk",
+  "vercel-cli",
+  "env-vars",
+];
+const GREENFIELD_SETUP_SIGNALS: BootstrapSignals = {
+  bootstrapHints: ["greenfield"],
+  resourceHints: [],
+  setupMode: true,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -360,20 +371,12 @@ function main(): void {
   // Use CLAUDE_PROJECT_ROOT if available, otherwise cwd
   const projectRoot: string = process.env.CLAUDE_PROJECT_ROOT || process.cwd();
 
-  // Greenfield check — if the project only has dot-directories, skip profiling
-  // and inject a short context hint instead.
+  // Greenfield check — seed defaults and skip repository exploration.
   const greenfield: GreenfieldResult | null = checkGreenfield(projectRoot);
   if (greenfield) {
-    try {
-      appendFileSync(envFile, `export VERCEL_PLUGIN_GREENFIELD="true"\n`);
-    } catch {
-      // ignore
-    }
-    const dirs: string = greenfield.entries.map((e: string) => `  ${e}/`).join("\n");
     process.stdout.write(
-      `This is a greenfield project with only these directories:\n${dirs}\nSkip codebase exploration — there is no existing code to discover.\n`,
+      "This is a greenfield project. Skip exploration — there is no existing code to discover. Start executing immediately.\n",
     );
-    process.exit(0);
   }
 
   // Vercel CLI version check
@@ -397,8 +400,12 @@ function main(): void {
     );
   }
 
-  const likelySkills: string[] = profileProject(projectRoot);
-  const setupSignals: BootstrapSignals = profileBootstrapSignals(projectRoot);
+  const likelySkills: string[] = greenfield
+    ? GREENFIELD_DEFAULT_SKILLS
+    : profileProject(projectRoot);
+  const setupSignals: BootstrapSignals = greenfield
+    ? GREENFIELD_SETUP_SIGNALS
+    : profileBootstrapSignals(projectRoot);
 
   // Check agent-browser CLI availability
   const agentBrowserAvailable: boolean = checkAgentBrowser();
@@ -408,6 +415,9 @@ function main(): void {
       envFile,
       `export VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE="${agentBrowserAvailable ? "1" : "0"}"\n`,
     );
+    if (greenfield) {
+      appendFileSync(envFile, `export VERCEL_PLUGIN_GREENFIELD="true"\n`);
+    }
     if (likelySkills.length > 0) {
       appendFileSync(envFile, `export VERCEL_PLUGIN_LIKELY_SKILLS="${likelySkills.join(",")}"\n`);
     }

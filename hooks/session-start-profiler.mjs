@@ -58,6 +58,17 @@ const SETUP_RESOURCE_DEPENDENCIES = {
   "@vercel/edge-config": "edge-config"
 };
 const SETUP_MODE_THRESHOLD = 3;
+const GREENFIELD_DEFAULT_SKILLS = [
+  "nextjs",
+  "ai-sdk",
+  "vercel-cli",
+  "env-vars"
+];
+const GREENFIELD_SETUP_SIGNALS = {
+  bootstrapHints: ["greenfield"],
+  resourceHints: [],
+  setupMode: true
+};
 function readPackageJson(projectRoot) {
   return safeReadJson(join(projectRoot, "package.json"));
 }
@@ -207,19 +218,9 @@ function main() {
   const projectRoot = process.env.CLAUDE_PROJECT_ROOT || process.cwd();
   const greenfield = checkGreenfield(projectRoot);
   if (greenfield) {
-    try {
-      appendFileSync(envFile, `export VERCEL_PLUGIN_GREENFIELD="true"
-`);
-    } catch {
-    }
-    const dirs = greenfield.entries.map((e) => `  ${e}/`).join("\n");
     process.stdout.write(
-      `This is a greenfield project with only these directories:
-${dirs}
-Skip codebase exploration \u2014 there is no existing code to discover.
-`
+      "This is a greenfield project. Skip exploration \u2014 there is no existing code to discover. Start executing immediately.\n"
     );
-    process.exit(0);
   }
   const cliStatus = checkVercelCli();
   if (!cliStatus.installed) {
@@ -240,8 +241,8 @@ Skip codebase exploration \u2014 there is no existing code to discover.
       ].join("\n")
     );
   }
-  const likelySkills = profileProject(projectRoot);
-  const setupSignals = profileBootstrapSignals(projectRoot);
+  const likelySkills = greenfield ? GREENFIELD_DEFAULT_SKILLS : profileProject(projectRoot);
+  const setupSignals = greenfield ? GREENFIELD_SETUP_SIGNALS : profileBootstrapSignals(projectRoot);
   const agentBrowserAvailable = checkAgentBrowser();
   try {
     appendFileSync(
@@ -249,6 +250,10 @@ Skip codebase exploration \u2014 there is no existing code to discover.
       `export VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE="${agentBrowserAvailable ? "1" : "0"}"
 `
     );
+    if (greenfield) {
+      appendFileSync(envFile, `export VERCEL_PLUGIN_GREENFIELD="true"
+`);
+    }
     if (likelySkills.length > 0) {
       appendFileSync(envFile, `export VERCEL_PLUGIN_LIKELY_SKILLS="${likelySkills.join(",")}"
 `);
