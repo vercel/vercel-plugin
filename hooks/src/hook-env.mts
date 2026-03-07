@@ -6,8 +6,8 @@
  * try/catch boilerplate.
  */
 
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -77,6 +77,30 @@ export function appendAuditLog(record: Record<string, unknown>, hookInputCwd?: s
     appendFileSync(auditLogPath, `${JSON.stringify(payload)}\n`, "utf-8");
   } catch {
     // Logging is best-effort and must not break hooks.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Session-scoped dedup persistence
+// ---------------------------------------------------------------------------
+
+export function dedupFilePath(sessionId: string, kind: string): string {
+  return join(tmpdir(), `vercel-plugin-${sessionId}-${kind}.txt`);
+}
+
+export function readSessionFile(sessionId: string, kind: string): string {
+  try {
+    return readFileSync(dedupFilePath(sessionId, kind), "utf-8");
+  } catch {
+    return "";
+  }
+}
+
+export function writeSessionFile(sessionId: string, kind: string, value: string): void {
+  try {
+    writeFileSync(dedupFilePath(sessionId, kind), value, "utf-8");
+  } catch {
+    // Persistence is best-effort and must not break hooks.
   }
 }
 

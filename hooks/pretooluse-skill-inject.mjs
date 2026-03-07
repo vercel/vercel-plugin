@@ -2,7 +2,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { appendAuditLog, pluginRoot as resolvePluginRoot, safeReadJson, safeReadFile } from "./hook-env.mjs";
+import { appendAuditLog, pluginRoot as resolvePluginRoot, readSessionFile, safeReadJson, safeReadFile, writeSessionFile } from "./hook-env.mjs";
 import { buildSkillMap, validateSkillMap } from "./skill-map-frontmatter.mjs";
 import {
   parseSeenSkills,
@@ -466,7 +466,7 @@ function deduplicateSkills({ matchedEntries, matched, toolName, toolInput, injec
   return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting };
 }
 function injectSkills(rankedSkills, options) {
-  const { pluginRoot, hasEnvDedup, injectedSkills, budgetBytes, maxSkills, skillMap, logger } = options || {};
+  const { pluginRoot, hasEnvDedup, sessionId, injectedSkills, budgetBytes, maxSkills, skillMap, logger } = options || {};
   const root = pluginRoot || PLUGIN_ROOT;
   const l = logger || log;
   const budget = budgetBytes ?? getInjectionBudget();
@@ -510,6 +510,9 @@ ${summary}
               process.env.VERCEL_PLUGIN_SEEN_SKILLS,
               skill
             );
+            if (sessionId) {
+              writeSessionFile(sessionId, "seen-skills", process.env.VERCEL_PLUGIN_SEEN_SKILLS || "");
+            }
           }
           l.debug("summary-fallback", { skill, fullBytes: byteLen, summaryBytes: summaryByteLen });
           continue;
@@ -527,6 +530,9 @@ ${summary}
         process.env.VERCEL_PLUGIN_SEEN_SKILLS,
         skill
       );
+      if (sessionId) {
+        writeSessionFile(sessionId, "seen-skills", process.env.VERCEL_PLUGIN_SEEN_SKILLS || "");
+      }
     }
   }
   if (droppedByCap.length > 0 || droppedByBudget.length > 0 || summaryOnly.length > 0) {
@@ -586,20 +592,26 @@ function run() {
   if (log.active) timing.skillmap_load = Math.round(log.now() - tSkillmap);
   const { compiledSkills, usedManifest } = skills;
   const dedupOff = process.env.VERCEL_PLUGIN_HOOK_DEDUP === "off";
+  const hasFileDedup = !dedupOff && !!sessionId;
   const seenEnv = getSeenSkillsEnv();
+  const seenFile = hasFileDedup ? readSessionFile(sessionId, "seen-skills") : "";
+  if (hasFileDedup && seenEnv === "") {
+    process.env.VERCEL_PLUGIN_SEEN_SKILLS = seenFile;
+  }
+  const seenState = seenEnv === "" ? seenFile : seenEnv;
   const hasEnvDedup = !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string";
-  const dedupStrategy = dedupOff ? "disabled" : hasEnvDedup ? "env-var" : "memory-only";
+  const dedupStrategy = dedupOff ? "disabled" : hasFileDedup ? "file" : hasEnvDedup ? "env-var" : "memory-only";
   const likelySkillsEnv = process.env.VERCEL_PLUGIN_LIKELY_SKILLS || "";
   const likelySkills = parseLikelySkills(likelySkillsEnv);
   const setupMode = process.env.VERCEL_PLUGIN_SETUP_MODE === "1";
-  log.debug("dedup-strategy", { strategy: dedupStrategy, sessionId, seenEnv });
+  log.debug("dedup-strategy", { strategy: dedupStrategy, sessionId, seenEnv: seenState });
   if (likelySkills.size > 0) {
     log.debug("likely-skills", { skills: [...likelySkills] });
   }
   if (setupMode) {
     log.debug("setup-mode", { active: true, bootstrapSkill: SETUP_MODE_BOOTSTRAP_SKILL });
   }
-  const injectedSkills = hasEnvDedup ? parseSeenSkills(seenEnv) : /* @__PURE__ */ new Set();
+  const injectedSkills = dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState);
   const tMatch = log.active ? log.now() : 0;
   const matchResult = matchSkills(toolName, toolInput, compiledSkills, log);
   if (!matchResult) return "{}";
@@ -658,6 +670,9 @@ function run() {
           process.env.VERCEL_PLUGIN_SEEN_SKILLS,
           "agent-browser-unavailable-warning"
         );
+        if (sessionId) {
+          writeSessionFile(sessionId, "seen-skills", process.env.VERCEL_PLUGIN_SEEN_SKILLS || "");
+        }
       }
       log.debug("dev-server-verify-unavailable-warning", { reason: "agent-browser not installed" });
     }
@@ -692,6 +707,9 @@ function run() {
         process.env.VERCEL_PLUGIN_SEEN_SKILLS,
         VERCEL_ENV_HELP_ONCE_KEY
       );
+      if (sessionId) {
+        writeSessionFile(sessionId, "seen-skills", process.env.VERCEL_PLUGIN_SEEN_SKILLS || "");
+      }
     }
     log.debug("vercel-env-help-injected", { subcommand: vercelEnvHelp.subcommand || "" });
   }
@@ -713,6 +731,7 @@ function run() {
   const { parts, loaded, summaryOnly, droppedByCap, droppedByBudget } = injectSkills(rankedSkills, {
     pluginRoot: PLUGIN_ROOT,
     hasEnvDedup,
+    sessionId,
     injectedSkills,
     skillMap: skills.skillMap,
     logger: log
