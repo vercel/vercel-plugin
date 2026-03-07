@@ -1,5 +1,6 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { safeReadFile } from "./hook-env.mjs";
 function extractFrontmatter(markdown) {
   let src = markdown;
   if (src.charCodeAt(0) === 65279) {
@@ -278,12 +279,8 @@ function scanSkillsDir(rootDir) {
       continue;
     }
     const skillFile = join(skillDir, "SKILL.md");
-    let content;
-    try {
-      content = readFileSync(skillFile, "utf-8");
-    } catch {
-      continue;
-    }
+    const content = safeReadFile(skillFile);
+    if (content === null) continue;
     let parsed;
     try {
       const { yaml: yamlStr } = extractFrontmatter(content);
@@ -306,6 +303,66 @@ function scanSkillsDir(rootDir) {
     });
   }
   return { skills, diagnostics };
+}
+function normalizePatternField(opts) {
+  const { raw, skill, field, fieldTypeHint, coerceStrings, addWarning } = opts;
+  let arr;
+  if (coerceStrings && typeof raw === "string") {
+    addWarning(
+      `skill "${skill}": ${field} is a string, coercing to array`,
+      {
+        code: "COERCE_STRING_TO_ARRAY",
+        skill,
+        field,
+        valueType: "string",
+        hint: `Change ${field} to a YAML list`
+      }
+    );
+    arr = [raw];
+  } else if (!Array.isArray(raw)) {
+    addWarning(
+      `skill "${skill}": ${field} is not an array (${typeof raw}), defaulting to []`,
+      {
+        code: "INVALID_TYPE",
+        skill,
+        field,
+        valueType: typeof raw,
+        hint: `${field} must be an array of ${fieldTypeHint}`
+      }
+    );
+    arr = [];
+  } else {
+    arr = raw;
+  }
+  return arr.filter((p, i) => {
+    if (typeof p !== "string") {
+      addWarning(
+        `skill "${skill}": ${field}[${i}] is not a string (${typeof p}), removing`,
+        {
+          code: "ENTRY_NOT_STRING",
+          skill,
+          field: `${field}[${i}]`,
+          valueType: typeof p,
+          hint: `Each ${field} entry must be a string`
+        }
+      );
+      return false;
+    }
+    if (p === "") {
+      addWarning(
+        `skill "${skill}": ${field}[${i}] is empty, removing`,
+        {
+          code: "ENTRY_EMPTY",
+          skill,
+          field: `${field}[${i}]`,
+          valueType: "string",
+          hint: `Remove empty entries from ${field}`
+        }
+      );
+      return false;
+    }
+    return true;
+  });
 }
 function buildSkillMap(rootDir) {
   const skills = {};
@@ -336,65 +393,14 @@ function buildSkillMap(rootDir) {
     } else {
       rawPathPatterns = [];
     }
-    let pathPatterns;
-    if (typeof rawPathPatterns === "string") {
-      addWarning(
-        `skill "${skill.dir}": metadata.pathPatterns is a string, coercing to array`,
-        {
-          code: "COERCE_STRING_TO_ARRAY",
-          skill: skill.dir,
-          field: "pathPatterns",
-          valueType: "string",
-          hint: "Change metadata.pathPatterns to a YAML list"
-        }
-      );
-      pathPatterns = [rawPathPatterns];
-    } else if (!Array.isArray(rawPathPatterns)) {
-      addWarning(
-        `skill "${skill.dir}": metadata.pathPatterns is not an array (${typeof rawPathPatterns}), defaulting to []`,
-        {
-          code: "INVALID_TYPE",
-          skill: skill.dir,
-          field: "pathPatterns",
-          valueType: typeof rawPathPatterns,
-          hint: "metadata.pathPatterns must be an array of glob strings"
-        }
-      );
-      pathPatterns = [];
-    } else {
-      pathPatterns = rawPathPatterns;
-    }
-    const filteredPathPatterns = pathPatterns.filter(
-      (p, i) => {
-        if (typeof p !== "string") {
-          addWarning(
-            `skill "${skill.dir}": metadata.pathPatterns[${i}] is not a string (${typeof p}), removing`,
-            {
-              code: "ENTRY_NOT_STRING",
-              skill: skill.dir,
-              field: `pathPatterns[${i}]`,
-              valueType: typeof p,
-              hint: "Each pathPatterns entry must be a string"
-            }
-          );
-          return false;
-        }
-        if (p === "") {
-          addWarning(
-            `skill "${skill.dir}": metadata.pathPatterns[${i}] is empty, removing`,
-            {
-              code: "ENTRY_EMPTY",
-              skill: skill.dir,
-              field: `pathPatterns[${i}]`,
-              valueType: "string",
-              hint: "Remove empty entries from metadata.pathPatterns"
-            }
-          );
-          return false;
-        }
-        return true;
-      }
-    );
+    const filteredPathPatterns = normalizePatternField({
+      raw: rawPathPatterns,
+      skill: skill.dir,
+      field: "pathPatterns",
+      fieldTypeHint: "glob strings",
+      coerceStrings: true,
+      addWarning
+    });
     let rawBashPatterns;
     if (meta.bashPatterns !== void 0) {
       rawBashPatterns = meta.bashPatterns;
@@ -413,125 +419,23 @@ function buildSkillMap(rootDir) {
     } else {
       rawBashPatterns = [];
     }
-    let bashPatterns;
-    if (typeof rawBashPatterns === "string") {
-      addWarning(
-        `skill "${skill.dir}": metadata.bashPatterns is a string, coercing to array`,
-        {
-          code: "COERCE_STRING_TO_ARRAY",
-          skill: skill.dir,
-          field: "bashPatterns",
-          valueType: "string",
-          hint: "Change metadata.bashPatterns to a YAML list"
-        }
-      );
-      bashPatterns = [rawBashPatterns];
-    } else if (!Array.isArray(rawBashPatterns)) {
-      addWarning(
-        `skill "${skill.dir}": metadata.bashPatterns is not an array (${typeof rawBashPatterns}), defaulting to []`,
-        {
-          code: "INVALID_TYPE",
-          skill: skill.dir,
-          field: "bashPatterns",
-          valueType: typeof rawBashPatterns,
-          hint: "metadata.bashPatterns must be an array of regex strings"
-        }
-      );
-      bashPatterns = [];
-    } else {
-      bashPatterns = rawBashPatterns;
-    }
-    const filteredBashPatterns = bashPatterns.filter(
-      (p, i) => {
-        if (typeof p !== "string") {
-          addWarning(
-            `skill "${skill.dir}": metadata.bashPatterns[${i}] is not a string (${typeof p}), removing`,
-            {
-              code: "ENTRY_NOT_STRING",
-              skill: skill.dir,
-              field: `bashPatterns[${i}]`,
-              valueType: typeof p,
-              hint: "Each bashPatterns entry must be a string"
-            }
-          );
-          return false;
-        }
-        if (p === "") {
-          addWarning(
-            `skill "${skill.dir}": metadata.bashPatterns[${i}] is empty, removing`,
-            {
-              code: "ENTRY_EMPTY",
-              skill: skill.dir,
-              field: `bashPatterns[${i}]`,
-              valueType: "string",
-              hint: "Remove empty entries from metadata.bashPatterns"
-            }
-          );
-          return false;
-        }
-        return true;
-      }
-    );
-    let rawImportPatterns = meta.importPatterns !== void 0 ? meta.importPatterns : [];
-    let importPatterns;
-    if (typeof rawImportPatterns === "string") {
-      addWarning(
-        `skill "${skill.dir}": metadata.importPatterns is a string, coercing to array`,
-        {
-          code: "COERCE_STRING_TO_ARRAY",
-          skill: skill.dir,
-          field: "importPatterns",
-          valueType: "string",
-          hint: "Change metadata.importPatterns to a YAML list"
-        }
-      );
-      importPatterns = [rawImportPatterns];
-    } else if (!Array.isArray(rawImportPatterns)) {
-      addWarning(
-        `skill "${skill.dir}": metadata.importPatterns is not an array (${typeof rawImportPatterns}), defaulting to []`,
-        {
-          code: "INVALID_TYPE",
-          skill: skill.dir,
-          field: "importPatterns",
-          valueType: typeof rawImportPatterns,
-          hint: "metadata.importPatterns must be an array of package name strings"
-        }
-      );
-      importPatterns = [];
-    } else {
-      importPatterns = rawImportPatterns;
-    }
-    const filteredImportPatterns = importPatterns.filter(
-      (p, i) => {
-        if (typeof p !== "string") {
-          addWarning(
-            `skill "${skill.dir}": metadata.importPatterns[${i}] is not a string (${typeof p}), removing`,
-            {
-              code: "ENTRY_NOT_STRING",
-              skill: skill.dir,
-              field: `importPatterns[${i}]`,
-              valueType: typeof p,
-              hint: "Each importPatterns entry must be a string"
-            }
-          );
-          return false;
-        }
-        if (p === "") {
-          addWarning(
-            `skill "${skill.dir}": metadata.importPatterns[${i}] is empty, removing`,
-            {
-              code: "ENTRY_EMPTY",
-              skill: skill.dir,
-              field: `importPatterns[${i}]`,
-              valueType: "string",
-              hint: "Remove empty entries from metadata.importPatterns"
-            }
-          );
-          return false;
-        }
-        return true;
-      }
-    );
+    const filteredBashPatterns = normalizePatternField({
+      raw: rawBashPatterns,
+      skill: skill.dir,
+      field: "bashPatterns",
+      fieldTypeHint: "regex strings",
+      coerceStrings: true,
+      addWarning
+    });
+    const rawImportPatterns = meta.importPatterns !== void 0 ? meta.importPatterns : [];
+    const filteredImportPatterns = normalizePatternField({
+      raw: rawImportPatterns,
+      skill: skill.dir,
+      field: "importPatterns",
+      fieldTypeHint: "package name strings",
+      coerceStrings: true,
+      addWarning
+    });
     skills[skill.dir] = {
       priority: meta.priority ?? 5,
       summary: skill.summary || "",
@@ -661,147 +565,30 @@ function validateSkillMap(raw) {
         priority = p;
       }
     }
-    let pathPatterns = [];
-    if ("pathPatterns" in cfg) {
-      if (!Array.isArray(cfg.pathPatterns)) {
-        addWarning(
-          `skill "${skill}": pathPatterns is not an array, defaulting to []`,
-          {
-            code: "INVALID_TYPE",
-            skill,
-            field: "pathPatterns",
-            valueType: typeof cfg.pathPatterns,
-            hint: "pathPatterns must be an array of glob strings"
-          }
-        );
-      } else {
-        pathPatterns = cfg.pathPatterns.filter(
-          (p, i) => {
-            if (typeof p !== "string") {
-              addWarning(
-                `skill "${skill}": pathPatterns[${i}] is not a string, removing`,
-                {
-                  code: "ENTRY_NOT_STRING",
-                  skill,
-                  field: `pathPatterns[${i}]`,
-                  valueType: typeof p,
-                  hint: "Each pathPatterns entry must be a string"
-                }
-              );
-              return false;
-            }
-            if (p === "") {
-              addWarning(
-                `skill "${skill}": pathPatterns[${i}] is empty, removing`,
-                {
-                  code: "ENTRY_EMPTY",
-                  skill,
-                  field: `pathPatterns[${i}]`,
-                  valueType: "string",
-                  hint: "Remove empty entries from pathPatterns"
-                }
-              );
-              return false;
-            }
-            return true;
-          }
-        );
-      }
-    }
-    let bashPatterns = [];
-    if ("bashPatterns" in cfg) {
-      if (!Array.isArray(cfg.bashPatterns)) {
-        addWarning(
-          `skill "${skill}": bashPatterns is not an array, defaulting to []`,
-          {
-            code: "INVALID_TYPE",
-            skill,
-            field: "bashPatterns",
-            valueType: typeof cfg.bashPatterns,
-            hint: "bashPatterns must be an array of regex strings"
-          }
-        );
-      } else {
-        bashPatterns = cfg.bashPatterns.filter(
-          (p, i) => {
-            if (typeof p !== "string") {
-              addWarning(
-                `skill "${skill}": bashPatterns[${i}] is not a string, removing`,
-                {
-                  code: "ENTRY_NOT_STRING",
-                  skill,
-                  field: `bashPatterns[${i}]`,
-                  valueType: typeof p,
-                  hint: "Each bashPatterns entry must be a string"
-                }
-              );
-              return false;
-            }
-            if (p === "") {
-              addWarning(
-                `skill "${skill}": bashPatterns[${i}] is empty, removing`,
-                {
-                  code: "ENTRY_EMPTY",
-                  skill,
-                  field: `bashPatterns[${i}]`,
-                  valueType: "string",
-                  hint: "Remove empty entries from bashPatterns"
-                }
-              );
-              return false;
-            }
-            return true;
-          }
-        );
-      }
-    }
-    let importPatterns = [];
-    if ("importPatterns" in cfg) {
-      if (!Array.isArray(cfg.importPatterns)) {
-        addWarning(
-          `skill "${skill}": importPatterns is not an array, defaulting to []`,
-          {
-            code: "INVALID_TYPE",
-            skill,
-            field: "importPatterns",
-            valueType: typeof cfg.importPatterns,
-            hint: "importPatterns must be an array of package name strings"
-          }
-        );
-      } else {
-        importPatterns = cfg.importPatterns.filter(
-          (p, i) => {
-            if (typeof p !== "string") {
-              addWarning(
-                `skill "${skill}": importPatterns[${i}] is not a string, removing`,
-                {
-                  code: "ENTRY_NOT_STRING",
-                  skill,
-                  field: `importPatterns[${i}]`,
-                  valueType: typeof p,
-                  hint: "Each importPatterns entry must be a string"
-                }
-              );
-              return false;
-            }
-            if (p === "") {
-              addWarning(
-                `skill "${skill}": importPatterns[${i}] is empty, removing`,
-                {
-                  code: "ENTRY_EMPTY",
-                  skill,
-                  field: `importPatterns[${i}]`,
-                  valueType: "string",
-                  hint: "Remove empty entries from importPatterns"
-                }
-              );
-              return false;
-            }
-            return true;
-          }
-        );
-      }
-    }
+    const pathPatterns = normalizePatternField({
+      raw: "pathPatterns" in cfg ? cfg.pathPatterns : [],
+      skill,
+      field: "pathPatterns",
+      fieldTypeHint: "glob strings",
+      coerceStrings: false,
+      addWarning
+    });
+    const bashPatterns = normalizePatternField({
+      raw: "bashPatterns" in cfg ? cfg.bashPatterns : [],
+      skill,
+      field: "bashPatterns",
+      fieldTypeHint: "regex strings",
+      coerceStrings: false,
+      addWarning
+    });
+    const importPatterns = normalizePatternField({
+      raw: "importPatterns" in cfg ? cfg.importPatterns : [],
+      skill,
+      field: "importPatterns",
+      fieldTypeHint: "package name strings",
+      coerceStrings: false,
+      addWarning
+    });
     const summary = typeof cfg.summary === "string" ? cfg.summary : "";
     normalizedSkills[skill] = {
       priority,

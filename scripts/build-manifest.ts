@@ -12,73 +12,73 @@ import { resolve, join } from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 // Import the canonical skill-map builder (ESM)
-import { buildSkillMap, validateSkillMap } from "../hooks/skill-map-frontmatter.mjs";
 import { globToRegex, importPatternToRegex } from "../hooks/patterns.mjs";
+import type { SkillEntry, ManifestSkill } from "../hooks/patterns.mjs";
+import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
-export { buildManifest };
+export { buildManifest, writeManifestFile };
 
 const ROOT = resolve(import.meta.dir, "..");
 const SKILLS_DIR = join(ROOT, "skills");
 const OUT_DIR = join(ROOT, "generated");
 const OUT_FILE = join(OUT_DIR, "skill-manifest.json");
 
-interface ManifestSkillConfig {
-  priority: number;
-  summary: string;
-  pathPatterns: string[];
-  bashPatterns: string[];
-  importPatterns: string[];
-}
-
-interface ManifestSkill extends ManifestSkillConfig {
+interface ManifestSkillWithBody extends ManifestSkill {
   bodyPath: string;
-  pathRegexSources: string[];
-  bashRegexSources: string[];
-  importRegexSources: Array<{ source: string; flags: string }>;
 }
 
 interface Manifest {
   generatedAt: string;
   version: 2;
-  skills: Record<string, ManifestSkill>;
+  skills: Record<string, ManifestSkillWithBody>;
 }
 
 /**
  * Compile regex sources for a skill config at build time.
  * Path globs → globToRegex().source, bash patterns → RegExp source,
  * import patterns → importPatternToRegex() source+flags.
+ *
+ * Returns paired arrays: patterns and regex sources stay in sync so that
+ * index N of pathPatterns always corresponds to index N of pathRegexSources.
+ * Invalid patterns are dropped from both arrays to prevent index drift.
  */
-function compileRegexSources(config: ManifestSkillConfig) {
+function compileRegexSources(config: SkillEntry) {
+  const pathPatterns: string[] = [];
   const pathRegexSources: string[] = [];
   for (const p of config.pathPatterns) {
     try {
       pathRegexSources.push(globToRegex(p).source);
+      pathPatterns.push(p);
     } catch {
       // Skip invalid — validation catches these
     }
   }
 
+  const bashPatterns: string[] = [];
   const bashRegexSources: string[] = [];
   for (const p of config.bashPatterns) {
     try {
       new RegExp(p); // validate
       bashRegexSources.push(p);
+      bashPatterns.push(p);
     } catch {
       // Skip invalid
     }
   }
 
+  const importPatterns: string[] = [];
   const importRegexSources: Array<{ source: string; flags: string }> = [];
   for (const p of config.importPatterns) {
     try {
       const re = importPatternToRegex(p);
       importRegexSources.push({ source: re.source, flags: re.flags });
+      importPatterns.push(p);
     } catch {
       // Skip invalid
     }
   }
 
-  return { pathRegexSources, bashRegexSources, importRegexSources };
+  return { pathPatterns, pathRegexSources, bashPatterns, bashRegexSources, importPatterns, importRegexSources };
 }
 
 /**
@@ -86,16 +86,8 @@ function compileRegexSources(config: ManifestSkillConfig) {
  * Exported so validate.ts can reuse this without duplicating logic.
  */
 function buildManifest(skillsDir: string): { manifest: Manifest; warnings: string[]; errors: string[] } {
-  const built = buildSkillMap(skillsDir);
-  const allWarnings: string[] = [];
-
-  if (built.diagnostics?.length) {
-    for (const d of built.diagnostics) {
-      allWarnings.push(`${d.file}: ${d.message}`);
-    }
-  }
-
-  const validation = validateSkillMap(built);
+  const { validation, buildDiagnostics } = loadValidatedSkillMap(skillsDir);
+  const allWarnings: string[] = [...buildDiagnostics];
 
   if (!validation.ok) {
     return { manifest: null as any, warnings: allWarnings, errors: validation.errors };
@@ -105,13 +97,19 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
     allWarnings.push(...validation.warnings);
   }
 
-  const skills: Record<string, ManifestSkill> = {};
-  for (const [slug, config] of Object.entries(validation.normalizedSkillMap.skills) as [string, ManifestSkillConfig][]) {
-    const regexSources = compileRegexSources(config);
+  const skills: Record<string, ManifestSkillWithBody> = {};
+  for (const [slug, config] of Object.entries(validation.normalizedSkillMap.skills) as [string, SkillEntry][]) {
+    const { pathPatterns, pathRegexSources, bashPatterns, bashRegexSources, importPatterns, importRegexSources } = compileRegexSources(config);
     skills[slug] = {
-      ...config,
+      priority: config.priority,
+      summary: config.summary,
+      pathPatterns,
+      bashPatterns,
+      importPatterns,
       bodyPath: `skills/${slug}/SKILL.md`,
-      ...regexSources,
+      pathRegexSources,
+      bashRegexSources,
+      importRegexSources,
     };
   }
 
@@ -122,6 +120,16 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
   };
 
   return { manifest, warnings: allWarnings, errors: [] };
+}
+
+/**
+ * Write the manifest JSON to generated/skill-manifest.json.
+ * Returns the number of skills written.
+ */
+function writeManifestFile(manifest: Manifest, outDir = OUT_DIR, outFile = OUT_FILE): number {
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(outFile, JSON.stringify(manifest, null, 2) + "\n");
+  return Object.keys(manifest.skills).length;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,9 +155,6 @@ if (isMain()) {
     process.exit(1);
   }
 
-  mkdirSync(OUT_DIR, { recursive: true });
-  writeFileSync(OUT_FILE, JSON.stringify(manifest, null, 2) + "\n");
-
-  const count = Object.keys(manifest.skills).length;
+  const count = writeManifestFile(manifest);
   console.log(`✓ Wrote ${count} skills to ${OUT_FILE}`);
 }

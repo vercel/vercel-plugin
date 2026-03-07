@@ -131,6 +131,7 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 │   ↔ Vercel AI SDK (chat UIs, streaming, tool calling)
 │   ↔ Vercel Analytics / Speed Insights           ⤳ skill: observability
 │   ↔ Vercel Image Optimization (next/image)      ⤳ skill: nextjs
+│   ↔ Satori / @vercel/og (dynamic OG images)     ⤳ skill: satori
 │   ↔ Vercel Font Optimization (next/font)
 │   ↔ Vercel Functions (automatic from route handlers / server actions)
 │
@@ -202,6 +203,13 @@ AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
 │   ⊃ Handles UIMessage parts, streaming, markdown
 │   → AI SDK UI hooks (useChat, useCompletion)
 │   → shadcn/ui (component primitives)                 ⤳ skill: shadcn
+│
+├── Streamdown (streamdown)                            ⤳ skill: streamdown
+│   ⊃ Streaming Markdown renderer (drop-in react-markdown replacement)
+│   ⊃ Handles incomplete/unterminated Markdown in real-time
+│   ⊃ Plugins: @streamdown/code, @streamdown/math, @streamdown/mermaid, @streamdown/cjk
+│   → AI SDK UI hooks (useChat streaming content)
+│   → Tailwind CSS (styling)
 │
 ├── MCP Integration (@ai-sdk/mcp)
 │   ⊃ MCP Client (connect to any MCP server)
@@ -423,6 +431,71 @@ AGENT BROWSER                              ⤳ skill: agent-browser
 │   ⊃ Works with next dev, vite, nuxt dev, vercel dev
 │
 └── Use When: Verifying UI behavior, form testing, e2e workflows
+
+SWR (v2, React Hooks)                      ⤳ skill: swr  📖 docs: https://swr.vercel.app
+├── Purpose: Client-side data fetching with stale-while-revalidate caching
+│   ⊃ useSWR (data fetching with auto-revalidation)
+│   ⊃ useSWRMutation (remote mutations, optimistic UI)
+│   ⊃ useSWRInfinite (pagination & infinite loading)
+│   ⊃ SWRConfig (global configuration provider)
+│
+├── Key Features
+│   ⊃ Request deduplication
+│   ⊃ Revalidation on focus, reconnect, interval
+│   ⊃ Built-in cache with shared keys
+│   ⊃ Middleware support
+│
+└── Integrations
+    ↔ Next.js (App Router & Pages Router)
+    ↔ React (any React framework)
+
+NCC (Node.js Compiler Collection)          ⤳ skill: ncc  📖 docs: https://github.com/vercel/ncc
+├── Purpose: Compile Node.js modules into a single file with all dependencies
+│   ⊃ Serverless function bundling
+│   ⊃ CLI tool distribution
+│   ⊃ GitHub Actions bundling
+│   ⊃ TypeScript compilation (uses project tsconfig.json)
+│   ⊃ External module exclusion
+│
+└── Use When: Single-file deployment, reducing node_modules, bundling serverless functions
+
+STYLED-JSX (CSS-in-JS)                    ⤳ skill: styled-jsx  📖 docs: https://github.com/vercel/styled-jsx
+├── Purpose: Scoped CSS-in-JS for React components
+│   ⊃ <style jsx> scoped styles
+│   ⊃ Dynamic styles with template literals
+│   ⊃ Global styles with <style jsx global>
+│   ⊃ styled-jsx/css API for external style definitions
+│   ⊃ css.resolve for child component styling
+│
+└── Use When: Component-scoped CSS in React/Next.js, bundled with Next.js by default
+
+MICRO (HTTP Microservices)                 ⤳ skill: micro  📖 docs: https://github.com/vercel/micro
+├── Purpose: Lightweight async HTTP microservices framework
+│   ⊃ Single-endpoint HTTP servers
+│   ⊃ JSON/text/buffer body parsing
+│   ⊃ Composable handler middleware
+│   ⊃ micro-dev for hot-reloading development
+│
+└── Use When: Minimal HTTP services, single-purpose API endpoints
+
+EDGE RUNTIME                               ⤳ skill: edge-runtime  📖 docs: https://github.com/vercel/edge-runtime
+├── Purpose: Lightweight JavaScript runtime for Vercel Edge Functions and Middleware
+│   ⊃ Web Standards APIs (fetch, Request, Response, Streams)
+│   ⊃ @edge-runtime/cookies, @edge-runtime/primitives, @edge-runtime/vm
+│   ⊃ Local development and testing of edge behavior
+│   ⊃ Sub-millisecond cold starts
+│
+└── Use When: Edge functions, middleware, testing edge runtime behavior locally
+
+GEIST (Font Family)                        ⤳ skill: geist  📖 docs: https://github.com/vercel/geist-font
+├── Purpose: Vercel's open-source font family for Next.js
+│   ⊃ Geist Sans (modern sans-serif for UI)
+│   ⊃ Geist Mono (monospace for code)
+│   ⊃ next/font integration (zero layout shift)
+│   ⊃ CSS variables (--font-geist-sans, --font-geist-mono)
+│   ⊃ Variable font (all weights 100–900)
+│
+└── Use When: Typography setup in Next.js, Vercel design system styling
 
 ---
 

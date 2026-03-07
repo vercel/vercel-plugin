@@ -138,11 +138,12 @@ describe("fuzz: bare value handling", () => {
     }
   });
 
-  test("numeric values are parsed as numbers", () => {
+  test("numeric values coerced to empty string for name field", () => {
+    // parseSkillFrontmatter coerces non-string values to "" for name
     const result = safeParse("name: 42");
     expect(result).not.toBeInstanceOf(Error);
     if (!(result instanceof Error)) {
-      expect(result.name).toBe(42 as any);
+      expect(result.name).toBe("");
     }
   });
 });

@@ -7,9 +7,19 @@
  *   vercel-plugin explain --help
  */
 
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
 import { explain, formatExplainResult } from "./explain.ts";
 import { doctor, formatDoctorResult } from "../commands/doctor.ts";
+
+function validateProjectRoot(projectRoot: string): void {
+  const skillsDir = join(projectRoot, "skills");
+  if (!existsSync(skillsDir)) {
+    console.error(`Error: no skills/ directory found at ${projectRoot}`);
+    console.error("Use --project to specify the plugin root directory");
+    process.exit(2);
+  }
+}
 
 const args = process.argv.slice(2);
 
@@ -105,14 +115,7 @@ function runExplain(explainArgs: string[]) {
   }
 
   // Validate project path has skills/
-  const { existsSync } = require("node:fs");
-  const { join } = require("node:path");
-  const skillsDir = join(projectRoot, "skills");
-  if (!existsSync(skillsDir)) {
-    console.error(`Error: no skills/ directory found at ${projectRoot}`);
-    console.error("Use --project to specify the plugin root directory");
-    process.exit(2);
-  }
+  validateProjectRoot(projectRoot);
 
   try {
     const result = explain(target, projectRoot, { likelySkills, budgetBytes });
@@ -154,14 +157,7 @@ function runDoctor(doctorArgs: string[]) {
     }
   }
 
-  const { existsSync } = require("node:fs");
-  const { join } = require("node:path");
-  const skillsDir = join(projectRoot, "skills");
-  if (!existsSync(skillsDir)) {
-    console.error(`Error: no skills/ directory found at ${projectRoot}`);
-    console.error("Use --project to specify the plugin root directory");
-    process.exit(2);
-  }
+  validateProjectRoot(projectRoot);
 
   try {
     const result = doctor(projectRoot);

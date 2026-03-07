@@ -63,13 +63,11 @@ async function runHook(input: object): Promise<{
 describe("vercel-config.mjs", () => {
   let resolveVercelJsonSkills: any;
   let isVercelJsonPath: any;
-  let KEY_SKILL_MAP: any;
 
   beforeEach(async () => {
     const mod = await import("../hooks/vercel-config.mjs");
     resolveVercelJsonSkills = mod.resolveVercelJsonSkills;
     isVercelJsonPath = mod.isVercelJsonPath;
-    KEY_SKILL_MAP = mod.KEY_SKILL_MAP;
   });
 
   test("isVercelJsonPath detects vercel.json paths", () => {
@@ -125,15 +123,20 @@ describe("vercel-config.mjs", () => {
     expect(result!.relevantSkills.has("deployments-cicd")).toBe(false);
   });
 
-  test("KEY_SKILL_MAP covers all expected vercel.json keys", () => {
+  test("resolveVercelJsonSkills recognises all expected vercel.json keys", () => {
+    // Verify that every key we expect to be mapped produces at least one relevant skill
     const expectedKeys = [
       "redirects", "rewrites", "headers", "cleanUrls", "trailingSlash",
       "crons", "functions", "regions",
       "builds", "buildCommand", "installCommand", "outputDirectory", "framework",
     ];
     for (const key of expectedKeys) {
-      expect(KEY_SKILL_MAP[key]).toBeDefined();
-      expect(Array.isArray(KEY_SKILL_MAP[key])).toBe(true);
+      const content: Record<string, unknown> = { [key]: {} };
+      const p = join(tempDir, `vercel-${key}.json`);
+      writeFileSync(p, JSON.stringify(content), "utf-8");
+      const result = resolveVercelJsonSkills(p);
+      expect(result).not.toBeNull();
+      expect(result!.relevantSkills.size).toBeGreaterThan(0);
     }
   });
 });

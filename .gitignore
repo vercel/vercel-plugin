@@ -146,3 +146,4 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 hooks/compiled/
+.DS_Store

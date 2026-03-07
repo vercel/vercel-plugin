@@ -54,37 +54,39 @@ function appendSeenSkill(envValue, skill) {
 }
 function compileSkillPatterns(skillMap, callbacks) {
   const cb = callbacks || {};
-  return Object.entries(skillMap).map(([skill, config]) => ({
-    skill,
-    priority: typeof config.priority === "number" ? config.priority : 0,
-    pathPatterns: config.pathPatterns || [],
-    pathRegexes: (config.pathPatterns || []).map((p) => {
+  return Object.entries(skillMap).map(([skill, config]) => {
+    const compiledPaths = [];
+    for (const p of config.pathPatterns || []) {
       try {
-        return globToRegex(p);
+        compiledPaths.push({ pattern: p, regex: globToRegex(p) });
       } catch (err) {
         if (cb.onPathGlobError) cb.onPathGlobError(skill, p, err);
-        return null;
       }
-    }).filter(Boolean),
-    bashPatterns: config.bashPatterns || [],
-    bashRegexes: (config.bashPatterns || []).map((p) => {
+    }
+    const compiledBash = [];
+    for (const p of config.bashPatterns || []) {
       try {
-        return new RegExp(p);
+        compiledBash.push({ pattern: p, regex: new RegExp(p) });
       } catch (err) {
         if (cb.onBashRegexError) cb.onBashRegexError(skill, p, err);
-        return null;
       }
-    }).filter(Boolean),
-    importPatterns: config.importPatterns || [],
-    importRegexes: (config.importPatterns || []).map((p) => {
+    }
+    const compiledImports = [];
+    for (const p of config.importPatterns || []) {
       try {
-        return importPatternToRegex(p);
+        compiledImports.push({ pattern: p, regex: importPatternToRegex(p) });
       } catch (err) {
         if (cb.onImportPatternError) cb.onImportPatternError(skill, p, err);
-        return null;
       }
-    }).filter(Boolean)
-  }));
+    }
+    return {
+      skill,
+      priority: typeof config.priority === "number" ? config.priority : 0,
+      compiledPaths,
+      compiledBash,
+      compiledImports
+    };
+  });
 }
 function importPatternToRegex(pattern) {
   if (typeof pattern !== "string") {
@@ -96,21 +98,19 @@ function importPatternToRegex(pattern) {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, `[^'"]*`);
   return new RegExp(`(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['"]${escaped}(?:/[^'"]*)?['"]`, "m");
 }
-function matchImportWithReason(content, regexes, patterns) {
-  if (!content || regexes.length === 0) return null;
-  for (let idx = 0; idx < regexes.length; idx++) {
-    if (regexes[idx].test(content)) {
-      return { pattern: patterns[idx], matchType: "import" };
+function matchImportWithReason(content, compiled) {
+  if (!content || compiled.length === 0) return null;
+  for (const { pattern, regex } of compiled) {
+    if (regex.test(content)) {
+      return { pattern, matchType: "import" };
     }
   }
   return null;
 }
-function matchPathWithReason(filePath, regexes, patterns) {
-  if (!filePath || regexes.length === 0) return null;
+function matchPathWithReason(filePath, compiled) {
+  if (!filePath || compiled.length === 0) return null;
   const normalized = filePath.replace(/\\/g, "/");
-  for (let idx = 0; idx < regexes.length; idx++) {
-    const regex = regexes[idx];
-    const pattern = patterns[idx];
+  for (const { pattern, regex } of compiled) {
     if (regex.test(normalized)) return { pattern, matchType: "full" };
     const base = basename(normalized);
     if (regex.test(base)) return { pattern, matchType: "basename" };
@@ -122,10 +122,10 @@ function matchPathWithReason(filePath, regexes, patterns) {
   }
   return null;
 }
-function matchBashWithReason(command, regexes, patterns) {
-  if (!command || regexes.length === 0) return null;
-  for (let idx = 0; idx < regexes.length; idx++) {
-    if (regexes[idx].test(command)) return { pattern: patterns[idx], matchType: "full" };
+function matchBashWithReason(command, compiled) {
+  if (!command || compiled.length === 0) return null;
+  for (const { pattern, regex } of compiled) {
+    if (regex.test(command)) return { pattern, matchType: "full" };
   }
   return null;
 }

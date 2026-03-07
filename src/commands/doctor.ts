@@ -9,11 +9,8 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import {
-  buildSkillMap,
-  validateSkillMap,
-} from "../../hooks/skill-map-frontmatter.mjs";
+import { join } from "node:path";
+import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
 
 /** Threshold at which pattern count may threaten the 5-second hook timeout. */
 const PATTERN_COUNT_WARN_THRESHOLD = 200;
@@ -44,8 +41,7 @@ export function doctor(projectRoot: string): DoctorResult {
   const manifestPath = join(projectRoot, "generated", "skill-manifest.json");
 
   // --- Live scan ---
-  const built = buildSkillMap(skillsDir);
-  const validation = validateSkillMap(built);
+  const { validation, skills: loadedSkills, buildDiagnostics } = loadValidatedSkillMap(skillsDir);
 
   if (!validation.ok) {
     for (const e of validation.errors) {
@@ -67,12 +63,20 @@ export function doctor(projectRoot: string): DoctorResult {
     }
   }
 
+  if (buildDiagnostics.length > 0) {
+    for (const d of buildDiagnostics) {
+      issues.push({
+        severity: "warning",
+        check: "skill-build",
+        message: d,
+      });
+    }
+  }
+
   const liveSkills: Record<
     string,
     { priority: number; pathPatterns: string[]; bashPatterns: string[] }
-  > = validation.ok
-    ? validation.normalizedSkillMap.skills
-    : (built.skills ?? {});
+  > = loadedSkills;
 
   const liveSkillCount = Object.keys(liveSkills).length;
 

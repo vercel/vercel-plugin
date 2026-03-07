@@ -12,13 +12,12 @@
  */
 
 import { readdir, readFile, stat } from "node:fs/promises";
-import { writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { checkCoverage, type CoverageResult } from "./coverage-baseline";
 import { extractFrontmatter, parseSkillFrontmatter, buildSkillMap, validateSkillMap } from "../hooks/skill-map-frontmatter.mjs";
 import { globToRegex, importPatternToRegex, compileSkillPatterns, matchPathWithReason, matchBashWithReason } from "../hooks/patterns.mjs";
-import { buildManifest } from "./build-manifest";
+import { buildManifest, writeManifestFile } from "./build-manifest";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1132,10 +1131,10 @@ async function validatePatternFixtures() {
     const matched: string[] = [];
     for (const entry of compiled) {
       if (fixture.type === "path") {
-        const r = matchPathWithReason(fixture.input, entry.pathRegexes, entry.pathPatterns);
+        const r = matchPathWithReason(fixture.input, entry.compiledPaths);
         if (r) matched.push(entry.skill);
       } else if (fixture.type === "bash") {
-        const r = matchBashWithReason(fixture.input, entry.bashRegexes, entry.bashPatterns);
+        const r = matchBashWithReason(fixture.input, entry.compiledBash);
         if (r) matched.push(entry.skill);
       }
     }
@@ -1228,14 +1227,11 @@ async function main() {
 
   // Generate skill-manifest.json when validation passes (no errors)
   if (errorCount === 0) {
-    const outDir = join(ROOT, "generated");
-    const outFile = join(outDir, "skill-manifest.json");
     const { manifest, errors: manifestErrors } = buildManifest(join(ROOT, "skills"));
     if (manifestErrors.length === 0) {
-      mkdirSync(outDir, { recursive: true });
-      writeFileSync(outFile, JSON.stringify(manifest, null, 2) + "\n");
+      const count = writeManifestFile(manifest);
       if (FORMAT === "pretty") {
-        console.log(`\n✓ Generated ${outFile} (${Object.keys(manifest.skills).length} skills)`);
+        console.log(`\n✓ Generated skill-manifest.json (${count} skills)`);
       }
     }
   }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-06T20:08:45.258Z",
+  "generatedAt": "2026-03-07T01:49:42.634Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -30,6 +30,39 @@
         "\\bvercel\\s+agent\\b"
       ],
       "importRegexSources": []
+    },
+    "styled-jsx": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bstyled-jsx\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bstyled-jsx\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bstyled-jsx\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bstyled-jsx\\b"
+      ],
+      "importPatterns": [
+        "styled-jsx",
+        "styled-jsx/css"
+      ],
+      "bodyPath": "skills/styled-jsx/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bstyled-jsx\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bstyled-jsx\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bstyled-jsx\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bstyled-jsx\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]styled-jsx(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]styled-jsx\\/css(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "routing-middleware": {
       "priority": 6,
@@ -79,6 +112,43 @@
       ],
       "bashRegexSources": [],
       "importRegexSources": []
+    },
+    "micro": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bmicro\\b",
+        "\\bnpx\\s+micro\\b",
+        "\\bnpx\\s+micro-dev\\b"
+      ],
+      "importPatterns": [
+        "micro",
+        "micro-dev"
+      ],
+      "bodyPath": "skills/micro/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bmicro\\b",
+        "\\bnpx\\s+micro\\b",
+        "\\bnpx\\s+micro-dev\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]micro(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]micro-dev(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "agent-browser": {
       "priority": 3,
@@ -416,6 +486,36 @@
         "\\byarn\\s+add\\s+[^\\n]*@libsql/client\\b"
       ],
       "importRegexSources": []
+    },
+    "ncc": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/ncc\\b",
+        "\\bncc\\s+build\\b"
+      ],
+      "importPatterns": [
+        "@vercel/ncc"
+      ],
+      "bodyPath": "skills/ncc/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/ncc\\b",
+        "\\bncc\\s+build\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/ncc(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "bootstrap": {
       "priority": 8,
@@ -1045,6 +1145,44 @@
       ],
       "importRegexSources": []
     },
+    "geist": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bgeist\\b"
+      ],
+      "importPatterns": [
+        "geist",
+        "geist/font",
+        "geist/font/*"
+      ],
+      "bodyPath": "skills/geist/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bgeist\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
+    },
     "workflow": {
       "priority": 6,
       "summary": "",
@@ -1176,7 +1314,9 @@
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/sandbox\\b"
       ],
-      "importPatterns": [],
+      "importPatterns": [
+        "@vercel/sandbox"
+      ],
       "bodyPath": "skills/vercel-sandbox/SKILL.md",
       "pathRegexSources": [],
       "bashRegexSources": [
@@ -1185,7 +1325,97 @@
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/sandbox\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/sandbox(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
+    },
+    "satori": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [
+        "app/**/og/**",
+        "app/**/og.*",
+        "app/**/opengraph-image.*",
+        "app/**/twitter-image.*",
+        "src/app/**/og/**",
+        "src/app/**/og.*",
+        "src/app/**/opengraph-image.*",
+        "src/app/**/twitter-image.*",
+        "pages/api/og.*",
+        "pages/api/og/**",
+        "src/pages/api/og.*",
+        "src/pages/api/og/**",
+        "apps/*/app/**/og/**",
+        "apps/*/app/**/og.*",
+        "apps/*/app/**/opengraph-image.*",
+        "apps/*/app/**/twitter-image.*"
+      ],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bsatori\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/og\\b"
+      ],
+      "importPatterns": [
+        "satori",
+        "satori/wasm",
+        "@vercel/og",
+        "next/og"
+      ],
+      "bodyPath": "skills/satori/SKILL.md",
+      "pathRegexSources": [
+        "^app\\/(?:[^/]+\\/)*og\\/.*$",
+        "^app\\/(?:[^/]+\\/)*og\\.[^/]*$",
+        "^app\\/(?:[^/]+\\/)*opengraph-image\\.[^/]*$",
+        "^app\\/(?:[^/]+\\/)*twitter-image\\.[^/]*$",
+        "^src\\/app\\/(?:[^/]+\\/)*og\\/.*$",
+        "^src\\/app\\/(?:[^/]+\\/)*og\\.[^/]*$",
+        "^src\\/app\\/(?:[^/]+\\/)*opengraph-image\\.[^/]*$",
+        "^src\\/app\\/(?:[^/]+\\/)*twitter-image\\.[^/]*$",
+        "^pages\\/api\\/og\\.[^/]*$",
+        "^pages\\/api\\/og\\/.*$",
+        "^src\\/pages\\/api\\/og\\.[^/]*$",
+        "^src\\/pages\\/api\\/og\\/.*$",
+        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*og\\/.*$",
+        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*og\\.[^/]*$",
+        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*opengraph-image\\.[^/]*$",
+        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*twitter-image\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bsatori\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/og\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]satori(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]satori\\/wasm(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/og(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]next\\/og(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     },
     "chat-sdk": {
       "priority": 8,
@@ -1463,6 +1693,50 @@
         }
       ]
     },
+    "streamdown": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [
+        "components/**/streamdown*",
+        "src/components/**/streamdown*"
+      ],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bstreamdown\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bstreamdown\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bstreamdown\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bstreamdown\\b"
+      ],
+      "importPatterns": [
+        "streamdown",
+        "streamdown/*",
+        "@streamdown/*"
+      ],
+      "bodyPath": "skills/streamdown/SKILL.md",
+      "pathRegexSources": [
+        "^components\\/(?:[^/]+\\/)*streamdown[^/]*$",
+        "^src\\/components\\/(?:[^/]+\\/)*streamdown[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bstreamdown\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bstreamdown\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bstreamdown\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bstreamdown\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]streamdown(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]streamdown\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@streamdown\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
+    },
     "env-vars": {
       "priority": 7,
       "summary": "",
@@ -1646,6 +1920,51 @@
       ],
       "importRegexSources": []
     },
+    "edge-runtime": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [
+        "edge-runtime.config.*"
+      ],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@edge-runtime/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@edge-runtime/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@edge-runtime/",
+        "\\byarn\\s+add\\s+[^\\n]*@edge-runtime/"
+      ],
+      "importPatterns": [
+        "edge-runtime",
+        "@edge-runtime/*"
+      ],
+      "bodyPath": "skills/edge-runtime/SKILL.md",
+      "pathRegexSources": [
+        "^edge-runtime\\.config\\.[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bedge-runtime\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@edge-runtime/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@edge-runtime/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@edge-runtime/",
+        "\\byarn\\s+add\\s+[^\\n]*@edge-runtime/"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]edge-runtime(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@edge-runtime\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
+    },
     "vercel-functions": {
       "priority": 8,
       "summary": "",
@@ -1686,6 +2005,57 @@
         "\\bvercel\\s+logs\\b"
       ],
       "importRegexSources": []
+    },
+    "swr": {
+      "priority": 4,
+      "summary": "",
+      "pathPatterns": [
+        "lib/fetcher.*",
+        "src/lib/fetcher.*",
+        "utils/fetcher.*",
+        "src/utils/fetcher.*",
+        "hooks/use*SWR*",
+        "src/hooks/use*SWR*",
+        "hooks/useFetch*",
+        "src/hooks/useFetch*"
+      ],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bswr\\b"
+      ],
+      "importPatterns": [
+        "swr",
+        "swr/*"
+      ],
+      "bodyPath": "skills/swr/SKILL.md",
+      "pathRegexSources": [
+        "^lib\\/fetcher\\.[^/]*$",
+        "^src\\/lib\\/fetcher\\.[^/]*$",
+        "^utils\\/fetcher\\.[^/]*$",
+        "^src\\/utils\\/fetcher\\.[^/]*$",
+        "^hooks\\/use[^/]*SWR[^/]*$",
+        "^src\\/hooks\\/use[^/]*SWR[^/]*$",
+        "^hooks\\/useFetch[^/]*$",
+        "^src\\/hooks\\/useFetch[^/]*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bswr\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]swr(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]swr\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ]
     }
   }
 }

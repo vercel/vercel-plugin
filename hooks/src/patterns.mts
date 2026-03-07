@@ -18,15 +18,27 @@ export interface SkillEntry {
   importPatterns: string[];
 }
 
+/**
+ * Full manifest skill entry: base SkillEntry plus pre-compiled regex sources.
+ * Written by build-manifest.ts, read by the PreToolUse hook.
+ */
+export interface ManifestSkill extends SkillEntry {
+  pathRegexSources: string[];
+  bashRegexSources: string[];
+  importRegexSources: Array<{ source: string; flags: string }>;
+}
+
+export interface CompiledPattern {
+  pattern: string;
+  regex: RegExp;
+}
+
 export interface CompiledSkillEntry {
   skill: string;
   priority: number;
-  pathPatterns: string[];
-  pathRegexes: RegExp[];
-  bashPatterns: string[];
-  bashRegexes: RegExp[];
-  importPatterns: string[];
-  importRegexes: RegExp[];
+  compiledPaths: CompiledPattern[];
+  compiledBash: CompiledPattern[];
+  compiledImports: CompiledPattern[];
   effectivePriority?: number;
 }
 
@@ -128,31 +140,33 @@ export function compileSkillPatterns(
   callbacks?: CompileCallbacks,
 ): CompiledSkillEntry[] {
   const cb = callbacks || {};
-  return Object.entries(skillMap).map(([skill, config]) => ({
-    skill,
-    priority: typeof config.priority === "number" ? config.priority : 0,
-    pathPatterns: config.pathPatterns || [],
-    pathRegexes: (config.pathPatterns || []).map((p: string) => {
-      try { return globToRegex(p); } catch (err) {
+  return Object.entries(skillMap).map(([skill, config]) => {
+    const compiledPaths: CompiledPattern[] = [];
+    for (const p of config.pathPatterns || []) {
+      try { compiledPaths.push({ pattern: p, regex: globToRegex(p) }); } catch (err) {
         if (cb.onPathGlobError) cb.onPathGlobError(skill, p, err);
-        return null;
       }
-    }).filter(Boolean) as RegExp[],
-    bashPatterns: config.bashPatterns || [],
-    bashRegexes: (config.bashPatterns || []).map((p: string) => {
-      try { return new RegExp(p); } catch (err) {
+    }
+    const compiledBash: CompiledPattern[] = [];
+    for (const p of config.bashPatterns || []) {
+      try { compiledBash.push({ pattern: p, regex: new RegExp(p) }); } catch (err) {
         if (cb.onBashRegexError) cb.onBashRegexError(skill, p, err);
-        return null;
       }
-    }).filter(Boolean) as RegExp[],
-    importPatterns: config.importPatterns || [],
-    importRegexes: (config.importPatterns || []).map((p: string) => {
-      try { return importPatternToRegex(p); } catch (err) {
+    }
+    const compiledImports: CompiledPattern[] = [];
+    for (const p of config.importPatterns || []) {
+      try { compiledImports.push({ pattern: p, regex: importPatternToRegex(p) }); } catch (err) {
         if (cb.onImportPatternError) cb.onImportPatternError(skill, p, err);
-        return null;
       }
-    }).filter(Boolean) as RegExp[],
-  }));
+    }
+    return {
+      skill,
+      priority: typeof config.priority === "number" ? config.priority : 0,
+      compiledPaths,
+      compiledBash,
+      compiledImports,
+    };
+  });
 }
 
 /**
@@ -171,38 +185,33 @@ export function importPatternToRegex(pattern: string): RegExp {
 }
 
 /**
- * Match file content against precompiled import regexes.
+ * Match file content against precompiled import patterns.
  */
 export function matchImportWithReason(
   content: string,
-  regexes: RegExp[],
-  patterns: string[],
+  compiled: CompiledPattern[],
 ): MatchReason | null {
-  if (!content || regexes.length === 0) return null;
-  for (let idx = 0; idx < regexes.length; idx++) {
-    if (regexes[idx].test(content)) {
-      return { pattern: patterns[idx], matchType: "import" };
+  if (!content || compiled.length === 0) return null;
+  for (const { pattern, regex } of compiled) {
+    if (regex.test(content)) {
+      return { pattern, matchType: "import" };
     }
   }
   return null;
 }
 
 /**
- * Match a file path against precompiled path regexes.
+ * Match a file path against precompiled path patterns.
  */
 export function matchPathWithReason(
   filePath: string,
-  regexes: RegExp[],
-  patterns: string[],
+  compiled: CompiledPattern[],
 ): MatchReason | null {
-  if (!filePath || regexes.length === 0) return null;
+  if (!filePath || compiled.length === 0) return null;
 
   const normalized = filePath.replace(/\\/g, "/");
 
-  for (let idx = 0; idx < regexes.length; idx++) {
-    const regex = regexes[idx];
-    const pattern = patterns[idx];
-
+  for (const { pattern, regex } of compiled) {
     if (regex.test(normalized)) return { pattern, matchType: "full" };
 
     const base = basename(normalized);
@@ -218,16 +227,15 @@ export function matchPathWithReason(
 }
 
 /**
- * Match a bash command against precompiled bash regexes.
+ * Match a bash command against precompiled bash patterns.
  */
 export function matchBashWithReason(
   command: string,
-  regexes: RegExp[],
-  patterns: string[],
+  compiled: CompiledPattern[],
 ): MatchReason | null {
-  if (!command || regexes.length === 0) return null;
-  for (let idx = 0; idx < regexes.length; idx++) {
-    if (regexes[idx].test(command)) return { pattern: patterns[idx], matchType: "full" };
+  if (!command || compiled.length === 0) return null;
+  for (const { pattern, regex } of compiled) {
+    if (regex.test(command)) return { pattern, matchType: "full" };
   }
   return null;
 }

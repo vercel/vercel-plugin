@@ -18,9 +18,10 @@
  */
 
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
-import { readFileSync, realpathSync, existsSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pluginRoot as resolvePluginRoot, safeReadJson, safeReadFile } from "./hook-env.mjs";
 
 import { buildSkillMap, validateSkillMap } from "./skill-map-frontmatter.mjs";
 import type { SkillConfig } from "./skill-map-frontmatter.mjs";
@@ -34,7 +35,7 @@ import {
   matchImportWithReason,
   rankEntries,
 } from "./patterns.mjs";
-import type { CompiledSkillEntry, CompileCallbacks } from "./patterns.mjs";
+import type { CompiledSkillEntry, CompiledPattern, CompileCallbacks, ManifestSkill } from "./patterns.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger } from "./logger.mjs";
@@ -44,7 +45,7 @@ const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 12_000;
 const SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
 const SETUP_MODE_PRIORITY_BOOST = 50;
-const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const PLUGIN_ROOT = resolvePluginRoot();
 const SUPPORTED_TOOLS = ["Read", "Edit", "Write", "Bash"];
 
 /** Resolve the injection byte budget from env or default. */
@@ -126,19 +127,8 @@ export interface LoadedSkills {
   usedManifest: boolean;
 }
 
-interface ManifestSkillConfig {
-  priority?: number;
-  pathPatterns?: string[];
-  pathRegexSources?: string[];
-  bashPatterns?: string[];
-  bashRegexSources?: string[];
-  importPatterns?: string[];
-  importRegexSources?: Array<{ source: string; flags: string }>;
-  summary?: string;
-}
-
 interface Manifest {
-  skills?: Record<string, ManifestSkillConfig>;
+  skills?: Record<string, Partial<ManifestSkill>>;
   generatedAt?: string;
   version?: number;
 }
@@ -155,21 +145,14 @@ export function loadSkills(pluginRoot?: string, logger?: Logger): LoadedSkills |
   let usedManifest = false;
 
   let manifestVersion = 0;
-  let manifestSkillsFull: Record<string, ManifestSkillConfig> | null = null;
-  try {
-    if (existsSync(manifestPath)) {
-      const manifest: Manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-      if (manifest && manifest.skills && typeof manifest.skills === "object") {
-        skillMap = manifest.skills as Record<string, SkillConfig>;
-        manifestVersion = manifest.version || 1;
-        if (manifestVersion >= 2) manifestSkillsFull = manifest.skills;
-        usedManifest = true;
-        l.debug("manifest-loaded", { path: manifestPath, generatedAt: manifest.generatedAt as string, version: manifestVersion });
-      }
-    }
-  } catch (err) {
-    l.debug("manifest-load-fail", { error: String(err) });
-    // Fall through to live scan
+  let manifestSkillsFull: Record<string, Partial<ManifestSkill>> | null = null;
+  const manifest = safeReadJson<Manifest>(manifestPath);
+  if (manifest && manifest.skills && typeof manifest.skills === "object") {
+    skillMap = manifest.skills as Record<string, SkillConfig>;
+    manifestVersion = manifest.version || 1;
+    if (manifestVersion >= 2) manifestSkillsFull = manifest.skills;
+    usedManifest = true;
+    l.debug("manifest-loaded", { path: manifestPath, generatedAt: manifest.generatedAt as string, version: manifestVersion });
   }
 
   if (!usedManifest) {
@@ -221,22 +204,39 @@ export function loadSkills(pluginRoot?: string, logger?: Logger): LoadedSkills |
 
   // v2 manifests include pre-compiled regex sources — reconstruct RegExp objects directly
   if (manifestSkillsFull) {
-    compiledSkills = Object.entries(manifestSkillsFull).map(([skill, config]) => ({
-      skill,
-      priority: typeof config.priority === "number" ? config.priority : 0,
-      pathPatterns: config.pathPatterns || [],
-      pathRegexes: (config.pathRegexSources || []).map((src) => {
-        try { return new RegExp(src); } catch { return null; }
-      }).filter(Boolean) as RegExp[],
-      bashPatterns: config.bashPatterns || [],
-      bashRegexes: (config.bashRegexSources || []).map((src) => {
-        try { return new RegExp(src); } catch { return null; }
-      }).filter(Boolean) as RegExp[],
-      importPatterns: config.importPatterns || [],
-      importRegexes: (config.importRegexSources || []).map((entry) => {
-        try { return new RegExp(entry.source, entry.flags); } catch { return null; }
-      }).filter(Boolean) as RegExp[],
-    }));
+    compiledSkills = Object.entries(manifestSkillsFull).map(([skill, config]) => {
+      const pathPats = config.pathPatterns || [];
+      const pathSrcs = config.pathRegexSources || [];
+      const compiledPaths: CompiledPattern[] = [];
+      for (let i = 0; i < pathPats.length && i < pathSrcs.length; i++) {
+        try { compiledPaths.push({ pattern: pathPats[i], regex: new RegExp(pathSrcs[i]) }); } catch (err) {
+          l.issue("PATH_REGEX_COMPILE_FAIL", `Failed to compile path regex for skill "${skill}": ${pathSrcs[i]}`, `Fix pathRegexSources in the manifest for skill "${skill}"`, { skill, pattern: pathPats[i], regexSource: pathSrcs[i], error: String(err) });
+        }
+      }
+      const bashPats = config.bashPatterns || [];
+      const bashSrcs = config.bashRegexSources || [];
+      const compiledBash: CompiledPattern[] = [];
+      for (let i = 0; i < bashPats.length && i < bashSrcs.length; i++) {
+        try { compiledBash.push({ pattern: bashPats[i], regex: new RegExp(bashSrcs[i]) }); } catch (err) {
+          l.issue("BASH_REGEX_COMPILE_FAIL", `Failed to compile bash regex for skill "${skill}": ${bashSrcs[i]}`, `Fix bashRegexSources in the manifest for skill "${skill}"`, { skill, pattern: bashPats[i], regexSource: bashSrcs[i], error: String(err) });
+        }
+      }
+      const importPats = config.importPatterns || [];
+      const importSrcs = config.importRegexSources || [];
+      const compiledImports: CompiledPattern[] = [];
+      for (let i = 0; i < importPats.length && i < importSrcs.length; i++) {
+        try { compiledImports.push({ pattern: importPats[i], regex: new RegExp(importSrcs[i].source, importSrcs[i].flags) }); } catch (err) {
+          l.issue("IMPORT_REGEX_COMPILE_FAIL", `Failed to compile import regex for skill "${skill}": ${JSON.stringify(importSrcs[i])}`, `Fix importRegexSources in the manifest for skill "${skill}"`, { skill, pattern: importPats[i], regexSource: importSrcs[i], error: String(err) });
+        }
+      }
+      return {
+        skill,
+        priority: typeof config.priority === "number" ? config.priority : 0,
+        compiledPaths,
+        compiledBash,
+        compiledImports,
+      };
+    });
     l.debug("manifest-regexes-restored", { skillCount, version: manifestVersion });
   } else {
     const callbacks: CompileCallbacks = {
@@ -296,15 +296,15 @@ export function matchSkills(
     const fileContent = contentParts.join("\n");
 
     for (const entry of compiledSkills) {
-      l.trace("pattern-eval-start", { skill: entry.skill, target: filePath, patternCount: entry.pathPatterns.length });
-      const reason = matchPathWithReason(filePath, entry.pathRegexes, entry.pathPatterns);
+      l.trace("pattern-eval-start", { skill: entry.skill, target: filePath, patternCount: entry.compiledPaths.length });
+      const reason = matchPathWithReason(filePath, entry.compiledPaths);
       l.trace("pattern-eval-result", { skill: entry.skill, matched: !!reason, reason: reason || (null as unknown as string) });
       if (reason) {
         matchedEntries.push(entry);
         matchReasons[entry.skill] = reason;
-      } else if (fileContent && entry.importRegexes && entry.importRegexes.length > 0) {
+      } else if (fileContent && entry.compiledImports && entry.compiledImports.length > 0) {
         // Fall back to import matching when path matching produces no hit
-        const importReason = matchImportWithReason(fileContent, entry.importRegexes, entry.importPatterns);
+        const importReason = matchImportWithReason(fileContent, entry.compiledImports);
         l.trace("import-eval-result", { skill: entry.skill, matched: !!importReason, reason: importReason || (null as unknown as string) });
         if (importReason) {
           matchedEntries.push(entry);
@@ -315,8 +315,8 @@ export function matchSkills(
   } else if (toolName === "Bash") {
     const command = (toolInput.command as string) || "";
     for (const entry of compiledSkills) {
-      l.trace("pattern-eval-start", { skill: entry.skill, target: redactCommand(command), patternCount: entry.bashPatterns.length });
-      const reason = matchBashWithReason(command, entry.bashRegexes, entry.bashPatterns);
+      l.trace("pattern-eval-start", { skill: entry.skill, target: redactCommand(command), patternCount: entry.compiledBash.length });
+      const reason = matchBashWithReason(command, entry.compiledBash);
       l.trace("pattern-eval-result", { skill: entry.skill, matched: !!reason, reason: reason || (null as unknown as string) });
       if (reason) {
         matchedEntries.push(entry);
@@ -441,12 +441,9 @@ export function deduplicateSkills(
           : {
             skill: SETUP_MODE_BOOTSTRAP_SKILL,
             priority: 0,
-            pathPatterns: [],
-            pathRegexes: [],
-            bashPatterns: [],
-            bashRegexes: [],
-            importPatterns: [],
-            importRegexes: [],
+            compiledPaths: [],
+            compiledBash: [],
+            compiledImports: [],
           };
         newEntries.push(bootstrapEntry);
         matched.add(SETUP_MODE_BOOTSTRAP_SKILL);
@@ -536,11 +533,9 @@ export function injectSkills(rankedSkills: string[], options?: InjectOptions): I
     }
 
     const skillPath = join(root, "skills", skill, "SKILL.md");
-    let content: string;
-    try {
-      content = readFileSync(skillPath, "utf-8");
-    } catch (err) {
-      l.issue("SKILL_FILE_MISSING", `SKILL.md not found for skill "${skill}"`, `Create skills/${skill}/SKILL.md with valid frontmatter`, { skillPath, error: String(err) });
+    const content = safeReadFile(skillPath);
+    if (content === null) {
+      l.issue("SKILL_FILE_MISSING", `SKILL.md not found for skill "${skill}"`, `Create skills/${skill}/SKILL.md with valid frontmatter`, { skillPath, error: "file not found or unreadable" });
       continue;
     }
 

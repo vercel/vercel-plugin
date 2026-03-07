@@ -354,6 +354,10 @@ describe("pretooluse-skill-inject.mjs", () => {
       join(tempHooksDir, "logger.mjs"),
       readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"),
     );
+    writeFileSync(
+      join(tempHooksDir, "hook-env.mjs"),
+      readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"),
+    );
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
     // Run the hook from the temp location
@@ -689,6 +693,10 @@ describe("issue events in debug mode", () => {
       join(tempHooksDir, "logger.mjs"),
       readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"),
     );
+    writeFileSync(
+      join(tempHooksDir, "hook-env.mjs"),
+      readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"),
+    );
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
     const payload = JSON.stringify({
@@ -801,6 +809,10 @@ describe("issue events in debug mode", () => {
       join(tempHooksDir, "logger.mjs"),
       readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"),
     );
+    writeFileSync(
+      join(tempHooksDir, "hook-env.mjs"),
+      readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"),
+    );
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
     const payload = JSON.stringify({
@@ -874,6 +886,10 @@ describe("issue events in debug mode", () => {
     writeFileSync(
       join(tempHooksDir, "logger.mjs"),
       readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"),
+    );
+    writeFileSync(
+      join(tempHooksDir, "hook-env.mjs"),
+      readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"),
     );
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
@@ -1064,7 +1080,7 @@ describe("seen-skills env file and dedup controls", () => {
 
     const { stderr: memoryOnlyStderr } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
-      { VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      { VERCEL_PLUGIN_HOOK_DEBUG: "1", VERCEL_PLUGIN_SEEN_SKILLS: undefined },
     );
     const memoryOnlyLines = memoryOnlyStderr.trim().split("\n").map((l: string) => JSON.parse(l));
     const memoryOnlyStrategy = memoryOnlyLines.find((l: any) => l.event === "dedup-strategy");
@@ -1689,7 +1705,7 @@ describe("sectional injection (summary fallback)", () => {
     mkdirSync(tempSkillsDir, { recursive: true });
 
     // Copy hook modules
-    for (const mod of ["pretooluse-skill-inject.mjs", "skill-map-frontmatter.mjs", "patterns.mjs", "vercel-config.mjs", "logger.mjs"]) {
+    for (const mod of ["pretooluse-skill-inject.mjs", "skill-map-frontmatter.mjs", "patterns.mjs", "vercel-config.mjs", "logger.mjs", "hook-env.mjs"]) {
       writeFileSync(
         join(tempHooksDir, mod),
         readFileSync(join(ROOT, "hooks", mod), "utf-8"),
@@ -1935,6 +1951,10 @@ describe("invalid bash regex handling", () => {
       join(tempHooksDir, "logger.mjs"),
       readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"),
     );
+    writeFileSync(
+      join(tempHooksDir, "hook-env.mjs"),
+      readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"),
+    );
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
     // Write a SKILL.md with the given bashPatterns
@@ -2055,6 +2075,10 @@ describe("invalid glob pattern handling", () => {
     writeFileSync(
       join(tempHooksDir, "logger.mjs"),
       readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"),
+    );
+    writeFileSync(
+      join(tempHooksDir, "hook-env.mjs"),
+      readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"),
     );
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
@@ -3593,35 +3617,35 @@ describe("matchImportWithReason", () => {
 
   test("returns match with matchType 'import' for matching content", () => {
     const patterns = ["@ai-sdk/gateway"];
-    const regexes = patterns.map(importPatternToRegex);
+    const compiled = patterns.map((p: string) => ({ pattern: p, regex: importPatternToRegex(p) }));
     const content = `import { gateway } from '@ai-sdk/gateway';\nconst g = gateway("openai/gpt-4o");`;
-    const result = matchImportWithReason(content, regexes, patterns);
+    const result = matchImportWithReason(content, compiled);
     expect(result).toEqual({ pattern: "@ai-sdk/gateway", matchType: "import" });
   });
 
   test("returns null for non-matching content", () => {
     const patterns = ["@ai-sdk/gateway"];
-    const regexes = patterns.map(importPatternToRegex);
+    const compiled = patterns.map((p: string) => ({ pattern: p, regex: importPatternToRegex(p) }));
     const content = `const x = 1;\nconst y = 2;`;
-    const result = matchImportWithReason(content, regexes, patterns);
+    const result = matchImportWithReason(content, compiled);
     expect(result).toBeNull();
   });
 
   test("returns null for empty content", () => {
     const patterns = ["@ai-sdk/gateway"];
-    const regexes = patterns.map(importPatternToRegex);
-    expect(matchImportWithReason("", regexes, patterns)).toBeNull();
+    const compiled = patterns.map((p: string) => ({ pattern: p, regex: importPatternToRegex(p) }));
+    expect(matchImportWithReason("", compiled)).toBeNull();
   });
 
-  test("returns null for empty regexes", () => {
-    expect(matchImportWithReason("import { x } from 'ai'", [], [])).toBeNull();
+  test("returns null for empty compiled patterns", () => {
+    expect(matchImportWithReason("import { x } from 'ai'", [])).toBeNull();
   });
 
   test("returns first matching pattern", () => {
     const patterns = ["ai", "@ai-sdk/gateway"];
-    const regexes = patterns.map(importPatternToRegex);
+    const compiled = patterns.map((p: string) => ({ pattern: p, regex: importPatternToRegex(p) }));
     const content = `import { generateText } from 'ai';\nimport { gateway } from '@ai-sdk/gateway';`;
-    const result = matchImportWithReason(content, regexes, patterns);
+    const result = matchImportWithReason(content, compiled);
     expect(result).toEqual({ pattern: "ai", matchType: "import" });
   });
 });
@@ -3817,6 +3841,7 @@ describe("decision logging — reason codes", () => {
     writeFileSync(join(tempHooksDir, "patterns.mjs"), readFileSync(join(ROOT, "hooks", "patterns.mjs"), "utf-8"));
     writeFileSync(join(tempHooksDir, "vercel-config.mjs"), readFileSync(join(ROOT, "hooks", "vercel-config.mjs"), "utf-8"));
     writeFileSync(join(tempHooksDir, "logger.mjs"), readFileSync(join(ROOT, "hooks", "logger.mjs"), "utf-8"));
+    writeFileSync(join(tempHooksDir, "hook-env.mjs"), readFileSync(join(ROOT, "hooks", "hook-env.mjs"), "utf-8"));
     symlinkSync(join(ROOT, "node_modules"), join(tempRoot, "node_modules"));
 
     const payload = JSON.stringify({

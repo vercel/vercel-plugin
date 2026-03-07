@@ -21,11 +21,7 @@ import {
   matchImportWithReason,
   rankEntries,
 } from "../../hooks/patterns.mjs";
-import {
-  buildSkillMap,
-  validateSkillMap,
-  scanSkillsDir,
-} from "../../hooks/skill-map-frontmatter.mjs";
+import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
 import {
   resolveVercelJsonSkills,
   isVercelJsonPath,
@@ -69,6 +65,8 @@ export interface ExplainResult {
   skillCount: number;
   budgetBytes: number;
   usedBytes: number;
+  /** Warnings from SKILL.md parsing (malformed frontmatter, missing fields, etc.) */
+  buildWarnings: string[];
 }
 
 export interface ExplainOptions {
@@ -129,16 +127,18 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
     bodyPath?: string;
   }>;
 
+  let buildWarnings: string[] = [];
+
   if (existsSync(manifestPath)) {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
     skillMap = manifest.skills;
   } else {
-    const built = buildSkillMap(skillsDir);
-    const validation = validateSkillMap(built);
+    const { validation, skills, buildDiagnostics } = loadValidatedSkillMap(skillsDir);
     if (!validation.ok) {
       throw new Error(`Skill map validation failed: ${validation.errors.join(", ")}`);
     }
-    skillMap = validation.normalizedSkillMap.skills;
+    buildWarnings = buildDiagnostics;
+    skillMap = skills;
   }
 
   const targetType = detectTargetType(target, opts.toolName);
@@ -172,14 +172,14 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
     let reason: { pattern: string; matchType: string } | null = null;
 
     if (targetType === "file") {
-      reason = matchPathWithReason(target, entry.pathRegexes, entry.pathPatterns);
+      reason = matchPathWithReason(target, entry.compiledPaths);
 
       // Fall back to import matching when path matching doesn't hit
-      if (!reason && fileContent && entry.importRegexes && entry.importRegexes.length > 0) {
-        reason = matchImportWithReason(fileContent, entry.importRegexes, entry.importPatterns);
+      if (!reason && fileContent && entry.compiledImports && entry.compiledImports.length > 0) {
+        reason = matchImportWithReason(fileContent, entry.compiledImports);
       }
     } else {
-      reason = matchBashWithReason(target, entry.bashRegexes, entry.bashPatterns);
+      reason = matchBashWithReason(target, entry.compiledBash);
     }
 
     if (reason) {
@@ -272,6 +272,7 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
     skillCount: Object.keys(skillMap).length,
     budgetBytes: budget,
     usedBytes: injectionPlan.usedBytes,
+    buildWarnings,
   };
 }
 
@@ -397,6 +398,14 @@ export function formatExplainResult(result: ExplainResult): string {
     lines.push("Collisions:");
     for (const c of result.collisions) {
       lines.push(`  - ${c.skills.join(", ")}: ${c.reason}`);
+    }
+  }
+
+  if (result.buildWarnings.length > 0) {
+    lines.push("");
+    lines.push("Build warnings:");
+    for (const w of result.buildWarnings) {
+      lines.push(`  - ${w}`);
     }
   }
 

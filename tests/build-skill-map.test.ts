@@ -200,18 +200,20 @@ describe("loadSkills pipeline stage", () => {
     expect(Array.isArray(result.compiledSkills)).toBe(true);
     expect(result.compiledSkills.length).toBe(countSkillDirs());
 
-    // Each compiled skill should have regex arrays
+    // Each compiled skill should have paired pattern+regex arrays
     for (const entry of result.compiledSkills) {
       expect(typeof entry.skill).toBe("string");
       expect(typeof entry.priority).toBe("number");
-      expect(Array.isArray(entry.pathRegexes)).toBe(true);
-      expect(Array.isArray(entry.bashRegexes)).toBe(true);
-      // Regexes should be actual RegExp instances
-      for (const r of entry.pathRegexes) {
-        expect(r).toBeInstanceOf(RegExp);
+      expect(Array.isArray(entry.compiledPaths)).toBe(true);
+      expect(Array.isArray(entry.compiledBash)).toBe(true);
+      // Each pair should have a pattern string and RegExp instance
+      for (const cp of entry.compiledPaths) {
+        expect(typeof cp.pattern).toBe("string");
+        expect(cp.regex).toBeInstanceOf(RegExp);
       }
-      for (const r of entry.bashRegexes) {
-        expect(r).toBeInstanceOf(RegExp);
+      for (const cp of entry.compiledBash) {
+        expect(typeof cp.pattern).toBe("string");
+        expect(cp.regex).toBeInstanceOf(RegExp);
       }
     }
   });
@@ -271,6 +273,7 @@ This is test content.
       "patterns.mjs",
       "vercel-config.mjs",
       "logger.mjs",
+      "hook-env.mjs",
     ];
     for (const f of hookFiles) {
       const src = join(ROOT, "hooks", f);

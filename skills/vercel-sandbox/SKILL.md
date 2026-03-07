@@ -4,6 +4,8 @@ description: Vercel Sandbox guidance — ephemeral Firecracker microVMs for runn
 metadata:
   priority: 4
   pathPatterns: []
+  importPatterns:
+    - '@vercel/sandbox'
   bashPatterns:
     - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/sandbox\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/sandbox\b'

@@ -6,12 +6,9 @@
  */
 
 import { appendFileSync } from "node:fs";
+import { requireEnvFile } from "./hook-env.mjs";
 
-const envFile = process.env.CLAUDE_ENV_FILE;
-
-if (!envFile) {
-  process.exit(0);
-}
+const envFile = requireEnvFile();
 
 try {
   appendFileSync(envFile, 'export VERCEL_PLUGIN_SEEN_SKILLS=""\n');

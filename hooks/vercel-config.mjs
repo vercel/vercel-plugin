@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { safeReadFile } from "./hook-env.mjs";
 const KEY_SKILL_MAP = {
   // Routing
   redirects: ["routing-middleware"],
@@ -27,12 +27,8 @@ const VERCEL_JSON_SKILLS = /* @__PURE__ */ new Set([
   "vercel-functions"
 ]);
 function resolveVercelJsonSkills(filePath) {
-  let content;
-  try {
-    content = readFileSync(filePath, "utf-8");
-  } catch {
-    return null;
-  }
+  const content = safeReadFile(filePath);
+  if (content === null) return null;
   let parsed;
   try {
     parsed = JSON.parse(content);
@@ -61,7 +57,6 @@ function isVercelJsonPath(filePath) {
   return base === "vercel.json";
 }
 export {
-  KEY_SKILL_MAP,
   VERCEL_JSON_SKILLS,
   isVercelJsonPath,
   resolveVercelJsonSkills

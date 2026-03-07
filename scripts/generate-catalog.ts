@@ -7,10 +7,11 @@
  * Outputs: generated/skill-catalog.md
  */
 
-import { readdir, readFile, stat, writeFile, mkdir } from "node:fs/promises";
+import { stat, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { buildSkillMap } from "../hooks/skill-map-frontmatter.mjs";
 import { globToRegex } from "../hooks/patterns.mjs";
+import type { SkillEntry } from "../hooks/patterns.mjs";
+import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILLS_DIR = join(ROOT, "skills");
@@ -79,12 +80,8 @@ const BASH_OVERLAP_TARGETS = [
   "vercel firewall",
 ];
 
-interface SkillEntry {
+interface CatalogSkillEntry extends SkillEntry {
   slug: string;
-  priority: number;
-  pathPatterns: string[];
-  bashPatterns: string[];
-  importPatterns: string[];
 }
 
 function matchesPath(skill: SkillEntry, filePath: string): boolean {
@@ -111,8 +108,15 @@ function matchesBash(skill: SkillEntry, command: string): boolean {
 }
 
 async function main() {
-  const built = buildSkillMap(SKILLS_DIR);
-  const skills: SkillEntry[] = Object.entries(built.skills)
+  const { skills: skillMap, buildDiagnostics } = loadValidatedSkillMap(SKILLS_DIR);
+
+  if (buildDiagnostics.length > 0) {
+    console.warn(`Skill build warnings (${buildDiagnostics.length}):`);
+    for (const d of buildDiagnostics) {
+      console.warn(`  - ${d}`);
+    }
+  }
+  const skills: CatalogSkillEntry[] = Object.entries(skillMap)
     .map(([slug, config]: [string, any]) => ({
       slug,
       priority: config.priority,

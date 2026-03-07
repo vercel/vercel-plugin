@@ -1,5 +1,7 @@
-import { existsSync, readFileSync, appendFileSync, readdirSync } from "node:fs";
+import { existsSync, appendFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { requireEnvFile, safeReadJson } from "./hook-env.mjs";
 const FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -57,13 +59,7 @@ const SETUP_RESOURCE_DEPENDENCIES = {
 };
 const SETUP_MODE_THRESHOLD = 3;
 function readPackageJson(projectRoot) {
-  const pkgPath = join(projectRoot, "package.json");
-  if (!existsSync(pkgPath)) return null;
-  try {
-    return JSON.parse(readFileSync(pkgPath, "utf-8"));
-  } catch {
-    return null;
-  }
+  return safeReadJson(join(projectRoot, "package.json"));
 }
 function profileProject(projectRoot) {
   const skills = /* @__PURE__ */ new Set();
@@ -84,17 +80,13 @@ function profileProject(projectRoot) {
       }
     }
   }
-  const vercelJsonPath = join(projectRoot, "vercel.json");
-  if (existsSync(vercelJsonPath)) {
-    try {
-      const vercelConfig = JSON.parse(readFileSync(vercelJsonPath, "utf-8"));
-      if (vercelConfig.crons) skills.add("cron-jobs");
-      if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
-        skills.add("routing-middleware");
-      }
-      if (vercelConfig.functions) skills.add("vercel-functions");
-    } catch {
+  const vercelConfig = safeReadJson(join(projectRoot, "vercel.json"));
+  if (vercelConfig) {
+    if (vercelConfig.crons) skills.add("cron-jobs");
+    if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
+      skills.add("routing-middleware");
     }
+    if (vercelConfig.functions) skills.add("vercel-functions");
   }
   return [...skills].sort();
 }
@@ -167,11 +159,38 @@ function checkGreenfield(projectRoot) {
   }
   return null;
 }
-function main() {
-  const envFile = process.env.CLAUDE_ENV_FILE;
-  if (!envFile) {
-    process.exit(0);
+const VERCEL_VERSION_ARGS = "--version".split(" ");
+const NPM_VIEW_ARGS = "view vercel version".split(" ");
+const SPAWN_STDIO = "ignore pipe ignore".split(" ");
+function checkVercelCli() {
+  let currentVersion;
+  try {
+    const raw = execFileSync("vercel", VERCEL_VERSION_ARGS, {
+      timeout: 5e3,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO
+    }).trim();
+    const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+    currentVersion = lines[lines.length - 1];
+  } catch {
+    return { installed: false, needsUpdate: false };
   }
+  let latestVersion;
+  try {
+    const raw = execFileSync("npm", NPM_VIEW_ARGS, {
+      timeout: 5e3,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO
+    }).trim();
+    latestVersion = raw;
+  } catch {
+    return { installed: true, currentVersion, needsUpdate: false };
+  }
+  const needsUpdate = !!(currentVersion && latestVersion && currentVersion !== latestVersion);
+  return { installed: true, currentVersion, latestVersion, needsUpdate };
+}
+function main() {
+  const envFile = requireEnvFile();
   const projectRoot = process.env.CLAUDE_PROJECT_ROOT || process.cwd();
   const greenfield = checkGreenfield(projectRoot);
   if (greenfield) {
@@ -188,6 +207,25 @@ Skip codebase exploration \u2014 there is no existing code to discover.
 `
     );
     process.exit(0);
+  }
+  const cliStatus = checkVercelCli();
+  if (!cliStatus.installed) {
+    process.stdout.write(
+      [
+        "IMPORTANT: The Vercel CLI is not installed.",
+        "Strongly recommend the user install it with `npm i -g vercel` to unlock agentic features like `vercel env pull`, `vercel deploy`, and `vercel logs`.",
+        ""
+      ].join("\n")
+    );
+  } else if (cliStatus.needsUpdate) {
+    process.stdout.write(
+      [
+        `IMPORTANT: The Vercel CLI is outdated (${cliStatus.currentVersion} \u2192 ${cliStatus.latestVersion}).`,
+        "Strongly recommend the user upgrade with `npm i -g vercel@latest`.",
+        "The latest version includes significant agentic features and improvements that will greatly enhance their development experience.",
+        ""
+      ].join("\n")
+    );
   }
   const likelySkills = profileProject(projectRoot);
   const setupSignals = profileBootstrapSignals(projectRoot);

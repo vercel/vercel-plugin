@@ -5,15 +5,10 @@
  * to the conversation context at session start.
  */
 
-import { readFileSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { pluginRoot, safeReadFile } from "./hook-env.mjs";
 
-const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-try {
-  const content = readFileSync(join(PLUGIN_ROOT, "vercel.md"), "utf-8");
+const content = safeReadFile(join(pluginRoot(), "vercel.md"));
+if (content !== null) {
   process.stdout.write(content);
-} catch {
-  // vercel.md not found — silently exit
 }

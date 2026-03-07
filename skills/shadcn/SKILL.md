@@ -280,6 +280,34 @@ npx shadcn@latest add https://your-domain.com/r/my-component.json
 
 ## Component Gotchas
 
+### `shadcn init` Breaks Geist Font in Next.js (Tailwind v4)
+
+`shadcn init` rewrites `globals.css` and may introduce `--font-sans: var(--font-sans)` — a circular self-reference that breaks font loading. Tailwind v4's `@theme inline` resolves CSS custom properties at **parse time**, not runtime — so even `var(--font-geist-sans)` won't work because Next.js injects that variable via className at runtime.
+
+**The fix**: Use literal font family names in `@theme inline`:
+
+```css
+/* In @theme inline — CORRECT (literal names) */
+--font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+--font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+
+/* WRONG — circular, resolves to nothing */
+--font-sans: var(--font-sans);
+
+/* ALSO WRONG — @theme inline can't resolve runtime CSS variables */
+--font-sans: var(--font-geist-sans);
+```
+
+**After running `shadcn init`**, always:
+1. Replace font declarations in `@theme inline` with literal Geist font names (as shown above)
+2. Move the font variable classNames from `<body>` to `<html>` in `layout.tsx`:
+
+```tsx
+// layout.tsx — font variables on <html>, not <body>
+<html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+  <body className="antialiased">
+```
+
 ### Avatar Has No `size` Prop
 
 The shadcn Avatar component does **not** accept a `size` variant prop. Control size with Tailwind classes:

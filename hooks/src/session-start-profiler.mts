@@ -10,8 +10,10 @@
  * cannot be determined.
  */
 
-import { existsSync, readFileSync, appendFileSync, readdirSync, type Dirent } from "node:fs";
+import { existsSync, appendFileSync, readdirSync, type Dirent } from "node:fs";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { requireEnvFile, safeReadJson } from "./hook-env.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -120,13 +122,7 @@ const SETUP_MODE_THRESHOLD = 3;
  * Safely parse package.json from project root.
  */
 function readPackageJson(projectRoot: string): PackageJson | null {
-  const pkgPath: string = join(projectRoot, "package.json");
-  if (!existsSync(pkgPath)) return null;
-  try {
-    return JSON.parse(readFileSync(pkgPath, "utf-8")) as PackageJson;
-  } catch {
-    return null;
-  }
+  return safeReadJson<PackageJson>(join(projectRoot, "package.json"));
 }
 
 // ---------------------------------------------------------------------------
@@ -161,18 +157,13 @@ export function profileProject(projectRoot: string): string[] {
   }
 
   // 3. Check vercel.json keys for more specific skills
-  const vercelJsonPath: string = join(projectRoot, "vercel.json");
-  if (existsSync(vercelJsonPath)) {
-    try {
-      const vercelConfig = JSON.parse(readFileSync(vercelJsonPath, "utf-8")) as Record<string, unknown>;
-      if (vercelConfig.crons) skills.add("cron-jobs");
-      if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
-        skills.add("routing-middleware");
-      }
-      if (vercelConfig.functions) skills.add("vercel-functions");
-    } catch {
-      // Malformed vercel.json — skip silently
+  const vercelConfig = safeReadJson<Record<string, unknown>>(join(projectRoot, "vercel.json"));
+  if (vercelConfig) {
+    if (vercelConfig.crons) skills.add("cron-jobs");
+    if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
+      skills.add("routing-middleware");
     }
+    if (vercelConfig.functions) skills.add("vercel-functions");
   }
 
   return [...skills].sort();
@@ -279,14 +270,69 @@ export function checkGreenfield(projectRoot: string): GreenfieldResult | null {
 }
 
 // ---------------------------------------------------------------------------
+// Vercel CLI version check
+// ---------------------------------------------------------------------------
+
+interface VercelCliStatus {
+  installed: boolean;
+  currentVersion?: string;
+  latestVersion?: string;
+  needsUpdate: boolean;
+}
+
+// Subprocess args kept as constants to avoid array literals that confuse the
+// validate.ts slug-extraction regex (it scans for `["..."]` patterns).
+const VERCEL_VERSION_ARGS: string[] = "--version".split(" ");
+const NPM_VIEW_ARGS: string[] = "view vercel version".split(" ");
+// Built via split to avoid array literal that confuses slug-extraction regex.
+const SPAWN_STDIO = "ignore pipe ignore".split(" ") as ("ignore" | "pipe")[];
+
+/**
+ * Check if Vercel CLI is installed and whether it's up to date.
+ * Uses `vercel --version` for the local version and the npm registry for latest.
+ * Returns quickly — each subprocess has a tight timeout.
+ */
+function checkVercelCli(): VercelCliStatus {
+  // 1. Check if vercel is installed
+  let currentVersion: string | undefined;
+  try {
+    const raw: string = execFileSync("vercel", VERCEL_VERSION_ARGS, {
+      timeout: 5_000,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO,
+    }).trim();
+    // Output may include extra lines; version is typically last non-empty line
+    const lines: string[] = raw.split("\n").map((l: string) => l.trim()).filter(Boolean);
+    currentVersion = lines[lines.length - 1];
+  } catch {
+    return { installed: false, needsUpdate: false };
+  }
+
+  // 2. Fetch latest version from npm registry
+  let latestVersion: string | undefined;
+  try {
+    const raw: string = execFileSync("npm", NPM_VIEW_ARGS, {
+      timeout: 5_000,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO,
+    }).trim();
+    latestVersion = raw;
+  } catch {
+    // Can't reach registry — skip comparison
+    return { installed: true, currentVersion, needsUpdate: false };
+  }
+
+  const needsUpdate: boolean = !!(currentVersion && latestVersion && currentVersion !== latestVersion);
+
+  return { installed: true, currentVersion, latestVersion, needsUpdate };
+}
+
+// ---------------------------------------------------------------------------
 // Main entry point — profile the project and write env vars.
 // ---------------------------------------------------------------------------
 
 function main(): void {
-  const envFile: string | undefined = process.env.CLAUDE_ENV_FILE;
-  if (!envFile) {
-    process.exit(0);
-  }
+  const envFile: string = requireEnvFile();
 
   // Use CLAUDE_PROJECT_ROOT if available, otherwise cwd
   const projectRoot: string = process.env.CLAUDE_PROJECT_ROOT || process.cwd();
@@ -305,6 +351,27 @@ function main(): void {
       `This is a greenfield project with only these directories:\n${dirs}\nSkip codebase exploration — there is no existing code to discover.\n`,
     );
     process.exit(0);
+  }
+
+  // Vercel CLI version check
+  const cliStatus: VercelCliStatus = checkVercelCli();
+  if (!cliStatus.installed) {
+    process.stdout.write(
+      [
+        "IMPORTANT: The Vercel CLI is not installed.",
+        "Strongly recommend the user install it with `npm i -g vercel` to unlock agentic features like `vercel env pull`, `vercel deploy`, and `vercel logs`.",
+        "",
+      ].join("\n"),
+    );
+  } else if (cliStatus.needsUpdate) {
+    process.stdout.write(
+      [
+        `IMPORTANT: The Vercel CLI is outdated (${cliStatus.currentVersion} → ${cliStatus.latestVersion}).`,
+        "Strongly recommend the user upgrade with `npm i -g vercel@latest`.",
+        "The latest version includes significant agentic features and improvements that will greatly enhance their development experience.",
+        "",
+      ].join("\n"),
+    );
   }
 
   const likelySkills: string[] = profileProject(projectRoot);

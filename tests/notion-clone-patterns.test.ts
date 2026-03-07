@@ -55,7 +55,7 @@ describe("notion clone patterns", () => {
 
   test("notion-clone middleware.ts injects routing-middleware", async () => {
     const injectedSkills = await matchFile("/Users/me/notion-clone/middleware.ts");
-    expect(injectedSkills).toEqual(["routing-middleware"]);
+    expect(injectedSkills).toEqual(["auth", "routing-middleware"]);
   });
 
   test("notion-clone components/ui/dialog.tsx injects shadcn", async () => {

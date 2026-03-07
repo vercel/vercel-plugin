@@ -42,6 +42,38 @@ npx create-next-app@latest my-app --yes --typescript --tailwind --eslint --app -
 
 `create-next-app` refuses to run in a non-empty directory. To scaffold into an existing project, create in a temp directory and copy the files over.
 
+### Geist Font Fix (Tailwind v4 + shadcn)
+
+`shadcn init` rewrites `globals.css` with `--font-sans: var(--font-sans)` in `@theme inline` — a circular reference that falls back to Times/serif. Even `var(--font-geist-sans)` doesn't work because Tailwind v4's `@theme inline` resolves at **CSS parse time**, not runtime.
+
+**Two fixes required after `create-next-app` + `shadcn init`:**
+
+1. **Use literal font names in `globals.css`** (not CSS variable references):
+
+```css
+@theme inline {
+  /* CORRECT — literal names that @theme can resolve at parse time */
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+}
+```
+
+2. **Move font variable classNames from `<body>` to `<html>`** in layout.tsx:
+
+```tsx
+// app/layout.tsx — CORRECT
+<html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+  <body className="antialiased">
+```
+
+```tsx
+// app/layout.tsx — WRONG (default scaffold output)
+<html lang="en">
+  <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+```
+
+**Always apply both fixes** after running `create-next-app` + `shadcn init` with Tailwind v4.
+
 ## Key Architecture
 
 Next.js 16 uses React 19.2 features and the App Router (file-system routing under `app/`).

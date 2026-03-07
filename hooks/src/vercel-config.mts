@@ -8,7 +8,7 @@
  * are relevant to the file's current content.
  */
 
-import { readFileSync } from "node:fs";
+import { safeReadFile } from "./hook-env.mjs";
 
 // ---------------------------------------------------------------------------
 // Key → skill mapping
@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
  * guidance for that key.  A key may map to multiple skills if genuinely
  * shared (rare — prefer the most specific skill).
  */
-export const KEY_SKILL_MAP: Record<string, string[]> = {
+const KEY_SKILL_MAP: Record<string, string[]> = {
   // Routing
   redirects: ["routing-middleware"],
   rewrites: ["routing-middleware"],
@@ -72,12 +72,8 @@ export interface VercelJsonRouting {
  * fall back to default priority-based matching).
  */
 export function resolveVercelJsonSkills(filePath: string): VercelJsonRouting | null {
-  let content: string;
-  try {
-    content = readFileSync(filePath, "utf-8");
-  } catch {
-    return null; // file doesn't exist or can't be read
-  }
+  const content = safeReadFile(filePath);
+  if (content === null) return null; // file doesn't exist or can't be read
 
   let parsed: unknown;
   try {
