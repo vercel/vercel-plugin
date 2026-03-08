@@ -4,7 +4,7 @@
  * Always exits successfully.
  */
 
-import { readFileSync, unlinkSync } from "node:fs";
+import { readFileSync, rmSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -39,6 +39,24 @@ if (sessionId !== null) {
   const tempRoot = tmpdir();
   removeFileIfPresent(join(tempRoot, `vercel-plugin-${sessionId}-seen-skills.txt`));
   removeFileIfPresent(join(tempRoot, `vercel-plugin-${sessionId}-validated-files.txt`));
+
+  try {
+    rmSync(join(tempRoot, `vercel-plugin-${sessionId}-seen-skills.d`), {
+      recursive: true,
+      force: true,
+    });
+  } catch {
+    // Silently ignore cleanup failures
+  }
+
+  try {
+    rmSync(join(tempRoot, `vercel-plugin-${sessionId}-validated-files.d`), {
+      recursive: true,
+      force: true,
+    });
+  } catch {
+    // Silently ignore cleanup failures
+  }
 }
 
 process.exit(0);
