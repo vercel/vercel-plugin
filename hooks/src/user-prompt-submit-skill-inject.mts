@@ -21,10 +21,19 @@ import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { appendAuditLog, pluginRoot as resolvePluginRoot, safeReadFile } from "./hook-env.mjs";
+import {
+  appendAuditLog,
+  listSessionKeys,
+  pluginRoot as resolvePluginRoot,
+  readSessionFile,
+  safeReadFile,
+  syncSessionFileFromClaims,
+  tryClaimSessionKey,
+  writeSessionFile,
+} from "./hook-env.mjs";
 import { loadSkills, injectSkills } from "./pretooluse-skill-inject.mjs";
 import type { LoadedSkills } from "./pretooluse-skill-inject.mjs";
-import { parseSeenSkills, appendSeenSkill, rankEntries } from "./patterns.mjs";
+import { parseSeenSkills, appendSeenSkill, mergeSeenSkillStates, rankEntries } from "./patterns.mjs";
 import type { CompiledSkillEntry } from "./patterns.mjs";
 import { normalizePromptText, compilePromptSignals, matchPromptWithReason } from "./prompt-patterns.mjs";
 import type { CompiledPromptSignals } from "./prompt-patterns.mjs";
@@ -64,6 +73,56 @@ function getInjectionBudget(): number {
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
   return DEFAULT_INJECTION_BUDGET_BYTES;
+}
+
+export interface PromptSeenSkillState {
+  dedupOff: boolean;
+  hasFileDedup: boolean;
+  hasEnvDedup: boolean;
+  seenEnv: string;
+  seenClaims: string;
+  seenFile: string;
+  seenState: string;
+}
+
+export function resolvePromptSeenSkillState(sessionId: string | null): PromptSeenSkillState {
+  const dedupOff = process.env.VERCEL_PLUGIN_HOOK_DEDUP === "off";
+  const hasFileDedup = !dedupOff && !!sessionId;
+  const seenEnv = typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string"
+    ? process.env.VERCEL_PLUGIN_SEEN_SKILLS
+    : "";
+  const seenClaims = hasFileDedup ? listSessionKeys(sessionId as string, "seen-skills").join(",") : "";
+  const seenFile = hasFileDedup ? readSessionFile(sessionId as string, "seen-skills") : "";
+  const seenState = hasFileDedup ? mergeSeenSkillStates(seenEnv, seenFile, seenClaims) : seenEnv;
+
+  if (!dedupOff) {
+    process.env.VERCEL_PLUGIN_SEEN_SKILLS = seenState;
+  }
+  if (hasFileDedup) {
+    writeSessionFile(sessionId as string, "seen-skills", seenState);
+  }
+
+  return {
+    dedupOff,
+    hasFileDedup,
+    hasEnvDedup: !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string",
+    seenEnv,
+    seenClaims,
+    seenFile,
+    seenState,
+  };
+}
+
+export function syncPromptSeenSkillClaims(sessionId: string, loadedSkills: string[]): string {
+  for (const skill of loadedSkills) {
+    tryClaimSessionKey(sessionId, "seen-skills", skill);
+  }
+  const synced = syncSessionFileFromClaims(sessionId, "seen-skills");
+  process.env.VERCEL_PLUGIN_SEEN_SKILLS = mergeSeenSkillStates(
+    process.env.VERCEL_PLUGIN_SEEN_SKILLS || "",
+    synced,
+  );
+  return synced;
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +356,7 @@ export function run(): string {
   if (!parsed) return "{}";
   if (log.active) timing.stdin_parse = Math.round(log.now() - tPhase);
 
-  const { prompt, cwd } = parsed;
+  const { prompt, sessionId, cwd } = parsed;
   const normalizedPrompt = normalizePromptText(prompt);
 
   if (!normalizedPrompt) {
@@ -313,9 +372,23 @@ export function run(): string {
 
   // Stage 3: analyzePrompt — structured analysis of matching + dedup + cap
   const tAnalyze = log.active ? log.now() : 0;
-  const seenEnv = getSeenSkillsEnv();
+  const dedupOff = process.env.VERCEL_PLUGIN_HOOK_DEDUP === "off";
+  const hasFileDedup = !dedupOff && !!sessionId;
+  const seenEnv = typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string"
+    ? process.env.VERCEL_PLUGIN_SEEN_SKILLS
+    : "";
+  const seenClaims = hasFileDedup ? listSessionKeys(sessionId as string, "seen-skills").join(",") : "";
+  const seenFile = hasFileDedup ? readSessionFile(sessionId as string, "seen-skills") : "";
+  const seenState = hasFileDedup ? mergeSeenSkillStates(seenEnv, seenFile, seenClaims) : seenEnv;
+  if (!dedupOff) {
+    process.env.VERCEL_PLUGIN_SEEN_SKILLS = seenState;
+  }
+  if (hasFileDedup) {
+    writeSessionFile(sessionId as string, "seen-skills", seenState);
+  }
+  const hasEnvDedup = !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string";
   const budget = getInjectionBudget();
-  const report = analyzePrompt(prompt, skills.skillMap, seenEnv, budget, MAX_SKILLS);
+  const report = analyzePrompt(prompt, skills.skillMap, seenState, budget, MAX_SKILLS);
   if (log.active) timing.analyze = Math.round(log.now() - tAnalyze);
 
   // --- Trace: full report ---
@@ -376,13 +449,12 @@ export function run(): string {
 
   // Stage 4: inject selected skills (file I/O for SKILL.md bodies)
   const tInject = log.active ? log.now() : 0;
-  const dedupOff = process.env.VERCEL_PLUGIN_HOOK_DEDUP === "off";
-  const hasEnvDedup = !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string";
-  const injectedSkills = hasEnvDedup ? parseSeenSkills(seenEnv) : new Set<string>();
+  const injectedSkills = hasEnvDedup ? parseSeenSkills(seenState) : new Set<string>();
 
   const injectResult = injectSkills(report.selectedSkills, {
     pluginRoot: PLUGIN_ROOT,
     hasEnvDedup,
+    sessionId,
     injectedSkills,
     budgetBytes: budget,
     maxSkills: MAX_SKILLS,
@@ -392,6 +464,9 @@ export function run(): string {
   if (log.active) timing.inject = Math.round(log.now() - tInject);
 
   const { parts, loaded, summaryOnly } = injectResult;
+  if (hasFileDedup) {
+    syncPromptSeenSkillClaims(sessionId as string, loaded);
+  }
   const droppedByCap = [...injectResult.droppedByCap, ...report.droppedByCap];
   const droppedByBudget = [...injectResult.droppedByBudget, ...report.droppedByBudget];
   const matchedSkills = allMatched;
