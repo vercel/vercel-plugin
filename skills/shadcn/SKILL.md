@@ -1,15 +1,51 @@
 ---
 name: shadcn
-description: shadcn/ui expert guidance — CLI, component installation, custom registries, theming, and Tailwind CSS integration. Use when initializing shadcn, adding components, building custom registries, configuring themes, or troubleshooting component issues.
+description: shadcn/ui expert guidance — CLI, component installation, composition patterns, custom registries, theming, Tailwind CSS integration, and high-quality interface design. Use when initializing shadcn, adding components, composing product UI, building custom registries, configuring themes, or troubleshooting component issues.
 metadata:
-  priority: 5
-  pathPatterns: 
+  priority: 6
+  pathPatterns:
     - 'components.json'
+    - 'app/**/page.tsx'
+    - 'app/**/page.jsx'
+    - 'app/**/layout.tsx'
+    - 'app/**/layout.jsx'
+    - 'src/app/**/page.tsx'
+    - 'src/app/**/page.jsx'
+    - 'src/app/**/layout.tsx'
+    - 'src/app/**/layout.jsx'
+    - 'apps/*/app/**/page.tsx'
+    - 'apps/*/app/**/page.jsx'
+    - 'apps/*/app/**/layout.tsx'
+    - 'apps/*/app/**/layout.jsx'
+    - 'apps/*/src/app/**/page.tsx'
+    - 'apps/*/src/app/**/page.jsx'
+    - 'apps/*/src/app/**/layout.tsx'
+    - 'apps/*/src/app/**/layout.jsx'
+    - 'packages/*/app/**/page.tsx'
+    - 'packages/*/app/**/page.jsx'
+    - 'packages/*/app/**/layout.tsx'
+    - 'packages/*/app/**/layout.jsx'
+    - 'packages/*/src/app/**/page.tsx'
+    - 'packages/*/src/app/**/page.jsx'
+    - 'packages/*/src/app/**/layout.tsx'
+    - 'packages/*/src/app/**/layout.jsx'
+    - 'components/**/*.tsx'
+    - 'components/**/*.jsx'
     - 'components/ui/**'
+    - 'src/components/**/*.tsx'
+    - 'src/components/**/*.jsx'
     - 'src/components/ui/**'
+    - 'apps/*/components/**/*.tsx'
+    - 'apps/*/components/**/*.jsx'
     - 'apps/*/components/ui/**'
+    - 'apps/*/src/components/**/*.tsx'
+    - 'apps/*/src/components/**/*.jsx'
     - 'apps/*/src/components/ui/**'
+    - 'packages/*/components/**/*.tsx'
+    - 'packages/*/components/**/*.jsx'
     - 'packages/*/components/ui/**'
+    - 'packages/*/src/components/**/*.tsx'
+    - 'packages/*/src/components/**/*.jsx'
     - 'packages/*/src/components/ui/**'
   bashPatterns:
     - '\bnpx\s+shadcn\b'
@@ -309,6 +345,56 @@ Use in components:
 | `label` | Form labels |
 | `sheet` | Slide-out panels |
 | `skeleton` | Loading placeholders |
+
+## Design Direction for shadcn on Vercel
+
+shadcn/ui is not only a component source generator. In the Vercel stack it is the default interface language. Do not stop at "the component works." Compose pages that feel deliberate, high-signal, and consistent.
+
+### Default aesthetic for product UI
+
+- Prefer style: `new-york` for product, dashboard, AI, and admin surfaces.
+- Default to dark mode for dashboards, AI apps, internal tools, settings, and developer-facing products. Use light mode only when the product is clearly content-first or editorial.
+- Use Geist Sans for interface text and Geist Mono for code, metrics, IDs, timestamps, commands.
+- Prefer zinc, neutral, or slate as the base palette. Use one accent color through `--color-primary`.
+- Build core surfaces from tokens: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`, `ring-ring`. Avoid ad-hoc hex values.
+- Keep radius consistent. The default `--radius: 0.625rem` is a strong baseline.
+- Use one density system per page: comfortable (`gap-6` / `p-6` / `text-sm`) or compact (`gap-4` / `p-4` / `text-sm`).
+- Keep icons quiet and consistent. Lucide icons at `h-4 w-4` or `h-5 w-5`.
+
+### Reach for this first
+
+| Use case | Reach for this first | Why |
+|----------|----------------------|-----|
+| Settings page | `Tabs` + `Card` + `Form` | Clear information grouping with predictable save flows |
+| Data dashboard | `Card` + `Badge` + `Table` + `DropdownMenu` | Covers summary, status, dense data, and row actions without custom shells |
+| CRUD table | `Table` + `DropdownMenu` + `Sheet` + `AlertDialog` | Supports browse, act, edit, and destructive confirmation in a standard pattern |
+| Auth screen | `Card` + `Label` + `Input` + `Button` + `Alert` | Keeps entry flows focused and gives errors a proper treatment |
+| Global search | `Command` + `Dialog` | Fast keyboard-first discovery with an established interaction model |
+| Mobile nav | `Sheet` + `Button` + `Separator` | Provides a compact navigation shell that adapts cleanly to small screens |
+| Detail page | header + `Badge` + `Separator` + `Card` | Balances hierarchy, metadata, and supporting content without over-nesting |
+| Filters | `Card` sidebar + `Sheet` + `Select` | Works for persistent desktop filters and collapsible mobile controls |
+| Empty/loading/error states | `Card` + `Skeleton` + `Alert` | Gives non-happy paths a designed surface instead of placeholder text |
+
+### Composition recipes
+
+- Settings page: `Tabs` + `Card` per group + `Separator` + save action
+- Admin dashboard: summary `Card`s + filter bar + `Table`
+- Entity detail: header + status `Badge` + main `Card` + side `Card` + `AlertDialog` for destructive
+- Search-heavy: `Command` for quick find, `Popover` for pickers, `Sheet` for mobile filters
+- Auth/onboarding: centered `Card` + social `Separator` + inline `Alert` for errors
+- Destructive flows: `AlertDialog` (not `Dialog`) for confirmation
+
+### Anti-patterns to avoid
+
+- Raw `button` / `input` / `select` / `div` when shadcn primitives exist
+- Repeated `div rounded-xl border p-6` instead of `Tabs` / `Table` / `Sheet` / `Dialog`
+- Multiple accent colors fighting each other
+- Nested cards inside cards inside cards
+- Large gradient backgrounds and glassmorphism on every surface
+- Mixing arbitrary spacing and radius values
+- Using `Dialog` for destructive confirmation instead of `AlertDialog`
+- Shipping empty/loading/error states without design treatment
+- Using ad-hoc Tailwind palette classes for foundational surfaces instead of theme tokens
 
 ## Building a Custom Registry
 
