@@ -53,6 +53,47 @@ export interface Logger {
   isEnabled: (minLevel: string) => boolean;
 }
 
+function readErrorField(error: Record<string, unknown>, field: string): unknown {
+  return field in error ? error[field] : undefined;
+}
+
+export function serializeErrorForLog(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    const maybeCode =
+      "code" in error && typeof (error as Error & { code?: unknown }).code !== "undefined"
+        ? { code: (error as Error & { code?: unknown }).code }
+        : {};
+    return {
+      name: error.name,
+      message: error.message,
+      ...maybeCode,
+      ...(error.stack ? { stack: error.stack } : {}),
+    };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    return {
+      type: error.constructor?.name || "Object",
+      ...(readErrorField(record, "name") !== undefined ? { name: readErrorField(record, "name") } : {}),
+      ...(readErrorField(record, "message") !== undefined ? { message: readErrorField(record, "message") } : {}),
+      ...(readErrorField(record, "code") !== undefined ? { code: readErrorField(record, "code") } : {}),
+      ...(readErrorField(record, "stack") !== undefined ? { stack: readErrorField(record, "stack") } : {}),
+    };
+  }
+
+  return { value: error };
+}
+
+export function logCaughtError(
+  logger: Logger,
+  event: string,
+  error: unknown,
+  context: Record<string, unknown> = {},
+): void {
+  logger.debug(event, { ...context, error: serializeErrorForLog(error) });
+}
+
 /**
  * Resolve the active log level from environment variables.
  */

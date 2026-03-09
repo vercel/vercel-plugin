@@ -6,6 +6,34 @@ const LEVEL_INDEX = {
   debug: 2,
   trace: 3
 };
+function readErrorField(error, field) {
+  return field in error ? error[field] : void 0;
+}
+function serializeErrorForLog(error) {
+  if (error instanceof Error) {
+    const maybeCode = "code" in error && typeof error.code !== "undefined" ? { code: error.code } : {};
+    return {
+      name: error.name,
+      message: error.message,
+      ...maybeCode,
+      ...error.stack ? { stack: error.stack } : {}
+    };
+  }
+  if (typeof error === "object" && error !== null) {
+    const record = error;
+    return {
+      type: error.constructor?.name || "Object",
+      ...readErrorField(record, "name") !== void 0 ? { name: readErrorField(record, "name") } : {},
+      ...readErrorField(record, "message") !== void 0 ? { message: readErrorField(record, "message") } : {},
+      ...readErrorField(record, "code") !== void 0 ? { code: readErrorField(record, "code") } : {},
+      ...readErrorField(record, "stack") !== void 0 ? { stack: readErrorField(record, "stack") } : {}
+    };
+  }
+  return { value: error };
+}
+function logCaughtError(logger, event, error, context = {}) {
+  logger.debug(event, { ...context, error: serializeErrorForLog(error) });
+}
 function resolveLogLevel() {
   const explicit = (process.env.VERCEL_PLUGIN_LOG_LEVEL || "").toLowerCase().trim();
   if (explicit && LEVEL_INDEX[explicit] !== void 0) {
@@ -101,6 +129,8 @@ export {
   LEVELS,
   LEVEL_INDEX,
   createLogger,
+  logCaughtError,
   logDecision,
-  resolveLogLevel
+  resolveLogLevel,
+  serializeErrorForLog
 };

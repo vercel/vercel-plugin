@@ -20,6 +20,9 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
+
+const log: Logger = createLogger();
 
 // ---------------------------------------------------------------------------
 // Plugin root
@@ -85,8 +88,8 @@ export function appendAuditLog(record: Record<string, unknown>, hookInputCwd?: s
     mkdirSync(dirname(auditLogPath), { recursive: true });
     const payload = { timestamp: new Date().toISOString(), ...record };
     appendFileSync(auditLogPath, `${JSON.stringify(payload)}\n`, "utf-8");
-  } catch {
-    // Logging is best-effort and must not break hooks.
+  } catch (error) {
+    logCaughtError(log, "hook-env:append-audit-log-failed", error, { auditLogPath });
   }
 }
 
@@ -127,7 +130,8 @@ export function dedupClaimDirPath(sessionId: string, kind: string): string {
 export function readSessionFile(sessionId: string, kind: string): string {
   try {
     return readFileSync(dedupFilePath(sessionId, kind), "utf-8");
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "hook-env:read-session-file-failed", error, { sessionId, kind });
     return "";
   }
 }
@@ -135,8 +139,8 @@ export function readSessionFile(sessionId: string, kind: string): string {
 export function writeSessionFile(sessionId: string, kind: string, value: string): void {
   try {
     writeFileSync(dedupFilePath(sessionId, kind), value, "utf-8");
-  } catch {
-    // Persistence is best-effort and must not break hooks.
+  } catch (error) {
+    logCaughtError(log, "hook-env:write-session-file-failed", error, { sessionId, kind });
   }
 }
 
@@ -167,7 +171,8 @@ export function listSessionKeys(sessionId: string, kind: string): string[] {
       .map((entry) => decodeURIComponent(entry))
       .filter((entry) => entry !== "")
       .sort();
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "hook-env:list-session-keys-failed", error, { sessionId, kind });
     return [];
   }
 }
@@ -181,8 +186,8 @@ export function syncSessionFileFromClaims(sessionId: string, kind: string): stri
 export function removeSessionClaimDir(sessionId: string, kind: string): void {
   try {
     rmSync(dedupClaimDirPath(sessionId, kind), { recursive: true, force: true });
-  } catch {
-    // Cleanup is best-effort and must not break hooks.
+  } catch (error) {
+    logCaughtError(log, "hook-env:remove-session-claim-dir-failed", error, { sessionId, kind });
   }
 }
 
@@ -196,7 +201,8 @@ export function removeSessionClaimDir(sessionId: string, kind: string): void {
 export function safeReadFile(path: string): string | null {
   try {
     return readFileSync(path, "utf-8");
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "hook-env:safe-read-file-failed", error, { path });
     return null;
   }
 }
@@ -209,7 +215,8 @@ export function safeReadJson<T>(path: string): T | null {
   if (content === null) return null;
   try {
     return JSON.parse(content) as T;
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "hook-env:safe-read-json-failed", error, { path });
     return null;
   }
 }

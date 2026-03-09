@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -59,6 +60,12 @@ function parseCsvEnvVar(envFileContent: string, key: string): string[] {
   const match = envFileContent.match(new RegExp(`export ${escapedKey}="([^"]*)"`));
   if (!match) return [];
   return match[1].split(",").filter(Boolean);
+}
+
+function makeMockCommand(binDir: string, commandName: string, body: string): void {
+  const commandPath = join(binDir, commandName);
+  writeFileSync(commandPath, `#!/bin/sh\n${body}\n`, "utf-8");
+  chmodSync(commandPath, 0o755);
 }
 
 // ---------------------------------------------------------------------------
@@ -596,6 +603,49 @@ describe("session-start-profiler", () => {
     expect(injectIdx).toBeGreaterThanOrEqual(0);
     expect(profilerIdx).toBeGreaterThan(seenIdx);
     expect(profilerIdx).toBeLessThan(injectIdx);
+  });
+
+  test("treats 1.9.0 as older than 1.10.0 when checking Vercel CLI", async () => {
+    const projectDir = join(tempDir, "semver-project");
+    const binDir = join(tempDir, "mock-bin");
+    mkdirSync(projectDir);
+    mkdirSync(binDir);
+    makeMockCommand(binDir, "vercel", "printf 'Vercel CLI 1.9.0\\n'");
+    makeMockCommand(binDir, "npm", "printf '1.10.0\\n'");
+    makeMockCommand(binDir, "which", "exit 1");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("The Vercel CLI is outdated");
+    expect(result.stdout).toContain("Vercel CLI 1.9.0");
+    expect(result.stdout).toContain("1.10.0");
+  });
+
+  test("emits debug logs when swallowed profiler errors occur", async () => {
+    const binDir = join(tempDir, "debug-bin");
+    mkdirSync(binDir);
+    makeMockCommand(binDir, "vercel", "exit 1");
+    makeMockCommand(binDir, "which", "exit 1");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: join(tempDir, "missing-dir", "claude.env"),
+      CLAUDE_PROJECT_ROOT: join(tempDir, "missing-project-root"),
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+      VERCEL_PLUGIN_LOG_LEVEL: "debug",
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain("session-start-profiler:check-greenfield-readdir-failed");
+    expect(result.stderr).toContain("session-start-profiler:profile-bootstrap-signals-readdir-failed");
+    expect(result.stderr).toContain("session-start-profiler:vercel-version-check-failed");
+    expect(result.stderr).toContain("session-start-profiler:agent-browser-check-failed");
+    expect(result.stderr).toContain("session-start-profiler:append-env-export-failed");
+    expect(result.stderr).toContain("hook-env:safe-read-file-failed");
   });
 });
 

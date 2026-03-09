@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { requireEnvFile, safeReadJson } from "./hook-env.mjs";
+import { createLogger, logCaughtError } from "./logger.mjs";
 const FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -72,6 +73,7 @@ const GREENFIELD_SETUP_SIGNALS = {
   resourceHints: [],
   setupMode: true
 };
+const log = createLogger();
 function readPackageJson(projectRoot) {
   return safeReadJson(join(projectRoot, "package.json"));
 }
@@ -130,7 +132,8 @@ function profileBootstrapSignals(projectRoot) {
       bootstrapHints.add("postgres");
       resourceHints.add("postgres");
     }
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:profile-bootstrap-signals-readdir-failed", error, { projectRoot });
   }
   if (existsSync(join(projectRoot, "prisma", "schema.prisma"))) {
     bootstrapHints.add("prisma-schema");
@@ -173,7 +176,8 @@ function checkGreenfield(projectRoot) {
   let dirents;
   try {
     dirents = readdirSync(projectRoot, { withFileTypes: true });
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:check-greenfield-readdir-failed", error, { projectRoot });
     return null;
   }
   const hasNonDotDir = dirents.some((d) => !d.name.startsWith("."));
@@ -186,6 +190,30 @@ function checkGreenfield(projectRoot) {
 const VERCEL_VERSION_ARGS = "--version".split(" ");
 const NPM_VIEW_ARGS = "view vercel version".split(" ");
 const SPAWN_STDIO = "ignore pipe ignore".split(" ");
+const NUMERIC_VERSION_RE = /\d+(?:\.\d+)*/;
+function parseVersionSegments(version) {
+  const matchedVersion = version.match(NUMERIC_VERSION_RE)?.[0];
+  if (!matchedVersion) {
+    return null;
+  }
+  return matchedVersion.split(".").map((segment) => Number.parseInt(segment, 10));
+}
+function compareVersionSegments(leftVersion, rightVersion) {
+  const leftSegments = parseVersionSegments(leftVersion);
+  const rightSegments = parseVersionSegments(rightVersion);
+  if (!leftSegments || !rightSegments) {
+    return null;
+  }
+  const maxLength = Math.max(leftSegments.length, rightSegments.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftSegment = leftSegments[index] ?? 0;
+    const rightSegment = rightSegments[index] ?? 0;
+    if (leftSegment !== rightSegment) {
+      return leftSegment - rightSegment;
+    }
+  }
+  return 0;
+}
 function checkVercelCli() {
   let currentVersion;
   try {
@@ -196,7 +224,11 @@ function checkVercelCli() {
     }).trim();
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
     currentVersion = lines[lines.length - 1];
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:vercel-version-check-failed", error, {
+      command: "vercel",
+      args: VERCEL_VERSION_ARGS.join(" ")
+    });
     return { installed: false, needsUpdate: false };
   }
   let latestVersion;
@@ -207,10 +239,16 @@ function checkVercelCli() {
       stdio: SPAWN_STDIO
     }).trim();
     latestVersion = raw;
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
+      command: "npm",
+      args: NPM_VIEW_ARGS.join(" "),
+      currentVersion
+    });
     return { installed: true, currentVersion, needsUpdate: false };
   }
-  const needsUpdate = !!(currentVersion && latestVersion && currentVersion !== latestVersion);
+  const versionComparison = currentVersion && latestVersion ? compareVersionSegments(currentVersion, latestVersion) : null;
+  const needsUpdate = versionComparison === null ? !!(currentVersion && latestVersion && currentVersion !== latestVersion) : versionComparison < 0;
   return { installed: true, currentVersion, latestVersion, needsUpdate };
 }
 const WHICH_ARGS = "agent-browser".split(" ");
@@ -222,7 +260,11 @@ function checkAgentBrowser() {
       stdio: SPAWN_STDIO
     });
     return true;
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:agent-browser-check-failed", error, {
+      command: "which",
+      args: WHICH_ARGS.join(" ")
+    });
     return false;
   }
 }
@@ -278,7 +320,15 @@ function main() {
     if (setupSignals.setupMode) {
       appendEnvExport(envFile, "VERCEL_PLUGIN_SETUP_MODE", "1");
     }
-  } catch {
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:append-env-export-failed", error, {
+      envFile,
+      projectRoot,
+      likelySkillsCount: likelySkills.length,
+      bootstrapHintCount: setupSignals.bootstrapHints.length,
+      resourceHintCount: setupSignals.resourceHints.length,
+      setupMode: setupSignals.setupMode
+    });
   }
   process.exit(0);
 }
