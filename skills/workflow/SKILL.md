@@ -365,7 +365,9 @@ import { MessageResponse } from "@/components/ai-elements/message";
 
 ## Hooks — Waiting for External Events
 
-Use `defineHook` for typed, reusable hooks:
+Use `defineHook` for typed, reusable hooks. **Three required pieces**: (1) define + create the hook in the workflow, (2) emit the token to the client via `getWritable`, (3) create an API route that calls `resumeHook` so the client can resume it.
+
+### 1. Define and create the hook (workflow file)
 
 ```ts
 import { defineHook, getWritable, sleep } from "workflow";
@@ -375,12 +377,17 @@ export interface ApprovalPayload {
   comment?: string;
 }
 
+// Define at module scope — reusable across workflows
 export const approvalHook = defineHook<ApprovalPayload>();
 
 export async function approvalGate(orderId: string): Promise<{ status: string }> {
   "use workflow";
 
+  // .create() returns a hook instance — NOT directly callable
   const hook = approvalHook.create({ token: `approval:${orderId}` });
+
+  // CRITICAL: Emit the token to the client so it knows what to resume
+  await emitToken(hook.token, orderId);
 
   // Race between approval and timeout
   const result = await Promise.race([
@@ -393,17 +400,46 @@ export async function approvalGate(orderId: string): Promise<{ status: string }>
   }
   return { status: result.payload!.approved ? "approved" : "rejected" };
 }
+
+async function emitToken(token: string, orderId: string): Promise<void> {
+  "use step";
+  const writer = getWritable<{ type: string; token: string; orderId: string }>().getWriter();
+  try {
+    await writer.write({ type: "awaiting_approval", token, orderId });
+  } finally {
+    writer.releaseLock();
+  }
+}
 ```
 
-Resume hooks from an API route:
+**Common mistake**: Calling `defineHook()` directly or forgetting `.create()`. Always: `const hook = myHook.create({ token })`.
+
+### 2. Resume route (API file — required!)
 
 ```ts
+// app/api/approve/route.ts
+import { NextResponse } from "next/server";
 import { resumeHook } from "workflow/api";
 
 export async function POST(req: Request) {
-  const { token, data } = await req.json();
+  const { token, ...data } = await req.json();
   await resumeHook(token, data);
-  return new Response("ok");
+  return NextResponse.json({ ok: true });
+}
+```
+
+**You MUST create this route.** Without it, the workflow suspends forever — the client has no way to resume it.
+
+### 3. Client-side resume (React component)
+
+```tsx
+// When the SSE stream emits { type: "awaiting_approval", token }, show UI and POST back:
+async function handleApprove(token: string) {
+  await fetch("/api/approve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, approved: true, comment: "Looks good" }),
+  });
 }
 ```
 

@@ -206,6 +206,8 @@ for await (const chunk of result.textStream) {
 
 ### Structured Output
 
+**`generateObject` was removed in AI SDK v6.** Use `generateText` with `output: Output.object()` instead. Do NOT import `generateObject` — it does not exist.
+
 ```ts
 import { generateText, Output, gateway } from "ai";
 import { z } from "zod";
