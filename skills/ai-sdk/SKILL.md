@@ -100,6 +100,26 @@ validate:
     pattern: \bparameters\s*:
     message: 'parameters was renamed in v6 — use inputSchema instead'
     severity: error
+  -
+    pattern: generateObject\s*\(
+    message: 'generateObject was removed in AI SDK v6 — use generateText with output: Output.object({ schema }) instead'
+    severity: error
+  -
+    pattern: gemini-2\.0-flash-exp-image-generation
+    message: 'Outdated image model — use google/gemini-3.1-flash-image-preview for much better image quality'
+    severity: warn
+  -
+    pattern: gemini-2\.0-flash-001
+    message: 'gemini-2.0-flash-001 does not support image output — use google/gemini-3.1-flash-image-preview for image generation'
+    severity: error
+  -
+    pattern: gemini-2\.5-flash-image
+    message: 'Outdated image model — use google/gemini-3.1-flash-image-preview for best results'
+    severity: warn
+  -
+    pattern: placeholder.*image|placeholder.*url|placeholder.*img
+    message: 'Do not use placeholder images — use generateText with gateway("google/gemini-3.1-flash-image-preview") to generate real images from result.files'
+    severity: warn
 ---
 
 # Vercel AI SDK (v6)
