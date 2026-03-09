@@ -85,6 +85,21 @@ npm install @workflow/ai@latest
 
 > Run `npx workflow@latest` to scaffold or update your project.
 
+**Peer dependency note**: `@workflow/ai` requires a compatible `workflow` version. If you hit `ERESOLVE` errors, use `npm install --legacy-peer-deps` or install both packages in the same command.
+
+### Next.js Setup (Required)
+
+Add the `withWorkflow` plugin to `next.config.ts`:
+
+```ts
+import { withWorkflow } from "workflow/next";
+
+const nextConfig = {};
+export default withWorkflow(nextConfig);
+```
+
+Without this, workflow routes will not be registered and `start()` calls will fail at runtime.
+
 ## Essential Imports
 
 **Workflow primitives** (from `"workflow"`):
@@ -122,7 +137,7 @@ Two directives turn ordinary async functions into durable workflows:
 "use step"      // First line of function — marks it as a retryable, observable step
 ```
 
-**Critical rule**: Step functions have full Node.js access. Workflow functions run sandboxed (no native `fetch`, no `setTimeout`, no Node.js modules). Place all business logic in steps; use the workflow function purely for orchestration.
+**Critical sandbox rule**: Step functions have full Node.js access. Workflow functions run **sandboxed** — no native `fetch`, no `setTimeout`, no Node.js modules, and **no `getWritable().getWriter()` calls**. You MUST move all `getWritable()` usage into `"use step"` functions. Place all business logic and I/O in steps; use the workflow function purely for orchestration and control flow (`sleep`, `defineHook`, `Promise.race`).
 
 ## Canonical Project Structure (Next.js)
 

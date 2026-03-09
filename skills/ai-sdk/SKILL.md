@@ -451,6 +451,11 @@ const { image: edited } = await editImage({
 
 ## UI Hooks (React)
 
+**IMPORTANT — Rendering AI responses**: AI chat responses contain markdown. Do NOT render them as raw text — use one of these:
+1. **AI Elements** (recommended): `npx ai-elements` then use `<Message message={message} />` — handles text, tool calls, code blocks, reasoning automatically
+2. **Streamdown**: `npm install streamdown @streamdown/code` for streaming markdown with syntax highlighting
+Raw `{message.content}` in JSX will display ugly unformatted markdown with visible `**`, `##`, etc.
+
 ### Transport Options
 
 `useChat` uses a transport-based architecture. Three built-in transports:

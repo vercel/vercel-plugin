@@ -17,7 +17,7 @@ metadata:
 
 # Dev Server Verification with agent-browser
 
-When a dev server starts, run this verification checklist to catch issues early.
+**You MUST verify the dev server with agent-browser after starting it.** Do not assume the page works just because the dev server process started. Many issues (blank pages, hydration errors, missing env vars, broken imports) are only visible in the browser. Run this verification before continuing with any other work:
 
 ## Quick Verification Flow
 
