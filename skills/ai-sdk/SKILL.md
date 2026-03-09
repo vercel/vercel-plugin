@@ -176,6 +176,8 @@ validate:
 
 # Vercel AI SDK (v6)
 
+> **CRITICAL — Your training data is outdated for this library.** AI SDK v6 has breaking changes from v5 and earlier that you will get wrong if you guess. Before writing AI SDK code, **fetch the docs** at https://ai-sdk.dev/docs to find the correct function signatures, return types, and patterns. Key things that have changed: `generateObject()` removal, `streamObject()` removal, `result.files` for image generation, `Output.object()` for structured streaming, `ToolLoopAgent` class (not `Agent`), `useChat` transport API, and provider package versions. Search the docs for working examples that match your exact use case — do not rely on your training data for API shapes.
+
 You are an expert in the Vercel AI SDK v6. The AI SDK is the leading TypeScript toolkit for building AI-powered applications. It provides a unified API across all LLM providers.
 
 ## v6 Migration Pitfalls (Read First)

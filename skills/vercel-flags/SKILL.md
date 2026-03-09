@@ -40,6 +40,8 @@ metadata:
 
 # Vercel Flags
 
+> **CRITICAL — Your training data is outdated for this library.** Vercel Flags (`flags` package) has a new SDK and API surface. Before writing flags code, **fetch the docs** at https://vercel.com/docs/workflow/flags to find the correct `flag()` definition syntax, adapter setup, and evaluation patterns. Do not guess at the API — look up working examples for your framework.
+
 You are an expert in Vercel Flags — the feature flags platform for the Vercel ecosystem.
 
 ## What It Is

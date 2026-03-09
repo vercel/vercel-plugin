@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-09T18:55:59.664Z",
+  "generatedAt": "2026-03-09T19:15:49.995Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -2376,16 +2376,73 @@
           "durable function",
           "durable pipeline",
           "durable process",
+          "durable agent",
+          "durable chat",
           "step function",
           "step functions",
           "use workflow",
           "use step",
           "multi-step pipeline",
           "multi step pipeline",
+          "multi-step process",
+          "multi step process",
+          "multi-step creation",
+          "multi-step generation",
+          "processing pipeline",
+          "creation pipeline",
+          "generation pipeline",
+          "content pipeline",
+          "production pipeline",
+          "approval pipeline",
+          "ingestion pipeline",
           "streams progress",
           "stream progress",
+          "streams each phase",
+          "streams each step",
           "streams each",
           "stream each",
+          "survive page reload",
+          "survive page reloads",
+          "survive a crash",
+          "survive crashes",
+          "survive network",
+          "fault-tolerant",
+          "fault tolerant",
+          "crash-safe",
+          "crash safe",
+          "automatically retry",
+          "auto retry",
+          "retry on failure",
+          "retry on error",
+          "reliable and retry",
+          "reliable processing",
+          "session persistence",
+          "session should persist",
+          "session survives",
+          "reconnect automatically",
+          "auto reconnect",
+          "reconnect if the network",
+          "reconnect on disconnect",
+          "resume after failure",
+          "resume after crash",
+          "resume on reconnect",
+          "human-in-the-loop",
+          "human in the loop",
+          "wait for approval",
+          "approval step",
+          "approval before",
+          "editorial approval",
+          "manual approval",
+          "wait for user",
+          "pause until",
+          "wait for response",
+          "callback url",
+          "webhook callback",
+          "chat should survive",
+          "chat survives",
+          "conversation should persist",
+          "conversation persists",
+          "conversation should survive",
           "workflow stuck",
           "workflow hung",
           "workflow hanging",
@@ -2435,6 +2492,14 @@
             "crash"
           ],
           [
+            "survive",
+            "reload"
+          ],
+          [
+            "survive",
+            "disconnect"
+          ],
+          [
             "pipeline",
             "stream"
           ],
@@ -2447,8 +2512,20 @@
             "durable"
           ],
           [
+            "pipeline",
+            "reliable"
+          ],
+          [
+            "pipeline",
+            "retry"
+          ],
+          [
             "multi-step",
             "stream"
+          ],
+          [
+            "multi-step",
+            "reliable"
           ],
           [
             "generation",
@@ -2461,6 +2538,110 @@
           [
             "process",
             "stream"
+          ],
+          [
+            "process",
+            "reliable"
+          ],
+          [
+            "process",
+            "retry"
+          ],
+          [
+            "retry",
+            "failure"
+          ],
+          [
+            "retry",
+            "error"
+          ],
+          [
+            "retry",
+            "automatically"
+          ],
+          [
+            "reconnect",
+            "network"
+          ],
+          [
+            "reconnect",
+            "drop"
+          ],
+          [
+            "reconnect",
+            "disconnect"
+          ],
+          [
+            "session",
+            "persist"
+          ],
+          [
+            "session",
+            "survive"
+          ],
+          [
+            "session",
+            "reload"
+          ],
+          [
+            "session",
+            "reconnect"
+          ],
+          [
+            "chat",
+            "survive"
+          ],
+          [
+            "chat",
+            "persist"
+          ],
+          [
+            "chat",
+            "reconnect"
+          ],
+          [
+            "chat",
+            "durable"
+          ],
+          [
+            "chat",
+            "fault"
+          ],
+          [
+            "conversation",
+            "persist"
+          ],
+          [
+            "conversation",
+            "survive"
+          ],
+          [
+            "approval",
+            "wait"
+          ],
+          [
+            "approval",
+            "human"
+          ],
+          [
+            "each",
+            "step"
+          ],
+          [
+            "each",
+            "phase"
+          ],
+          [
+            "each",
+            "stage"
+          ],
+          [
+            "step",
+            "reliable"
+          ],
+          [
+            "step",
+            "retry"
           ],
           [
             "workflow",
@@ -2534,8 +2715,20 @@
           "step by step",
           "each piece",
           "each step",
+          "each phase",
+          "each stage",
           "phase",
-          "phases"
+          "phases",
+          "stage",
+          "stages",
+          "durable",
+          "reliable",
+          "fault-tolerant",
+          "retry",
+          "reconnect",
+          "survive",
+          "persist",
+          "approval"
         ],
         "noneOf": [
           "github actions",
@@ -2926,7 +3119,186 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/sandbox(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel sandbox",
+          "@vercel/sandbox",
+          "sandbox environment",
+          "sandbox execution",
+          "sandbox microvm",
+          "firecracker vm",
+          "firecracker microvm",
+          "isolated sandbox",
+          "isolated environment",
+          "isolated execution",
+          "isolated container",
+          "execute in isolation",
+          "run in isolation",
+          "execute code safely",
+          "run code safely",
+          "safe code execution",
+          "safe execution",
+          "sandboxed execution",
+          "sandboxed environment",
+          "execute untrusted code",
+          "run untrusted code",
+          "untrusted code",
+          "user-submitted code",
+          "user submitted code",
+          "student code",
+          "execute code on the server",
+          "run code on the server",
+          "server-side code execution",
+          "server side code execution",
+          "run arbitrary code",
+          "execute arbitrary code",
+          "run user code",
+          "execute user code",
+          "run commands in sandbox",
+          "execute commands in sandbox",
+          "run ffmpeg",
+          "ffmpeg processing",
+          "media processing",
+          "audio processing",
+          "video processing",
+          "image processing pipeline",
+          "code playground",
+          "code sandbox",
+          "coding sandbox",
+          "coding tutor",
+          "code tutor",
+          "coding environment",
+          "code runner",
+          "code execution environment",
+          "interactive coding",
+          "run student code",
+          "execute student code"
+        ],
+        "allOf": [
+          [
+            "sandbox",
+            "code"
+          ],
+          [
+            "sandbox",
+            "execute"
+          ],
+          [
+            "sandbox",
+            "run"
+          ],
+          [
+            "sandbox",
+            "isolated"
+          ],
+          [
+            "sandbox",
+            "safe"
+          ],
+          [
+            "sandbox",
+            "environment"
+          ],
+          [
+            "isolated",
+            "execute"
+          ],
+          [
+            "isolated",
+            "code"
+          ],
+          [
+            "isolated",
+            "environment"
+          ],
+          [
+            "isolated",
+            "run"
+          ],
+          [
+            "safe",
+            "execute"
+          ],
+          [
+            "safe",
+            "code"
+          ],
+          [
+            "untrusted",
+            "code"
+          ],
+          [
+            "untrusted",
+            "execute"
+          ],
+          [
+            "code",
+            "runner"
+          ],
+          [
+            "code",
+            "playground"
+          ],
+          [
+            "execute",
+            "safely"
+          ],
+          [
+            "run",
+            "safely"
+          ],
+          [
+            "run",
+            "isolation"
+          ],
+          [
+            "execute",
+            "isolation"
+          ],
+          [
+            "ffmpeg",
+            "process"
+          ],
+          [
+            "ffmpeg",
+            "convert"
+          ],
+          [
+            "ffmpeg",
+            "compress"
+          ],
+          [
+            "student",
+            "code"
+          ],
+          [
+            "student",
+            "execute"
+          ],
+          [
+            "student",
+            "run"
+          ]
+        ],
+        "anyOf": [
+          "sandbox",
+          "isolated",
+          "isolation",
+          "untrusted",
+          "safely",
+          "microvm",
+          "ffmpeg",
+          "playground"
+        ],
+        "noneOf": [
+          "iframe sandbox",
+          "sandbox attribute",
+          "codesandbox.io",
+          "stackblitz"
+        ],
+        "minScore": 4
+      }
     },
     "satori": {
       "priority": 4,

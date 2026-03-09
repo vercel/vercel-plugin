@@ -1223,6 +1223,38 @@ function run(): string {
     }
   }
 
+  // Stage 4.8: When loop guard blocks agent-browser-verify (count >= max), still inject
+  // companion skills like verification. Verification is useful precisely when a user restarts
+  // their dev server multiple times during debugging — it should survive past the iteration cap.
+  if (devServerVerify.loopGuardHit && !devServerVerify.unavailable) {
+    // Suppress agent-browser-verify from normal pattern matching — the loop guard blocks it
+    const verifyIdx = rankedSkills.indexOf(DEV_SERVER_VERIFY_SKILL);
+    if (verifyIdx !== -1) {
+      rankedSkills.splice(verifyIdx, 1);
+      log.debug("dev-server-verify-suppressed-by-loop-guard", { skill: DEV_SERVER_VERIFY_SKILL, count: devServerVerify.iterationCount });
+    }
+    for (const companion of DEV_SERVER_COMPANION_SKILLS) {
+      if (rankedSkills.includes(companion)) continue; // already present via pattern match
+      if (!dedupOff && injectedSkills.has(companion)) {
+        log.debug("dev-server-companion-loop-guard-dedup-bypass", { skill: companion });
+      }
+      const companionTemplate = compiledSkills.find((e) => e.skill === companion);
+      const _companionEntry: CompiledSkillEntry = companionTemplate
+        ? { ...companionTemplate, effectivePriority: DEV_SERVER_VERIFY_PRIORITY_BOOST }
+        : {
+            skill: companion,
+            priority: 0,
+            compiledPaths: [],
+            compiledBash: [],
+            compiledImports: [],
+            effectivePriority: DEV_SERVER_VERIFY_PRIORITY_BOOST,
+          };
+      rankedSkills.unshift(companion);
+      matched.add(companion);
+      log.debug("dev-server-companion-inject-past-guard", { skill: companion, iterationCount: devServerVerify.iterationCount, max: DEV_SERVER_VERIFY_MAX_ITERATIONS });
+    }
+  }
+
   let vercelEnvHelpInjected = false;
   if (vercelEnvHelp.triggered) {
     let helpClaimed = true;

@@ -281,6 +281,59 @@ describe("matchPromptWithReason — noneOf", () => {
     expect(result.matched).toBe(true);
     expect(result.score).toBe(6);
   });
+
+  test("noneOf uses word boundaries — partial word does not suppress", () => {
+    // "readme" should not suppress "readmeGenerator" or similar
+    const signals: CompiledPromptSignals = {
+      phrases: ["ai elements"],
+      allOf: [],
+      anyOf: [],
+      noneOf: ["jest"],
+      minScore: 6,
+    };
+    // "jesting" contains "jest" as substring but not as whole word
+    const result = matchPromptWithReason(
+      "i am not jesting, use ai elements now",
+      signals,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBe(6);
+  });
+
+  test("noneOf still suppresses when term appears as whole word", () => {
+    const signals: CompiledPromptSignals = {
+      phrases: ["ai elements"],
+      allOf: [],
+      anyOf: [],
+      noneOf: ["jest"],
+      minScore: 6,
+    };
+    const result = matchPromptWithReason(
+      "configure jest for ai elements testing",
+      signals,
+    );
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+    expect(result.reason).toContain("suppressed by noneOf");
+  });
+
+  test("noneOf word boundary works at start and end of prompt", () => {
+    const signals: CompiledPromptSignals = {
+      phrases: ["ai elements"],
+      allOf: [],
+      anyOf: [],
+      noneOf: ["jest"],
+      minScore: 6,
+    };
+    // Term at start
+    const r1 = matchPromptWithReason("jest config for ai elements", signals);
+    expect(r1.matched).toBe(false);
+    expect(r1.score).toBe(-Infinity);
+    // Term at end
+    const r2 = matchPromptWithReason("ai elements with jest", signals);
+    expect(r2.matched).toBe(false);
+    expect(r2.score).toBe(-Infinity);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -52,7 +52,9 @@ function matchPromptWithReason(normalizedPrompt, compiled) {
     return { matched: false, score: 0, reason: "empty prompt" };
   }
   for (const term of compiled.noneOf) {
-    if (normalizedPrompt.includes(term)) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(?:^|\\b|\\s)${escaped}(?:\\b|\\s|$)`);
+    if (re.test(normalizedPrompt)) {
       return {
         matched: false,
         score: -Infinity,

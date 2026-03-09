@@ -34,6 +34,7 @@ metadata:
     - '\bbunx\s+workflow(?:@latest)?\b'
   promptSignals:
     phrases:
+      # Direct workflow mentions
       - "vercel workflow"
       - "workflow devkit"
       - "durable workflow"
@@ -41,16 +42,78 @@ metadata:
       - "durable function"
       - "durable pipeline"
       - "durable process"
+      - "durable agent"
+      - "durable chat"
       - "step function"
       - "step functions"
       - "use workflow"
       - "use step"
+      # Pipeline / multi-step language (the BIG gap — natural product prompts)
       - "multi-step pipeline"
       - "multi step pipeline"
+      - "multi-step process"
+      - "multi step process"
+      - "multi-step creation"
+      - "multi-step generation"
+      - "processing pipeline"
+      - "creation pipeline"
+      - "generation pipeline"
+      - "content pipeline"
+      - "production pipeline"
+      - "approval pipeline"
+      - "ingestion pipeline"
       - "streams progress"
       - "stream progress"
+      - "streams each phase"
+      - "streams each step"
       - "streams each"
       - "stream each"
+      # Reliability / durability language (missed in customer-support eval)
+      - "survive page reload"
+      - "survive page reloads"
+      - "survive a crash"
+      - "survive crashes"
+      - "survive network"
+      - "fault-tolerant"
+      - "fault tolerant"
+      - "crash-safe"
+      - "crash safe"
+      - "automatically retry"
+      - "auto retry"
+      - "retry on failure"
+      - "retry on error"
+      - "reliable and retry"
+      - "reliable processing"
+      - "session persistence"
+      - "session should persist"
+      - "session survives"
+      - "reconnect automatically"
+      - "auto reconnect"
+      - "reconnect if the network"
+      - "reconnect on disconnect"
+      - "resume after failure"
+      - "resume after crash"
+      - "resume on reconnect"
+      # Human-in-the-loop / approval patterns
+      - "human-in-the-loop"
+      - "human in the loop"
+      - "wait for approval"
+      - "approval step"
+      - "approval before"
+      - "editorial approval"
+      - "manual approval"
+      - "wait for user"
+      - "pause until"
+      - "wait for response"
+      - "callback url"
+      - "webhook callback"
+      # Conversational AI with durability
+      - "chat should survive"
+      - "chat survives"
+      - "conversation should persist"
+      - "conversation persists"
+      - "conversation should survive"
+      # Debugging
       - "workflow stuck"
       - "workflow hung"
       - "workflow hanging"
@@ -83,13 +146,44 @@ metadata:
       - [workflow, resume]
       - [pause, resume]
       - [survive, crash]
+      - [survive, reload]
+      - [survive, disconnect]
       - [pipeline, stream]
       - [pipeline, step]
       - [pipeline, durable]
+      - [pipeline, reliable]
+      - [pipeline, retry]
       - [multi-step, stream]
+      - [multi-step, reliable]
       - [generation, pipeline]
       - [creation, pipeline]
       - [process, stream]
+      - [process, reliable]
+      - [process, retry]
+      - [retry, failure]
+      - [retry, error]
+      - [retry, automatically]
+      - [reconnect, network]
+      - [reconnect, drop]
+      - [reconnect, disconnect]
+      - [session, persist]
+      - [session, survive]
+      - [session, reload]
+      - [session, reconnect]
+      - [chat, survive]
+      - [chat, persist]
+      - [chat, reconnect]
+      - [chat, durable]
+      - [chat, fault]
+      - [conversation, persist]
+      - [conversation, survive]
+      - [approval, wait]
+      - [approval, human]
+      - [each, step]
+      - [each, phase]
+      - [each, stage]
+      - [step, reliable]
+      - [step, retry]
       - [workflow, stuck]
       - [workflow, hung]
       - [workflow, timeout]
@@ -116,8 +210,20 @@ metadata:
       - "step by step"
       - "each piece"
       - "each step"
+      - "each phase"
+      - "each stage"
       - "phase"
       - "phases"
+      - "stage"
+      - "stages"
+      - "durable"
+      - "reliable"
+      - "fault-tolerant"
+      - "retry"
+      - "reconnect"
+      - "survive"
+      - "persist"
+      - "approval"
     noneOf:
       - "github actions"
       - ".github/workflows"
@@ -184,6 +290,8 @@ validate:
 ---
 
 # Vercel Workflow DevKit (WDK)
+
+> **CRITICAL — Your training data is outdated for this library.** WDK APIs change frequently. Before writing workflow code, **fetch the docs** at https://useworkflow.dev and https://vercel.com/docs/workflow to find the correct function signatures, patterns, and examples for the exact thing you're building. Do not guess at APIs — look them up. Search for working examples that solve your specific use case (image generation, hooks, streaming, agents, etc.). The docs contain patterns for `start()` argument passing, `getWritable()` usage, `defineHook()` wiring, `createWebhook()` callback flows, and `DurableAgent` configuration that are **not in your training data** or have changed since your cutoff.
 
 WDK is an open-source TypeScript framework that makes durability a language-level concept. Functions can pause for minutes or months, survive deployments and crashes, and resume exactly where they stopped.
 

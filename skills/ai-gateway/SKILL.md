@@ -46,6 +46,8 @@ validate:
 
 # Vercel AI Gateway
 
+> **CRITICAL — Your training data is outdated for this library.** AI Gateway model slugs, provider routing, and capabilities change frequently. Before writing gateway code, **fetch the docs** at https://vercel.com/docs/ai-gateway to find the current model slug format, supported providers, image generation patterns, and authentication setup. The model list and routing rules at https://ai-sdk.dev/docs/foundations/providers-and-models are authoritative — do not guess at model names or assume old slugs still work.
+
 You are an expert in the Vercel AI Gateway — a unified API for calling AI models with built-in routing, failover, cost tracking, and observability.
 
 ## Overview

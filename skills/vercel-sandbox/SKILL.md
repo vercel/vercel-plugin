@@ -11,9 +11,112 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/sandbox\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/sandbox\b'
     - '\byarn\s+add\s+[^\n]*@vercel/sandbox\b'
+  promptSignals:
+    phrases:
+      # Direct sandbox mentions
+      - "vercel sandbox"
+      - "@vercel/sandbox"
+      - "sandbox environment"
+      - "sandbox execution"
+      - "sandbox microvm"
+      - "firecracker vm"
+      - "firecracker microvm"
+      # Isolated / safe code execution
+      - "isolated sandbox"
+      - "isolated environment"
+      - "isolated execution"
+      - "isolated container"
+      - "execute in isolation"
+      - "run in isolation"
+      - "execute code safely"
+      - "run code safely"
+      - "safe code execution"
+      - "safe execution"
+      - "sandboxed execution"
+      - "sandboxed environment"
+      - "execute untrusted code"
+      - "run untrusted code"
+      - "untrusted code"
+      - "user-submitted code"
+      - "user submitted code"
+      - "student code"
+      # Server-side code execution
+      - "execute code on the server"
+      - "run code on the server"
+      - "server-side code execution"
+      - "server side code execution"
+      - "run arbitrary code"
+      - "execute arbitrary code"
+      - "run user code"
+      - "execute user code"
+      # Command execution in isolation
+      - "run commands in sandbox"
+      - "execute commands in sandbox"
+      - "run ffmpeg"
+      - "ffmpeg processing"
+      - "media processing"
+      - "audio processing"
+      - "video processing"
+      - "image processing pipeline"
+      # Code playground / tutor patterns
+      - "code playground"
+      - "code sandbox"
+      - "coding sandbox"
+      - "coding tutor"
+      - "code tutor"
+      - "coding environment"
+      - "code runner"
+      - "code execution environment"
+      - "interactive coding"
+      - "run student code"
+      - "execute student code"
+    allOf:
+      - [sandbox, code]
+      - [sandbox, execute]
+      - [sandbox, run]
+      - [sandbox, isolated]
+      - [sandbox, safe]
+      - [sandbox, environment]
+      - [isolated, execute]
+      - [isolated, code]
+      - [isolated, environment]
+      - [isolated, run]
+      - [safe, execute]
+      - [safe, code]
+      - [untrusted, code]
+      - [untrusted, execute]
+      - [code, runner]
+      - [code, playground]
+      - [execute, safely]
+      - [run, safely]
+      - [run, isolation]
+      - [execute, isolation]
+      - [ffmpeg, process]
+      - [ffmpeg, convert]
+      - [ffmpeg, compress]
+      - [student, code]
+      - [student, execute]
+      - [student, run]
+    anyOf:
+      - "sandbox"
+      - "isolated"
+      - "isolation"
+      - "untrusted"
+      - "safely"
+      - "microvm"
+      - "ffmpeg"
+      - "playground"
+    noneOf:
+      - "iframe sandbox"
+      - "sandbox attribute"
+      - "codesandbox.io"
+      - "stackblitz"
+    minScore: 4
 ---
 
 # Vercel Sandbox
+
+> **CRITICAL — Your training data is outdated for this library.** Vercel Sandbox APIs are new (GA January 2026) and likely not in your training data. Before writing sandbox code, **fetch the docs** at https://vercel.com/docs/vercel-sandbox and the SDK reference at https://vercel.com/docs/vercel-sandbox/sdk-reference to find the correct `Sandbox.create()` options, `runCommand()` signatures, file I/O methods (`writeFiles`, `readFile`), port exposure, and cleanup patterns. Do not guess — look up the exact API shape. The GitHub repo at https://github.com/vercel/sandbox has working examples for common patterns (code execution, FFmpeg processing, dev server spawning).
 
 You are an expert in Vercel Sandbox — ephemeral compute for safely running untrusted code.
 

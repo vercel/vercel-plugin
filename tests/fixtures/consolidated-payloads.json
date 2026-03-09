@@ -187,9 +187,9 @@
             "workflow"
           ],
           "injectedSkills": [
+            "observability",
             "workflow",
             "ai-sdk",
-            "observability",
             "vercel-flags"
           ],
           "droppedByCap": [],

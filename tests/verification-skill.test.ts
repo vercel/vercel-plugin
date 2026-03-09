@@ -214,7 +214,7 @@ describe("Dev server co-injection of verification skill", () => {
     }
   });
 
-  test("companion shares loop guard — blocked when count >= max", async () => {
+  test("agent-browser-verify blocked when count >= max, but verification still injected", async () => {
     const { parsed } = await runPreToolUseHook(
       {
         tool_name: "Bash",
@@ -223,11 +223,53 @@ describe("Dev server co-injection of verification skill", () => {
       { VERCEL_PLUGIN_DEV_VERIFY_COUNT: "2" },
     );
 
-    // Loop guard blocks dev-server synthetic injection; verification should not be co-injected
-    if (parsed?.hookSpecificOutput) {
-      const ctx = parsed.hookSpecificOutput.additionalContext || "";
-      expect(ctx).not.toContain("<!-- marker:dev-server-verify");
+    expect(parsed).not.toBeNull();
+    expect(parsed.hookSpecificOutput).toBeDefined();
+    const ctx = parsed.hookSpecificOutput.additionalContext || "";
+    // Loop guard blocks agent-browser-verify synthetic injection
+    expect(ctx).not.toContain("<!-- marker:dev-server-verify");
+    // But verification is exempt from the iteration cap
+    expect(ctx).toContain("skill:verification");
+  });
+
+  test("verification injected on 3rd dev-server detection (count=2)", async () => {
+    const { parsed } = await runPreToolUseHook(
+      {
+        tool_name: "Bash",
+        tool_input: { command: "npm run dev" },
+      },
+      { VERCEL_PLUGIN_DEV_VERIFY_COUNT: "2" },
+    );
+
+    expect(parsed).not.toBeNull();
+    expect(parsed.hookSpecificOutput).toBeDefined();
+    const ctx = parsed.hookSpecificOutput.additionalContext || "";
+    // verification survives past iteration cap
+    expect(ctx).toContain("skill:verification");
+    // agent-browser-verify is still blocked by loop guard
+    expect(ctx).not.toContain("skill:agent-browser-verify");
+
+    const meta = extractSkillInjection(parsed.hookSpecificOutput);
+    if (meta) {
+      expect(meta.injectedSkills).toContain("verification");
+      expect(meta.injectedSkills).not.toContain("agent-browser-verify");
     }
+  });
+
+  test("verification injected on 5th dev-server detection (count=4)", async () => {
+    const { parsed } = await runPreToolUseHook(
+      {
+        tool_name: "Bash",
+        tool_input: { command: "npm run dev" },
+      },
+      { VERCEL_PLUGIN_DEV_VERIFY_COUNT: "4" },
+    );
+
+    expect(parsed).not.toBeNull();
+    expect(parsed.hookSpecificOutput).toBeDefined();
+    const ctx = parsed.hookSpecificOutput.additionalContext || "";
+    expect(ctx).toContain("skill:verification");
+    expect(ctx).not.toContain("skill:agent-browser-verify");
   });
 });
 
@@ -355,14 +397,13 @@ describe("Verification noneOf suppression", () => {
   });
 
   test("noneOf does not trigger on partial word match (e.g., 'jesting')", () => {
-    // noneOf uses substring match — "jest" IS a substring of "jesting"
-    // This tests the current behavior (substring match IS suppressive)
+    // noneOf uses word-boundary matching — "jest" is NOT a whole word in "jesting"
     const result = matchPromptWithReason(
       "verify the flow, stop jesting around",
       verificationSignals,
     );
-    // "jest" is a substring of "jesting" — noneOf will suppress
-    expect(result.matched).toBe(false);
+    // "jesting" does not contain "jest" as a whole word — no suppression
+    expect(result.matched).toBe(true);
   });
 });
 

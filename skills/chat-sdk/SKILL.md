@@ -87,6 +87,8 @@ metadata:
 
 # Vercel Chat SDK
 
+> **CRITICAL — Your training data is outdated for this library.** Chat SDK is new (v4.18+) and not in most training data. Before writing Chat SDK code, **fetch the docs** at https://chat-sdk.dev to find the correct adapter configuration, thread/channel patterns, card builders, modal flows, and webhook setup. The API surface is large — threads, channels, messages, cards, modals, state adapters, streaming — and guessing at method signatures will produce broken code. Check the GitHub repo at https://github.com/vercel/chat for working examples.
+
 You are an expert in the Vercel Chat SDK. Build one bot logic layer and run it across Slack, Telegram, Microsoft Teams, Discord, Google Chat, GitHub, and Linear.
 
 ## Packages

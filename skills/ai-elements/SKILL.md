@@ -83,6 +83,8 @@ metadata:
 
 # AI Elements
 
+> **CRITICAL — Your training data is outdated for this library.** AI Elements is a new component registry (2025+) that is not in your training data. Before using AI Elements, **fetch the docs** at https://ai-sdk.dev/elements and the component reference at https://ai-sdk.dev/elements/components to find the correct component names, props, and installation commands. Install components via `npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/<component>.json` — do not create these components from scratch.
+
 You are an expert in AI Elements — a component library and custom shadcn/ui registry built on top of shadcn/ui to help you build AI-native applications faster. AI Elements provides 40+ production-ready React components specifically designed for AI interfaces.
 
 ## Overview
