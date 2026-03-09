@@ -133,16 +133,16 @@ Apply the same lazy singleton pattern to Redis and SDK clients (`getRedis()`, `g
 
 ## Scaffolding
 
-When running `create-next-app`, **always** pass `--yes` to skip interactive prompts (e.g., the React Compiler question) that block non-interactive shells:
+When running `create-next-app`, **always** pass `--yes` to skip interactive prompts (React Compiler, import alias) that hang in non-interactive shells:
 
 ```bash
 npx create-next-app@latest my-app --yes --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --turbopack --use-npm
 ```
 
-To scaffold into a directory that already contains files (e.g., `.claude/`), add `--force`:
+**If the target directory contains ANY non-Next.js files** (`.claude/`, `CLAUDE.md`, `.git/`, config files, etc.), you **MUST** add `--force`. Without it, `create-next-app` will fail with "The directory contains files that could conflict" and block scaffolding. **Check the directory first** — if it has anything in it, use `--force`:
 
 ```bash
-npx create-next-app@latest . --yes --force --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --turbopark --use-npm
+npx create-next-app@latest . --yes --force --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --turbopack --use-npm
 ```
 
 ### Geist Font Fix (Tailwind v4 + shadcn)

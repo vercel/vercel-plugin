@@ -99,6 +99,10 @@ validate:
     message: 'Do not render AI responses with dangerouslySetInnerHTML — use <MessageResponse> from @/components/ai-elements/message for safe, styled markdown rendering'
     severity: error
     skipIfFileContains: "ai-elements/message"
+  -
+    pattern: '@ts-nocheck'
+    message: 'Do not add @ts-nocheck — this means you installed an AI Elements component with a type conflict. Delete unused components, or reinstall the broken one: npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/<component>.json --overwrite'
+    severity: error
 ---
 
 # AI Elements
@@ -115,9 +119,21 @@ Unlike regular UI libraries, AI Elements understands AI-specific patterns — me
 
 The CLI adds components directly to your codebase with full source code access — no hidden dependencies, fully customizable.
 
-**Install immediately after `create-next-app`:**
+## Type Errors in AI Elements
+
+**NEVER add `@ts-nocheck` to AI Elements files.** If `next build` reports a type error in an AI Elements component (e.g. `plan.tsx`, `toolbar.tsx`), the cause is a version mismatch between the component and its dependencies (`@base-ui/react`, shadcn/ui `Button`, etc.).
+
+**Fix**:
+1. Reinstall the broken component: `npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/<component>.json --overwrite`
+2. If that fails, update the conflicting dep: `npm install @base-ui/react@latest`
+3. Only if the component is truly unused, delete it — don't suppress its types
+
+Adding `@ts-nocheck` hides real bugs and breaks IDE support for the entire file.
+
+**Install only the components you need** — do NOT install the full suite:
 ```bash
-npx ai-elements@latest
+npx ai-elements@latest add message          # MessageResponse for markdown rendering
+npx ai-elements@latest add conversation     # Full chat UI (if building a chat app)
 ```
 
 ## Rendering Any AI-Generated Markdown
@@ -147,18 +163,21 @@ AI Elements solves message rendering, not the whole product aesthetic. Surround 
 
 ## Installation
 
-```bash
-# Install all components at once (current: ai-elements@^1.8.0)
-npx ai-elements@latest
+**Install only the components you actually use.** Do NOT run `npx ai-elements@latest` without arguments or install `all.json` — this installs 48 components, most of which you won't need, and may introduce type conflicts between unused components and your dependency versions.
 
-# Install specific components
-npx ai-elements@latest add message
-npx ai-elements@latest add conversation
-npx ai-elements@latest add code-block
+```bash
+# Install specific components (RECOMMENDED)
+npx ai-elements@latest add message          # MessageResponse — required for any AI text
+npx ai-elements@latest add conversation     # Full chat UI container
+npx ai-elements@latest add code-block       # Syntax-highlighted code
+npx ai-elements@latest add tool             # Tool call display
 
 # Or use shadcn CLI directly with the registry URL
-npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/all.json
+npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
+npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/conversation.json
 ```
+
+**Never install all.json** — it pulls in 48 components including ones with `@base-ui/react` dependencies that may conflict with your shadcn version.
 
 Components are installed into `src/components/ai-elements/` by default.
 

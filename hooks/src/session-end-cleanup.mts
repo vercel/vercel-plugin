@@ -57,6 +57,8 @@ if (sessionId !== null) {
   } catch {
     // Silently ignore cleanup failures
   }
+
+  removeFileIfPresent(join(tempRoot, `vercel-plugin-${sessionId}-subagent-ledger.jsonl`));
 }
 
 process.exit(0);

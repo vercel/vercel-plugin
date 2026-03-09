@@ -7,9 +7,18 @@ description: Run live eval sessions against the vercel-plugin to verify hook beh
 
 Launch real Claude Code sessions with the plugin installed, monitor debug logs in real-time, and verify every hook fires correctly with proper dedup.
 
-## CRITICAL: Do NOT Use `--print` Mode
+## DO NOT (Hard Rules)
 
-**Never use `claude --print` for evals.** Plugin hooks do not fire reliably in `--print` mode — tool calls may not execute, no session_id means dedup breaks, and the agent just prints text instead of actually building the project. Always use interactive WezTerm sessions with `x '<prompt>' --settings .claude/settings.json`.
+- **DO NOT** use `claude --print` or `-p` — hooks don't fire, no files created
+- **DO NOT** use `--dangerously-skip-permissions`
+- **DO NOT** create projects in `/tmp/` — always use `~/dev/vercel-plugin-testing/`
+- **DO NOT** manually wire hooks or create `settings.local.json` — use `npx add-plugin`
+- **DO NOT** set `CLAUDE_PLUGIN_ROOT` manually
+- **DO NOT** use `bash -c` in WezTerm — use `/bin/zsh -ic`
+- **DO NOT** use full path to claude — use the `x` alias
+- **DO NOT** write eval scripts — do everything as Bash tool calls in the conversation
+
+**Copy the exact commands below. Do not improvise.**
 
 ## Quick Start
 
@@ -17,7 +26,7 @@ Launch real Claude Code sessions with the plugin installed, monitor debug logs i
 
 ```bash
 # 1. Create test dir & install plugin (with timestamp)
-TS=$(date +%Y%m%dT%H%M)
+TS=$(date +%Y%m%d-%H%M)
 SLUG="my-eval-$TS"
 mkdir -p ~/dev/vercel-plugin-testing/$SLUG
 cd ~/dev/vercel-plugin-testing/$SLUG

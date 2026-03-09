@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-09T21:17:36.585Z",
+  "generatedAt": "2026-03-09T21:52:29.215Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -3068,6 +3068,11 @@
           "message": "Do not render AI responses with dangerouslySetInnerHTML — use <MessageResponse> from @/components/ai-elements/message for safe, styled markdown rendering",
           "severity": "error",
           "skipIfFileContains": "ai-elements/message"
+        },
+        {
+          "pattern": "@ts-nocheck",
+          "message": "Do not add @ts-nocheck — this means you installed an AI Elements component with a type conflict. Delete unused components, or reinstall the broken one: npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/<component>.json --overwrite",
+          "severity": "error"
         }
       ],
       "promptSignals": {

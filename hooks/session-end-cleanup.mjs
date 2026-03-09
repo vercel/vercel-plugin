@@ -37,5 +37,6 @@ if (sessionId !== null) {
     });
   } catch {
   }
+  removeFileIfPresent(join(tempRoot, `vercel-plugin-${sessionId}-subagent-ledger.jsonl`));
 }
 process.exit(0);

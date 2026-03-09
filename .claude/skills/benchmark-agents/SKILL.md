@@ -25,6 +25,24 @@ Evals are run by **you, in this conversation**, not by scripts. The process is:
 
 **The WezTerm interactive approach is the only method that exercises the plugin correctly.** Every eval in our history (60+ sessions) used this approach.
 
+## DO NOT (Hard Rules)
+
+These are **absolute prohibitions**. Violating any of them wastes the entire eval run:
+
+- **DO NOT** use `claude --print` or `-p` flag — hooks don't fire, no files created
+- **DO NOT** use `--dangerously-skip-permissions` — changes agent behavior
+- **DO NOT** create projects in `/tmp/` — always use `~/dev/vercel-plugin-testing/`
+- **DO NOT** manually create `settings.local.json` or wire hooks by hand — use `npx add-plugin`
+- **DO NOT** set `CLAUDE_PLUGIN_ROOT` manually — the plugin manages this
+- **DO NOT** use `bash -c` or `bash -lc` in WezTerm — always use `/bin/zsh -ic`
+- **DO NOT** use the full path to claude — use the `x` alias (it's configured in zsh)
+- **DO NOT** create custom `debug.log` files with stderr redirects — debug logs go to `~/.claude/debug/`
+- **DO NOT** write eval runner scripts in TypeScript/JavaScript — do everything as Bash tool calls in the conversation
+- **DO NOT** try to `git init` or create `package.json` manually — `npx add-plugin` + the WezTerm session handle all scaffolding
+- **DO NOT** use uppercase letters in directory names — npm rejects them (e.g. `T` in timestamps breaks `create-next-app`)
+
+**Copy the exact commands below. Do not improvise.**
+
 ## Setup & Launch (Exact Commands)
 
 ### Naming convention
@@ -32,17 +50,17 @@ Evals are run by **you, in this conversation**, not by scripts. The process is:
 **Always append a timestamp** to directory names so reruns don't overwrite old projects:
 
 ```
-<slug>-<YYYYMMDD>T<HHMM>
+<slug>-<yyyymmdd>-<hhmm>
 ```
 
-Example: `tarot-card-deck-20260309T1227`, `interior-designer-20260309T1227`
+Example: `tarot-card-deck-20260309-1227`, `interior-designer-20260309-1227`
 
-Generate the timestamp with: `date +%Y%m%dT%H%M`
+Generate the timestamp with: `date +%Y%m%d-%H%M`
 
 ### 1. Create test directory and install plugin
 
 ```bash
-TS=$(date +%Y%m%dT%H%M)
+TS=$(date +%Y%m%d-%H%M)
 SLUG="my-app-$TS"
 mkdir -p ~/dev/vercel-plugin-testing/$SLUG
 cd ~/dev/vercel-plugin-testing/$SLUG
@@ -73,7 +91,7 @@ find ~/.claude/debug -name "*.txt" -mmin -2 -exec grep -l "$SLUG" {} +
 Create dirs and install plugin in a loop, then spawn each WezTerm pane:
 
 ```bash
-TS=$(date +%Y%m%dT%H%M)
+TS=$(date +%Y%m%d-%H%M)
 cd ~/dev/vercel-plugin-testing
 for name in tarot-deck interior-designer superhero-origin; do
   d="${name}-${TS}"
