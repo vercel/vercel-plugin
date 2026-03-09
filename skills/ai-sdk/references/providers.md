@@ -35,7 +35,7 @@ const model = gateway('openai/gpt-5.2')
 | Code generation | `gpt-5.3-codex`, `claude-sonnet-4.6` | Code-optimized |
 | Embeddings | `text-embedding-3-small` (OpenAI) | Cost-effective, good quality |
 | Embeddings (high-quality) | `text-embedding-3-large` (OpenAI) | Best quality |
-| Image generation | `dall-e-3` (OpenAI) | General purpose |
+| Image generation | `google/gemini-3.1-flash-image-preview` (via gateway) | Fast, high-quality multimodal image gen |
 | Reranking | `rerank-v3.5` (Cohere) | Relevance reordering |
 
 ## Direct Provider Usage
@@ -53,6 +53,6 @@ const gemini = google('gemini-3-flash')
 // Embedding models
 const embedder = openai.embedding('text-embedding-3-small')
 
-// Image models
-const imageGen = openai.image('dall-e-3')
+// Image models (use gateway for image gen)
+// const imageGen = gateway('google/gemini-3.1-flash-image-preview')
 ```

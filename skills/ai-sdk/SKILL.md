@@ -133,7 +133,7 @@ You are an expert in the Vercel AI SDK v6. The AI SDK is the leading TypeScript 
 
 ```bash
 npm install ai@^6.0.0 @ai-sdk/react@^3.0.0
-npm install @ai-sdk/openai@^3.0.41      # Optional: required for embeddings/image models
+npm install @ai-sdk/openai@^3.0.41      # Optional: required for embeddings
 npm install @ai-sdk/anthropic@^3.0.58   # Optional: direct Anthropic provider access
 npm install @ai-sdk/vercel@^2.0.37      # Optional: v0 model provider (v0-1.0-md)
 ```
@@ -176,7 +176,7 @@ This automatically provides failover, cost tracking, and observability on Vercel
 
 **Model slug rules**: Always use `provider/model` format. Version numbers use **dots**, not hyphens: `anthropic/claude-sonnet-4.6` (not `claude-sonnet-4-6`). Default to `openai/gpt-5.4` or `anthropic/claude-sonnet-4.6`. Never use outdated models like `gpt-4o`.
 
-> `gateway()` does not support embeddings or image generation. Use a direct provider SDK such as `@ai-sdk/openai` for those features.
+> `gateway()` does not support embeddings. Use a direct provider SDK such as `@ai-sdk/openai` for embeddings.
 
 > **Direct provider SDKs** (`@ai-sdk/openai`, `@ai-sdk/anthropic`, etc.) are only needed for provider-specific features not exposed through the gateway (e.g., Anthropic computer use, OpenAI fine-tuned model endpoints).
 
@@ -433,22 +433,66 @@ const { results } = await rerank({
 
 ### Image Generation & Editing
 
-Use a direct provider SDK for image models. `gateway()` does not support image generation.
+AI Gateway supports image generation. Use `gateway()` with multimodal image models (recommended) or `experimental_generateImage` with image-only models.
+
+#### Multimodal LLMs (recommended — use `generateText`/`streamText`)
 
 ```ts
-import { generateImage, editImage } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { generateText, streamText, gateway } from "ai";
 
-const { image } = await generateImage({
-  model: openai.image("dall-e-3"),
+// generateText — images returned in result.files
+const result = await generateText({
+  model: gateway("google/gemini-3.1-flash-image-preview"),
   prompt: "A futuristic cityscape at sunset",
 });
+const imageFiles = result.files.filter((f) => f.mediaType?.startsWith("image/"));
 
-const { image: edited } = await editImage({
-  model: openai.image("dall-e-3"),
-  image: originalImage,
-  prompt: "Add flying cars to the scene",
+// streamText — stream text, then access images after completion
+const stream = streamText({
+  model: gateway("google/gemini-3.1-flash-image-preview"),
+  prompt: "A futuristic cityscape at sunset",
 });
+for await (const delta of stream.fullStream) {
+  if (delta.type === "text-delta") process.stdout.write(delta.text);
+}
+const finalResult = await stream;
+console.log(`Generated ${finalResult.files.length} image(s)`);
+```
+
+**Default model**: `google/gemini-3.1-flash-image-preview` — fast, high-quality image generation via AI Gateway.
+
+Other supported multimodal image models: `google/gemini-3-pro-image`, `google/gemini-2.5-flash-image`.
+
+#### Image-only models (use `experimental_generateImage`)
+
+```ts
+import { experimental_generateImage as generateImage } from "ai";
+
+const { images } = await generateImage({
+  model: "google/imagen-4.0-generate-001",
+  prompt: "A futuristic cityscape at sunset",
+  aspectRatio: "16:9",
+});
+```
+
+Other image-only models: `google/imagen-4.0-ultra-generate-001`, `bfl/flux-2-pro`, `bfl/flux-kontext-max`, `xai/grok-imagine-image-pro`.
+
+#### Saving generated images
+
+```ts
+import fs from "node:fs";
+
+// From multimodal LLMs (result.files)
+for (const [i, file] of imageFiles.entries()) {
+  const ext = file.mediaType?.split("/")[1] || "png";
+  await fs.promises.writeFile(`output-${i}.${ext}`, file.uint8Array);
+}
+
+// From image-only models (result.images)
+for (const [i, image] of images.entries()) {
+  const buffer = Buffer.from(image.base64, "base64");
+  await fs.promises.writeFile(`output-${i}.png`, buffer);
+}
 ```
 
 ## UI Hooks (React)

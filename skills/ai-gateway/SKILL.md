@@ -542,7 +542,7 @@ GPT-5.4 Pro targets maximum performance on complex tasks. Use standard GPT-5.4 f
 
 ## Multimodal Support
 
-Text generation routes through the gateway. For embeddings and image generation, use a direct provider SDK:
+Text and image generation both route through the gateway. For embeddings, use a direct provider SDK.
 
 ```ts
 // Text — through gateway
@@ -551,13 +551,24 @@ const { text } = await generateText({
   prompt: 'Hello',
 })
 
-// Image — direct provider SDK (gateway does not support image models)
-import { openai } from '@ai-sdk/openai'
-const { image } = await generateImage({
-  model: openai.image('dall-e-3'),
+// Image — through gateway (multimodal LLMs return images in result.files)
+const result = await generateText({
+  model: gateway('google/gemini-3.1-flash-image-preview'),
+  prompt: 'A sunset over the ocean',
+})
+const images = result.files.filter((f) => f.mediaType?.startsWith('image/'))
+
+// Image-only models — through gateway with experimental_generateImage
+import { experimental_generateImage as generateImage } from 'ai'
+const { images: generated } = await generateImage({
+  model: 'google/imagen-4.0-generate-001',
   prompt: 'A sunset',
 })
 ```
+
+**Default image model**: `google/gemini-3.1-flash-image-preview` — fast multimodal image generation via gateway.
+
+See [AI Gateway Image Generation docs](https://vercel.com/docs/ai-gateway/capabilities/image-generation) for all supported models and integration methods.
 
 ## Key Benefits
 
