@@ -17,6 +17,40 @@ metadata:
     - '\bbunx\s+vercel\b'
     - '\byarn\s+dlx\s+vercel\b'
     - '\bnpx\s+@vercel/config\b'
+  promptSignals:
+    phrases:
+      - "check deployment"
+      - "check deploy"
+      - "deployment status"
+      - "deploy status"
+      - "vercel logs"
+      - "deployment logs"
+      - "deploy logs"
+      - "vercel inspect"
+      - "is it deployed"
+      - "deploy failing"
+      - "deploy failed"
+      - "deployment error"
+      - "check vercel"
+      - "vercel status"
+    allOf:
+      - [check, deployment]
+      - [check, deploy]
+      - [vercel, status]
+      - [vercel, logs]
+      - [deploy, error]
+      - [deploy, failed]
+      - [deploy, stuck]
+    anyOf:
+      - "deployment"
+      - "deploy"
+      - "vercel"
+      - "production"
+    noneOf:
+      - "terraform"
+      - "aws deploy"
+      - "heroku"
+    minScore: 6
 ---
 
 # Vercel CLI

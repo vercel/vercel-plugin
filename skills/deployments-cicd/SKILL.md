@@ -253,6 +253,69 @@ jobs:
 5. **Pin the Vercel CLI version in CI** — `npm install -g vercel@latest` can break unexpectedly
 6. **Add `--yes` flag in CI** — prevents interactive prompts from hanging pipelines
 
+## Deployment Strategy Matrix
+
+| Scenario | Strategy | Commands |
+|----------|----------|----------|
+| Standard team workflow | Git-push deploy | Push to main/feature branches |
+| Custom CI/CD (Actions, CircleCI) | Prebuilt deploy | `vercel build && vercel deploy --prebuilt` |
+| Monorepo with Turborepo | Affected + remote cache | `turbo run build --affected --remote-cache` |
+| Preview for every PR | Default behavior | Auto-creates preview URL per branch |
+| Promote preview to production | CLI promotion | `vercel promote <url>` |
+| Atomic deploys with DB migrations | Two-phase | Run migration → verify → `vercel promote` |
+| Edge-first architecture | Edge Functions | Set `runtime: 'edge'` in route config |
+
+## Common Build Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `ERR_PNPM_OUTDATED_LOCKFILE` | Lockfile doesn't match package.json | Run `pnpm install`, commit lockfile |
+| `NEXT_NOT_FOUND` | Root directory misconfigured | Set `rootDirectory` in Project Settings |
+| `Invalid next.config.js` | Config syntax error | Validate config locally with `next build` |
+| `functions/api/*.js` mismatch | Wrong file structure | Move to `app/api/` directory (App Router) |
+| `Error: EPERM` | File permission issue in build | Don't `chmod` in build scripts; use postinstall |
+
+## Deploy Summary Format
+
+Present a structured deploy result block:
+
+```
+## Deploy Result
+- **URL**: <deployment-url>
+- **Target**: production | preview
+- **Status**: READY | ERROR | BUILDING | QUEUED
+- **Commit**: <short-sha>
+- **Framework**: <detected-framework>
+- **Build Duration**: <duration>
+```
+
+If the deployment failed, append:
+
+```
+- **Error**: <summary of failure from logs>
+```
+
+For production deploys, also include:
+
+```
+### Post-Deploy Observability
+- **Error scan**: <N errors found / clean> (scanned via vercel logs --level error --since 1h)
+- **Drains**: <N configured / none>
+- **Monitoring**: <active / gaps identified>
+```
+
+## Deploy Next Steps
+
+Based on the deployment outcome:
+
+- **Success (preview)** → "Visit the preview URL to verify. When ready, run `/deploy prod` to promote to production."
+- **Success (production)** → "Your production site is live. Run `/status` to see the full project overview."
+- **Build error** → "Check the build logs above. Common fixes: verify `build` script in package.json, check for missing env vars with `/env list`, ensure dependencies are installed."
+- **Missing env vars** → "Run `/env pull` to sync environment variables locally, or `/env list` to review what's configured on Vercel."
+- **Monorepo issues** → "Ensure the correct project root is configured in Vercel project settings. Check `vercel.json` for `rootDirectory`."
+- **Post-deploy errors detected** → "Review errors above. Check `vercel logs <url> --level error` for details. If drains are configured, correlate with external monitoring."
+- **No monitoring configured** → "Set up drains or install an error tracking integration before the next production deploy. Run `/status` for a full observability diagnostic."
+
 ## Official Documentation
 
 - [Deployments](https://vercel.com/docs/deployments)

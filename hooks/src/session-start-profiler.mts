@@ -405,6 +405,13 @@ function main(): void {
   const likelySkills: string[] = greenfield
     ? GREENFIELD_DEFAULT_SKILLS
     : profileProject(projectRoot);
+
+  // Auto-boost observability for all non-greenfield projects so debugging
+  // and logging guidance is always available (+5 priority from profiler).
+  if (!greenfield && !likelySkills.includes("observability")) {
+    likelySkills.push("observability");
+    likelySkills.sort();
+  }
   const setupSignals: BootstrapSignals = greenfield
     ? GREENFIELD_SETUP_SIGNALS
     : profileBootstrapSignals(projectRoot);

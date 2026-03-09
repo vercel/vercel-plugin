@@ -5,15 +5,29 @@
       "name": "vercel.json edit — all 5 skills fit cap",
       "input": {
         "tool_name": "Edit",
-        "tool_input": { "file_path": "/Users/me/project/vercel.json" }
+        "tool_input": {
+          "file_path": "/Users/me/project/vercel.json"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Edit",
           "toolTarget": "/Users/me/project/vercel.json",
-          "matchedSkills": ["cron-jobs", "deployments-cicd", "routing-middleware", "vercel-cli", "vercel-functions"],
-          "injectedSkills": ["vercel-functions", "cron-jobs", "deployments-cicd", "routing-middleware", "vercel-cli"],
+          "matchedSkills": [
+            "cron-jobs",
+            "deployments-cicd",
+            "routing-middleware",
+            "vercel-cli",
+            "vercel-functions"
+          ],
+          "injectedSkills": [
+            "vercel-functions",
+            "cron-jobs",
+            "deployments-cicd",
+            "routing-middleware",
+            "vercel-cli"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }
@@ -23,15 +37,23 @@
       "name": "next.config.ts read",
       "input": {
         "tool_name": "Read",
-        "tool_input": { "file_path": "/Users/me/project/next.config.ts" }
+        "tool_input": {
+          "file_path": "/Users/me/project/next.config.ts"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Read",
           "toolTarget": "/Users/me/project/next.config.ts",
-          "matchedSkills": ["nextjs", "turbopack"],
-          "injectedSkills": ["nextjs", "turbopack"],
+          "matchedSkills": [
+            "nextjs",
+            "turbopack"
+          ],
+          "injectedSkills": [
+            "nextjs",
+            "turbopack"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }
@@ -41,15 +63,23 @@
       "name": "bash deploy command",
       "input": {
         "tool_name": "Bash",
-        "tool_input": { "command": "vercel deploy --prod" }
+        "tool_input": {
+          "command": "vercel deploy --prod"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Bash",
           "toolTarget": "vercel deploy --prod",
-          "matchedSkills": ["deployments-cicd", "vercel-cli"],
-          "injectedSkills": ["deployments-cicd", "vercel-cli"],
+          "matchedSkills": [
+            "deployments-cicd",
+            "vercel-cli"
+          ],
+          "injectedSkills": [
+            "deployments-cicd",
+            "vercel-cli"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }
@@ -59,15 +89,25 @@
       "name": "AI SDK file edit",
       "input": {
         "tool_name": "Edit",
-        "tool_input": { "file_path": "/Users/me/project/app/api/chat/route.ts" }
+        "tool_input": {
+          "file_path": "/Users/me/project/app/api/chat/route.ts"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Edit",
           "toolTarget": "/Users/me/project/app/api/chat/route.ts",
-          "matchedSkills": ["ai-sdk", "nextjs", "vercel-functions"],
-          "injectedSkills": ["ai-sdk", "vercel-functions", "nextjs"],
+          "matchedSkills": [
+            "ai-sdk",
+            "nextjs",
+            "vercel-functions"
+          ],
+          "injectedSkills": [
+            "ai-sdk",
+            "vercel-functions",
+            "nextjs"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }
@@ -77,15 +117,25 @@
       "name": "Read app/api/chat/route.ts — AI SDK route",
       "input": {
         "tool_name": "Read",
-        "tool_input": { "file_path": "/Users/me/project/app/api/chat/route.ts" }
+        "tool_input": {
+          "file_path": "/Users/me/project/app/api/chat/route.ts"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Read",
           "toolTarget": "/Users/me/project/app/api/chat/route.ts",
-          "matchedSkills": ["nextjs", "ai-sdk", "vercel-functions"],
-          "injectedSkills": ["ai-sdk", "vercel-functions", "nextjs"],
+          "matchedSkills": [
+            "nextjs",
+            "ai-sdk",
+            "vercel-functions"
+          ],
+          "injectedSkills": [
+            "ai-sdk",
+            "vercel-functions",
+            "nextjs"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }
@@ -95,15 +145,23 @@
       "name": "Write middleware.ts — routing middleware",
       "input": {
         "tool_name": "Write",
-        "tool_input": { "file_path": "/Users/me/project/middleware.ts" }
+        "tool_input": {
+          "file_path": "/Users/me/project/middleware.ts"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Write",
           "toolTarget": "/Users/me/project/middleware.ts",
-          "matchedSkills": ["routing-middleware", "auth"],
-          "injectedSkills": ["auth", "routing-middleware"],
+          "matchedSkills": [
+            "routing-middleware",
+            "auth"
+          ],
+          "injectedSkills": [
+            "auth",
+            "routing-middleware"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }
@@ -113,15 +171,27 @@
       "name": "bash cap collision — npm install triggers 4 skills, all fit cap 5",
       "input": {
         "tool_name": "Bash",
-        "tool_input": { "command": "npm install ai @vercel/analytics @vercel/flags @vercel/workflow" }
+        "tool_input": {
+          "command": "npm install ai @vercel/analytics @vercel/flags @vercel/workflow"
+        }
       },
       "expected": {
         "skillInjection": {
           "version": 1,
           "toolName": "Bash",
           "toolTarget": "npm install ai @vercel/analytics @vercel/flags @vercel/workflow",
-          "matchedSkills": ["ai-sdk", "observability", "vercel-flags", "workflow"],
-          "injectedSkills": ["workflow", "ai-sdk", "observability", "vercel-flags"],
+          "matchedSkills": [
+            "ai-sdk",
+            "observability",
+            "vercel-flags",
+            "workflow"
+          ],
+          "injectedSkills": [
+            "observability",
+            "workflow",
+            "ai-sdk",
+            "vercel-flags"
+          ],
           "droppedByCap": [],
           "droppedByBudget": []
         }

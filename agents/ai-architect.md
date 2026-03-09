@@ -18,7 +18,7 @@ What does the AI feature need to do?
 │
 ├─ Call external tools / APIs
 │  ├─ Single tool call → `generateText` with `tools` parameter
-│  ├─ Multi-step reasoning with tools → AI SDK `Agent` class
+│  ├─ Multi-step reasoning with tools → AI SDK `ToolLoopAgent` class
 │  │  ├─ Short-lived (< 60s) → Agent in Route Handler
 │  │  └─ Long-running (minutes to hours) → Workflow DevKit `DurableAgent`
 │  └─ MCP server integration → `@ai-sdk/mcp` StreamableHTTPClientTransport
@@ -35,7 +35,7 @@ What does the AI feature need to do?
 │
 └─ Multi-agent system
    ├─ Agents share context? → Workflow DevKit `Worlds` (shared state)
-   ├─ Independent agents? → Multiple `Agent` instances with separate tools
+   ├─ Independent agents? → Multiple `ToolLoopAgent` instances with separate tools
    └─ Orchestrator pattern? → Parent Agent delegates to child Agents via tools
 ```
 
@@ -81,98 +81,29 @@ Choosing a model?
 
 ## AI SDK v6 Agent Class Patterns
 
-### Basic Agent (Short-Lived)
+<!-- Sourced from ai-sdk skill: Core Functions > Agents -->
+The `ToolLoopAgent` class wraps `generateText`/`streamText` with an agentic tool-calling loop.
+Default `stopWhen` is `stepCountIs(20)` (up to 20 tool-calling steps).
+`Agent` is an interface — `ToolLoopAgent` is the concrete implementation.
 
-```typescript
-// app/api/agent/route.ts
-import { Agent } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { z } from 'zod';
+```ts
+import { ToolLoopAgent, stepCountIs, hasToolCall } from "ai";
 
-const agent = new Agent({
-  model: anthropic('claude-sonnet-4.6'),
-  system: 'You are a helpful assistant that can look up information.',
-  tools: {
-    search: {
-      description: 'Search for information',
-      inputSchema: z.object({ query: z.string() }),
-      execute: async ({ query }) => {
-        // search implementation
-        return { results: [] };
-      },
-    },
-  },
+const agent = new ToolLoopAgent({
+  model: "anthropic/claude-sonnet-4.6",
+  tools: { weather, search, calculator, finalAnswer },
+  instructions: "You are a helpful assistant.",
+  // Default: stepCountIs(20). Override to stop on a terminal tool or custom logic:
+  stopWhen: hasToolCall("finalAnswer"),
+  prepareStep: (context) => ({
+    // Customize each step — swap models, compress messages, limit tools
+    toolChoice: context.steps.length > 5 ? "none" : "auto",
+  }),
 });
 
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-  const result = agent.streamText({ messages });
-  return result.toUIMessageStreamResponse();
-}
-```
-
-### DurableAgent (Long-Running, Fault-Tolerant)
-
-```typescript
-// app/api/research/route.ts
-import { DurableAgent } from '@vercel/workflow/ai';
-import { stepCountIs } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-
-const researchAgent = new DurableAgent({
-  model: anthropic('claude-sonnet-4.6'),
-  system: 'You are a research agent that thoroughly investigates topics.',
-  tools: { /* ... */ },
-  stopWhen: stepCountIs(50), // survives function restarts
-});
-
-export async function POST(req: Request) {
-  const { topic } = await req.json();
-  const run = await researchAgent.run(`Research: ${topic}`);
-  return Response.json({ runId: run.id });
-}
-```
-
-### MCP Server Integration
-
-```typescript
-// Connect to remote MCP server with OAuth
-import { Agent } from 'ai';
-import { createMCPClient } from '@ai-sdk/mcp';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-
-const mcpClient = createMCPClient({
-  transport: new StreamableHTTPClientTransport(
-    new URL('https://mcp.example.com/mcp')
-  ),
-});
-
-const agent = new Agent({
-  model: anthropic('claude-sonnet-4.6'),
-  tools: await mcpClient.tools(), // auto-discovers available tools
-});
-```
-
-### Multi-Agent with Worlds (Shared State)
-
-```typescript
-// Agents share state through Workflow Worlds
-import { DurableAgent, World } from '@vercel/workflow/ai';
-
-const world = new World({
-  state: { findings: [], decisions: [] },
-});
-
-const researcher = new DurableAgent({
-  model: anthropic('claude-sonnet-4.6'),
-  system: 'Research agent. Add findings to world state.',
-  world,
-});
-
-const analyst = new DurableAgent({
-  model: anthropic('claude-sonnet-4.6'),
-  system: 'Analyst. Review findings in world state and make decisions.',
-  world,
+const { text } = await agent.generate({
+  prompt:
+    "Research the weather in Tokyo and calculate the average temperature this week.",
 });
 ```
 
@@ -247,7 +178,7 @@ Use when: Basic chatbot, Q&A, content generation. No tools needed.
 ### Pattern 2: Agentic Chat
 
 ```
-Client (useChat) → Route Handler (Agent.streamText) → Provider
+Client (useChat) → Route Handler (Agent.stream) → Provider
                                     ↓ tool calls
                               External APIs / DB
 ```
@@ -289,16 +220,50 @@ Use when: Q&A over custom documents, knowledge bases, semantic search.
 
 ## Migration from Older AI SDK Patterns
 
-| Old Pattern (AI SDK v4/v5) | New Pattern (AI SDK v6) | Notes |
-|---------------------------|------------------------|-------|
-| `parameters` in tools | `inputSchema` | Zod schema, MCP-aligned |
-| `result` in tools | `outputSchema` | Optional, for typed returns |
-| Manual tool loop with `while` | `Agent` class | Handles tool loop automatically |
-| `experimental_telemetry` | `telemetry` | Stable API |
-| `generateObject` / `streamObject` | `generateText` / `streamText` with `Output.object()` | Unified API |
-| `CoreMessage` | `ModelMessage` | Use `convertToModelMessages()` |
-| `OpenAIStream` / `AnthropicStream` | `toUIMessageStreamResponse()` | Unified streaming (for chat UIs) |
-| Manual retry on rate limit | AI Gateway fallbacks | Infrastructure-level resilience |
+<!-- Sourced from ai-sdk skill: Migration from AI SDK 5 -->
+Run `npx @ai-sdk/codemod upgrade` (or `npx @ai-sdk/codemod v6`) to auto-migrate. Preview with `npx @ai-sdk/codemod --dry upgrade`. Key changes:
+
+- `generateObject` / `streamObject` → `generateText` / `streamText` with `Output.object()`
+- `parameters` → `inputSchema`
+- `result` → `output`
+- `maxSteps` → `stopWhen: stepCountIs(N)` (import `stepCountIs` from `ai`)
+- `CoreMessage` → `ModelMessage` (use `convertToModelMessages()` — now async)
+- `ToolCallOptions` → `ToolExecutionOptions`
+- `Experimental_Agent` → `ToolLoopAgent` (concrete class; `Agent` is just an interface)
+- `system` → `instructions` (on `ToolLoopAgent`)
+- `agent.generateText()` → `agent.generate()`
+- `agent.streamText()` → `agent.stream()`
+- `experimental_createMCPClient` → `createMCPClient` (stable)
+- New: `createAgentUIStreamResponse({ agent, uiMessages })` for agent API routes
+- New: `callOptionsSchema` + `prepareCall` for per-call agent configuration
+- `useChat({ api })` → `useChat({ transport: new DefaultChatTransport({ api }) })`
+- `useChat` `body` / `onResponse` options removed → configure with transport
+- `handleSubmit` / `input` → `sendMessage({ text })` / manage own state
+- `toDataStreamResponse()` → `toUIMessageStreamResponse()` (for chat UIs)
+- `createUIMessageStream`: use `stream.writer.write(...)` (not `stream.write(...)`)
+- text-only clients / text stream protocol → `toTextStreamResponse()`
+- `message.content` → `message.parts` (tool parts use `tool-<toolName>`, not `tool-invocation`)
+- UIMessage / ModelMessage types introduced
+- `DynamicToolCall.args` is not strongly typed; cast via `unknown` first
+- `TypedToolResult.result` → `TypedToolResult.output`
+- `ai@^6.0.0` is the umbrella package
+- `@ai-sdk/react` must be installed separately at `^3.0.x`
+- `@ai-sdk/gateway` (if installed directly) is `^3.x`, not `^1.x`
+- New: `needsApproval` on tools (boolean or async function) for human-in-the-loop approval
+- New: `strict: true` per-tool opt-in for strict schema validation
+- New: `DirectChatTransport` — connect `useChat` to an Agent in-process, no API route needed
+- New: `addToolApprovalResponse` on `useChat` for client-side approval UI
+- Default `stopWhen` changed from `stepCountIs(1)` to `stepCountIs(20)` for `ToolLoopAgent`
+- New: `ToolCallOptions` type renamed to `ToolExecutionOptions`
+- New: `Tool.toModelOutput` now receives `({ output })` object, not bare `output`
+- New: `isToolUIPart` → `isStaticToolUIPart`; `isToolOrDynamicToolUIPart` → `isToolUIPart`
+- New: `getToolName` → `getStaticToolName`; `getToolOrDynamicToolName` → `getToolName`
+- New: `@ai-sdk/azure` defaults to Responses API; use `azure.chat()` for Chat Completions
+- New: `@ai-sdk/anthropic` `structuredOutputMode` for native structured outputs (Claude Sonnet 4.5+)
+- New: `@ai-sdk/langchain` rewritten — `toBaseMessages()`, `toUIMessageStream()`, `LangSmithDeploymentTransport`
+- New: Provider-specific tools — Anthropic (memory, code execution), OpenAI (shell, patch), Google (maps, RAG), xAI (search, code)
+- `unknown` finish reason removed → now returned as `other`
+- Warning types consolidated into single `Warning` type exported from `ai`
 
 ---
 

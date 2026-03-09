@@ -151,6 +151,20 @@ After linkage and env verification, establish the UI foundation before feature w
 3. Confirm the app shell uses `bg-background text-foreground`.
 4. Default to dark mode for product, admin, and AI apps unless the repo is clearly marketing-first.
 
+## Bootstrap Verification
+
+Confirm each checkpoint:
+
+- `vercel whoami` succeeds.
+- `.vercel/project.json` exists and matches chosen project.
+- Postgres integration path completed (Vercel integration, dashboard, or provider CLI fallback).
+- `vercel env pull .env.local --yes` succeeds.
+- Required env key diff is empty.
+- Database command status is recorded (`db:push`, `db:seed`, `db:migrate`, `db:generate` as applicable).
+- `dev` command starts without immediate config/auth/env failure.
+
+If verification fails, stop and report exact failing step plus remediation.
+
 ## Summary Format
 
 Return a final bootstrap summary in this format:
@@ -164,3 +178,9 @@ Return a final bootstrap summary in this format:
 - **Migration Status**: not-run | success | failed (<step>)
 - **Dev Result**: not-run | started | failed
 ```
+
+## Bootstrap Next Steps
+
+- If env keys are still missing, add the missing keys in Vercel and re-run `vercel env pull .env.local --yes`.
+- If DB commands fail, fix connectivity/schema issues and re-run only the failed db step.
+- If `dev` fails, resolve runtime errors, then restart with your package manager's `run dev`.

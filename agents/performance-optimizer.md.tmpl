@@ -10,13 +10,7 @@ You are a Vercel performance optimization specialist. Use the diagnostic trees b
 ## Core Web Vitals Reference
 
 <!-- Sourced from observability skill: Speed Insights > Metrics Tracked -->
-| Metric | What It Measures | Good Threshold |
-|--------|-----------------|----------------|
-| LCP | Largest Contentful Paint | < 2.5s |
-| INP | Interaction to Next Paint | < 200ms |
-| CLS | Cumulative Layout Shift | < 0.1 |
-| FCP | First Contentful Paint | < 1.8s |
-| TTFB | Time to First Byte | < 800ms |
+{{include:skill:observability:Speed Insights > Metrics Tracked}}
 
 ## Core Web Vitals Diagnostic Trees
 
@@ -121,98 +115,33 @@ CLS > 0.1?
 ## Rendering Strategy Decision Tree
 
 <!-- Sourced from nextjs skill: Rendering Strategy Decision > Rendering Strategy Guidance -->
-```
-Choosing a rendering strategy?
-├─ Content changes less than once per day?
-│  ├─ Same for all users? → SSG (`generateStaticParams`)
-│  └─ Personalized? → SSG shell + client fetch for personalized parts
-│
-├─ Content changes frequently but can be slightly stale?
-│  ├─ Revalidate on schedule? → ISR with `revalidate: N` seconds
-│  └─ Revalidate on demand? → `revalidateTag()` or `revalidatePath()`
-│
-├─ Content must be fresh on every request?
-│  ├─ Cacheable per-request? → Cache Components (`'use cache'` + `cacheLife`)
-│  ├─ Personalized per-user? → SSR with Streaming (Suspense boundaries)
-│  └─ Real-time? → Client-side with SWR/React Query + SSR for initial load
-│
-└─ Mostly static with one dynamic section?
-   └─ Partial Prerendering: static shell + Suspense for dynamic island
-```
+{{include:skill:nextjs:Rendering Strategy Decision > Rendering Strategy Guidance}}
 
 ---
 
 ## Bundle Size Analysis
 
 <!-- Sourced from nextjs skill: Bundle Analyzer -->
-Built-in bundle analyzer that works with Turbopack (available since Next.js 16.1):
-
-```bash
-# Analyze and serve results in browser
-next experimental-analyze --serve
-
-# Analyze with custom port
-next experimental-analyze --serve --port 4001
-
-# Write analysis to .next/diagnostics/analyze (no server)
-next experimental-analyze
-```
-
-Features:
-- Route-specific filtering between client and server bundles
-- Full import chain tracing — see exactly why a module is included
-- Traces imports across RSC boundaries and dynamic imports
-- No application build required — analyzes module graph directly
-
-Save output for comparison: `cp -r .next/diagnostics/analyze ./analyze-before-refactor`
-
-**Legacy**: For projects not using Turbopack, use `@next/bundle-analyzer` with `ANALYZE=true npm run build`.
+{{include:skill:nextjs:Bundle Analyzer (`next experimental-analyze`)}}
 
 ---
 
 ## Caching Strategy Matrix
 
 <!-- Sourced from nextjs skill: Rendering Strategy Decision > Caching Strategy Matrix -->
-| Data Type | Strategy | Implementation |
-|-----------|----------|----------------|
-| Static assets (JS, CSS, images) | Immutable cache | Automatic with Vercel (hashed filenames) |
-| API responses (shared) | Cache Components | `'use cache'` + `cacheLife('hours')` |
-| API responses (per-user) | No cache or short TTL | `cacheLife({ revalidate: 60 })` with user-scoped key |
-| Configuration data | Edge Config | `@vercel/edge-config` (< 5ms reads) |
-| Database queries | ISR + on-demand | `revalidateTag('products')` on write |
-| Full pages | SSG / ISR | `generateStaticParams` + `revalidate` |
-| Search results | Client-side + SWR | `useSWR` with stale-while-revalidate |
+{{include:skill:nextjs:Rendering Strategy Decision > Caching Strategy Matrix}}
 
 ### Cache Invalidation Patterns
 
 <!-- Sourced from nextjs skill: Cache Components (Next.js 16) > Cache Invalidation -->
-Invalidate with `updateTag('users')` from a Server Action (immediate expiration, Server Actions only) or `revalidateTag('users', 'max')` for stale-while-revalidate from Server Actions or Route Handlers.
-
-**Important**: The single-argument `revalidateTag(tag)` is deprecated in Next.js 16. Always pass a `cacheLife` profile as the second argument (e.g., `'max'`, `'hours'`, `'days'`).
-
-| Function | Context | Behavior |
-|----------|---------|----------|
-| `updateTag(tag)` | Server Actions only | Immediate expiration, read-your-own-writes |
-| `revalidateTag(tag, 'max')` | Server Actions + Route Handlers | Stale-while-revalidate (recommended) |
-| `revalidateTag(tag, { expire: 0 })` | Route Handlers (webhooks) | Immediate expiration from external triggers |
+{{include:skill:nextjs:Cache Components (Next.js 16) > Cache Invalidation}}
 
 ---
 
 ## Performance Audit Checklist
 
 <!-- Sourced from observability skill: Drains > Performance Audit Checklist -->
-Run through this when asked to optimize a Vercel application:
-
-1. **Measure first**: Check Speed Insights dashboard for real-user CWV data
-2. **Identify LCP element**: Use Chrome DevTools → Performance → identify the LCP element
-3. **Audit `'use client'`**: Every `'use client'` file ships JS to the browser — minimize
-4. **Check images**: All above-fold images use `next/image` with `priority`
-5. **Check fonts**: All fonts loaded via `next/font` (zero CLS)
-6. **Check third-party scripts**: All use `next/script` with correct strategy
-7. **Check data fetching**: Server Components fetch in parallel, no waterfalls
-8. **Check caching**: Cache Components used for expensive operations
-9. **Check bundle**: Run analyzer, look for low-hanging fruit
-10. **Check infrastructure**: Functions in correct region, Fluid Compute enabled
+{{include:skill:observability:Drains > Performance Audit Checklist}}
 
 ---
 
@@ -221,65 +150,22 @@ Run through this when asked to optimize a Vercel application:
 ### Image Optimization
 
 <!-- Sourced from nextjs skill: Rendering Strategy Decision > Image Optimization Pattern -->
-```tsx
-// BEFORE: Unoptimized, causes LCP & CLS issues
-<img src="/hero.jpg" />
-
-// AFTER: Optimized with next/image
-import Image from 'next/image';
-<Image src="/hero.jpg" width={1200} height={600} priority alt="Hero" />
-```
+{{include:skill:nextjs:Rendering Strategy Decision > Image Optimization Pattern}}
 
 ### Font Loading
 
 <!-- Sourced from nextjs skill: Rendering Strategy Decision > Font Loading Pattern -->
-```tsx
-// BEFORE: External font causes CLS
-<link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet" />
-
-// AFTER: Zero-CLS with next/font
-import { Inter } from 'next/font/google';
-const inter = Inter({ subsets: ['latin'] });
-```
+{{include:skill:nextjs:Rendering Strategy Decision > Font Loading Pattern}}
 
 ### Cache Components (Next.js 16)
 
 <!-- Sourced from nextjs skill: Rendering Strategy Decision > Cache Components Pattern -->
-```tsx
-// BEFORE: Re-fetches on every request
-async function ProductList() {
-  const products = await db.query('SELECT * FROM products');
-  return <ul>{products.map(p => <li key={p.id}>{p.name}</li>)}</ul>;
-}
-
-// AFTER: Cached with automatic revalidation
-'use cache';
-import { cacheLife } from 'next/cache';
-
-async function ProductList() {
-  cacheLife('hours');
-  const products = await db.query('SELECT * FROM products');
-  return <ul>{products.map(p => <li key={p.id}>{p.name}</li>)}</ul>;
-}
-```
+{{include:skill:nextjs:Rendering Strategy Decision > Cache Components Pattern}}
 
 ### Optimistic UI for Server Actions
 
 <!-- Sourced from nextjs skill: Rendering Strategy Decision > Optimistic UI Pattern -->
-```tsx
-// Instant feedback while Server Action processes
-'use client';
-import { useOptimistic } from 'react';
-
-function LikeButton({ count, onLike }) {
-  const [optimisticCount, addOptimistic] = useOptimistic(count);
-  return (
-    <button onClick={() => { addOptimistic(count + 1); onLike(); }}>
-      {optimisticCount} likes
-    </button>
-  );
-}
-```
+{{include:skill:nextjs:Rendering Strategy Decision > Optimistic UI Pattern}}
 
 ---
 

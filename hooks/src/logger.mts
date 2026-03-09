@@ -165,4 +165,26 @@ export function createLogger(opts?: { level?: LogLevel } | LogLevel): Logger {
   };
 }
 
+/**
+ * Structured decision log entry for skill routing traces.
+ * Emits at debug level with consistent fields across all hooks.
+ */
+export interface DecisionFields {
+  hook: string;
+  event: string;
+  skill?: string;
+  score?: number;
+  reason?: string;
+  durationMs?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Emit a structured decision event at debug level.
+ * Provides a consistent shape for skill routing decisions across hooks.
+ */
+export function logDecision(logger: Logger, fields: DecisionFields): void {
+  logger.debug(`decision:${fields.event}`, fields as unknown as Record<string, unknown>);
+}
+
 export { LEVELS, LEVEL_INDEX };

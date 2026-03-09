@@ -13,6 +13,59 @@ metadata:
     - '\bvite\s*(dev)?\b'
     - '\bnuxt\s+dev\b'
     - '\bvercel\s+dev\b'
+  promptSignals:
+    phrases:
+      - "check the page"
+      - "check the browser"
+      - "check the site"
+      - "is the page working"
+      - "is it loading"
+      - "blank page"
+      - "white screen"
+      - "nothing showing"
+      - "page is broken"
+      - "screenshot the page"
+      - "take a screenshot"
+      - "check for errors"
+      - "console errors"
+      - "browser errors"
+      - "page is stuck"
+      - "page is hanging"
+      - "page not loading"
+      - "page frozen"
+      - "spinner not stopping"
+      - "page not responding"
+      - "page won't load"
+      - "page will not load"
+      - "nothing renders"
+      - "nothing rendered"
+      - "ui is broken"
+      - "screen is blank"
+      - "screen is white"
+      - "app won't load"
+    allOf:
+      - [check, page]
+      - [check, browser]
+      - [check, site]
+      - [blank, page]
+      - [white, screen]
+      - [console, errors]
+      - [page, broken]
+      - [page, loading]
+      - [not, rendering]
+      - [page, stuck]
+      - [page, hanging]
+      - [page, frozen]
+      - [page, timeout]
+    anyOf:
+      - "page"
+      - "browser"
+      - "screen"
+      - "rendering"
+      - "visual"
+      - "spinner"
+      - "loading"
+    minScore: 6
 ---
 
 # Dev Server Verification with agent-browser
@@ -66,6 +119,66 @@ If verification fails:
 3. Close the browser: `agent-browser close`
 4. Fix the issue in code
 5. Re-run verification (max 2 retry cycles to avoid infinite loops)
+
+## Diagnosing a Hanging or Stuck Page
+
+When the page appears stuck (spinner, blank content after load, frozen UI), the browser is only half the story. Correlate what you see in the browser with server-side evidence:
+
+### 1. Capture Browser Evidence
+
+```bash
+# Screenshot the stuck state
+agent-browser screenshot stuck-state.png
+
+# Check for pending network requests (XHR/fetch that never resolved)
+agent-browser eval 'JSON.stringify(performance.getEntriesByType("resource").filter(r => r.duration === 0).map(r => r.name))'
+
+# Check console for errors or warnings
+agent-browser eval 'JSON.stringify(window.__consoleErrors || [])'
+
+# Look for fetch calls to workflow/API routes that are pending
+agent-browser eval 'document.querySelector("[data-nextjs-dialog]") ? "ERROR_OVERLAY" : "OK"'
+```
+
+### 2. Check Server Logs
+
+After capturing browser state, immediately check the backend:
+
+```bash
+# Stream Vercel runtime logs for the deployment
+vercel logs --follow
+
+# If using Workflow DevKit, check run status
+npx workflow inspect runs
+npx workflow inspect run <run_id>
+
+# Check workflow health
+npx workflow health
+```
+
+### 3. Correlate Browser + Server
+
+| Browser Shows | Server Shows | Likely Issue |
+|--------------|-------------|-------------|
+| Spinner / loading forever | No recent function invocations | API route not being called — check fetch URL in client code |
+| Spinner / loading forever | Function started but no step logs | Workflow step is stuck — add `console.log` at step entry/exit |
+| Blank page, no errors | Build succeeded, no runtime errors | Hydration issue or missing data — check SSR vs client rendering |
+| Network request pending | 504 Gateway Timeout in logs | Function timeout — increase `maxDuration` or optimize step |
+| Console: "Failed to fetch" | OIDC/credential error in logs | Missing `vercel env pull` — run `vercel link && vercel env pull` |
+| Error overlay visible | Stack trace in runtime logs | Read the server error — it usually has more detail than the client |
+
+### 4. Fix and Re-verify
+
+After fixing the issue:
+
+```bash
+# Re-open and verify the fix
+agent-browser open http://localhost:3000
+agent-browser wait --load networkidle
+agent-browser screenshot after-fix.png
+agent-browser eval 'document.body.innerText.trim().length > 0 ? "HAS_CONTENT" : "BLANK"'
+agent-browser close
+```
 
 ## On Success
 

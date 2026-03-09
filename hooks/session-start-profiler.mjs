@@ -244,6 +244,10 @@ function main() {
     );
   }
   const likelySkills = greenfield ? GREENFIELD_DEFAULT_SKILLS : profileProject(projectRoot);
+  if (!greenfield && !likelySkills.includes("observability")) {
+    likelySkills.push("observability");
+    likelySkills.sort();
+  }
   const setupSignals = greenfield ? GREENFIELD_SETUP_SIGNALS : profileBootstrapSignals(projectRoot);
   const agentBrowserAvailable = checkAgentBrowser();
   try {

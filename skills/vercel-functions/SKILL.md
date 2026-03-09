@@ -240,6 +240,59 @@ All plans now default to 300s execution time with Fluid Compute.
 4. **Bundle size**: Python runtime supports up to 500MB; Node.js has smaller limits
 5. **Environment variables**: Available in all functions automatically; use `vercel env pull` for local dev
 
+## Function Runtime Diagnostics
+
+### Timeout Diagnostics
+
+```
+504 Gateway Timeout?
+├─ All plans default to 300s with Fluid Compute
+├─ Pro/Enterprise: configurable up to 800s
+├─ Long-running task?
+│  ├─ Under 5 min → Use Fluid Compute with streaming
+│  ├─ Up to 15 min → Use Vercel Functions with `maxDuration` in vercel.json
+│  └─ Hours/days → Use Workflow DevKit (DurableAgent or workflow steps)
+└─ DB query slow? → Add connection pooling, check cold start, use Edge Config
+```
+
+### 500 Error Diagnostics
+
+```
+500 Internal Server Error?
+├─ Check Vercel Runtime Logs (Dashboard → Deployments → Functions tab)
+├─ Missing env vars? → Compare `.env.local` against Vercel dashboard settings
+├─ Import error? → Verify package is in `dependencies`, not `devDependencies`
+└─ Uncaught exception? → Wrap handler in try/catch, use `after()` for error reporting
+```
+
+### Invocation Failure Diagnostics
+
+```
+"FUNCTION_INVOCATION_FAILED"?
+├─ Memory exceeded? → Increase `memory` in vercel.json (up to 3008 MB on Pro)
+├─ Crashed during init? → Check top-level await or heavy imports at module scope
+└─ Edge Function crash? → Check for Node.js APIs not available in Edge runtime
+```
+
+### Cold Start Diagnostics
+
+```
+Cold start latency > 1s?
+├─ Using Node.js runtime? → Consider Edge Functions for latency-sensitive routes
+├─ Large function bundle? → Audit imports, use dynamic imports, tree-shake
+├─ DB connection in cold start? → Use connection pooling (Neon serverless driver)
+└─ Enable Fluid Compute to reuse warm instances across requests
+```
+
+### Edge Function Timeout Diagnostics
+
+```
+"EDGE_FUNCTION_INVOCATION_TIMEOUT"?
+├─ Edge Functions have 25s hard limit (not configurable)
+├─ Move heavy computation to Node.js Serverless Functions
+└─ Use streaming to start response early, process in background with `waitUntil`
+```
+
 ## Official Documentation
 
 - [Vercel Functions](https://vercel.com/docs/functions)

@@ -5,6 +5,10 @@ import {
   matchPromptWithReason,
 } from "../hooks/prompt-patterns.mjs";
 import type { CompiledPromptSignals } from "../hooks/prompt-patterns.mjs";
+import {
+  selectInvestigationCompanion,
+  INVESTIGATION_COMPANION_SKILLS,
+} from "../hooks/user-prompt-submit-skill-inject.mjs";
 
 // ---------------------------------------------------------------------------
 // normalizePromptText
@@ -36,6 +40,22 @@ describe("normalizePromptText", () => {
 
   test("preserves non-ASCII characters", () => {
     expect(normalizePromptText("Ünïcödé Têxt")).toBe("ünïcödé têxt");
+  });
+
+  test("expands common contractions", () => {
+    expect(normalizePromptText("it's stuck")).toBe("it is stuck");
+    expect(normalizePromptText("don't do that")).toBe("do not do that");
+    expect(normalizePromptText("can't find it")).toBe("cannot find it");
+    expect(normalizePromptText("won't work")).toBe("will not work");
+    expect(normalizePromptText("what's wrong")).toBe("what is wrong");
+    expect(normalizePromptText("where's the log")).toBe("where is the log");
+  });
+
+  test("normalizes smart/curly apostrophes before expanding", () => {
+    // \u2019 = right single quotation mark (smart apostrophe)
+    expect(normalizePromptText("it\u2019s broken")).toBe("it is broken");
+    // \u2018 = left single quotation mark
+    expect(normalizePromptText("it\u2018s weird")).toBe("it is weird");
   });
 });
 
@@ -115,7 +135,7 @@ describe("matchPromptWithReason — phrases", () => {
     expect(result.score).toBe(12);
   });
 
-  test("no phrase hit means no match even with high anyOf", () => {
+  test("anyOf alone can match when score reaches minScore (no phrase needed)", () => {
     const withAnyOf: CompiledPromptSignals = {
       ...compiled,
       anyOf: ["render", "component", "text", "chat", "ui", "display", "format"],
@@ -125,8 +145,9 @@ describe("matchPromptWithReason — phrases", () => {
       "render the component text in the chat ui display format",
       withAnyOf,
     );
-    expect(result.matched).toBe(false);
-    expect(result.reason).toContain("no phrase hit");
+    // anyOf capped at +2 meets minScore 2 — phrase hit no longer required
+    expect(result.matched).toBe(true);
+    expect(result.score).toBe(2);
   });
 });
 
@@ -300,7 +321,7 @@ describe("matchPromptWithReason — threshold boundaries", () => {
     expect(result.reason).toContain("score 6 < 7");
   });
 
-  test("high allOf score but no phrase hit still fails", () => {
+  test("allOf alone can match when score reaches minScore (no phrase needed)", () => {
     const compiled: CompiledPromptSignals = {
       phrases: ["nonexistent-term"],
       allOf: [["markdown", "render"], ["text", "chat"]],
@@ -312,9 +333,9 @@ describe("matchPromptWithReason — threshold boundaries", () => {
       "render markdown text in chat",
       compiled,
     );
-    expect(result.matched).toBe(false);
-    expect(result.score).toBe(8); // 2 allOf groups × 4
-    expect(result.reason).toContain("no phrase hit");
+    // 2 allOf groups × 4 = 8 ≥ minScore 4 — phrase hit no longer required
+    expect(result.matched).toBe(true);
+    expect(result.score).toBe(8);
   });
 
   test("empty prompt returns early with score 0", () => {
@@ -331,7 +352,7 @@ describe("matchPromptWithReason — threshold boundaries", () => {
     expect(result.reason).toBe("empty prompt");
   });
 
-  test("minScore of 0 still requires a phrase hit", () => {
+  test("minScore of 0 matches with any signal hit (no phrase needed)", () => {
     const compiled: CompiledPromptSignals = {
       phrases: ["xyzzy"],
       allOf: [],
@@ -339,10 +360,10 @@ describe("matchPromptWithReason — threshold boundaries", () => {
       noneOf: [],
       minScore: 0,
     };
-    // anyOf alone can't match without a phrase hit
+    // anyOf alone reaches minScore 0 — phrase hit no longer required
     const result = matchPromptWithReason("foo bar baz", compiled);
-    expect(result.matched).toBe(false);
-    expect(result.reason).toContain("no phrase hit");
+    expect(result.matched).toBe(true);
+    expect(result.score).toBe(1);
   });
 });
 
@@ -406,13 +427,13 @@ describe("matchPromptWithReason — real-world ai-elements signals", () => {
     expect(result.score).toBeGreaterThanOrEqual(6);
   });
 
-  test("anyOf alone (e.g. 'terminal') does NOT meet threshold without phrase", () => {
+  test("anyOf alone (e.g. 'terminal') does NOT meet threshold when score too low", () => {
     const result = matchPromptWithReason(
       "open a terminal and run the build command",
       aiElementsSignals,
     );
     expect(result.matched).toBe(false);
-    expect(result.reason).toContain("no phrase hit");
+    expect(result.reason).toContain("below threshold");
   });
 });
 
@@ -475,6 +496,699 @@ describe("import-pattern co-firing — ai-elements covers AI SDK imports", () =>
     const aiSdkResult = matchImportWithReason(content, compilePatterns(aiSdkImportPatterns));
     expect(aiElemResult).not.toBeNull();
     expect(aiSdkResult).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real-world scenario: investigation-mode frustration signals
+// ---------------------------------------------------------------------------
+
+describe("matchPromptWithReason — investigation-mode frustration signals", () => {
+  const investigationSignals: CompiledPromptSignals = compilePromptSignals({
+    phrases: [
+      "nothing happened", "still waiting",
+      "it's stuck", "it's hung", "nothing is happening", "not responding",
+      "just sitting there", "just sits there", "seems frozen", "is it frozen",
+      "frozen", "why is it hanging",
+      "check the logs", "check logs", "where are the logs",
+      "how do I debug", "how to debug", "white screen", "blank page",
+      "spinning forever", "timed out", "keeps timing out", "no response",
+      "no output", "not loading", "debug this", "investigate why",
+      "what went wrong", "why did it fail", "why is it failing",
+      "something is broken", "something broke", "seems broken",
+      "check what happened", "check the status",
+      "where is the error", "where did it fail", "find the error",
+      "show me the error", "why is it slow",
+      "taking forever", "still loading", "not finishing", "seems dead",
+      "been waiting", "waiting forever", "stuck on", "hung up",
+      "not progressing", "stalled out", "is it running", "did it crash",
+      "keeps failing", "why no response", "where did it go", "lost connection",
+      "never finishes", "pending forever", "queue stuck", "job stuck",
+      "build stuck", "request hanging", "api not responding",
+    ],
+    allOf: [
+      ["stuck", "workflow"], ["stuck", "deploy"], ["stuck", "loading"],
+      ["stuck", "build"], ["stuck", "queue"], ["stuck", "job"],
+      ["hung", "request"], ["hung", "api"], ["frozen", "page"], ["frozen", "app"],
+      ["check", "why"], ["check", "broken"], ["check", "error"],
+      ["check", "status"], ["check", "logs"],
+      ["debug", "workflow"], ["debug", "deploy"], ["debug", "api"],
+      ["debug", "issue"], ["investigate", "error"],
+      ["logs", "error"], ["logs", "check"], ["slow", "response"],
+      ["slow", "loading"], ["timeout", "api"], ["timeout", "request"],
+      ["waiting", "response"], ["waiting", "forever"], ["waiting", "deploy"],
+      ["not working", "why"], ["not", "responding"],
+      ["hanging", "for"], ["been", "hanging"], ["been", "stuck"],
+      ["been", "waiting"],
+      ["why", "slow"], ["why", "failing"], ["why", "stuck"], ["why", "hanging"],
+      ["job", "failing"], ["queue", "processing"],
+    ],
+    anyOf: [
+      "stuck", "hung", "frozen", "broken", "failing", "timeout",
+      "slow", "debug", "investigate", "check", "logs", "error",
+      "hanging", "waiting", "stalled", "pending", "processing",
+      "loading", "unresponsive",
+    ],
+    noneOf: [
+      "css stuck", "sticky position", "position: sticky", "z-index",
+      "sticky nav", "sticky header", "sticky footer", "overflow: hidden",
+      "add a button", "create a button", "style the button",
+    ],
+    minScore: 4,
+  });
+
+  test("'it's stuck' phrase hit matches (contraction expanded)", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("it's stuck and I don't know what to do"),
+      investigationSignals,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'nothing is happening' phrase hit matches", () => {
+    const result = matchPromptWithReason("nothing is happening after I deployed", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'check the logs' phrase hit matches", () => {
+    const result = matchPromptWithReason("can you check the logs for errors", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'white screen' phrase hit matches", () => {
+    const result = matchPromptWithReason("I'm getting a white screen after deploying", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'spinning forever' phrase hit matches", () => {
+    const result = matchPromptWithReason("the page is spinning forever", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'why did it fail' phrase hit matches", () => {
+    const result = matchPromptWithReason("why did it fail after I pushed", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("allOf [stuck, deploy] boosts score on top of phrase hit", () => {
+    // "it's stuck" → "it is stuck" phrase hit (+6), and [stuck, deploy] allOf adds +4
+    const result = matchPromptWithReason(
+      normalizePromptText("it's stuck, the deploy won't finish"),
+      investigationSignals,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("allOf [debug, api] boosts score on top of phrase hit", () => {
+    // "debug this" is a phrase hit (+6), and [debug, api] allOf adds +4
+    const result = matchPromptWithReason("debug this api endpoint please", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("allOf [logs, error] boosts score on top of phrase hit", () => {
+    // "check the logs" is a phrase hit (+6), and [logs, error] allOf adds +4
+    const result = matchPromptWithReason("check the logs for the error message", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("allOf [slow, response] boosts score on top of phrase hit", () => {
+    // "why is it slow" is a phrase hit (+6), and [slow, response] allOf adds +4
+    const result = matchPromptWithReason("why is it slow, the response takes forever", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("noneOf suppresses CSS-related 'sticky' false positives", () => {
+    const result = matchPromptWithReason("the sticky position isn't working with z-index", investigationSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+    expect(result.reason).toContain("suppressed by noneOf");
+  });
+
+  test("noneOf suppresses 'sticky header' false positive", () => {
+    const result = matchPromptWithReason("make the sticky header stay at top", investigationSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+  });
+
+  test("'why is my app just sitting there' scores >=4 (acceptance criteria)", () => {
+    const result = matchPromptWithReason("why is my app just sitting there", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'nothing happened' phrase hit matches", () => {
+    const result = matchPromptWithReason("nothing happened after I clicked deploy", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'still waiting' phrase hit matches", () => {
+    const result = matchPromptWithReason("still waiting for the build to finish", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'no output' phrase hit matches", () => {
+    const result = matchPromptWithReason("there is no output from the function", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'show me the error' phrase hit matches", () => {
+    const result = matchPromptWithReason("show me the error from the last deploy", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'where did it fail' phrase hit matches", () => {
+    const result = matchPromptWithReason("where did it fail in the pipeline", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("allOf [check, logs] matches", () => {
+    const result = matchPromptWithReason("can you check the server logs", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("allOf [debug, issue] matches", () => {
+    const result = matchPromptWithReason("help me debug this issue", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("allOf [investigate, error] matches", () => {
+    const result = matchPromptWithReason("investigate this error in production", investigationSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("noneOf suppresses 'add a button' false positive", () => {
+    const result = matchPromptWithReason("add a button to the page", investigationSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+  });
+
+  test("generic 'why' alone does not match (score too low)", () => {
+    const result = matchPromptWithReason("why did you choose React for this", investigationSignals);
+    expect(result.matched).toBe(false);
+    expect(result.reason).toContain("below threshold");
+  });
+
+  // --- acceptance criteria: natural language triggers without exact phrase hits ---
+
+  test("'my workflow is stuck' triggers via allOf [stuck, workflow] without phrase hit", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("my workflow is stuck"),
+      investigationSignals,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("'it's been hanging for 5 minutes' triggers via contraction expansion + allOf", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("it's been hanging for 5 minutes"),
+      investigationSignals,
+    );
+    // "it's" → "it is", then allOf [hanging, for] +4 and [been, hanging] +4, anyOf "hanging" +1
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'why is this so slow' triggers via allOf [why, slow] + anyOf", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("why is this so slow"),
+      investigationSignals,
+    );
+    // allOf [why, slow] +4, anyOf "slow" +1 = 5 ≥ 4
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("contraction 'it\u2019s stuck' (smart quote) normalizes and matches", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("it\u2019s stuck and nothing works"),
+      investigationSignals,
+    );
+    // Smart apostrophe normalized → "it is stuck" matches phrase "it is stuck"
+    expect(result.matched).toBe(true);
+  });
+
+  test("'don't know why it isn't working' expands contractions before matching", () => {
+    const normalized = normalizePromptText("don't know why it isn't working");
+    // "don't" → "do not", "isn't" → "is not"
+    expect(normalized).toBe("do not know why it is not working");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real-world scenario: observability prompt signals
+// ---------------------------------------------------------------------------
+
+describe("matchPromptWithReason — observability signals", () => {
+  const observabilitySignals: CompiledPromptSignals = compilePromptSignals({
+    phrases: [
+      "add logging", "add logs", "set up logging", "setup logging",
+      "configure logging", "structured logging", "log drain", "log drains",
+      "vercel analytics", "speed insights", "web analytics",
+      "opentelemetry", "otel", "instrumentation", "monitoring",
+      "set up monitoring", "add observability", "track errors",
+      "error tracking", "sentry", "datadog",
+      "check the logs", "show me the error", "what went wrong",
+      "where did it fail", "show me the logs", "find the error",
+      "why did it fail", "debug the error",
+    ],
+    allOf: [
+      ["add", "logging"], ["add", "monitoring"], ["set up", "logs"],
+      ["configure", "analytics"], ["vercel", "logs"], ["vercel", "analytics"],
+      ["track", "performance"], ["track", "errors"],
+    ],
+    anyOf: [
+      "logging", "monitoring", "analytics", "observability",
+      "telemetry", "traces", "metrics",
+    ],
+    minScore: 6,
+  });
+
+  test("'add logging' phrase hit matches", () => {
+    const result = matchPromptWithReason("I need to add logging to the API routes", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'opentelemetry' phrase hit matches", () => {
+    const result = matchPromptWithReason("set up opentelemetry for tracing", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'sentry' phrase hit matches", () => {
+    const result = matchPromptWithReason("integrate sentry for error tracking", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'set up monitoring' phrase hit matches", () => {
+    const result = matchPromptWithReason("I want to set up monitoring for my app", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'vercel analytics' phrase hit matches", () => {
+    const result = matchPromptWithReason("how do I add vercel analytics", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("allOf [track, errors] boosts score on top of phrase hit", () => {
+    // "track errors" is a phrase hit (+6), and [track, errors] allOf adds +4
+    const result = matchPromptWithReason("I need to track errors in production", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("'check the logs' debugCheck phrase hit matches", () => {
+    const result = matchPromptWithReason("can you check the logs for this error", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'show me the error' debugCheck phrase hit matches", () => {
+    const result = matchPromptWithReason("show me the error from the last deploy", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'what went wrong' debugCheck phrase hit matches", () => {
+    const result = matchPromptWithReason("what went wrong with the build", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'where did it fail' debugCheck phrase hit matches", () => {
+    const result = matchPromptWithReason("where did it fail in the pipeline", observabilitySignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real-world scenario: workflow debugging signals
+// ---------------------------------------------------------------------------
+
+describe("matchPromptWithReason — workflow debugging signals", () => {
+  const workflowSignals: CompiledPromptSignals = compilePromptSignals({
+    phrases: [
+      "vercel workflow", "workflow devkit", "durable workflow", "durable execution",
+      "workflow stuck", "workflow hung", "workflow failing", "workflow timeout",
+      "workflow not running", "workflow error", "check workflow", "workflow logs",
+      "workflow run status", "debug workflow", "workflow not finishing",
+      "workflow run", "step failed", "run status", "run failed", "run logs",
+      "workflow run failed", "workflow step failed",
+    ],
+    allOf: [
+      ["workflow", "durable"], ["workflow", "retry"], ["workflow", "resume"],
+      ["workflow", "stuck"], ["workflow", "hung"], ["workflow", "timeout"],
+      ["workflow", "error"], ["workflow", "logs"], ["workflow", "debug"],
+      ["workflow", "check"], ["workflow", "failing"], ["workflow", "status"],
+      ["workflow", "run"], ["run", "logs"], ["step", "failed"],
+    ],
+    anyOf: ["long-running", "multi-step", "pipeline", "orchestration", "phase"],
+    noneOf: ["github actions", ".github/workflows", "ci workflow", "aws step functions"],
+    minScore: 4,
+  });
+
+  test("'workflow stuck' phrase hit matches", () => {
+    const result = matchPromptWithReason("the workflow stuck on step 3", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'debug workflow' phrase hit matches", () => {
+    const result = matchPromptWithReason("I need to debug workflow execution", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'workflow logs' phrase hit matches", () => {
+    const result = matchPromptWithReason("where can I see the workflow logs", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("allOf [workflow, timeout] boosts score on top of phrase hit", () => {
+    // "workflow timeout" is a phrase hit (+6), and [workflow, timeout] allOf adds +4
+    const result = matchPromptWithReason("the workflow timeout keeps happening", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("noneOf suppresses GitHub Actions false positive", () => {
+    const result = matchPromptWithReason("fix the github actions workflow", workflowSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+  });
+
+  test("noneOf suppresses CI workflow false positive", () => {
+    const result = matchPromptWithReason("the ci workflow is broken", workflowSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+  });
+
+  test("'workflow run' workflowInvestigation phrase hit matches", () => {
+    const result = matchPromptWithReason("check the workflow run for errors", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'step failed' workflowInvestigation phrase hit matches", () => {
+    const result = matchPromptWithReason("the step failed with an error", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("'run status' workflowInvestigation phrase hit matches", () => {
+    const result = matchPromptWithReason("what is the run status", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("allOf [workflow, run] matches", () => {
+    const result = matchPromptWithReason("the workflow run is taking too long", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("allOf [step, failed] matches", () => {
+    const result = matchPromptWithReason("the processing step has failed", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+
+  test("allOf [run, logs] matches", () => {
+    const result = matchPromptWithReason("show me the run logs", workflowSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real-world scenario: vercel-cli deployment-check signals
+// ---------------------------------------------------------------------------
+
+describe("matchPromptWithReason — vercel-cli deployment-check signals", () => {
+  const vercelCliSignals: CompiledPromptSignals = compilePromptSignals({
+    phrases: [
+      "check deployment", "check deploy", "deployment status", "deploy status",
+      "vercel logs", "deployment logs", "deploy logs", "vercel inspect",
+      "is it deployed", "deploy failing", "deploy failed", "deployment error",
+      "check vercel", "vercel status",
+    ],
+    allOf: [
+      ["check", "deployment"], ["check", "deploy"], ["vercel", "status"],
+      ["vercel", "logs"], ["deploy", "error"], ["deploy", "failed"],
+      ["deploy", "stuck"],
+    ],
+    anyOf: ["deployment", "deploy", "vercel", "production"],
+    noneOf: ["terraform", "aws deploy", "heroku"],
+    minScore: 6,
+  });
+
+  test("'check deployment' phrase hit matches", () => {
+    const result = matchPromptWithReason("can you check deployment status", vercelCliSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'deploy failed' phrase hit matches", () => {
+    const result = matchPromptWithReason("the deploy failed again", vercelCliSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'vercel logs' phrase hit matches", () => {
+    const result = matchPromptWithReason("show me the vercel logs", vercelCliSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("allOf [deploy, stuck] boosts score on top of phrase hit", () => {
+    // "deploy failing" is a phrase hit (+6), and [deploy, stuck] allOf adds +4
+    const result = matchPromptWithReason("deploy failing, seems stuck in building", vercelCliSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("noneOf suppresses terraform false positive", () => {
+    const result = matchPromptWithReason("check the terraform deployment", vercelCliSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+  });
+
+  test("noneOf suppresses heroku false positive", () => {
+    const result = matchPromptWithReason("check heroku deployment status", vercelCliSignals);
+    expect(result.matched).toBe(false);
+    expect(result.score).toBe(-Infinity);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real-world scenario: agent-browser-verify page-check signals
+// ---------------------------------------------------------------------------
+
+describe("matchPromptWithReason — agent-browser-verify page-check signals", () => {
+  const browserSignals: CompiledPromptSignals = compilePromptSignals({
+    phrases: [
+      "check the page", "check the browser", "check the site",
+      "is the page working", "is it loading", "blank page", "white screen",
+      "nothing showing", "page is broken", "screenshot the page",
+      "take a screenshot", "check for errors", "console errors", "browser errors",
+      "page won't load", "page will not load", "nothing renders", "nothing rendered",
+      "ui is broken", "screen is blank", "screen is white", "app won't load",
+    ],
+    allOf: [
+      ["check", "page"], ["check", "browser"], ["check", "site"],
+      ["blank", "page"], ["white", "screen"], ["console", "errors"],
+      ["page", "broken"], ["page", "loading"], ["not", "rendering"],
+    ],
+    anyOf: ["page", "browser", "screen", "rendering", "visual"],
+    minScore: 6,
+  });
+
+  test("'check the page' phrase hit matches", () => {
+    const result = matchPromptWithReason("can you check the page for me", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'blank page' phrase hit matches", () => {
+    const result = matchPromptWithReason("I'm seeing a blank page after deploy", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'console errors' phrase hit matches", () => {
+    const result = matchPromptWithReason("there are console errors on the page", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'take a screenshot' phrase hit matches", () => {
+    const result = matchPromptWithReason("take a screenshot of the homepage", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("allOf [not, rendering] boosts score on top of phrase hit", () => {
+    // "nothing showing" is a phrase hit (+6), and [not, rendering] allOf adds +4
+    const result = matchPromptWithReason("nothing showing, the component is not rendering", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("allOf [page, broken] boosts score on top of phrase hit", () => {
+    // "page is broken" is a phrase hit (+6), and [page, broken] allOf adds +4
+    const result = matchPromptWithReason("the page is broken on mobile", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(10);
+    expect(result.reason).toContain("allOf");
+  });
+
+  test("'page won't load' UI frustration phrase hit matches (contraction expanded)", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("the page won't load at all"),
+      browserSignals,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'nothing renders' UI frustration phrase hit matches", () => {
+    const result = matchPromptWithReason("nothing renders on the screen", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'screen is blank' UI frustration phrase hit matches", () => {
+    const result = matchPromptWithReason("the screen is blank after deploy", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+
+  test("'ui is broken' UI frustration phrase hit matches", () => {
+    const result = matchPromptWithReason("the ui is broken on the homepage", browserSignals);
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Investigation-mode companion selection
+// ---------------------------------------------------------------------------
+
+describe("selectInvestigationCompanion", () => {
+  test("returns null when investigation-mode is not selected", () => {
+    const result = selectInvestigationCompanion(
+      ["ai-sdk", "nextjs"],
+      { "ai-sdk": { score: 12, matched: true }, "nextjs": { score: 10, matched: true } },
+    );
+    expect(result.companion).toBeNull();
+    expect(result.reason).toContain("not selected");
+  });
+
+  test("returns null when no companion scored high enough", () => {
+    const result = selectInvestigationCompanion(
+      ["investigation-mode"],
+      {
+        "investigation-mode": { score: 10, matched: true },
+        "workflow": { score: 3, matched: false },
+        "agent-browser-verify": { score: 2, matched: false },
+        "vercel-cli": { score: 0, matched: false },
+      },
+    );
+    expect(result.companion).toBeNull();
+    expect(result.reason).toContain("no companion");
+  });
+
+  test("selects workflow when it scored highest among companions", () => {
+    const result = selectInvestigationCompanion(
+      ["investigation-mode", "workflow"],
+      {
+        "investigation-mode": { score: 14, matched: true },
+        "workflow": { score: 12, matched: true },
+        "agent-browser-verify": { score: 4, matched: false },
+        "vercel-cli": { score: 2, matched: false },
+      },
+    );
+    expect(result.companion).toBe("workflow");
+  });
+
+  test("selects agent-browser-verify when it scored highest among companions", () => {
+    const result = selectInvestigationCompanion(
+      ["investigation-mode"],
+      {
+        "investigation-mode": { score: 10, matched: true },
+        "workflow": { score: 3, matched: false },
+        "agent-browser-verify": { score: 8, matched: true },
+        "vercel-cli": { score: 4, matched: false },
+      },
+    );
+    expect(result.companion).toBe("agent-browser-verify");
+  });
+
+  test("selects vercel-cli when it is the only matched companion", () => {
+    const result = selectInvestigationCompanion(
+      ["investigation-mode"],
+      {
+        "investigation-mode": { score: 10, matched: true },
+        "workflow": { score: 3, matched: false },
+        "agent-browser-verify": { score: 2, matched: false },
+        "vercel-cli": { score: 8, matched: true },
+      },
+    );
+    expect(result.companion).toBe("vercel-cli");
+  });
+
+  test("prefers higher-scoring companion over priority order", () => {
+    // agent-browser-verify scores higher than workflow → picked despite lower priority order
+    const result = selectInvestigationCompanion(
+      ["investigation-mode"],
+      {
+        "investigation-mode": { score: 14, matched: true },
+        "workflow": { score: 6, matched: true },
+        "agent-browser-verify": { score: 12, matched: true },
+        "vercel-cli": { score: 4, matched: true },
+      },
+    );
+    expect(result.companion).toBe("agent-browser-verify");
+  });
+
+  test("companion skills constant has expected members", () => {
+    expect(INVESTIGATION_COMPANION_SKILLS).toContain("workflow");
+    expect(INVESTIGATION_COMPANION_SKILLS).toContain("agent-browser-verify");
+    expect(INVESTIGATION_COMPANION_SKILLS).toContain("vercel-cli");
+    expect(INVESTIGATION_COMPANION_SKILLS).toHaveLength(3);
   });
 });
 

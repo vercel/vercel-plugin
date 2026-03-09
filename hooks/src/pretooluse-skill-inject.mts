@@ -48,7 +48,7 @@ import {
 import type { CompiledSkillEntry, CompiledPattern, CompileCallbacks, ManifestSkill } from "./patterns.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import type { VercelJsonRouting } from "./vercel-config.mjs";
-import { createLogger } from "./logger.mjs";
+import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 
 const MAX_SKILLS = 5;
@@ -70,8 +70,17 @@ const DEV_SERVER_VERIFY_PRIORITY_BOOST = 45;
 const DEV_SERVER_VERIFY_MAX_ITERATIONS = 2;
 const DEV_SERVER_VERIFY_MARKER = "<!-- marker:dev-server-verify -->";
 const DEV_SERVER_UNAVAILABLE_WARNING = `<!-- agent-browser-unavailable -->
-**Note**: \`agent-browser\` CLI is not installed. Browser-based dev server verification is unavailable.
-Install it with \`npm install -g agent-browser && agent-browser install\` to enable automatic visual verification.
+**Recommendation: Install agent-browser for automatic verification**
+
+We detected a dev server starting. Normally, after several files have been changed, we run \`agent-browser\` to do a browser verification pass — checking that pages load correctly, there are no console errors, and UI elements render as expected. This catches visual regressions and runtime issues that static analysis misses.
+
+\`agent-browser\` is not currently installed. To enable automatic browser verification:
+
+\`\`\`bash
+npm install -g agent-browser && agent-browser install
+\`\`\`
+
+**Tell the user**: "I'd normally run a browser verification pass at this point to make sure everything looks right, but \`agent-browser\` isn't installed yet. You can install it globally with \`npm install -g agent-browser && agent-browser install\` — it takes about a minute and lets me visually verify your app after changes."
 <!-- /agent-browser-unavailable -->`;
 const VERCEL_ENV_HELP_ONCE_KEY = 'vercel-env-help';
 const VERCEL_ENV_COMMAND = /\bvercel\s+env\s+(add|update|pull)\b/;
@@ -763,6 +772,18 @@ export function deduplicateSkills(
 
   const rankedSkills = newEntries.map((e) => e.skill);
 
+  // Emit skill_ranked for each candidate in priority order
+  for (const entry of newEntries) {
+    const eff = typeof entry.effectivePriority === "number" ? entry.effectivePriority : entry.priority;
+    logDecision(l, {
+      hook: "PreToolUse",
+      event: "skill_ranked",
+      skill: entry.skill,
+      score: eff,
+      reason: profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match",
+    });
+  }
+
   l.debug("dedup-filtered", {
     rankedSkills,
     previouslyInjected: [...injectedSkills],
@@ -834,6 +855,7 @@ export function injectSkills(rankedSkills: string[], options?: InjectOptions): I
     // Hard ceiling check
     if (loaded.length >= ceiling) {
       droppedByCap.push(skill);
+      logDecision(l, { hook: "PreToolUse", event: "skill_dropped", skill, reason: "cap_exceeded", score: ceiling });
       continue;
     }
 
@@ -873,6 +895,7 @@ export function injectSkills(rankedSkills: string[], options?: InjectOptions): I
         }
       }
       droppedByBudget.push(skill);
+      logDecision(l, { hook: "PreToolUse", event: "budget_exhausted", skill, reason: "over_budget", budgetBytes: budget, usedBytes, skillBytes: byteLen });
       continue;
     }
 

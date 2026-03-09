@@ -51,6 +51,32 @@ metadata:
       - "stream progress"
       - "streams each"
       - "stream each"
+      - "workflow stuck"
+      - "workflow hung"
+      - "workflow hanging"
+      - "workflow waiting"
+      - "workflow failing"
+      - "workflow timeout"
+      - "workflow not running"
+      - "workflow error"
+      - "check workflow"
+      - "workflow logs"
+      - "workflow run status"
+      - "debug workflow"
+      - "workflow not finishing"
+      - "workflow not responding"
+      - "workflow stalled"
+      - "workflow pending"
+      - "step is stuck"
+      - "step is hanging"
+      - "why is my workflow"
+      - "workflow run"
+      - "step failed"
+      - "run status"
+      - "run failed"
+      - "run logs"
+      - "workflow run failed"
+      - "workflow step failed"
     allOf:
       - [workflow, durable]
       - [workflow, retry]
@@ -64,6 +90,21 @@ metadata:
       - [generation, pipeline]
       - [creation, pipeline]
       - [process, stream]
+      - [workflow, stuck]
+      - [workflow, hung]
+      - [workflow, timeout]
+      - [workflow, error]
+      - [workflow, logs]
+      - [workflow, debug]
+      - [workflow, check]
+      - [workflow, failing]
+      - [workflow, status]
+      - [run, status]
+      - [step, failed]
+      - [step, stuck]
+      - [step, timeout]
+      - [workflow, run]
+      - [run, logs]
     anyOf:
       - "long-running"
       - "long running"
@@ -130,6 +171,16 @@ validate:
     message: 'Native fetch() is not available in workflow sandbox scope — import fetch from "workflow" or move the call into a "use step" function'
     severity: warn
     skipIfFileContains: "use step"
+  -
+    pattern: '"use step"'
+    message: "Workflow steps should include console.log or structured logging for observability — add logging at step entry/exit to debug hangs"
+    severity: warn
+    skipIfFileContains: "console\\.(log|warn|error|info)"
+  -
+    pattern: '"use workflow"'
+    message: "Workflow files should import and use logging — add console.log or a logger at key execution points for debugging"
+    severity: warn
+    skipIfFileContains: "console\\.(log|warn|error|info)"
 ---
 
 # Vercel Workflow DevKit (WDK)
@@ -643,6 +694,89 @@ npx workflow inspect runs              # List all runs
 npx workflow inspect run <run_id>      # Inspect specific run
 npx workflow cancel <run_id>           # Cancel execution
 ```
+
+## Debug Stuck Workflow
+
+When a workflow appears stuck, hanging, or not progressing, follow this escalation ladder:
+
+### 1. Add Step-Level Logging (Required)
+
+**Every step function MUST have `console.log` at entry and exit.** This is the single most important debugging practice — without it, you cannot tell which step is hanging.
+
+```ts
+async function processOrder(orderId: string): Promise<OrderResult> {
+  "use step";
+  console.log(`[processOrder] START orderId=${orderId} at=${new Date().toISOString()}`);
+  try {
+    const result = await doWork(orderId);
+    console.log(`[processOrder] DONE orderId=${orderId} result=${JSON.stringify(result)}`);
+    return result;
+  } catch (err) {
+    console.error(`[processOrder] FAIL orderId=${orderId} error=${err}`);
+    throw err;
+  }
+}
+```
+
+**Workflow-level logging** — log at every orchestration point:
+
+```ts
+export async function myWorkflow(input: string) {
+  "use workflow";
+  console.log(`[myWorkflow] START input=${input}`);
+
+  const data = await stepOne(input);
+  console.log(`[myWorkflow] stepOne complete, starting stepTwo`);
+
+  const result = await stepTwo(data);
+  console.log(`[myWorkflow] stepTwo complete, returning`);
+
+  return { result };
+}
+```
+
+### 2. Check Run Status
+
+```bash
+# List recent runs — look for "running" status that's been active too long
+npx workflow inspect runs
+
+# Get detailed status for a specific run
+npx workflow inspect run <run_id>
+
+# Check if the workflow endpoints are healthy
+npx workflow health
+```
+
+### 3. Check Vercel Runtime Logs
+
+```bash
+# Stream live logs from your deployment
+vercel logs --follow
+
+# Or check the Vercel dashboard: Project → Deployments → Functions tab
+```
+
+Look for:
+- **Missing step entry logs** — the step before the missing one is where execution stopped
+- **Timeout errors** — Vercel function timeout (default 60s hobby, 300s pro)
+- **OIDC/credential errors** — `gateway()` calls fail silently without `vercel env pull`
+- **Memory errors** — large payloads in steps can OOM the function
+
+### 4. Common Stuck Scenarios
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Run stays "running" forever | Step is awaiting an external call that never resolves | Add timeout with `Promise.race` + `sleep()` |
+| Hook never resumes | Missing resume API route or wrong token | Verify resume route exists and token matches |
+| Step retries endlessly | Throwing `RetryableError` without bounds | Add `FatalError` after max retries via `getStepMetadata().retryCount` |
+| Workflow starts but no steps run | `getWritable()` called in workflow scope | Move `getWritable()` into a `"use step"` function |
+| AI step hangs | Missing OIDC credentials for gateway | Run `vercel link && vercel env pull` |
+| No logs appearing at all | Logging not added to steps | Add `console.log` at entry/exit of every step |
+
+### 5. Use Browser Verification
+
+If the workflow powers a UI, use `agent-browser` to check the frontend while inspecting backend logs — a hanging page often means a stuck workflow step. Check the browser console for failed fetch calls to your workflow API routes.
 
 ## When to Use WDK vs Regular Functions
 

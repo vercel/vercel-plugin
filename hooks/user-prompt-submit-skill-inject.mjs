@@ -15,12 +15,17 @@ import { loadSkills, injectSkills } from "./pretooluse-skill-inject.mjs";
 import { parseSeenSkills, mergeSeenSkillStates } from "./patterns.mjs";
 import { normalizePromptText, compilePromptSignals, matchPromptWithReason } from "./prompt-patterns.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
-import { createLogger } from "./logger.mjs";
+import { createLogger, logDecision } from "./logger.mjs";
 const MAX_SKILLS = 2;
 const DEFAULT_INJECTION_BUDGET_BYTES = 8e3;
 const MIN_PROMPT_LENGTH = 10;
 const PLUGIN_ROOT = resolvePluginRoot();
 const SKILL_INJECTION_VERSION = 1;
+const INVESTIGATION_COMPANION_SKILLS = [
+  "workflow",
+  "agent-browser-verify",
+  "vercel-cli"
+];
 const log = createLogger();
 function getSeenSkillsEnv() {
   return typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string" ? process.env.VERCEL_PLUGIN_SEEN_SKILLS : "";
@@ -125,6 +130,27 @@ function matchPromptSignals(normalizedPrompt, skills, logger) {
     matched: matches.map((m) => ({ skill: m.skill, score: m.score }))
   });
   return matches;
+}
+function selectInvestigationCompanion(selectedSkills, perSkillResults) {
+  if (!selectedSkills.includes("investigation-mode")) {
+    return { companion: null, reason: "investigation-mode not selected" };
+  }
+  let bestCompanion = null;
+  let bestScore = -Infinity;
+  for (const candidate of INVESTIGATION_COMPANION_SKILLS) {
+    const result = perSkillResults[candidate];
+    if (result && result.matched && result.score > bestScore) {
+      bestScore = result.score;
+      bestCompanion = candidate;
+    }
+  }
+  if (!bestCompanion) {
+    return { companion: null, reason: "no companion scored high enough" };
+  }
+  return {
+    companion: bestCompanion,
+    reason: `companion "${bestCompanion}" scored ${bestScore}`
+  };
 }
 function deduplicateAndInject(matches, skills, logger) {
   const l = logger || log;
@@ -251,6 +277,49 @@ function run() {
     budgetBytes: report.budgetBytes,
     timingMs: report.timingMs
   });
+  const investigationSkills = ["investigation-mode", "observability", "workflow"];
+  const matchedInvestigation = Object.entries(report.perSkillResults).filter(([skill, r]) => r.matched && investigationSkills.includes(skill));
+  if (matchedInvestigation.length > 0) {
+    logDecision(log, {
+      hook: "UserPromptSubmit",
+      event: "investigation_intent_detected",
+      reason: "frustration_or_debug_signals",
+      skills: matchedInvestigation.map(([skill, r]) => ({ skill, score: r.score })),
+      durationMs: log.active ? log.elapsed() : void 0
+    });
+  }
+  const companionResult = selectInvestigationCompanion(
+    report.selectedSkills,
+    report.perSkillResults
+  );
+  if (companionResult.companion) {
+    const companion = companionResult.companion;
+    const newSelected = ["investigation-mode"];
+    if (!report.selectedSkills.includes(companion)) {
+      newSelected.push(companion);
+    } else {
+      newSelected.push(companion);
+    }
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...newSelected);
+    logDecision(log, {
+      hook: "UserPromptSubmit",
+      event: "companion_selected",
+      skill: "investigation-mode",
+      companion,
+      reason: companionResult.reason,
+      durationMs: log.active ? log.elapsed() : void 0
+    });
+  } else if (report.selectedSkills.length > 1) {
+    logDecision(log, {
+      hook: "UserPromptSubmit",
+      event: "companion_selected",
+      skill: report.selectedSkills[0],
+      companion: report.selectedSkills[1],
+      reason: "multi_skill_prompt_match",
+      durationMs: log.active ? log.elapsed() : void 0
+    });
+  }
   const allMatched = Object.entries(report.perSkillResults).filter(([, r]) => r.matched).map(([skill]) => skill);
   if (allMatched.length === 0) {
     log.debug("prompt-analysis-issue", {
@@ -356,11 +425,13 @@ if (isMainModule()) {
   }
 }
 export {
+  INVESTIGATION_COMPANION_SKILLS,
   deduplicateAndInject,
   formatOutput,
   matchPromptSignals,
   parsePromptInput,
   resolvePromptSeenSkillState,
   run,
+  selectInvestigationCompanion,
   syncPromptSeenSkillClaims
 };

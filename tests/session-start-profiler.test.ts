@@ -92,7 +92,7 @@ describe("session-start-profiler", () => {
     expect(result.code).toBe(0);
   });
 
-  test("detects empty project as greenfield (no LIKELY_SKILLS)", async () => {
+  test("detects empty project as greenfield (seeds default skills)", async () => {
     const projectDir = join(tempDir, "empty-project");
     mkdirSync(projectDir);
 
@@ -103,8 +103,14 @@ describe("session-start-profiler", () => {
 
     expect(result.code).toBe(0);
     const content = readFileSync(envFile, "utf-8");
-    expect(content).not.toContain("VERCEL_PLUGIN_LIKELY_SKILLS");
     expect(content).toContain('VERCEL_PLUGIN_GREENFIELD="true"');
+    // Greenfield projects get seeded with default skills but NOT observability
+    const skills = parseLikelySkills(content);
+    expect(skills).toContain("nextjs");
+    expect(skills).toContain("ai-sdk");
+    expect(skills).toContain("vercel-cli");
+    expect(skills).toContain("env-vars");
+    expect(skills).not.toContain("observability");
   });
 
   test("detects Next.js project via next.config.ts", async () => {
@@ -439,6 +445,44 @@ describe("session-start-profiler", () => {
     expect(skills).toEqual(sorted);
   });
 
+  test("auto-boosts observability for non-greenfield projects", async () => {
+    const projectDir = join(tempDir, "obs-boost");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+    const skills = parseLikelySkills(readFileSync(envFile, "utf-8"));
+    expect(skills).toContain("observability");
+    expect(skills).toContain("nextjs");
+    // Should remain sorted
+    expect(skills).toEqual([...skills].sort());
+  });
+
+  test("does not double-add observability when already detected", async () => {
+    const projectDir = join(tempDir, "obs-dedup");
+    mkdirSync(projectDir);
+    writeFileSync(
+      join(projectDir, "package.json"),
+      JSON.stringify({ dependencies: { "@vercel/analytics": "^1.0.0" } }),
+    );
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+    const skills = parseLikelySkills(readFileSync(envFile, "utf-8"));
+    // observability detected via @vercel/analytics — should appear once
+    const count = skills.filter((s) => s === "observability").length;
+    expect(count).toBe(1);
+  });
+
   test("survives malformed package.json gracefully", async () => {
     const projectDir = join(tempDir, "bad-pkg");
     mkdirSync(projectDir);
@@ -545,11 +589,11 @@ describe("greenfield detection", () => {
     expect(result.code).toBe(0);
     const envContent = readFileSync(envFile, "utf-8");
     expect(envContent).toContain('VERCEL_PLUGIN_GREENFIELD="true"');
-    expect(envContent).not.toContain("VERCEL_PLUGIN_LIKELY_SKILLS");
+    // Greenfield projects get default skills but NOT observability boost
+    const skills = parseLikelySkills(envContent);
+    expect(skills).not.toContain("observability");
     expect(result.stdout).toContain("greenfield project");
-    expect(result.stdout).toContain(".git/");
-    expect(result.stdout).toContain(".claude/");
-    expect(result.stdout).toContain("Skip codebase exploration");
+    expect(result.stdout).toContain("Skip exploration");
   });
 
   test("completely empty dir is greenfield", async () => {

@@ -128,6 +128,137 @@ describe("user-prompt-submit-skill-inject.mjs", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Frustration / debugging language triggers investigation-mode
+  // ---------------------------------------------------------------------------
+
+  test("injects investigation-mode skill for 'it's stuck' frustration prompt", async () => {
+    const { code, stdout } = await runHook(
+      "it's stuck and nothing is happening, the page just sits there loading forever",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    expect(meta.injectedSkills).toContain("investigation-mode");
+  });
+
+  test("injects investigation-mode skill for 'check the logs' prompt", async () => {
+    const { code, stdout } = await runHook(
+      "can you check the logs and find the error? something is broken",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    expect(meta.injectedSkills).toContain("investigation-mode");
+  });
+
+  test("injects investigation-mode skill for 'why did it fail' prompt", async () => {
+    const { code, stdout } = await runHook(
+      "why did it fail? I pushed the code and now nothing works, investigate why",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    expect(meta.injectedSkills).toContain("investigation-mode");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Workflow debugging language triggers workflow skill
+  // ---------------------------------------------------------------------------
+
+  test("injects workflow skill for debugging prompts", async () => {
+    const { code, stdout } = await runHook(
+      "the workflow stuck on the third step and keeps timing out, debug workflow execution",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    // Should match workflow or investigation-mode (both have relevant signals)
+    const hasWorkflow = meta.injectedSkills.includes("workflow") || meta.matchedSkills.includes("workflow");
+    const hasInvestigation = meta.injectedSkills.includes("investigation-mode") || meta.matchedSkills.includes("investigation-mode");
+    expect(hasWorkflow || hasInvestigation).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Deployment-check language triggers vercel-cli skill
+  // ---------------------------------------------------------------------------
+
+  test("injects vercel-cli skill for deployment checking prompt", async () => {
+    const { code, stdout } = await runHook(
+      "check deployment status, I think the deploy failed and I need to see vercel logs",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    const hasVercelCli = meta.injectedSkills.includes("vercel-cli") || meta.matchedSkills.includes("vercel-cli");
+    expect(hasVercelCli).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Page-check language triggers agent-browser-verify skill
+  // ---------------------------------------------------------------------------
+
+  test("injects agent-browser-verify skill for page checking prompt", async () => {
+    const { code, stdout } = await runHook(
+      "check the page, I'm seeing a blank page and there might be console errors",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    const hasBrowser = meta.injectedSkills.includes("agent-browser-verify") || meta.matchedSkills.includes("agent-browser-verify");
+    expect(hasBrowser).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Observability language triggers observability skill
+  // ---------------------------------------------------------------------------
+
+  test("injects observability skill for logging setup prompt", async () => {
+    const { code, stdout } = await runHook(
+      "I need to add logging and set up monitoring for the production app with structured logging",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    const hasObservability = meta.injectedSkills.includes("observability") || meta.matchedSkills.includes("observability");
+    expect(hasObservability).toBe(true);
+  });
+
+  test("injects observability skill for 'opentelemetry' prompt", async () => {
+    const { code, stdout } = await runHook(
+      "set up opentelemetry instrumentation for tracing API requests",
+      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.hookSpecificOutput).toBeDefined();
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    expect(meta).toBeDefined();
+    const hasObservability = meta.injectedSkills.includes("observability") || meta.matchedSkills.includes("observability");
+    expect(hasObservability).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
   // Dedup prevents re-injection
   // ---------------------------------------------------------------------------
 
@@ -212,6 +343,102 @@ describe("user-prompt-submit-skill-inject.mjs", () => {
         expect(["hookEventName", "additionalContext"]).toContain(key);
       }
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Investigation-mode companion selection (integration)
+  // ---------------------------------------------------------------------------
+
+  describe("investigation-mode companion selection", () => {
+    test("'nothing happened' triggers investigation-mode alone (no companion)", async () => {
+      const { code, stdout } = await runHook(
+        "nothing happened after I clicked submit, it just sits there",
+        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+      );
+      expect(code).toBe(0);
+      const result = JSON.parse(stdout);
+      expect(result.hookSpecificOutput).toBeDefined();
+      const meta = extractSkillInjection(result.hookSpecificOutput);
+      expect(meta).toBeDefined();
+      expect(meta.injectedSkills).toContain("investigation-mode");
+      // No companion skills should be injected (prompt is generic frustration)
+      const hasCompanion = meta.injectedSkills.some(
+        (s: string) => ["workflow", "agent-browser-verify", "vercel-cli"].includes(s),
+      );
+      expect(hasCompanion).toBe(false);
+    });
+
+    test("'check why my workflow is stuck' triggers investigation-mode + workflow", async () => {
+      const { code, stdout } = await runHook(
+        "check why my workflow is stuck, the workflow run has been pending for 10 minutes",
+        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+      );
+      expect(code).toBe(0);
+      const result = JSON.parse(stdout);
+      expect(result.hookSpecificOutput).toBeDefined();
+      const meta = extractSkillInjection(result.hookSpecificOutput);
+      expect(meta).toBeDefined();
+      expect(meta.injectedSkills).toContain("investigation-mode");
+      // workflow should be the companion (either injected or matched)
+      const hasWorkflow = meta.injectedSkills.includes("workflow") || meta.matchedSkills.includes("workflow");
+      expect(hasWorkflow).toBe(true);
+    });
+
+    test("'blank page after deploy' triggers investigation-mode + agent-browser-verify", async () => {
+      const { code, stdout } = await runHook(
+        "I see a blank page after the deploy, nothing renders and the screen is blank",
+        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+      );
+      expect(code).toBe(0);
+      const result = JSON.parse(stdout);
+      expect(result.hookSpecificOutput).toBeDefined();
+      const meta = extractSkillInjection(result.hookSpecificOutput);
+      expect(meta).toBeDefined();
+      expect(meta.injectedSkills).toContain("investigation-mode");
+      // agent-browser-verify should be the companion (either injected or matched)
+      const hasBrowser = meta.injectedSkills.includes("agent-browser-verify") || meta.matchedSkills.includes("agent-browser-verify");
+      expect(hasBrowser).toBe(true);
+    });
+
+    test("'add a button to the navbar' does NOT trigger investigation-mode", async () => {
+      const { code, stdout } = await runHook(
+        "add a button to the navbar that links to the settings page",
+        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
+      );
+      expect(code).toBe(0);
+      const result = JSON.parse(stdout);
+      // Either empty output or no investigation-mode in injected skills
+      if (result.hookSpecificOutput) {
+        const meta = extractSkillInjection(result.hookSpecificOutput);
+        if (meta) {
+          expect(meta.injectedSkills).not.toContain("investigation-mode");
+        }
+      }
+    });
+
+    test("companion is injected as summary when budget is tight", async () => {
+      // Use a very small budget to force summary fallback for companion
+      const { code, stdout } = await runHook(
+        "check why my workflow is stuck, the workflow run has been pending for 10 minutes",
+        {
+          VERCEL_PLUGIN_SEEN_SKILLS: "",
+          VERCEL_PLUGIN_PROMPT_INJECTION_BUDGET: "4000",
+        },
+      );
+      expect(code).toBe(0);
+      const result = JSON.parse(stdout);
+      expect(result.hookSpecificOutput).toBeDefined();
+      const meta = extractSkillInjection(result.hookSpecificOutput);
+      expect(meta).toBeDefined();
+      // investigation-mode should still be injected (first skill gets full body)
+      expect(meta.injectedSkills).toContain("investigation-mode");
+      // workflow should be in summaryOnly or injectedSkills depending on budget
+      const workflowHandled =
+        meta.injectedSkills.includes("workflow") ||
+        meta.summaryOnly.includes("workflow") ||
+        meta.matchedSkills.includes("workflow");
+      expect(workflowHandled).toBe(true);
+    });
   });
 
   // ---------------------------------------------------------------------------

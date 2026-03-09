@@ -39,7 +39,7 @@ import { normalizePromptText, compilePromptSignals, matchPromptWithReason } from
 import type { CompiledPromptSignals } from "./prompt-patterns.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
-import { createLogger } from "./logger.mjs";
+import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 
 const MAX_SKILLS = 2;
@@ -47,6 +47,17 @@ const DEFAULT_INJECTION_BUDGET_BYTES = 8_000;
 const MIN_PROMPT_LENGTH = 10;
 const PLUGIN_ROOT = resolvePluginRoot();
 const SKILL_INJECTION_VERSION = 1;
+
+/**
+ * Companion skills for investigation-mode, in priority order.
+ * When investigation-mode triggers, the second slot is given to the
+ * highest-scoring companion that independently matched (score >= its minScore).
+ */
+export const INVESTIGATION_COMPANION_SKILLS = [
+  "workflow",
+  "agent-browser-verify",
+  "vercel-cli",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Logger
@@ -230,6 +241,51 @@ export function matchPromptSignals(
   });
 
   return matches;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline stage 2b: investigation companion selection
+// ---------------------------------------------------------------------------
+
+export interface CompanionSelection {
+  companion: string | null;
+  reason: string;
+}
+
+/**
+ * When investigation-mode is in the selected skills, pick the best companion
+ * from INVESTIGATION_COMPANION_SKILLS based on match scores.
+ *
+ * Returns the companion skill name if one matched independently, or null.
+ * Priority tiebreaker: workflow > agent-browser-verify > vercel-cli.
+ */
+export function selectInvestigationCompanion(
+  selectedSkills: string[],
+  perSkillResults: Record<string, { score: number; matched: boolean }>,
+): CompanionSelection {
+  if (!selectedSkills.includes("investigation-mode")) {
+    return { companion: null, reason: "investigation-mode not selected" };
+  }
+
+  let bestCompanion: string | null = null;
+  let bestScore = -Infinity;
+
+  for (const candidate of INVESTIGATION_COMPANION_SKILLS) {
+    const result = perSkillResults[candidate];
+    if (result && result.matched && result.score > bestScore) {
+      bestScore = result.score;
+      bestCompanion = candidate;
+    }
+  }
+
+  if (!bestCompanion) {
+    return { companion: null, reason: "no companion scored high enough" };
+  }
+
+  return {
+    companion: bestCompanion,
+    reason: `companion "${bestCompanion}" scored ${bestScore}`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -427,6 +483,59 @@ export function run(): string {
     budgetBytes: report.budgetBytes,
     timingMs: report.timingMs,
   });
+
+  // Detect investigation/debugging intent from matched skills
+  const investigationSkills = ["investigation-mode", "observability", "workflow"];
+  const matchedInvestigation = Object.entries(report.perSkillResults)
+    .filter(([skill, r]) => r.matched && investigationSkills.includes(skill));
+  if (matchedInvestigation.length > 0) {
+    logDecision(log, {
+      hook: "UserPromptSubmit",
+      event: "investigation_intent_detected",
+      reason: "frustration_or_debug_signals",
+      skills: matchedInvestigation.map(([skill, r]) => ({ skill, score: r.score })),
+      durationMs: log.active ? log.elapsed() : undefined,
+    });
+  }
+
+  // Investigation-mode companion selection: when investigation-mode is selected,
+  // ensure the second slot goes to the best companion skill.
+  const companionResult = selectInvestigationCompanion(
+    report.selectedSkills,
+    report.perSkillResults,
+  );
+  if (companionResult.companion) {
+    const companion = companionResult.companion;
+    // Ensure investigation-mode is first, companion is second
+    const newSelected = ["investigation-mode"];
+    if (!report.selectedSkills.includes(companion)) {
+      // Companion wasn't already selected — add it, possibly displacing another skill
+      newSelected.push(companion);
+    } else {
+      // Companion was already selected — just reorder
+      newSelected.push(companion);
+    }
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...newSelected);
+
+    logDecision(log, {
+      hook: "UserPromptSubmit",
+      event: "companion_selected",
+      skill: "investigation-mode",
+      companion,
+      reason: companionResult.reason,
+      durationMs: log.active ? log.elapsed() : undefined,
+    });
+  } else if (report.selectedSkills.length > 1) {
+    logDecision(log, {
+      hook: "UserPromptSubmit",
+      event: "companion_selected",
+      skill: report.selectedSkills[0],
+      companion: report.selectedSkills[1],
+      reason: "multi_skill_prompt_match",
+      durationMs: log.active ? log.elapsed() : undefined,
+    });
+  }
 
   // No matches at all
   const allMatched = Object.entries(report.perSkillResults)

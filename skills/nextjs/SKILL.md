@@ -575,6 +575,98 @@ Vercel deployed WAF rules automatically for hosted projects, but **WAF is defens
 | Client Components | Interactive UI, browser APIs needed |
 | Streaming (Suspense) | Show content progressively as data loads |
 
+### Rendering Strategy Guidance
+
+```
+Choosing a rendering strategy?
+├─ Content changes less than once per day?
+│  ├─ Same for all users? → SSG (`generateStaticParams`)
+│  └─ Personalized? → SSG shell + client fetch for personalized parts
+│
+├─ Content changes frequently but can be slightly stale?
+│  ├─ Revalidate on schedule? → ISR with `revalidate: N` seconds
+│  └─ Revalidate on demand? → `revalidateTag()` or `revalidatePath()`
+│
+├─ Content must be fresh on every request?
+│  ├─ Cacheable per-request? → Cache Components (`'use cache'` + `cacheLife`)
+│  ├─ Personalized per-user? → SSR with Streaming (Suspense boundaries)
+│  └─ Real-time? → Client-side with SWR/React Query + SSR for initial load
+│
+└─ Mostly static with one dynamic section?
+   └─ Partial Prerendering: static shell + Suspense for dynamic island
+```
+
+### Caching Strategy Matrix
+
+| Data Type | Strategy | Implementation |
+|-----------|----------|----------------|
+| Static assets (JS, CSS, images) | Immutable cache | Automatic with Vercel (hashed filenames) |
+| API responses (shared) | Cache Components | `'use cache'` + `cacheLife('hours')` |
+| API responses (per-user) | No cache or short TTL | `cacheLife({ revalidate: 60 })` with user-scoped key |
+| Configuration data | Edge Config | `@vercel/edge-config` (< 5ms reads) |
+| Database queries | ISR + on-demand | `revalidateTag('products')` on write |
+| Full pages | SSG / ISR | `generateStaticParams` + `revalidate` |
+| Search results | Client-side + SWR | `useSWR` with stale-while-revalidate |
+
+### Image Optimization Pattern
+
+```tsx
+// BEFORE: Unoptimized, causes LCP & CLS issues
+<img src="/hero.jpg" />
+
+// AFTER: Optimized with next/image
+import Image from 'next/image';
+<Image src="/hero.jpg" width={1200} height={600} priority alt="Hero" />
+```
+
+### Font Loading Pattern
+
+```tsx
+// BEFORE: External font causes CLS
+<link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet" />
+
+// AFTER: Zero-CLS with next/font
+import { Inter } from 'next/font/google';
+const inter = Inter({ subsets: ['latin'] });
+```
+
+### Cache Components Pattern
+
+```tsx
+// BEFORE: Re-fetches on every request
+async function ProductList() {
+  const products = await db.query('SELECT * FROM products');
+  return <ul>{products.map(p => <li key={p.id}>{p.name}</li>)}</ul>;
+}
+
+// AFTER: Cached with automatic revalidation
+'use cache';
+import { cacheLife } from 'next/cache';
+
+async function ProductList() {
+  cacheLife('hours');
+  const products = await db.query('SELECT * FROM products');
+  return <ul>{products.map(p => <li key={p.id}>{p.name}</li>)}</ul>;
+}
+```
+
+### Optimistic UI Pattern
+
+```tsx
+// Instant feedback while Server Action processes
+'use client';
+import { useOptimistic } from 'react';
+
+function LikeButton({ count, onLike }) {
+  const [optimisticCount, addOptimistic] = useOptimistic(count);
+  return (
+    <button onClick={() => { addOptimistic(count + 1); onLike(); }}>
+      {optimisticCount} likes
+    </button>
+  );
+}
+```
+
 ## OG Image Generation
 
 Next.js supports file-based OG image generation via `opengraph-image.tsx` and `twitter-image.tsx` special files. These use `@vercel/og` (built on Satori) to render JSX to images at the Edge runtime.

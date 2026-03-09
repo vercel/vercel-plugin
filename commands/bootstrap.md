@@ -8,15 +8,16 @@ Run a deterministic bootstrap flow for new or partially configured repositories.
 
 ## Preflight
 
-1. Confirm `vercel` CLI is installed and authenticated.
+<!-- Sourced from bootstrap skill: Preflight -->
+1. Confirm Vercel CLI is installed and authenticated.
 
 ```bash
 vercel --version
 vercel whoami
 ```
 
-2. Confirm the repository is linked by checking `.vercel/project.json`.
-3. If unlinked, inspect teams and projects before asking the user which target to use, then link non-interactively.
+2. Confirm repo linkage by checking `.vercel/project.json`.
+3. If not linked, inspect available teams/projects before asking the user to choose:
 
 ```bash
 vercel teams ls
@@ -24,9 +25,15 @@ vercel projects ls --scope <team>
 vercel link --yes --scope <team> --project <project>
 ```
 
-4. Detect env template source in this order: `.env.example`, `.env.sample`, `.env.template`.
-5. Detect package manager and available scripts (`db:push`, `db:seed`, `db:migrate`, `db:generate`, `dev`) from `package.json`.
-6. Inspect auth/database signals (`prisma/schema.prisma`, `drizzle.config.*`, `auth.*`, `src/**/auth.*`) to scope bootstrap details.
+4. Find the env template in priority order: `.env.example`, `.env.sample`, `.env.template`.
+5. Create local env file if missing:
+
+```bash
+cp .env.example .env.local
+```
+
+6. Detect package manager and available scripts (`db:push`, `db:seed`, `db:migrate`, `db:generate`, `dev`) from `package.json`.
+7. Inspect auth/database signals (`prisma/schema.prisma`, `drizzle.config.*`, `auth.*`, `src/**/auth.*`) to scope bootstrap details.
 
 Stop with clear guidance if CLI auth or linkage fails.
 
@@ -39,7 +46,11 @@ Execute in this order:
 3. Secret/bootstrap env setup (`AUTH_SECRET`, env pull, key verification).
 4. Application bootstrap (`db:*` then `dev`) only after env checks pass.
 
-Prefer MCP reads + Vercel CLI writes. Never print secret values. If fallback provider CLI provisioning is needed, state why and request user confirmation first.
+<!-- Sourced from bootstrap skill: Rules -->
+- Do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
+- Prefer Vercel-managed provisioning (`vercel integration ...`) for shared resources.
+- Use provider CLIs only as fallback when Vercel integration flow is unavailable.
+- Never echo secret values in terminal output, logs, or summaries.
 
 ## Commands
 
@@ -53,21 +64,43 @@ cp .env.example .env.local
 
 If `.env.example` is absent, use `.env.sample` or `.env.template`.
 
-### 2. Provision Postgres (preferred)
+### 2. Provision Postgres
+
+<!-- Sourced from bootstrap skill: Resource Setup: Postgres -->
+### Preferred path (Vercel-managed Neon)
+
+1. Read integration setup guidance:
 
 ```bash
 vercel integration guide neon
+```
+
+2. Add Neon integration to the Vercel scope:
+
+```bash
 vercel integration add neon --scope <team>
+```
+
+3. Verify expected environment variable names exist in Vercel and pull locally:
+
+```bash
 vercel env ls
 vercel env pull .env.local --yes
 ```
 
-Fallbacks:
+### Fallback path 1 (Dashboard)
 
-1. Vercel dashboard integration flow, then `vercel env pull .env.local --yes`.
-2. Neon CLI provisioning (last resort), then add env vars to Vercel and pull locally.
+1. Provision Neon through the Vercel dashboard integration UI.
+2. Re-run `vercel env pull .env.local --yes`.
+
+### Fallback path 2 (Neon CLI)
+
+Use Neon CLI only when Vercel-managed provisioning is unavailable. After creating resources, add required env vars in Vercel and pull again.
 
 ### 3. Generate and store `AUTH_SECRET`
+
+<!-- Sourced from bootstrap skill: AUTH_SECRET Generation -->
+Generate a high-entropy secret without printing it, then store it in Vercel and refresh local env:
 
 ```bash
 AUTH_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
@@ -76,11 +109,10 @@ unset AUTH_SECRET
 vercel env pull .env.local --yes
 ```
 
-Never echo the secret value.
-
 ### 4. Verify required env keys
 
-Compare required keys from template against `.env.local` key names:
+<!-- Sourced from bootstrap skill: Env Verification -->
+Compare required keys from template file against `.env.local` keys (names only, never values):
 
 ```bash
 template_file=""
@@ -96,11 +128,14 @@ comm -23 \
   <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env.local | cut -d '=' -f 1 | sort -u)
 ```
 
+Proceed only when missing key list is empty.
+
 Do not continue if any required keys are missing.
 
 ### 5. Run app bootstrap commands (after verification)
 
-Use the repository package manager and only scripts that exist:
+<!-- Sourced from bootstrap skill: App Setup -->
+After linkage + env verification:
 
 ```bash
 npm run db:push
@@ -108,10 +143,11 @@ npm run db:seed
 npm run dev
 ```
 
-Equivalent `pnpm`, `bun`, or `yarn` commands are valid.
+Use the repository package manager (`npm`, `pnpm`, `bun`, or `yarn`) and run only scripts that exist in `package.json`.
 
 ## Verification
 
+<!-- Sourced from bootstrap skill: Bootstrap Verification -->
 Confirm each checkpoint:
 
 - `vercel whoami` succeeds.
@@ -126,7 +162,8 @@ If verification fails, stop and report exact failing step plus remediation.
 
 ## Summary
 
-Report results in this format:
+<!-- Sourced from bootstrap skill: Summary Format -->
+Return a final bootstrap summary in this format:
 
 ```md
 ## Bootstrap Result
@@ -140,6 +177,7 @@ Report results in this format:
 
 ## Next Steps
 
+<!-- Sourced from bootstrap skill: Bootstrap Next Steps -->
 - If env keys are still missing, add the missing keys in Vercel and re-run `vercel env pull .env.local --yes`.
 - If DB commands fail, fix connectivity/schema issues and re-run only the failed db step.
 - If `dev` fails, resolve runtime errors, then restart with your package manager's `run dev`.

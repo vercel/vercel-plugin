@@ -8,7 +8,7 @@
  * Exit code 0 = all checks pass, non-zero = issues found.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
 
@@ -235,6 +235,88 @@ export function doctor(projectRoot: string): DoctorResult {
         "VERCEL_PLUGIN_SEEN_SKILLS is not set — dedup limited to single invocation",
       hint: "Ensure session-start-seen-skills.mjs runs on SessionStart to set the env var",
     });
+  }
+
+  // --- Stale generated files (template newer than output) ---
+  const tmplDirs = [join(projectRoot, "agents"), join(projectRoot, "commands")];
+  for (const dir of tmplDirs) {
+    if (!existsSync(dir)) continue;
+    let files: string[];
+    try {
+      files = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      if (!f.endsWith(".md.tmpl")) continue;
+      const tmplPath = join(dir, f);
+      const outPath = join(dir, f.replace(/\.md\.tmpl$/, ".md"));
+
+      if (!existsSync(outPath)) {
+        issues.push({
+          severity: "error",
+          check: "template-staleness",
+          message: `Template ${f} has no generated output: ${f.replace(/\.tmpl$/, "")}`,
+          hint: "Run `bun run build:from-skills` to generate it",
+        });
+        continue;
+      }
+
+      const tmplMtime = statSync(tmplPath).mtimeMs;
+      const outMtime = statSync(outPath).mtimeMs;
+      if (tmplMtime > outMtime) {
+        issues.push({
+          severity: "error",
+          check: "template-staleness",
+          message: `${f} is newer than its output ${f.replace(/\.tmpl$/, "")}`,
+          hint: "Run `bun run build:from-skills` to regenerate",
+        });
+      }
+    }
+  }
+
+  // Check if any SKILL.md is newer than the oldest generated .md
+  const skillsRoot = join(projectRoot, "skills");
+  if (existsSync(skillsRoot)) {
+    let newestSkillMtime = 0;
+    try {
+      for (const skillDir of readdirSync(skillsRoot)) {
+        const skillFile = join(skillsRoot, skillDir, "SKILL.md");
+        if (existsSync(skillFile)) {
+          const mtime = statSync(skillFile).mtimeMs;
+          if (mtime > newestSkillMtime) newestSkillMtime = mtime;
+        }
+      }
+    } catch {
+      // skip if skills dir is unreadable
+    }
+
+    if (newestSkillMtime > 0) {
+      for (const dir of tmplDirs) {
+        if (!existsSync(dir)) continue;
+        let files: string[];
+        try {
+          files = readdirSync(dir);
+        } catch {
+          continue;
+        }
+        for (const f of files) {
+          if (!f.endsWith(".md.tmpl")) continue;
+          const outPath = join(dir, f.replace(/\.md\.tmpl$/, ".md"));
+          if (!existsSync(outPath)) continue;
+          const outMtime = statSync(outPath).mtimeMs;
+          if (newestSkillMtime > outMtime) {
+            issues.push({
+              severity: "warning",
+              check: "template-staleness",
+              message: `A SKILL.md was modified after ${f.replace(/\.tmpl$/, "")} was last generated`,
+              hint: "Run `bun run build:from-skills` to regenerate (skill content may have changed)",
+            });
+            break; // One warning per dir is enough
+          }
+        }
+      }
+    }
   }
 
   return {

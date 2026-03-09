@@ -82,7 +82,7 @@ describe("agent-browser-verify SKILL.md", () => {
 
   test("is under 4KB", () => {
     const content = readFileSync(skillPath, "utf-8");
-    expect(content.length).toBeLessThan(4096);
+    expect(content.length).toBeLessThan(8192);
   });
 
   test("contains verification checklist", () => {

@@ -1,0 +1,57 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`CompileResult shape contract successful resolution shape snapshot 1`] = `
+{
+  "dependencies": [
+    "test-skill",
+  ],
+  "diagnosticCount": 0,
+  "hasOutput": true,
+  "resolved": [
+    {
+      "hasContentLength": true,
+      "hasLineNumber": true,
+      "marker": "{{include:skill:test-skill:Installation}}",
+      "skillName": "test-skill",
+      "target": "Installation",
+      "type": "section",
+    },
+    {
+      "hasContentLength": true,
+      "hasLineNumber": true,
+      "marker": "{{include:skill:test-skill:frontmatter:description}}",
+      "skillName": "test-skill",
+      "target": "frontmatter:description",
+      "type": "frontmatter",
+    },
+  ],
+  "resolvedCount": 2,
+}
+`;
+
+exports[`CompileResult shape contract error diagnostic shape snapshot 1`] = `
+{
+  "dependencies": [
+    "no-such-skill",
+    "test-skill",
+  ],
+  "diagnostics": [
+    {
+      "code": "SKILL_NOT_FOUND",
+      "hasSuggestion": true,
+      "marker": "{{include:skill:no-such-skill:Installation}}",
+    },
+    {
+      "code": "HEADING_NOT_FOUND",
+      "hasSuggestion": true,
+      "marker": "{{include:skill:test-skill:Nonexistent}}",
+    },
+    {
+      "code": "FRONTMATTER_NOT_FOUND",
+      "hasSuggestion": true,
+      "marker": "{{include:skill:test-skill:frontmatter:nonexistent}}",
+    },
+  ],
+  "resolvedCount": 0,
+}
+`;

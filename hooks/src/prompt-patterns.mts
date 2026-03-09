@@ -10,7 +10,11 @@
  *   - anyOf:    +1 per term hit, capped at +2
  *   - noneOf:   hard suppress (score → -Infinity, matched = false)
  *
- * Threshold: score >= minScore (default 6) with at least one phrase hit.
+ * Threshold: score >= minScore (default 6). No phrase hit required —
+ * allOf/anyOf alone can reach the threshold.
+ *
+ * Contractions are expanded before matching (it's → it is, don't → do not)
+ * so phrase/term authors don't need to account for both forms.
  */
 
 import type { PromptSignals } from "./skill-map-frontmatter.mjs";
@@ -34,18 +38,66 @@ export interface CompiledPromptSignals {
 }
 
 // ---------------------------------------------------------------------------
+// Contraction expansion
+// ---------------------------------------------------------------------------
+
+const CONTRACTIONS: Record<string, string> = {
+  "it's": "it is",
+  "what's": "what is",
+  "where's": "where is",
+  "that's": "that is",
+  "there's": "there is",
+  "who's": "who is",
+  "how's": "how is",
+  "isn't": "is not",
+  "aren't": "are not",
+  "wasn't": "was not",
+  "weren't": "were not",
+  "doesn't": "does not",
+  "don't": "do not",
+  "didn't": "did not",
+  "won't": "will not",
+  "can't": "cannot",
+  "couldn't": "could not",
+  "wouldn't": "would not",
+  "shouldn't": "should not",
+  "hasn't": "has not",
+  "haven't": "have not",
+};
+
+const CONTRACTION_ENTRIES = Object.entries(CONTRACTIONS);
+
+/**
+ * Expand common English contractions and normalize smart quotes.
+ * Applied to both prompt text and compiled signal terms so both sides match.
+ */
+function expandContractions(text: string): string {
+  // Normalize curly/smart apostrophes to straight
+  let t = text.replace(/[\u2018\u2019\u2032]/g, "'");
+  for (const [contraction, expansion] of CONTRACTION_ENTRIES) {
+    if (t.includes(contraction)) {
+      t = t.replaceAll(contraction, expansion);
+    }
+  }
+  return t;
+}
+
+// ---------------------------------------------------------------------------
 // normalizePromptText
 // ---------------------------------------------------------------------------
 
 /**
  * Normalize user prompt text for matching:
  * - lowercase
+ * - expand contractions (it's → it is)
  * - collapse whitespace to single spaces
  * - trim
  */
 export function normalizePromptText(text: string): string {
   if (typeof text !== "string") return "";
-  return text.toLowerCase().replace(/\s+/g, " ").trim();
+  let t = text.toLowerCase();
+  t = expandContractions(t);
+  return t.replace(/\s+/g, " ").trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -60,13 +112,12 @@ export function normalizePromptText(text: string): string {
 export function compilePromptSignals(
   signals: PromptSignals,
 ): CompiledPromptSignals {
+  const norm = (s: string) => expandContractions(s.toLowerCase());
   return {
-    phrases: (signals.phrases || []).map((p) => p.toLowerCase()),
-    allOf: (signals.allOf || []).map((group) =>
-      group.map((t) => t.toLowerCase()),
-    ),
-    anyOf: (signals.anyOf || []).map((t) => t.toLowerCase()),
-    noneOf: (signals.noneOf || []).map((t) => t.toLowerCase()),
+    phrases: (signals.phrases || []).map(norm),
+    allOf: (signals.allOf || []).map((group) => group.map(norm)),
+    anyOf: (signals.anyOf || []).map(norm),
+    noneOf: (signals.noneOf || []).map(norm),
     minScore:
       typeof signals.minScore === "number" && !Number.isNaN(signals.minScore)
         ? signals.minScore
@@ -82,7 +133,7 @@ export function compilePromptSignals(
  * Score a normalized prompt against compiled prompt signals.
  *
  * Returns { matched, score, reason } where:
- * - matched: true if score >= minScore AND at least one phrase hit
+ * - matched: true if score >= minScore (phrase hit NOT required)
  * - score: weighted sum of signal matches
  * - reason: human-readable explanation of why/why not
  */
@@ -107,13 +158,11 @@ export function matchPromptWithReason(
 
   let score = 0;
   const reasons: string[] = [];
-  let phraseHits = 0;
 
   // --- phrases: +6 each ---
   for (const phrase of compiled.phrases) {
     if (normalizedPrompt.includes(phrase)) {
       score += 6;
-      phraseHits += 1;
       reasons.push(`phrase "${phrase}" +6`);
     }
   }
@@ -141,19 +190,14 @@ export function matchPromptWithReason(
   score += cappedAnyOf;
 
   // --- threshold check ---
-  const meetsScore = score >= compiled.minScore;
-  const hasPhraseHit = phraseHits > 0;
-  const matched = meetsScore && hasPhraseHit;
+  const matched = score >= compiled.minScore;
 
   if (!matched) {
-    const parts: string[] = [];
-    if (!hasPhraseHit) parts.push("no phrase hit");
-    if (!meetsScore) parts.push(`score ${score} < ${compiled.minScore}`);
     const detail = reasons.length > 0 ? ` (${reasons.join("; ")})` : "";
     return {
       matched: false,
       score,
-      reason: `below threshold: ${parts.join(", ")}${detail}`,
+      reason: `below threshold: score ${score} < ${compiled.minScore}${detail}`,
     };
   }
 

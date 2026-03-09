@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-09T17:05:44.284Z",
+  "generatedAt": "2026-03-09T17:37:53.799Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -137,7 +137,15 @@
           "page not loading",
           "page frozen",
           "spinner not stopping",
-          "page not responding"
+          "page not responding",
+          "page won't load",
+          "page will not load",
+          "nothing renders",
+          "nothing rendered",
+          "ui is broken",
+          "screen is blank",
+          "screen is white",
+          "app won't load"
         ],
         "allOf": [
           [
@@ -708,13 +716,17 @@
       "importRegexSources": [],
       "promptSignals": {
         "phrases": [
+          "nothing happened",
+          "still waiting",
           "it's stuck",
           "it's hung",
           "nothing is happening",
           "not responding",
           "just sitting there",
+          "just sits there",
           "seems frozen",
           "is it frozen",
+          "frozen",
           "why is it hanging",
           "check the logs",
           "check logs",
@@ -727,6 +739,7 @@
           "timed out",
           "keeps timing out",
           "no response",
+          "no output",
           "not loading",
           "debug this",
           "investigate why",
@@ -735,10 +748,13 @@
           "why is it failing",
           "something is broken",
           "something broke",
+          "seems broken",
           "check what happened",
           "check the status",
           "where is the error",
+          "where did it fail",
           "find the error",
+          "show me the error",
           "why is it slow",
           "taking forever",
           "still loading",
@@ -822,6 +838,10 @@
             "status"
           ],
           [
+            "check",
+            "logs"
+          ],
+          [
             "debug",
             "workflow"
           ],
@@ -832,6 +852,14 @@
           [
             "debug",
             "api"
+          ],
+          [
+            "debug",
+            "issue"
+          ],
+          [
+            "investigate",
+            "error"
           ],
           [
             "logs",
@@ -947,7 +975,10 @@
           "sticky nav",
           "sticky header",
           "sticky footer",
-          "overflow: hidden"
+          "overflow: hidden",
+          "add a button",
+          "create a button",
+          "style the button"
         ],
         "minScore": 4
       }
@@ -1693,7 +1724,15 @@
           "track errors",
           "error tracking",
           "sentry",
-          "datadog"
+          "datadog",
+          "check the logs",
+          "show me the error",
+          "what went wrong",
+          "where did it fail",
+          "show me the logs",
+          "find the error",
+          "why did it fail",
+          "debug the error"
         ],
         "allOf": [
           [
@@ -2102,7 +2141,14 @@
           "workflow pending",
           "step is stuck",
           "step is hanging",
-          "why is my workflow"
+          "why is my workflow",
+          "workflow run",
+          "step failed",
+          "run status",
+          "run failed",
+          "run logs",
+          "workflow run failed",
+          "workflow step failed"
         ],
         "allOf": [
           [
@@ -2204,6 +2250,14 @@
           [
             "step",
             "timeout"
+          ],
+          [
+            "workflow",
+            "run"
+          ],
+          [
+            "run",
+            "logs"
           ]
         ],
         "anyOf": [

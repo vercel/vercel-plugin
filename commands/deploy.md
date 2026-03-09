@@ -19,14 +19,18 @@ Run these checks before any deployment. Stop on failure and print actionable gui
 4. **Uncommitted changes** — Run `git status --porcelain`.
    - If output is non-empty: warn the user that uncommitted changes will **not** be included in the deploy. Ask whether to continue or commit first.
    - If not a git repo, skip this check.
-5. **Observability preflight** (production deploys only) — Before promoting to production, verify observability readiness:
-   - **Drains check**: Query configured drains via MCP `list_drains` or REST API. If no drains are configured on a Pro/Enterprise plan, warn:
-     > ⚠️ No drains configured. Production errors won't be forwarded to external monitoring.
-     > Configure drains via Dashboard or REST API before promoting. See `⤳ skill: observability`.
-   - **Errored drains**: If any drain is in error state, warn and suggest remediation before deploying:
-     > ⚠️ Drain "<url>" is errored. Fix or recreate before production deploy to avoid monitoring gaps.
-   - **Error monitoring**: Check that at least one of these is in place: configured drains, an error tracking integration (e.g., Sentry, Datadog via `vercel integration ls`), or `@vercel/analytics` in the project.
-   - These are warnings, not blockers — the user may proceed after acknowledgment.
+5. **Observability preflight** (production deploys only) —
+
+<!-- Sourced from observability skill: Drains > Deploy Preflight Observability -->
+Before promoting to production, verify observability readiness:
+
+- **Drains check**: Query configured drains via MCP `list_drains` or REST API. If no drains are configured on a Pro/Enterprise plan, warn:
+  > ⚠️ No drains configured. Production errors won't be forwarded to external monitoring.
+  > Configure drains via Dashboard or REST API before promoting. See `⤳ skill: observability`.
+- **Errored drains**: If any drain is in error state, warn and suggest remediation before deploying:
+  > ⚠️ Drain "<url>" is errored. Fix or recreate before production deploy to avoid monitoring gaps.
+- **Error monitoring**: Check that at least one of these is in place: configured drains, an error tracking integration (e.g., Sentry, Datadog via `vercel integration ls`), or `@vercel/analytics` in the project.
+- These are warnings, not blockers — the user may proceed after acknowledgment.
 
 ## Plan
 
@@ -49,14 +53,27 @@ If "$ARGUMENTS" does not indicate production:
 
 ### Preview Deployment
 
+<!-- Sourced from deployments-cicd skill: Deployment Commands > Preview Deployment -->
 ```bash
+# Deploy from project root (creates preview URL)
 vercel
+
+# Equivalent explicit form
+vercel deploy
 ```
+
+Preview deployments are created automatically for every push to a non-production branch when using Git integration. They provide a unique URL for testing.
 
 ### Production Deployment (requires confirmation)
 
+<!-- Sourced from deployments-cicd skill: Deployment Commands > Production Deployment -->
 ```bash
+# Deploy directly to production
 vercel --prod
+vercel deploy --prod
+
+# Force a new deployment (skip cache)
+vercel --prod --force
 ```
 
 Capture the full command output. Extract the **deployment URL** from the output (the line containing the `.vercel.app` URL or custom domain URL).
@@ -73,8 +90,17 @@ After deployment completes, verify the result:
 
 ### 1. Inspect the Deployment
 
+<!-- Sourced from deployments-cicd skill: Deployment Commands > Inspect Deployments -->
 ```bash
+# View deployment details (build info, functions, metadata)
 vercel inspect <deployment-url>
+
+# List recent deployments
+vercel ls
+
+# View logs for a deployment
+vercel logs <deployment-url>
+vercel logs <deployment-url> --follow
 ```
 
 Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, framework, Node.js version, function count.
@@ -95,6 +121,7 @@ If the deployment state is **READY**, note the URL is live and accessible.
 
 ### 4. Post-Deploy Error Scan (production deploys)
 
+<!-- Sourced from observability skill: Drains > Post-Deploy Error Scan -->
 For production deployments, wait 60 seconds after READY state, then scan for early runtime errors:
 
 ```bash
@@ -128,6 +155,7 @@ vercel logs <deployment-url> --level error --since 1h --json
 
 ## Summary
 
+<!-- Sourced from deployments-cicd skill: Deploy Summary Format -->
 Present a structured deploy result block:
 
 ```
@@ -157,6 +185,7 @@ For production deploys, also include:
 
 ## Next Steps
 
+<!-- Sourced from deployments-cicd skill: Deploy Next Steps -->
 Based on the deployment outcome:
 
 - **Success (preview)** → "Visit the preview URL to verify. When ready, run `/deploy prod` to promote to production."

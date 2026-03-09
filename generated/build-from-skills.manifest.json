@@ -1,0 +1,417 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-09T17:37:53.827Z",
+  "templates": [
+    {
+      "template": "agents/ai-architect.md.tmpl",
+      "output": "agents/ai-architect.md",
+      "dependencies": [
+        "ai-sdk"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:ai-sdk:Core Functions > Agents}}",
+          "skillName": "ai-sdk",
+          "target": "Core Functions > Agents",
+          "type": "section",
+          "lineNumber": 85
+        },
+        {
+          "marker": "{{include:skill:ai-sdk:Migration from AI SDK 5}}",
+          "skillName": "ai-sdk",
+          "target": "Migration from AI SDK 5",
+          "type": "section",
+          "lineNumber": 201
+        }
+      ]
+    },
+    {
+      "template": "agents/performance-optimizer.md.tmpl",
+      "output": "agents/performance-optimizer.md",
+      "dependencies": [
+        "observability",
+        "nextjs"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:observability:Speed Insights > Metrics Tracked}}",
+          "skillName": "observability",
+          "target": "Speed Insights > Metrics Tracked",
+          "type": "section",
+          "lineNumber": 13
+        },
+        {
+          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Rendering Strategy Guidance}}",
+          "skillName": "nextjs",
+          "target": "Rendering Strategy Decision > Rendering Strategy Guidance",
+          "type": "section",
+          "lineNumber": 118
+        },
+        {
+          "marker": "{{include:skill:nextjs:Bundle Analyzer (`next experimental-analyze`)}}",
+          "skillName": "nextjs",
+          "target": "Bundle Analyzer (`next experimental-analyze`)",
+          "type": "section",
+          "lineNumber": 125
+        },
+        {
+          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Caching Strategy Matrix}}",
+          "skillName": "nextjs",
+          "target": "Rendering Strategy Decision > Caching Strategy Matrix",
+          "type": "section",
+          "lineNumber": 132
+        },
+        {
+          "marker": "{{include:skill:nextjs:Cache Components (Next.js 16) > Cache Invalidation}}",
+          "skillName": "nextjs",
+          "target": "Cache Components (Next.js 16) > Cache Invalidation",
+          "type": "section",
+          "lineNumber": 137
+        },
+        {
+          "marker": "{{include:skill:observability:Drains > Performance Audit Checklist}}",
+          "skillName": "observability",
+          "target": "Drains > Performance Audit Checklist",
+          "type": "section",
+          "lineNumber": 144
+        },
+        {
+          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Image Optimization Pattern}}",
+          "skillName": "nextjs",
+          "target": "Rendering Strategy Decision > Image Optimization Pattern",
+          "type": "section",
+          "lineNumber": 153
+        },
+        {
+          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Font Loading Pattern}}",
+          "skillName": "nextjs",
+          "target": "Rendering Strategy Decision > Font Loading Pattern",
+          "type": "section",
+          "lineNumber": 158
+        },
+        {
+          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Cache Components Pattern}}",
+          "skillName": "nextjs",
+          "target": "Rendering Strategy Decision > Cache Components Pattern",
+          "type": "section",
+          "lineNumber": 163
+        },
+        {
+          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Optimistic UI Pattern}}",
+          "skillName": "nextjs",
+          "target": "Rendering Strategy Decision > Optimistic UI Pattern",
+          "type": "section",
+          "lineNumber": 168
+        }
+      ]
+    },
+    {
+      "template": "agents/deployment-expert.md.tmpl",
+      "output": "agents/deployment-expert.md",
+      "dependencies": [
+        "vercel-functions",
+        "deployments-cicd"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:vercel-functions:Function Runtime Diagnostics > Timeout Diagnostics}}",
+          "skillName": "vercel-functions",
+          "target": "Function Runtime Diagnostics > Timeout Diagnostics",
+          "type": "section",
+          "lineNumber": 51
+        },
+        {
+          "marker": "{{include:skill:vercel-functions:Function Runtime Diagnostics > 500 Error Diagnostics}}",
+          "skillName": "vercel-functions",
+          "target": "Function Runtime Diagnostics > 500 Error Diagnostics",
+          "type": "section",
+          "lineNumber": 56
+        },
+        {
+          "marker": "{{include:skill:vercel-functions:Function Runtime Diagnostics > Invocation Failure Diagnostics}}",
+          "skillName": "vercel-functions",
+          "target": "Function Runtime Diagnostics > Invocation Failure Diagnostics",
+          "type": "section",
+          "lineNumber": 61
+        },
+        {
+          "marker": "{{include:skill:vercel-functions:Function Runtime Diagnostics > Cold Start Diagnostics}}",
+          "skillName": "vercel-functions",
+          "target": "Function Runtime Diagnostics > Cold Start Diagnostics",
+          "type": "section",
+          "lineNumber": 66
+        },
+        {
+          "marker": "{{include:skill:vercel-functions:Function Runtime Diagnostics > Edge Function Timeout Diagnostics}}",
+          "skillName": "vercel-functions",
+          "target": "Function Runtime Diagnostics > Edge Function Timeout Diagnostics",
+          "type": "section",
+          "lineNumber": 71
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Promote & Rollback}}",
+          "skillName": "deployments-cicd",
+          "target": "Promote & Rollback",
+          "type": "section",
+          "lineNumber": 133
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deployment Strategy Matrix}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Strategy Matrix",
+          "type": "section",
+          "lineNumber": 146
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Common Build Errors}}",
+          "skillName": "deployments-cicd",
+          "target": "Common Build Errors",
+          "type": "section",
+          "lineNumber": 153
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:CI/CD Integration > GitHub Actions}}",
+          "skillName": "deployments-cicd",
+          "target": "CI/CD Integration > GitHub Actions",
+          "type": "section",
+          "lineNumber": 162
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Common CI Patterns}}",
+          "skillName": "deployments-cicd",
+          "target": "Common CI Patterns",
+          "type": "section",
+          "lineNumber": 167
+        }
+      ]
+    },
+    {
+      "template": "commands/deploy.md.tmpl",
+      "output": "commands/deploy.md",
+      "dependencies": [
+        "observability",
+        "deployments-cicd"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:observability:Drains > Deploy Preflight Observability}}",
+          "skillName": "observability",
+          "target": "Drains > Deploy Preflight Observability",
+          "type": "section",
+          "lineNumber": 25
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Preview Deployment}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Commands > Preview Deployment",
+          "type": "section",
+          "lineNumber": 49
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Production Deployment}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Commands > Production Deployment",
+          "type": "section",
+          "lineNumber": 54
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Inspect Deployments}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Commands > Inspect Deployments",
+          "type": "section",
+          "lineNumber": 71
+        },
+        {
+          "marker": "{{include:skill:observability:Drains > Post-Deploy Error Scan}}",
+          "skillName": "observability",
+          "target": "Drains > Post-Deploy Error Scan",
+          "type": "section",
+          "lineNumber": 92
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deploy Summary Format}}",
+          "skillName": "deployments-cicd",
+          "target": "Deploy Summary Format",
+          "type": "section",
+          "lineNumber": 97
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deploy Next Steps}}",
+          "skillName": "deployments-cicd",
+          "target": "Deploy Next Steps",
+          "type": "section",
+          "lineNumber": 102
+        }
+      ]
+    },
+    {
+      "template": "commands/bootstrap.md.tmpl",
+      "output": "commands/bootstrap.md",
+      "dependencies": [
+        "bootstrap"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:bootstrap:Preflight}}",
+          "skillName": "bootstrap",
+          "target": "Preflight",
+          "type": "section",
+          "lineNumber": 12
+        },
+        {
+          "marker": "{{include:skill:bootstrap:Rules}}",
+          "skillName": "bootstrap",
+          "target": "Rules",
+          "type": "section",
+          "lineNumber": 29
+        },
+        {
+          "marker": "{{include:skill:bootstrap:Resource Setup: Postgres}}",
+          "skillName": "bootstrap",
+          "target": "Resource Setup: Postgres",
+          "type": "section",
+          "lineNumber": 46
+        },
+        {
+          "marker": "{{include:skill:bootstrap:AUTH_SECRET Generation}}",
+          "skillName": "bootstrap",
+          "target": "AUTH_SECRET Generation",
+          "type": "section",
+          "lineNumber": 51
+        },
+        {
+          "marker": "{{include:skill:bootstrap:Env Verification}}",
+          "skillName": "bootstrap",
+          "target": "Env Verification",
+          "type": "section",
+          "lineNumber": 56
+        },
+        {
+          "marker": "{{include:skill:bootstrap:App Setup}}",
+          "skillName": "bootstrap",
+          "target": "App Setup",
+          "type": "section",
+          "lineNumber": 63
+        },
+        {
+          "marker": "{{include:skill:bootstrap:Bootstrap Verification}}",
+          "skillName": "bootstrap",
+          "target": "Bootstrap Verification",
+          "type": "section",
+          "lineNumber": 68
+        },
+        {
+          "marker": "{{include:skill:bootstrap:Summary Format}}",
+          "skillName": "bootstrap",
+          "target": "Summary Format",
+          "type": "section",
+          "lineNumber": 73
+        },
+        {
+          "marker": "{{include:skill:bootstrap:Bootstrap Next Steps}}",
+          "skillName": "bootstrap",
+          "target": "Bootstrap Next Steps",
+          "type": "section",
+          "lineNumber": 78
+        }
+      ]
+    },
+    {
+      "template": "commands/marketplace.md.tmpl",
+      "output": "commands/marketplace.md",
+      "dependencies": [
+        "marketplace"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:marketplace:Observability Integration Path}}",
+          "skillName": "marketplace",
+          "target": "Observability Integration Path",
+          "type": "section",
+          "lineNumber": 142
+        }
+      ]
+    },
+    {
+      "template": "commands/status.md.tmpl",
+      "output": "commands/status.md",
+      "dependencies": [
+        "observability"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:observability:Drains > Security: Signature Verification}}",
+          "skillName": "observability",
+          "target": "Drains > Security: Signature Verification",
+          "type": "section",
+          "lineNumber": 126
+        },
+        {
+          "marker": "{{include:skill:observability:Drains > Fallback Guidance (No Drains)}}",
+          "skillName": "observability",
+          "target": "Drains > Fallback Guidance (No Drains)",
+          "type": "section",
+          "lineNumber": 133
+        },
+        {
+          "marker": "{{include:skill:observability:Decision Matrix}}",
+          "skillName": "observability",
+          "target": "Decision Matrix",
+          "type": "section",
+          "lineNumber": 138
+        }
+      ]
+    },
+    {
+      "template": "commands/env.md.tmpl",
+      "output": "commands/env.md",
+      "dependencies": [
+        "env-vars"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:env-vars:vercel env CLI > List Environment Variables}}",
+          "skillName": "env-vars",
+          "target": "vercel env CLI > List Environment Variables",
+          "type": "section",
+          "lineNumber": 42
+        },
+        {
+          "marker": "{{include:skill:env-vars:vercel env CLI > Pull Environment Variables}}",
+          "skillName": "env-vars",
+          "target": "vercel env CLI > Pull Environment Variables",
+          "type": "section",
+          "lineNumber": 54
+        },
+        {
+          "marker": "{{include:skill:env-vars:vercel env CLI > Add Environment Variables}}",
+          "skillName": "env-vars",
+          "target": "vercel env CLI > Add Environment Variables",
+          "type": "section",
+          "lineNumber": 67
+        },
+        {
+          "marker": "{{include:skill:env-vars:vercel env CLI > Remove Environment Variables}}",
+          "skillName": "env-vars",
+          "target": "vercel env CLI > Remove Environment Variables",
+          "type": "section",
+          "lineNumber": 77
+        },
+        {
+          "marker": "{{include:skill:env-vars:Environment-Specific Configuration}}",
+          "skillName": "env-vars",
+          "target": "Environment-Specific Configuration",
+          "type": "section",
+          "lineNumber": 123
+        },
+        {
+          "marker": "{{include:skill:env-vars:Gotchas}}",
+          "skillName": "env-vars",
+          "target": "Gotchas",
+          "type": "section",
+          "lineNumber": 128
+        }
+      ]
+    }
+  ]
+}

@@ -1,15 +1,49 @@
+const CONTRACTIONS = {
+  "it's": "it is",
+  "what's": "what is",
+  "where's": "where is",
+  "that's": "that is",
+  "there's": "there is",
+  "who's": "who is",
+  "how's": "how is",
+  "isn't": "is not",
+  "aren't": "are not",
+  "wasn't": "was not",
+  "weren't": "were not",
+  "doesn't": "does not",
+  "don't": "do not",
+  "didn't": "did not",
+  "won't": "will not",
+  "can't": "cannot",
+  "couldn't": "could not",
+  "wouldn't": "would not",
+  "shouldn't": "should not",
+  "hasn't": "has not",
+  "haven't": "have not"
+};
+const CONTRACTION_ENTRIES = Object.entries(CONTRACTIONS);
+function expandContractions(text) {
+  let t = text.replace(/[\u2018\u2019\u2032]/g, "'");
+  for (const [contraction, expansion] of CONTRACTION_ENTRIES) {
+    if (t.includes(contraction)) {
+      t = t.replaceAll(contraction, expansion);
+    }
+  }
+  return t;
+}
 function normalizePromptText(text) {
   if (typeof text !== "string") return "";
-  return text.toLowerCase().replace(/\s+/g, " ").trim();
+  let t = text.toLowerCase();
+  t = expandContractions(t);
+  return t.replace(/\s+/g, " ").trim();
 }
 function compilePromptSignals(signals) {
+  const norm = (s) => expandContractions(s.toLowerCase());
   return {
-    phrases: (signals.phrases || []).map((p) => p.toLowerCase()),
-    allOf: (signals.allOf || []).map(
-      (group) => group.map((t) => t.toLowerCase())
-    ),
-    anyOf: (signals.anyOf || []).map((t) => t.toLowerCase()),
-    noneOf: (signals.noneOf || []).map((t) => t.toLowerCase()),
+    phrases: (signals.phrases || []).map(norm),
+    allOf: (signals.allOf || []).map((group) => group.map(norm)),
+    anyOf: (signals.anyOf || []).map(norm),
+    noneOf: (signals.noneOf || []).map(norm),
     minScore: typeof signals.minScore === "number" && !Number.isNaN(signals.minScore) ? signals.minScore : 6
   };
 }
@@ -28,11 +62,9 @@ function matchPromptWithReason(normalizedPrompt, compiled) {
   }
   let score = 0;
   const reasons = [];
-  let phraseHits = 0;
   for (const phrase of compiled.phrases) {
     if (normalizedPrompt.includes(phrase)) {
       score += 6;
-      phraseHits += 1;
       reasons.push(`phrase "${phrase}" +6`);
     }
   }
@@ -54,18 +86,13 @@ function matchPromptWithReason(normalizedPrompt, compiled) {
   }
   const cappedAnyOf = Math.min(anyOfScore, 2);
   score += cappedAnyOf;
-  const meetsScore = score >= compiled.minScore;
-  const hasPhraseHit = phraseHits > 0;
-  const matched = meetsScore && hasPhraseHit;
+  const matched = score >= compiled.minScore;
   if (!matched) {
-    const parts = [];
-    if (!hasPhraseHit) parts.push("no phrase hit");
-    if (!meetsScore) parts.push(`score ${score} < ${compiled.minScore}`);
     const detail = reasons.length > 0 ? ` (${reasons.join("; ")})` : "";
     return {
       matched: false,
       score,
-      reason: `below threshold: ${parts.join(", ")}${detail}`
+      reason: `below threshold: score ${score} < ${compiled.minScore}${detail}`
     };
   }
   return {

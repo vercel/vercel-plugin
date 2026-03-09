@@ -21,7 +21,12 @@ metadata:
     - 'sentry.client.config.*'
     - 'sentry.server.config.*'
     - 'sentry.edge.config.*'
-  bashPatterns: 
+  bashPatterns:
+    - '\bvercel\s+logs?\b'
+    - '\bvercel\s+logs?\s+.*--follow\b'
+    - '\bvercel\s+logs?\s+.*--level\b'
+    - '\bvercel\s+logs?\s+.*--since\b'
+    - '\bcurl\s+.*deployments.*events\b'
     - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/analytics\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/analytics\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/analytics\b'
@@ -50,11 +55,194 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*\bnewrelic\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*\bnewrelic\b'
     - '\byarn\s+add\s+[^\n]*\bnewrelic\b'
+  promptSignals:
+    phrases:
+      - "add logging"
+      - "add logs"
+      - "set up logging"
+      - "setup logging"
+      - "configure logging"
+      - "structured logging"
+      - "log drain"
+      - "log drains"
+      - "vercel analytics"
+      - "speed insights"
+      - "web analytics"
+      - "opentelemetry"
+      - "otel"
+      - "instrumentation"
+      - "monitoring"
+      - "set up monitoring"
+      - "add observability"
+      - "track errors"
+      - "error tracking"
+      - "sentry"
+      - "datadog"
+      - "check the logs"
+      - "show me the error"
+      - "what went wrong"
+      - "where did it fail"
+      - "show me the logs"
+      - "find the error"
+      - "why did it fail"
+      - "debug the error"
+    allOf:
+      - [add, logging]
+      - [add, monitoring]
+      - [set up, logs]
+      - [configure, analytics]
+      - [vercel, logs]
+      - [vercel, analytics]
+      - [track, performance]
+      - [track, errors]
+    anyOf:
+      - "logging"
+      - "monitoring"
+      - "analytics"
+      - "observability"
+      - "telemetry"
+      - "traces"
+      - "metrics"
+      - "debug"
+      - "debugging"
+      - "stuck"
+      - "hanging"
+      - "hung"
+      - "waiting"
+      - "stalled"
+      - "spinning"
+      - "timeout"
+      - "slow"
+      - "pending"
+      - "unresponsive"
+    minScore: 6
+validate:
+  -
+    pattern: "export (async )?function (GET|POST|PUT|PATCH|DELETE)"
+    message: "API route handlers should include error logging — wrap in try/catch with console.error for production debugging"
+    severity: warn
+    skipIfFileContains: "console\\.error|logger\\.|captureException|Sentry"
 ---
 
 # Vercel Observability
 
-You are an expert in Vercel's observability stack — Drains, Web Analytics, Speed Insights, runtime logs, and monitoring integrations.
+You are an expert in Vercel's observability stack — runtime logs, structured logging, Drains, Web Analytics, Speed Insights, and monitoring integrations. **Always start with logging.** When something is stuck, slow, or broken, the first step is always to check or add logs.
+
+## Structured Logging Baseline
+
+Add this to every API route and server action as a minimum. If the user reports something stuck, hanging, or slow, verify this baseline exists first:
+
+```ts
+const start = Date.now();
+console.log(JSON.stringify({ level: "info", msg: "start", route: "/api/example", requestId: req.headers.get("x-vercel-id") }));
+// ... your logic ...
+console.log(JSON.stringify({ level: "info", msg: "done", route: "/api/example", ms: Date.now() - start }));
+// On error:
+console.error(JSON.stringify({ level: "error", msg: "failed", route: "/api/example", error: err.message, ms: Date.now() - start }));
+```
+
+## Runtime Logs
+
+Vercel provides real-time logs for all function invocations.
+
+### Structured Logging
+
+```ts
+// app/api/process/route.ts
+export async function POST(req: Request) {
+  const start = Date.now()
+  const data = await req.json()
+
+  // Structured logs appear in Vercel's log viewer
+  console.log(JSON.stringify({
+    level: 'info',
+    message: 'Processing request',
+    requestId: req.headers.get('x-vercel-id'),
+    payload_size: JSON.stringify(data).length,
+  }))
+
+  try {
+    const result = await processData(data)
+    console.log(JSON.stringify({
+      level: 'info',
+      message: 'Request completed',
+      duration_ms: Date.now() - start,
+    }))
+    return Response.json(result)
+  } catch (error) {
+    console.error(JSON.stringify({
+      level: 'error',
+      message: 'Processing failed',
+      error: error instanceof Error ? error.message : String(error),
+      duration_ms: Date.now() - start,
+    }))
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+```
+
+### Next.js Instrumentation
+
+```ts
+// instrumentation.ts (Next.js 16)
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Initialize monitoring on server startup
+    const { initMonitoring } = await import('./lib/monitoring')
+    initMonitoring()
+  }
+}
+```
+
+### Runtime Logs via REST API
+
+Query deployment runtime logs programmatically. The endpoint returns `application/stream+json` — a streaming response where each line is a separate JSON object.
+
+```bash
+# Stream runtime logs for a deployment (returns application/stream+json)
+curl -N -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v3/deployments/<deployment-id>/events" \
+  --max-time 120
+```
+
+> **Streaming guidance:** The response is unbounded — always set a timeout (`--max-time` in curl, `AbortController` with `setTimeout` in fetch). Parse line-by-line as NDJSON. Each line contains `{ timestamp, text, level, source }`.
+
+```ts
+// Programmatic streaming with timeout
+const controller = new AbortController()
+const timeout = setTimeout(() => controller.abort(), 60_000) // 60s max
+
+const res = await fetch(
+  `https://api.vercel.com/v3/deployments/${deploymentId}/events`,
+  {
+    headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+    signal: controller.signal,
+  }
+)
+
+const reader = res.body!.getReader()
+const decoder = new TextDecoder()
+let buffer = ''
+
+try {
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop()! // keep incomplete line in buffer
+    for (const line of lines) {
+      if (!line.trim()) continue
+      const event = JSON.parse(line)
+      console.log(`[${event.level}] ${event.text}`)
+    }
+  }
+} finally {
+  clearTimeout(timeout)
+}
+```
+
+> **MCP alternative:** Use `get_runtime_logs` via the Vercel MCP server for agent-friendly log queries without managing streams directly. See `⤳ skill: vercel-api`.
 
 ## Web Analytics
 
@@ -164,109 +352,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ### Performance Attribution
 
 Speed Insights attributes metrics to specific routes and pages, letting you identify which pages are slow and why.
-
-## Runtime Logs
-
-Vercel provides real-time logs for all function invocations.
-
-### Structured Logging
-
-```ts
-// app/api/process/route.ts
-export async function POST(req: Request) {
-  const start = Date.now()
-  const data = await req.json()
-
-  // Structured logs appear in Vercel's log viewer
-  console.log(JSON.stringify({
-    level: 'info',
-    message: 'Processing request',
-    requestId: req.headers.get('x-vercel-id'),
-    payload_size: JSON.stringify(data).length,
-  }))
-
-  try {
-    const result = await processData(data)
-    console.log(JSON.stringify({
-      level: 'info',
-      message: 'Request completed',
-      duration_ms: Date.now() - start,
-    }))
-    return Response.json(result)
-  } catch (error) {
-    console.error(JSON.stringify({
-      level: 'error',
-      message: 'Processing failed',
-      error: error instanceof Error ? error.message : String(error),
-      duration_ms: Date.now() - start,
-    }))
-    return Response.json({ error: 'Internal error' }, { status: 500 })
-  }
-}
-```
-
-### Next.js Instrumentation
-
-```ts
-// instrumentation.ts (Next.js 16)
-export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // Initialize monitoring on server startup
-    const { initMonitoring } = await import('./lib/monitoring')
-    initMonitoring()
-  }
-}
-```
-
-### Runtime Logs via REST API
-
-Query deployment runtime logs programmatically. The endpoint returns `application/stream+json` — a streaming response where each line is a separate JSON object.
-
-```bash
-# Stream runtime logs for a deployment (returns application/stream+json)
-curl -N -H "Authorization: Bearer $VERCEL_TOKEN" \
-  "https://api.vercel.com/v3/deployments/<deployment-id>/events" \
-  --max-time 120
-```
-
-> **Streaming guidance:** The response is unbounded — always set a timeout (`--max-time` in curl, `AbortController` with `setTimeout` in fetch). Parse line-by-line as NDJSON. Each line contains `{ timestamp, text, level, source }`.
-
-```ts
-// Programmatic streaming with timeout
-const controller = new AbortController()
-const timeout = setTimeout(() => controller.abort(), 60_000) // 60s max
-
-const res = await fetch(
-  `https://api.vercel.com/v3/deployments/${deploymentId}/events`,
-  {
-    headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
-    signal: controller.signal,
-  }
-)
-
-const reader = res.body!.getReader()
-const decoder = new TextDecoder()
-let buffer = ''
-
-try {
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop()! // keep incomplete line in buffer
-    for (const line of lines) {
-      if (!line.trim()) continue
-      const event = JSON.parse(line)
-      console.log(`[${event.level}] ${event.text}`)
-    }
-  }
-} finally {
-  clearTimeout(timeout)
-}
-```
-
-> **MCP alternative:** Use `get_runtime_logs` via the Vercel MCP server for agent-friendly log queries without managing streams directly. See `⤳ skill: vercel-api`.
 
 ## Drains
 
@@ -455,6 +540,66 @@ If drains are unavailable (Hobby plan or not yet configured), use these alternat
 | Performance metrics | **Dashboard only** | `https://vercel.com/{team}/{project}/speed-insights` |
 
 > **Upgrade path:** When ready for centralized observability, upgrade to Pro and configure drains at `https://vercel.com/dashboard/{team}/~/settings/log-drains` or via REST API. The drain setup is typically < 5 minutes.
+
+### Deploy Preflight Observability
+
+Before promoting to production, verify observability readiness:
+
+- **Drains check**: Query configured drains via MCP `list_drains` or REST API. If no drains are configured on a Pro/Enterprise plan, warn:
+  > ⚠️ No drains configured. Production errors won't be forwarded to external monitoring.
+  > Configure drains via Dashboard or REST API before promoting. See `⤳ skill: observability`.
+- **Errored drains**: If any drain is in error state, warn and suggest remediation before deploying:
+  > ⚠️ Drain "<url>" is errored. Fix or recreate before production deploy to avoid monitoring gaps.
+- **Error monitoring**: Check that at least one of these is in place: configured drains, an error tracking integration (e.g., Sentry, Datadog via `vercel integration ls`), or `@vercel/analytics` in the project.
+- These are warnings, not blockers — the user may proceed after acknowledgment.
+
+### Post-Deploy Error Scan
+
+For production deployments, wait 60 seconds after READY state, then scan for early runtime errors:
+
+```bash
+vercel logs <deployment-url> --level error --since 1h
+```
+
+Or via MCP if available: use `get_runtime_logs` with level filter `error`.
+
+**Interpret results:**
+
+| Finding | Action |
+|---------|--------|
+| No errors | ✓ Clean deploy — no runtime errors in first hour |
+| Errors detected | List error count and first 5 unique error messages. Suggest: check drain payloads for correlated traces, review function logs in Dashboard |
+| 500 status codes in logs | Correlate timestamps with drain data (if configured) or `vercel logs <url> --json` for structured output. Flag for immediate investigation |
+| Timeout errors | Check function duration limits in `vercel.json` or project settings. Consider increasing `maxDuration` |
+
+**Fallback (no drains):**
+
+If no drains are configured, the error scan relies on CLI and Dashboard:
+
+```bash
+# Stream live errors
+vercel logs <deployment-url> --level error --follow
+
+# JSON output for parsing
+vercel logs <deployment-url> --level error --since 1h --json
+```
+
+> For richer post-deploy monitoring, configure drains to forward logs/traces to an external platform. See `⤳ skill: observability`.
+
+### Performance Audit Checklist
+
+Run through this when asked to optimize a Vercel application:
+
+1. **Measure first**: Check Speed Insights dashboard for real-user CWV data
+2. **Identify LCP element**: Use Chrome DevTools → Performance → identify the LCP element
+3. **Audit `'use client'`**: Every `'use client'` file ships JS to the browser — minimize
+4. **Check images**: All above-fold images use `next/image` with `priority`
+5. **Check fonts**: All fonts loaded via `next/font` (zero CLS)
+6. **Check third-party scripts**: All use `next/script` with correct strategy
+7. **Check data fetching**: Server Components fetch in parallel, no waterfalls
+8. **Check caching**: Cache Components used for expensive operations
+9. **Check bundle**: Run analyzer, look for low-hanging fruit
+10. **Check infrastructure**: Functions in correct region, Fluid Compute enabled
 
 ## Monitoring Dashboard Patterns
 

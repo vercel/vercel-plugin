@@ -94,9 +94,13 @@ function createLogger(opts) {
     }
   };
 }
+function logDecision(logger, fields) {
+  logger.debug(`decision:${fields.event}`, fields);
+}
 export {
   LEVELS,
   LEVEL_INDEX,
   createLogger,
+  logDecision,
   resolveLogLevel
 };
