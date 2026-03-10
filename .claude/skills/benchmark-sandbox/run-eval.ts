@@ -36,6 +36,7 @@ const getArg = (name: string, fallback: number) =>
   args.includes(`--${name}`) ? parseInt(args[args.indexOf(`--${name}`) + 1], 10) : fallback;
 const CONCURRENCY = Math.min(Math.max(getArg("concurrency", 5), 1), 10);
 const TIMEOUT_MS = getArg("timeout", 1_800_000);
+let runId = "";
 const KEEP_ALIVE = args.includes("--keep-alive");
 const KEEP_ALIVE_HOURS = getArg("keep-hours", 8);
 const SKIP_VERIFY = args.includes("--skip-verify");
@@ -256,6 +257,7 @@ interface ScenarioResult {
   projectFiles: string[];
   appUrl?: string;
   deployUrl?: string;
+  sourcePath?: string;
   error?: string;
   pollHistory: Array<{ elapsed: string; skills: string[]; files: number }>;
   verification?: VerificationResult;
@@ -424,19 +426,45 @@ async function runScenario(
     }
 
     // 9. Deploy to Vercel for permanent URL
+    //    Uses the CLI auth file (written in step 3) — NOT the VERCEL_TOKEN env var.
+    //    The env var token (vca_*) is a session token that doesn't support deploy.
+    //    We unset VERCEL_TOKEN so the CLI falls back to ~/.local/share/com.vercel.cli/auth.json.
     let deployUrl: string | undefined;
     if (vercelToken && projectFilesList.length > 3) {
       console.log(`  [${scenario.slug}] Deploying to Vercel... (${elapsed(t0)})`);
       const ts = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
       const projectName = `${scenario.slug}-${ts}`.toLowerCase();
-      const deployOut = await sh(sandbox, `cd ${projectDir} && vercel deploy --yes --scope vercel-labs --name ${projectName} 2>&1 | tail -5`);
-      // Extract URL from vercel deploy output (usually last line starting with https://)
+      // Link to vercel-labs team, then deploy (unset VERCEL_TOKEN so CLI uses auth.json)
+      await sh(sandbox, `cd ${projectDir} && unset VERCEL_TOKEN && vercel link --yes --scope vercel-labs --project ${projectName} 2>&1 | tail -2`);
+      const deployOut = await sh(sandbox, `cd ${projectDir} && unset VERCEL_TOKEN && vercel deploy --yes 2>&1 | tail -5`);
       const urlMatch = deployOut.match(/(https:\/\/[^\s]+\.vercel\.app)/);
       if (urlMatch) {
         deployUrl = urlMatch[1];
         console.log(`  [${scenario.slug}] Deployed: ${deployUrl} (${elapsed(t0)})`);
       } else {
-        console.log(`  [${scenario.slug}] Deploy output: ${deployOut.slice(-150)}`);
+        console.log(`  [${scenario.slug}] Deploy: ${deployOut.slice(-150)} (${elapsed(t0)})`);
+      }
+    }
+
+    // 10. Extract source code to local filesystem
+    let sourcePath: string | undefined;
+    if (projectFilesList.length > 3) {
+      try {
+        const archiveDir = join(RESULTS_DIR, runId, scenario.slug);
+        await mkdir(archiveDir, { recursive: true });
+        // Tar source (exclude node_modules, .next, .git)
+        await sandbox.runCommand("sh", ["-c", `cd ${SANDBOX_HOME} && tar czf /tmp/source.tar.gz --exclude='node_modules' --exclude='.next' --exclude='.git' ${scenario.slug}/`]);
+        const stream = await sandbox.readFile({ path: "/tmp/source.tar.gz" });
+        if (stream) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+          const archivePath = join(archiveDir, "source.tar.gz");
+          await writeFile(archivePath, Buffer.concat(chunks));
+          sourcePath = archivePath;
+          console.log(`  [${scenario.slug}] Source saved: ${archivePath} (${(Buffer.concat(chunks).length / 1024).toFixed(0)}KB) (${elapsed(t0)})`);
+        }
+      } catch (e: any) {
+        console.log(`  [${scenario.slug}] Source extract failed: ${e.message?.slice(0, 80)}`);
       }
     }
 
@@ -452,6 +480,7 @@ async function runScenario(
       projectFiles: projectFilesList,
       appUrl,
       deployUrl,
+      sourcePath,
       pollHistory,
       verification,
     };
@@ -543,7 +572,13 @@ async function generateReport(
     md += `**Duration**: ${(r.durationMs / 1000).toFixed(0)}s\n`;
     md += `**Build**: ${r.success ? "OK" : "FAIL"}`;
     if (r.error) md += ` — \`${r.error.slice(0, 100)}\``;
-    md += `\n\n`;
+    md += `\n`;
+    if (r.sourcePath) {
+      md += `**Source archive**: \`${r.sourcePath}\`\n`;
+      md += `\nExtract source locally:\n`;
+      md += `\`\`\`bash\nmkdir -p /tmp/${r.slug} && tar xzf "${r.sourcePath}" -C /tmp/${r.slug}\ncd /tmp/${r.slug}/${r.slug} && npm install && npx next dev\n\`\`\`\n`;
+    }
+    md += `\n`;
 
     // Prompt
     if (scenario) {
@@ -623,7 +658,7 @@ async function generateReport(
 
 async function main() {
   const t0 = performance.now();
-  const runId = `eval-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}`;
+  runId = `eval-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}`;
   const resultsPath = join(RESULTS_DIR, runId);
   await mkdir(resultsPath, { recursive: true });
 
