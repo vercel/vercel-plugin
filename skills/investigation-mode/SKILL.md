@@ -161,6 +161,23 @@ metadata:
       - "create a button"
       - "style the button"
     minScore: 4
+retrieval:
+  aliases:
+    - debug helper
+    - troubleshooter
+    - stuck helper
+    - problem solver
+  intents:
+    - debug issue
+    - fix stuck app
+    - investigate error
+    - triage problem
+  entities:
+    - runtime logs
+    - workflow status
+    - browser verify
+    - triage
+
 ---
 
 # Investigation Mode — Orchestrated Debugging

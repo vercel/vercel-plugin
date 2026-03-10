@@ -19,6 +19,23 @@ metadata:
     - '\bvercel\s+env\s+add\b'
     - '\bvercel\s+env\s+rm\b'
     - '\bvercel\s+env\s+ls\b'
+retrieval:
+  aliases:
+    - environment variables
+    - env file
+    - secrets
+    - config vars
+  intents:
+    - set env var
+    - manage secrets
+    - pull env vars
+    - configure environment
+  entities:
+    - .env
+    - vercel env
+    - OIDC
+    - environment variable
+
 ---
 
 # Vercel Environment Variables

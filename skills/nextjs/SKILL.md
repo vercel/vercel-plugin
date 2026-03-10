@@ -105,6 +105,25 @@ validate:
     message: 'searchParams is async in Next.js 16 — add await: const { query } = await searchParams'
     severity: warn
     skipIfFileContains: "^['\"]use client['\"]"
+retrieval:
+  aliases:
+    - next.js
+    - nextjs app
+    - react framework
+    - app router
+  intents:
+    - build nextjs app
+    - configure app router
+    - add server component
+    - set up nextjs routing
+  entities:
+    - App Router
+    - Server Components
+    - Server Actions
+    - layout
+    - middleware
+    - next.config
+
 ---
 
 # Next.js (v16+) — App Router

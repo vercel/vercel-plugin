@@ -34,6 +34,23 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*react-email\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*react-email\b'
     - '\byarn\s+add\s+[^\n]*react-email\b'
+retrieval:
+  aliases:
+    - send email
+    - transactional email
+    - resend
+    - react email
+  intents:
+    - send email
+    - set up email
+    - create email template
+    - verify domain for email
+  entities:
+    - Resend
+    - React Email
+    - transactional
+    - domain verification
+
 ---
 
 # Email Integration (Resend + React Email)

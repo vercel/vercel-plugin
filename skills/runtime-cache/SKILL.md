@@ -13,6 +13,23 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/functions\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/functions\b'
     - '\byarn\s+add\s+[^\n]*@vercel/functions\b'
+retrieval:
+  aliases:
+    - cache api
+    - kv cache
+    - region cache
+    - tag invalidation
+  intents:
+    - add caching
+    - cache api response
+    - invalidate cache
+    - set up runtime cache
+  entities:
+    - Runtime Cache
+    - tag-based invalidation
+    - key-value
+    - cache
+
 ---
 
 # Vercel Runtime Cache API

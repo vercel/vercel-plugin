@@ -24,12 +24,20 @@ export interface ValidationRule {
   skipIfFileContains?: string;
 }
 
+export interface RetrievalMetadata {
+  aliases?: string[];
+  intents?: string[];
+  entities?: string[];
+  examples?: string[];
+}
+
 export interface SkillFrontmatter {
   name: string;
   description: string;
   summary: string;
   metadata: Record<string, unknown>;
   validate: ValidationRule[];
+  retrieval?: RetrievalMetadata;
 }
 
 export interface ScannedSkill {
@@ -39,6 +47,7 @@ export interface ScannedSkill {
   summary: string;
   metadata: Record<string, unknown>;
   validate: ValidationRule[];
+  retrieval?: RetrievalMetadata;
 }
 
 export interface Diagnostic {
@@ -68,6 +77,7 @@ export interface SkillConfig {
   importPatterns: string[];
   validate: ValidationRule[];
   promptSignals?: PromptSignals;
+  retrieval?: RetrievalMetadata;
 }
 
 export interface WarningDetail {
@@ -494,6 +504,24 @@ export function parseSkillFrontmatter(yamlStr: string): SkillFrontmatter {
         ? (doc.metadata as Record<string, unknown>)
         : {},
     validate: parseValidateRules(doc.validate),
+    ...(doc.retrieval != null &&
+      typeof doc.retrieval === "object" &&
+      !Array.isArray(doc.retrieval)
+      ? { retrieval: parseRetrievalBlock(doc.retrieval as Record<string, unknown>) }
+      : {}),
+  };
+}
+
+function parseRetrievalBlock(raw: Record<string, unknown>): RetrievalMetadata {
+  const toStringArray = (v: unknown): string[] => {
+    if (!Array.isArray(v)) return [];
+    return v.filter((s): s is string => typeof s === "string" && s !== "");
+  };
+  return {
+    aliases: toStringArray(raw.aliases),
+    intents: toStringArray(raw.intents),
+    entities: toStringArray(raw.entities),
+    examples: toStringArray(raw.examples),
   };
 }
 
@@ -551,6 +579,7 @@ export function scanSkillsDir(rootDir: string): ScanResult {
       summary: parsed.summary,
       metadata: parsed.metadata,
       validate: parsed.validate,
+      ...(parsed.retrieval ? { retrieval: parsed.retrieval } : {}),
     });
   }
 
@@ -896,6 +925,9 @@ export function buildSkillMap(rootDir: string): SkillMapResult {
     if (promptSignals) {
       entry.promptSignals = promptSignals;
     }
+    if (skill.retrieval) {
+      entry.retrieval = skill.retrieval;
+    }
     skills[skill.dir] = entry;
   }
 
@@ -919,6 +951,7 @@ const KNOWN_KEYS = new Set([
   "importPatterns",
   "validate",
   "promptSignals",
+  "retrieval",
 ]);
 
 /**
@@ -1102,6 +1135,9 @@ export function validateSkillMap(raw: unknown): ValidationResult {
     };
     if (promptSignals) {
       normalizedEntry.promptSignals = promptSignals;
+    }
+    if (cfg.retrieval != null && typeof cfg.retrieval === "object" && !Array.isArray(cfg.retrieval)) {
+      normalizedEntry.retrieval = cfg.retrieval as RetrievalMetadata;
     }
     normalizedSkills[skill] = normalizedEntry;
   }

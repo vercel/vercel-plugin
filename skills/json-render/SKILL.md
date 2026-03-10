@@ -13,6 +13,23 @@ metadata:
     - 'components/message*.tsx'
     - 'src/components/message*.tsx'
   bashPatterns: []
+retrieval:
+  aliases:
+    - chat rendering
+    - ai response display
+    - message parts
+    - tool call ui
+  intents:
+    - render chat messages
+    - display tool calls
+    - show streaming response
+    - format ai output
+  entities:
+    - UIMessage
+    - tool call
+    - streaming
+    - message parts
+
 ---
 
 # AI Chat Response Rendering

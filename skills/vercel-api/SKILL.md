@@ -13,6 +13,24 @@ metadata:
     - '\byarn\s+add\s+[^\n]*@vercel/sdk\b'
     - '\bclaude\s+mcp\s+add\b[^\n]*\bvercel\b'
     - '\bmcp\.vercel\.com\b'
+retrieval:
+  aliases:
+    - vercel rest api
+    - vercel mcp
+    - platform api
+    - vercel sdk
+  intents:
+    - call vercel api
+    - use mcp server
+    - manage deployments via api
+    - query vercel data
+  entities:
+    - MCP
+    - REST API
+    - vercel api
+    - deployments
+    - domains
+
 ---
 
 # Vercel API — MCP Server & REST API

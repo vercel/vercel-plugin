@@ -48,6 +48,25 @@ metadata:
     - '\byarn\s+add\s+[^\n]*datocms-client\b'
     - '\bnpx\s+create-sanity\b'
     - '\bnpx\s+sanity\s+init\b'
+retrieval:
+  aliases:
+    - headless cms
+    - content management
+    - sanity
+    - contentful
+  intents:
+    - add cms
+    - set up content management
+    - configure preview mode
+    - create content model
+  entities:
+    - Sanity
+    - Contentful
+    - DatoCMS
+    - Storyblok
+    - Visual Editing
+    - revalidation
+
 ---
 
 # Headless CMS Integration

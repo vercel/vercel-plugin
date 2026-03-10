@@ -301,6 +301,24 @@ validate:
     message: "Workflow files should import and use logging — add console.log or a logger at key execution points for debugging"
     severity: warn
     skipIfFileContains: "console\\.(log|warn|error|info)"
+retrieval:
+  aliases:
+    - durable workflow
+    - long running task
+    - step function
+    - orchestration
+  intents:
+    - build workflow
+    - add retry logic
+    - create durable task
+    - implement step function
+  entities:
+    - Workflow DevKit
+    - WDK
+    - step
+    - pause/resume
+    - durable
+
 ---
 
 # Vercel Workflow DevKit (WDK)

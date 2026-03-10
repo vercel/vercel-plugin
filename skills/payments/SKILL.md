@@ -31,6 +31,24 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@stripe/react-stripe-js\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@stripe/react-stripe-js\b'
     - '\byarn\s+add\s+[^\n]*@stripe/react-stripe-js\b'
+retrieval:
+  aliases:
+    - stripe
+    - billing
+    - checkout
+    - subscriptions
+  intents:
+    - add payments
+    - set up stripe
+    - implement checkout
+    - handle subscriptions
+  entities:
+    - Stripe
+    - checkout
+    - webhook
+    - subscription
+    - payment intent
+
 ---
 
 # Stripe Payments Integration

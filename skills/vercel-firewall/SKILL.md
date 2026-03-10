@@ -15,6 +15,25 @@ metadata:
       - 'WAF'
       - 'DDoS protection'
     minScore: 6
+retrieval:
+  aliases:
+    - waf
+    - ddos protection
+    - security rules
+    - rate limiting
+  intents:
+    - configure firewall
+    - add rate limiting
+    - block ips
+    - set up waf rules
+  entities:
+    - WAF
+    - DDoS
+    - rate limiting
+    - IP block
+    - OWASP
+    - Attack Challenge Mode
+
 ---
 
 # Vercel Firewall

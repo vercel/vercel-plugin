@@ -18,6 +18,23 @@ metadata:
       - 'use v0'
       - 'v0 generate'
     minScore: 6
+retrieval:
+  aliases:
+    - v0
+    - ai code gen
+    - ui generator
+    - prompt to code
+  intents:
+    - generate ui with v0
+    - use v0 cli
+    - integrate v0 sdk
+    - create component from prompt
+  entities:
+    - v0
+    - v0 CLI
+    - v0 SDK
+    - AI code generation
+
 ---
 
 # v0 by Vercel

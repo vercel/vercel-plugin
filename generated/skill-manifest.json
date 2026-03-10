@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-10T00:56:05.898Z",
+  "generatedAt": "2026-03-10T08:54:13.059Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -29,7 +29,28 @@
       "bashRegexSources": [
         "\\bvercel\\s+agent\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "ai code review",
+          "incident debugger",
+          "vercel ai tools",
+          "pr analyzer"
+        ],
+        "intents": [
+          "set up vercel agent",
+          "automate code review",
+          "investigate incident",
+          "configure ai tools"
+        ],
+        "entities": [
+          "Vercel Agent",
+          "code review",
+          "incident investigation",
+          "SDK"
+        ],
+        "examples": []
+      }
     },
     "routing-middleware": {
       "priority": 6,
@@ -86,7 +107,29 @@
       "bashRegexSources": [
         "\\bnpx\\s+@vercel/config\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "request interceptor",
+          "middleware",
+          "rewrite rules",
+          "redirect rules"
+        ],
+        "intents": [
+          "intercept requests",
+          "add middleware",
+          "configure rewrites",
+          "set up redirects"
+        ],
+        "entities": [
+          "middleware",
+          "rewrite",
+          "redirect",
+          "personalization",
+          "Edge"
+        ],
+        "examples": []
+      }
     },
     "agent-browser-verify": {
       "priority": 2,
@@ -212,6 +255,27 @@
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "browser verify",
+          "dev server check",
+          "visual check",
+          "page verification"
+        ],
+        "intents": [
+          "verify dev server",
+          "check page loads",
+          "find console errors",
+          "validate UI"
+        ],
+        "entities": [
+          "dev server",
+          "console errors",
+          "visual check",
+          "gut-check"
+        ],
+        "examples": []
       }
     },
     "micro": {
@@ -249,7 +313,28 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]micro-dev(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "microservice",
+          "http server",
+          "lightweight api",
+          "micro framework"
+        ],
+        "intents": [
+          "create microservice",
+          "build http server",
+          "set up api endpoint",
+          "use micro"
+        ],
+        "entities": [
+          "micro",
+          "microservice",
+          "HTTP",
+          "async handler"
+        ],
+        "examples": []
+      }
     },
     "agent-browser": {
       "priority": 3,
@@ -308,7 +393,30 @@
         "\\bplaywright\\b",
         "\\bcypress\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "browser automation",
+          "puppeteer",
+          "playwright",
+          "web scraping"
+        ],
+        "intents": [
+          "automate browser",
+          "take screenshot",
+          "test web app",
+          "fill form",
+          "click button"
+        ],
+        "entities": [
+          "Puppeteer",
+          "Playwright",
+          "screenshot",
+          "browser",
+          "headless"
+        ],
+        "examples": []
+      }
     },
     "json-render": {
       "priority": 4,
@@ -337,7 +445,28 @@
         "^src\\/components\\/message[^/]*\\.tsx$"
       ],
       "bashRegexSources": [],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "chat rendering",
+          "ai response display",
+          "message parts",
+          "tool call ui"
+        ],
+        "intents": [
+          "render chat messages",
+          "display tool calls",
+          "show streaming response",
+          "format ai output"
+        ],
+        "entities": [
+          "UIMessage",
+          "tool call",
+          "streaming",
+          "message parts"
+        ],
+        "examples": []
+      }
     },
     "payments": {
       "priority": 5,
@@ -404,7 +533,29 @@
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
         "\\byarn\\s+add\\s+[^\\n]*@stripe/react-stripe-js\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "stripe",
+          "billing",
+          "checkout",
+          "subscriptions"
+        ],
+        "intents": [
+          "add payments",
+          "set up stripe",
+          "implement checkout",
+          "handle subscriptions"
+        ],
+        "entities": [
+          "Stripe",
+          "checkout",
+          "webhook",
+          "subscription",
+          "payment intent"
+        ],
+        "examples": []
+      }
     },
     "deployments-cicd": {
       "priority": 6,
@@ -445,7 +596,30 @@
         "\\bvercel\\s+build\\b",
         "\\bvercel\\s+deploy\\s+--prebuilt\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "deploy",
+          "ci cd",
+          "continuous deployment",
+          "release pipeline"
+        ],
+        "intents": [
+          "deploy to vercel",
+          "set up ci cd",
+          "promote deployment",
+          "rollback deploy"
+        ],
+        "entities": [
+          "vercel deploy",
+          "preview",
+          "production",
+          "rollback",
+          "promote",
+          "CI workflow"
+        ],
+        "examples": []
+      }
     },
     "vercel-storage": {
       "priority": 7,
@@ -640,7 +814,29 @@
           "message": "@vercel/postgres is deprecated — use @neondatabase/serverless with drizzle-orm instead",
           "severity": "error"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "database",
+          "blob storage",
+          "redis",
+          "postgres"
+        ],
+        "intents": [
+          "add storage",
+          "set up database",
+          "configure blob storage",
+          "use edge config"
+        ],
+        "entities": [
+          "Blob",
+          "Edge Config",
+          "Neon Postgres",
+          "Upstash Redis",
+          "Vercel Storage"
+        ],
+        "examples": []
+      }
     },
     "ncc": {
       "priority": 4,
@@ -670,7 +866,28 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/ncc(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "node bundler",
+          "single file bundle",
+          "ncc compiler",
+          "node compiler"
+        ],
+        "intents": [
+          "bundle node module",
+          "compile to single file",
+          "package serverless function",
+          "use ncc"
+        ],
+        "entities": [
+          "@vercel/ncc",
+          "ncc",
+          "bundle",
+          "single file"
+        ],
+        "examples": []
+      }
     },
     "investigation-mode": {
       "priority": 8,
@@ -981,6 +1198,27 @@
           "style the button"
         ],
         "minScore": 4
+      },
+      "retrieval": {
+        "aliases": [
+          "debug helper",
+          "troubleshooter",
+          "stuck helper",
+          "problem solver"
+        ],
+        "intents": [
+          "debug issue",
+          "fix stuck app",
+          "investigate error",
+          "triage problem"
+        ],
+        "entities": [
+          "runtime logs",
+          "workflow status",
+          "browser verify",
+          "triage"
+        ],
+        "examples": []
       }
     },
     "bootstrap": {
@@ -1070,7 +1308,28 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]better-auth(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "project setup",
+          "repo init",
+          "getting started",
+          "scaffold"
+        ],
+        "intents": [
+          "set up project",
+          "initialize repo",
+          "link vercel project",
+          "pull env vars"
+        ],
+        "entities": [
+          "vercel link",
+          "env pull",
+          "database setup",
+          "first run"
+        ],
+        "examples": []
+      }
     },
     "vercel-cli": {
       "priority": 4,
@@ -1169,6 +1428,28 @@
           "heroku"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "vercel command line",
+          "vc cli",
+          "deploy command",
+          "vercel terminal"
+        ],
+        "intents": [
+          "deploy from cli",
+          "link project",
+          "manage domains",
+          "view logs from terminal"
+        ],
+        "entities": [
+          "vercel CLI",
+          "vercel deploy",
+          "vercel env",
+          "vercel link",
+          "vercel logs"
+        ],
+        "examples": []
       }
     },
     "runtime-cache": {
@@ -1200,7 +1481,28 @@
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/functions\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/functions\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "cache api",
+          "kv cache",
+          "region cache",
+          "tag invalidation"
+        ],
+        "intents": [
+          "add caching",
+          "cache api response",
+          "invalidate cache",
+          "set up runtime cache"
+        ],
+        "entities": [
+          "Runtime Cache",
+          "tag-based invalidation",
+          "key-value",
+          "cache"
+        ],
+        "examples": []
+      }
     },
     "ai-gateway": {
       "priority": 7,
@@ -1272,7 +1574,29 @@
           "message": "Your knowledge is outdated — gemini-2.0-flash-001 does not support image output. Use model: \"google/gemini-3.1-flash-image-preview\" for image generation — it is the latest and best model",
           "severity": "warn"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "model router",
+          "ai proxy",
+          "provider failover",
+          "llm gateway"
+        ],
+        "intents": [
+          "route ai models",
+          "configure failover",
+          "track ai costs",
+          "manage providers"
+        ],
+        "entities": [
+          "AI Gateway",
+          "model routing",
+          "provider",
+          "failover",
+          "cost tracking"
+        ],
+        "examples": []
+      }
     },
     "auth": {
       "priority": 6,
@@ -1339,7 +1663,36 @@
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "authentication",
+          "login system",
+          "sign in",
+          "auth flow"
+        ],
+        "intents": [
+          "add auth",
+          "protect routes",
+          "manage sessions",
+          "implement login",
+          "secure api endpoints"
+        ],
+        "entities": [
+          "NextAuth",
+          "Auth.js",
+          "JWT",
+          "OAuth",
+          "session",
+          "middleware",
+          "getServerSession"
+        ],
+        "examples": [
+          "add login to my app",
+          "protect this route with auth",
+          "set up NextAuth"
+        ]
+      }
     },
     "ai-generation-persistence": {
       "priority": 6,
@@ -1500,6 +1853,27 @@
           "ci workflow"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "ai storage",
+          "generation history",
+          "llm persistence",
+          "ai audit"
+        ],
+        "intents": [
+          "save ai generations",
+          "track llm costs",
+          "store completions",
+          "persist ai output"
+        ],
+        "entities": [
+          "generation ID",
+          "addressable URL",
+          "cost tracking",
+          "LLM generation"
+        ],
+        "examples": []
       }
     },
     "vercel-queues": {
@@ -1567,7 +1941,29 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/workflow(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "message queue",
+          "event streaming",
+          "async processing",
+          "task queue"
+        ],
+        "intents": [
+          "add message queue",
+          "process events async",
+          "set up fan out",
+          "configure retries"
+        ],
+        "entities": [
+          "Vercel Queues",
+          "topics",
+          "consumer groups",
+          "delayed delivery",
+          "Workflow DevKit"
+        ],
+        "examples": []
+      }
     },
     "turbopack": {
       "priority": 4,
@@ -1588,7 +1984,28 @@
         "\\bnext\\s+dev\\s+--turbo\\b",
         "\\bnext\\s+dev\\s+--turbopack\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "next bundler",
+          "turbopack",
+          "fast bundler",
+          "hmr"
+        ],
+        "intents": [
+          "enable turbopack",
+          "fix build issue",
+          "speed up dev server",
+          "configure bundler"
+        ],
+        "entities": [
+          "Turbopack",
+          "HMR",
+          "bundler",
+          "next dev --turbopack"
+        ],
+        "examples": []
+      }
     },
     "marketplace": {
       "priority": 3,
@@ -1611,7 +2028,28 @@
         "\\bvercel\\s+integration\\s+add\\b",
         "\\bvercel\\s+integration\\s+discover\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "vercel integrations",
+          "marketplace",
+          "third party services",
+          "add ons"
+        ],
+        "intents": [
+          "install integration",
+          "build integration",
+          "manage marketplace",
+          "add third party service"
+        ],
+        "entities": [
+          "Vercel Marketplace",
+          "integration",
+          "vercel integration",
+          "unified billing"
+        ],
+        "examples": []
+      }
     },
     "vercel-flags": {
       "priority": 6,
@@ -1709,7 +2147,29 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@flags-sdk\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "feature flags",
+          "feature toggles",
+          "ab testing",
+          "gradual rollout"
+        ],
+        "intents": [
+          "add feature flag",
+          "set up ab test",
+          "configure rollout",
+          "manage feature toggles"
+        ],
+        "entities": [
+          "Flags Explorer",
+          "feature flag",
+          "A/B test",
+          "rollout",
+          "provider adapter"
+        ],
+        "examples": []
+      }
     },
     "shadcn": {
       "priority": 6,
@@ -1750,7 +2210,29 @@
         "\\bpnpm\\s+create\\s+next-app\\b",
         "\\bnpm\\s+create\\s+next-app\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "shadcn ui",
+          "component library",
+          "ui components",
+          "tailwind components"
+        ],
+        "intents": [
+          "add shadcn component",
+          "set up shadcn",
+          "customize theme",
+          "build ui"
+        ],
+        "entities": [
+          "shadcn/ui",
+          "Tailwind CSS",
+          "registry",
+          "theme",
+          "components.json"
+        ],
+        "examples": []
+      }
     },
     "cron-jobs": {
       "priority": 6,
@@ -1767,7 +2249,28 @@
         "^apps\\/[^/]*\\/vercel\\.json$"
       ],
       "bashRegexSources": [],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "scheduled tasks",
+          "cron",
+          "recurring jobs",
+          "timed execution"
+        ],
+        "intents": [
+          "add cron job",
+          "schedule task",
+          "set up recurring job",
+          "configure cron"
+        ],
+        "entities": [
+          "vercel.json",
+          "cron",
+          "schedule",
+          "cron expression"
+        ],
+        "examples": []
+      }
     },
     "observability": {
       "priority": 6,
@@ -1980,6 +2483,28 @@
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "monitoring",
+          "logging",
+          "analytics",
+          "performance tracking"
+        ],
+        "intents": [
+          "add monitoring",
+          "set up logging",
+          "track performance",
+          "configure analytics"
+        ],
+        "entities": [
+          "Web Analytics",
+          "Speed Insights",
+          "OpenTelemetry",
+          "Drains",
+          "runtime logs"
+        ],
+        "examples": []
       }
     },
     "verification": {
@@ -2082,6 +2607,28 @@
           "cypress test"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "end to end test",
+          "full stack verify",
+          "flow test",
+          "integration check"
+        ],
+        "intents": [
+          "verify full flow",
+          "test end to end",
+          "check if app works",
+          "validate implementation"
+        ],
+        "entities": [
+          "browser",
+          "API",
+          "data flow",
+          "end-to-end",
+          "verification"
+        ],
+        "examples": []
       }
     },
     "cms": {
@@ -2183,7 +2730,30 @@
         "\\bnpx\\s+create-sanity\\b",
         "\\bnpx\\s+sanity\\s+init\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "headless cms",
+          "content management",
+          "sanity",
+          "contentful"
+        ],
+        "intents": [
+          "add cms",
+          "set up content management",
+          "configure preview mode",
+          "create content model"
+        ],
+        "entities": [
+          "Sanity",
+          "Contentful",
+          "DatoCMS",
+          "Storyblok",
+          "Visual Editing",
+          "revalidation"
+        ],
+        "examples": []
+      }
     },
     "geist": {
       "priority": 4,
@@ -2243,7 +2813,28 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "vercel font",
+          "geist font",
+          "typography",
+          "font family"
+        ],
+        "intents": [
+          "add geist font",
+          "configure typography",
+          "set up fonts",
+          "use vercel font"
+        ],
+        "entities": [
+          "Geist Sans",
+          "Geist Mono",
+          "Geist Pixel",
+          "next/font"
+        ],
+        "examples": []
+      }
     },
     "workflow": {
       "priority": 9,
@@ -2797,6 +3388,28 @@
           "aws step functions"
         ],
         "minScore": 4
+      },
+      "retrieval": {
+        "aliases": [
+          "durable workflow",
+          "long running task",
+          "step function",
+          "orchestration"
+        ],
+        "intents": [
+          "build workflow",
+          "add retry logic",
+          "create durable task",
+          "implement step function"
+        ],
+        "entities": [
+          "Workflow DevKit",
+          "WDK",
+          "step",
+          "pause/resume",
+          "durable"
+        ],
+        "examples": []
       }
     },
     "react-best-practices": {
@@ -2838,7 +3451,29 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]react-dom(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "react review",
+          "component quality",
+          "tsx linter",
+          "react patterns"
+        ],
+        "intents": [
+          "review react code",
+          "improve component quality",
+          "check accessibility",
+          "optimize react"
+        ],
+        "entities": [
+          "hooks",
+          "accessibility",
+          "React",
+          "TSX",
+          "component"
+        ],
+        "examples": []
+      }
     },
     "nextjs": {
       "priority": 5,
@@ -3000,6 +3635,29 @@
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "next.js",
+          "nextjs app",
+          "react framework",
+          "app router"
+        ],
+        "intents": [
+          "build nextjs app",
+          "configure app router",
+          "add server component",
+          "set up nextjs routing"
+        ],
+        "entities": [
+          "App Router",
+          "Server Components",
+          "Server Actions",
+          "layout",
+          "middleware",
+          "next.config"
+        ],
+        "examples": []
       }
     },
     "ai-elements": {
@@ -3184,6 +3842,28 @@
           "changelog"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "ai components",
+          "chat components",
+          "ai ui kit",
+          "ai interface"
+        ],
+        "intents": [
+          "build chat ui",
+          "render tool calls",
+          "show streaming response",
+          "add reasoning panel"
+        ],
+        "entities": [
+          "AIMessage",
+          "ToolCallDisplay",
+          "StreamingMessage",
+          "ReasoningPanel",
+          "shadcn"
+        ],
+        "examples": []
       }
     },
     "vercel-sandbox": {
@@ -3345,6 +4025,27 @@
           "stackblitz"
         ],
         "minScore": 4
+      },
+      "retrieval": {
+        "aliases": [
+          "code sandbox",
+          "microvm",
+          "isolated execution",
+          "safe code runner"
+        ],
+        "intents": [
+          "run untrusted code",
+          "execute code safely",
+          "create sandbox",
+          "isolate code execution"
+        ],
+        "entities": [
+          "Vercel Sandbox",
+          "Firecracker",
+          "microVM",
+          "isolated execution"
+        ],
+        "examples": []
       }
     },
     "satori": {
@@ -3430,7 +4131,28 @@
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]next\\/og(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "og image",
+          "social image",
+          "html to svg",
+          "open graph"
+        ],
+        "intents": [
+          "generate og image",
+          "create social image",
+          "convert html to svg",
+          "dynamic og"
+        ],
+        "entities": [
+          "Satori",
+          "OG image",
+          "SVG",
+          "open graph"
+        ],
+        "examples": []
+      }
     },
     "chat-sdk": {
       "priority": 8,
@@ -3603,6 +4325,32 @@
           "useChat"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "chat ui",
+          "chatbot",
+          "conversation interface",
+          "messaging component"
+        ],
+        "intents": [
+          "build chatbot",
+          "add chat interface",
+          "create messaging ui",
+          "implement chat feature"
+        ],
+        "entities": [
+          "useChat",
+          "Message",
+          "ChatUI",
+          "StreamingMessage",
+          "chat-sdk"
+        ],
+        "examples": [
+          "build a chatbot interface",
+          "add chat to my app",
+          "create a messaging component"
+        ]
       }
     },
     "turborepo": {
@@ -3635,7 +4383,29 @@
           "message": "turbo.json \"pipeline\" was renamed to \"tasks\" in Turborepo v2 — update to \"tasks\" key",
           "severity": "error"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "monorepo",
+          "turbo",
+          "workspace builds",
+          "task runner"
+        ],
+        "intents": [
+          "set up monorepo",
+          "configure turbo",
+          "optimize build caching",
+          "run tasks in parallel"
+        ],
+        "entities": [
+          "Turborepo",
+          "turbo.json",
+          "remote caching",
+          "--affected",
+          "pipeline"
+        ],
+        "examples": []
+      }
     },
     "ai-sdk": {
       "priority": 8,
@@ -3902,6 +4672,34 @@
           "openai api directly"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "vercel ai",
+          "ai sdk",
+          "ai library",
+          "ai module"
+        ],
+        "intents": [
+          "add ai to app",
+          "integrate language model",
+          "stream ai response",
+          "generate text with ai",
+          "build ai feature"
+        ],
+        "entities": [
+          "useChat",
+          "useCompletion",
+          "streamText",
+          "generateText",
+          "CoreMessage",
+          "AI SDK"
+        ],
+        "examples": [
+          "I want to add AI chat to my app",
+          "how do I stream responses from a language model",
+          "integrate vercel ai sdk"
+        ]
       }
     },
     "v0-dev": {
@@ -3945,6 +4743,27 @@
         "anyOf": [],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "v0",
+          "ai code gen",
+          "ui generator",
+          "prompt to code"
+        ],
+        "intents": [
+          "generate ui with v0",
+          "use v0 cli",
+          "integrate v0 sdk",
+          "create component from prompt"
+        ],
+        "entities": [
+          "v0",
+          "v0 CLI",
+          "v0 SDK",
+          "AI code generation"
+        ],
+        "examples": []
       }
     },
     "env-vars": {
@@ -3988,7 +4807,28 @@
         "\\bvercel\\s+env\\s+rm\\b",
         "\\bvercel\\s+env\\s+ls\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "environment variables",
+          "env file",
+          "secrets",
+          "config vars"
+        ],
+        "intents": [
+          "set env var",
+          "manage secrets",
+          "pull env vars",
+          "configure environment"
+        ],
+        "entities": [
+          ".env",
+          "vercel env",
+          "OIDC",
+          "environment variable"
+        ],
+        "examples": []
+      }
     },
     "email": {
       "priority": 4,
@@ -4061,7 +4901,28 @@
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
         "\\byarn\\s+add\\s+[^\\n]*react-email\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "send email",
+          "transactional email",
+          "resend",
+          "react email"
+        ],
+        "intents": [
+          "send email",
+          "set up email",
+          "create email template",
+          "verify domain for email"
+        ],
+        "entities": [
+          "Resend",
+          "React Email",
+          "transactional",
+          "domain verification"
+        ],
+        "examples": []
+      }
     },
     "vercel-api": {
       "priority": 7,
@@ -4092,7 +4953,29 @@
         "\\bclaude\\s+mcp\\s+add\\b[^\\n]*\\bvercel\\b",
         "\\bmcp\\.vercel\\.com\\b"
       ],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "vercel rest api",
+          "vercel mcp",
+          "platform api",
+          "vercel sdk"
+        ],
+        "intents": [
+          "call vercel api",
+          "use mcp server",
+          "manage deployments via api",
+          "query vercel data"
+        ],
+        "entities": [
+          "MCP",
+          "REST API",
+          "vercel api",
+          "deployments",
+          "domains"
+        ],
+        "examples": []
+      }
     },
     "sign-in-with-vercel": {
       "priority": 6,
@@ -4115,7 +4998,27 @@
         "^pages\\/api\\/auth\\/.*$"
       ],
       "bashRegexSources": [],
-      "importRegexSources": []
+      "importRegexSources": [],
+      "retrieval": {
+        "aliases": [
+          "vercel oauth",
+          "vercel login",
+          "vercel identity",
+          "oauth provider"
+        ],
+        "intents": [
+          "add vercel login",
+          "implement oauth with vercel",
+          "use vercel as identity provider"
+        ],
+        "entities": [
+          "OAuth 2.0",
+          "OIDC",
+          "Sign in with Vercel",
+          "identity provider"
+        ],
+        "examples": []
+      }
     },
     "next-forge": {
       "priority": 6,
@@ -4370,6 +5273,28 @@
           "create-t3-app"
         ],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "saas starter",
+          "monorepo starter",
+          "next forge",
+          "turborepo template"
+        ],
+        "intents": [
+          "scaffold saas",
+          "set up next-forge",
+          "create monorepo project",
+          "use next-forge"
+        ],
+        "entities": [
+          "next-forge",
+          "@repo/*",
+          "Turborepo",
+          "monorepo",
+          "SaaS starter"
+        ],
+        "examples": []
       }
     },
     "vercel-firewall": {
@@ -4402,6 +5327,29 @@
         "anyOf": [],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "waf",
+          "ddos protection",
+          "security rules",
+          "rate limiting"
+        ],
+        "intents": [
+          "configure firewall",
+          "add rate limiting",
+          "block ips",
+          "set up waf rules"
+        ],
+        "entities": [
+          "WAF",
+          "DDoS",
+          "rate limiting",
+          "IP block",
+          "OWASP",
+          "Attack Challenge Mode"
+        ],
+        "examples": []
       }
     },
     "edge-runtime": {
@@ -4498,6 +5446,27 @@
         "anyOf": [],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "edge functions",
+          "edge middleware",
+          "lightweight runtime",
+          "edge computing"
+        ],
+        "intents": [
+          "run code at edge",
+          "create edge function",
+          "configure edge middleware",
+          "use edge runtime"
+        ],
+        "entities": [
+          "Edge Runtime",
+          "Edge Functions",
+          "middleware",
+          "EdgeFunction"
+        ],
+        "examples": []
       }
     },
     "vercel-functions": {
@@ -4551,7 +5520,29 @@
           "message": "NextApiRequest/NextApiResponse are Pages Router types — use Web API Request/Response",
           "severity": "error"
         }
-      ]
+      ],
+      "retrieval": {
+        "aliases": [
+          "serverless functions",
+          "api routes",
+          "edge functions",
+          "lambda"
+        ],
+        "intents": [
+          "create serverless function",
+          "configure function runtime",
+          "optimize cold starts",
+          "add api route"
+        ],
+        "entities": [
+          "Serverless Functions",
+          "Edge Functions",
+          "Fluid Compute",
+          "streaming",
+          "Cron Jobs"
+        ],
+        "examples": []
+      }
     },
     "swr": {
       "priority": 4,
@@ -4627,6 +5618,28 @@
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "data fetching",
+          "client cache",
+          "stale while revalidate",
+          "react hooks data"
+        ],
+        "intents": [
+          "fetch data client side",
+          "add caching",
+          "implement pagination",
+          "use swr"
+        ],
+        "entities": [
+          "SWR",
+          "useSWR",
+          "mutate",
+          "revalidation",
+          "stale-while-revalidate"
+        ],
+        "examples": []
       }
     }
   }

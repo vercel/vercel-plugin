@@ -36,6 +36,24 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\bbun\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\byarn\s+add\s+[^\n]*@flags-sdk/'
+retrieval:
+  aliases:
+    - feature flags
+    - feature toggles
+    - ab testing
+    - gradual rollout
+  intents:
+    - add feature flag
+    - set up ab test
+    - configure rollout
+    - manage feature toggles
+  entities:
+    - Flags Explorer
+    - feature flag
+    - A/B test
+    - rollout
+    - provider adapter
+
 ---
 
 # Vercel Flags

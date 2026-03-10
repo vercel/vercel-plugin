@@ -56,6 +56,24 @@ metadata:
       - "playwright test"
       - "cypress test"
     minScore: 6
+retrieval:
+  aliases:
+    - end to end test
+    - full stack verify
+    - flow test
+    - integration check
+  intents:
+    - verify full flow
+    - test end to end
+    - check if app works
+    - validate implementation
+  entities:
+    - browser
+    - API
+    - data flow
+    - end-to-end
+    - verification
+
 ---
 
 # Full-Story Verification

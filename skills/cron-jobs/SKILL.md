@@ -7,6 +7,23 @@ metadata:
     - 'vercel.json'
     - 'apps/*/vercel.json'
   bashPatterns: []
+retrieval:
+  aliases:
+    - scheduled tasks
+    - cron
+    - recurring jobs
+    - timed execution
+  intents:
+    - add cron job
+    - schedule task
+    - set up recurring job
+    - configure cron
+  entities:
+    - vercel.json
+    - cron
+    - schedule
+    - cron expression
+
 ---
 
 # Vercel Cron Jobs

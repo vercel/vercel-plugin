@@ -16,6 +16,24 @@ metadata:
   importPatterns:
     - 'react'
     - 'react-dom'
+retrieval:
+  aliases:
+    - react review
+    - component quality
+    - tsx linter
+    - react patterns
+  intents:
+    - review react code
+    - improve component quality
+    - check accessibility
+    - optimize react
+  entities:
+    - hooks
+    - accessibility
+    - React
+    - TSX
+    - component
+
 ---
 
 # React Best-Practices Review

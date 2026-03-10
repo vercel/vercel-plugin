@@ -103,6 +103,24 @@ validate:
     pattern: '@ts-nocheck'
     message: 'Do not add @ts-nocheck — this means you installed an AI Elements component with a type conflict. Delete unused components, or reinstall the broken one: npx shadcn@latest add https://elements.ai-sdk.dev/api/registry/<component>.json --overwrite'
     severity: error
+retrieval:
+  aliases:
+    - ai components
+    - chat components
+    - ai ui kit
+    - ai interface
+  intents:
+    - build chat ui
+    - render tool calls
+    - show streaming response
+    - add reasoning panel
+  entities:
+    - AIMessage
+    - ToolCallDisplay
+    - StreamingMessage
+    - ReasoningPanel
+    - shadcn
+
 ---
 
 # AI Elements

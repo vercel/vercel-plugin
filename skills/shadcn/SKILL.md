@@ -18,6 +18,24 @@ metadata:
     - '\bbunx\s+create-next-app\b'
     - '\bpnpm\s+create\s+next-app\b'
     - '\bnpm\s+create\s+next-app\b'
+retrieval:
+  aliases:
+    - shadcn ui
+    - component library
+    - ui components
+    - tailwind components
+  intents:
+    - add shadcn component
+    - set up shadcn
+    - customize theme
+    - build ui
+  entities:
+    - shadcn/ui
+    - Tailwind CSS
+    - registry
+    - theme
+    - components.json
+
 ---
 
 # shadcn/ui

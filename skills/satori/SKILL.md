@@ -34,6 +34,23 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/og\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/og\b'
     - '\byarn\s+add\s+[^\n]*@vercel/og\b'
+retrieval:
+  aliases:
+    - og image
+    - social image
+    - html to svg
+    - open graph
+  intents:
+    - generate og image
+    - create social image
+    - convert html to svg
+    - dynamic og
+  entities:
+    - Satori
+    - OG image
+    - SVG
+    - open graph
+
 ---
 
 # Satori — HTML/CSS to SVG for OG Images

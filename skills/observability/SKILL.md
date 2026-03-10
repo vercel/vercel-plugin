@@ -122,6 +122,24 @@ validate:
     message: "API route handlers should include error logging — wrap in try/catch with console.error for production debugging"
     severity: warn
     skipIfFileContains: "console\\.error|logger\\.|captureException|Sentry"
+retrieval:
+  aliases:
+    - monitoring
+    - logging
+    - analytics
+    - performance tracking
+  intents:
+    - add monitoring
+    - set up logging
+    - track performance
+    - configure analytics
+  entities:
+    - Web Analytics
+    - Speed Insights
+    - OpenTelemetry
+    - Drains
+    - runtime logs
+
 ---
 
 # Vercel Observability

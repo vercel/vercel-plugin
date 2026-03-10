@@ -28,6 +28,24 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/queue\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/queue\b'
     - '\byarn\s+add\s+[^\n]*@vercel/queue\b'
+retrieval:
+  aliases:
+    - message queue
+    - event streaming
+    - async processing
+    - task queue
+  intents:
+    - add message queue
+    - process events async
+    - set up fan out
+    - configure retries
+  entities:
+    - Vercel Queues
+    - topics
+    - consumer groups
+    - delayed delivery
+    - Workflow DevKit
+
 ---
 
 # Vercel Queues

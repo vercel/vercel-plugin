@@ -282,7 +282,20 @@ function parseSkillFrontmatter(yamlStr) {
     description: typeof doc.description === "string" ? doc.description : "",
     summary: typeof doc.summary === "string" ? doc.summary : "",
     metadata: doc.metadata != null && typeof doc.metadata === "object" && !Array.isArray(doc.metadata) ? doc.metadata : {},
-    validate: parseValidateRules(doc.validate)
+    validate: parseValidateRules(doc.validate),
+    ...doc.retrieval != null && typeof doc.retrieval === "object" && !Array.isArray(doc.retrieval) ? { retrieval: parseRetrievalBlock(doc.retrieval) } : {}
+  };
+}
+function parseRetrievalBlock(raw) {
+  const toStringArray = (v) => {
+    if (!Array.isArray(v)) return [];
+    return v.filter((s) => typeof s === "string" && s !== "");
+  };
+  return {
+    aliases: toStringArray(raw.aliases),
+    intents: toStringArray(raw.intents),
+    entities: toStringArray(raw.entities),
+    examples: toStringArray(raw.examples)
   };
 }
 function scanSkillsDir(rootDir) {
@@ -323,7 +336,8 @@ function scanSkillsDir(rootDir) {
       description: parsed.description,
       summary: parsed.summary,
       metadata: parsed.metadata,
-      validate: parsed.validate
+      validate: parsed.validate,
+      ...parsed.retrieval ? { retrieval: parsed.retrieval } : {}
     });
   }
   return { skills, diagnostics };
@@ -560,6 +574,9 @@ function buildSkillMap(rootDir) {
     if (promptSignals) {
       entry.promptSignals = promptSignals;
     }
+    if (skill.retrieval) {
+      entry.retrieval = skill.retrieval;
+    }
     skills[skill.dir] = entry;
   }
   return {
@@ -576,7 +593,8 @@ const KNOWN_KEYS = /* @__PURE__ */ new Set([
   "bashPatterns",
   "importPatterns",
   "validate",
-  "promptSignals"
+  "promptSignals",
+  "retrieval"
 ]);
 function validateSkillMap(raw) {
   const errors = [];
@@ -725,6 +743,9 @@ function validateSkillMap(raw) {
     };
     if (promptSignals) {
       normalizedEntry.promptSignals = promptSignals;
+    }
+    if (cfg.retrieval != null && typeof cfg.retrieval === "object" && !Array.isArray(cfg.retrieval)) {
+      normalizedEntry.retrieval = cfg.retrieval;
     }
     normalizedSkills[skill] = normalizedEntry;
   }

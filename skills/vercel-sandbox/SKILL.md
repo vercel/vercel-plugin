@@ -61,6 +61,23 @@ metadata:
       - "codesandbox.io"
       - "stackblitz"
     minScore: 4
+retrieval:
+  aliases:
+    - code sandbox
+    - microvm
+    - isolated execution
+    - safe code runner
+  intents:
+    - run untrusted code
+    - execute code safely
+    - create sandbox
+    - isolate code execution
+  entities:
+    - Vercel Sandbox
+    - Firecracker
+    - microVM
+    - isolated execution
+
 ---
 
 # Vercel Sandbox

@@ -112,6 +112,7 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
       importRegexSources,
       ...(config.validate?.length ? { validate: config.validate } : {}),
       ...(config.promptSignals ? { promptSignals: config.promptSignals } : {}),
+      ...(config.retrieval ? { retrieval: config.retrieval } : {}),
     };
   }
 

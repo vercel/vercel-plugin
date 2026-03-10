@@ -9,6 +9,23 @@ metadata:
     - '\bvercel\s+integration\b'
     - '\bvercel\s+integration\s+add\b'
     - '\bvercel\s+integration\s+discover\b'
+retrieval:
+  aliases:
+    - vercel integrations
+    - marketplace
+    - third party services
+    - add ons
+  intents:
+    - install integration
+    - build integration
+    - manage marketplace
+    - add third party service
+  entities:
+    - Vercel Marketplace
+    - integration
+    - vercel integration
+    - unified billing
+
 ---
 
 # Vercel Marketplace

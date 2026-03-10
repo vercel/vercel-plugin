@@ -26,6 +26,24 @@ metadata:
     - 'vercel.mts'
   bashPatterns:
     - '\bnpx\s+@vercel/config\b'
+retrieval:
+  aliases:
+    - request interceptor
+    - middleware
+    - rewrite rules
+    - redirect rules
+  intents:
+    - intercept requests
+    - add middleware
+    - configure rewrites
+    - set up redirects
+  entities:
+    - middleware
+    - rewrite
+    - redirect
+    - personalization
+    - Edge
+
 ---
 
 # Vercel Routing Middleware

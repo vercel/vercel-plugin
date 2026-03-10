@@ -74,6 +74,23 @@ validate:
     message: "Ensure this AI generation is persisted with a unique ID (nanoid/cuid2) — generations are expensive assets that should be saved and addressable via URL"
     severity: warn
     skipIfFileContains: "nanoid|cuid|createId|randomUUID|uuid"
+retrieval:
+  aliases:
+    - ai storage
+    - generation history
+    - llm persistence
+    - ai audit
+  intents:
+    - save ai generations
+    - track llm costs
+    - store completions
+    - persist ai output
+  entities:
+    - generation ID
+    - addressable URL
+    - cost tracking
+    - LLM generation
+
 ---
 
 # AI Generation Persistence

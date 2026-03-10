@@ -10,6 +10,22 @@ metadata:
     - 'src/app/login/**'
     - 'pages/api/auth/**'
   bashPatterns: []
+retrieval:
+  aliases:
+    - vercel oauth
+    - vercel login
+    - vercel identity
+    - oauth provider
+  intents:
+    - add vercel login
+    - implement oauth with vercel
+    - use vercel as identity provider
+  entities:
+    - OAuth 2.0
+    - OIDC
+    - Sign in with Vercel
+    - identity provider
+
 ---
 
 # Sign in with Vercel

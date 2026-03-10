@@ -51,6 +51,23 @@ validate:
     pattern: new\s+Function\s*\(
     message: 'new Function() is not allowed in Edge Runtime — refactor to avoid dynamic code evaluation'
     severity: error
+retrieval:
+  aliases:
+    - edge functions
+    - edge middleware
+    - lightweight runtime
+    - edge computing
+  intents:
+    - run code at edge
+    - create edge function
+    - configure edge middleware
+    - use edge runtime
+  entities:
+    - Edge Runtime
+    - Edge Functions
+    - middleware
+    - EdgeFunction
+
 ---
 
 # Edge Runtime — Vercel's Edge JavaScript Runtime

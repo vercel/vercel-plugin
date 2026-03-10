@@ -42,6 +42,24 @@ validate:
     pattern: gemini-2\.0-flash-001
     message: 'Your knowledge is outdated — gemini-2.0-flash-001 does not support image output. Use model: "google/gemini-3.1-flash-image-preview" for image generation — it is the latest and best model'
     severity: warn
+retrieval:
+  aliases:
+    - model router
+    - ai proxy
+    - provider failover
+    - llm gateway
+  intents:
+    - route ai models
+    - configure failover
+    - track ai costs
+    - manage providers
+  entities:
+    - AI Gateway
+    - model routing
+    - provider
+    - failover
+    - cost tracking
+
 ---
 
 # Vercel AI Gateway

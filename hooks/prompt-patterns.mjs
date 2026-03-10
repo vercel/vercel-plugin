@@ -108,16 +108,32 @@ function findMatchedPhrases(normalizedPrompt, compiled) {
   if (!compiled) return [];
   return compiled.phrases.filter((phrase) => normalizedPrompt.includes(phrase));
 }
+function adaptiveBoostTier(exactScore, minScore) {
+  if (exactScore <= 0) return { multiplier: 1.5, tier: "high" };
+  if (exactScore < minScore / 2) return { multiplier: 1.35, tier: "mid" };
+  return { multiplier: 1.1, tier: "low" };
+}
 function scorePromptWithLexical(prompt, skillSlug, compiled, lexicalHits) {
   const normalizedPrompt = normalizePromptText(prompt);
   const matchedPhrases = findMatchedPhrases(normalizedPrompt, compiled);
-  const exactScore = compiled ? matchPromptWithReason(normalizedPrompt, compiled).score : 0;
+  const exactResult = compiled ? matchPromptWithReason(normalizedPrompt, compiled) : { score: 0, matched: false };
+  const exactScore = exactResult.score;
   if (compiled && exactScore >= compiled.minScore) {
     return {
       score: exactScore,
       matchedPhrases,
       lexicalScore: 0,
-      source: "exact"
+      source: "exact",
+      boostTier: null
+    };
+  }
+  if (exactScore === -Infinity) {
+    return {
+      score: -Infinity,
+      matchedPhrases: [],
+      lexicalScore: 0,
+      source: "exact",
+      boostTier: null
     };
   }
   const lexicalHit = (lexicalHits ?? searchSkills(prompt)).find(
@@ -128,15 +144,19 @@ function scorePromptWithLexical(prompt, skillSlug, compiled, lexicalHits) {
       score: exactScore,
       matchedPhrases,
       lexicalScore: 0,
-      source: "exact"
+      source: "exact",
+      boostTier: null
     };
   }
-  const lexicalBoost = lexicalHit.score * 1.35;
+  const minScore = compiled?.minScore ?? 6;
+  const { multiplier, tier } = adaptiveBoostTier(exactScore, minScore);
+  const lexicalBoost = lexicalHit.score * multiplier;
   return {
     score: Math.max(exactScore, lexicalBoost),
     matchedPhrases,
     lexicalScore: lexicalHit.score,
-    source: lexicalBoost > exactScore ? "lexical" : matchedPhrases.length > 0 || exactScore > 0 ? "combined" : "lexical"
+    source: lexicalBoost > exactScore ? "lexical" : matchedPhrases.length > 0 || exactScore > 0 ? "combined" : "lexical",
+    boostTier: tier
   };
 }
 const FLOW_VERIFICATION_RE = /\b(?:loads?\s+but|submits?\s+but|redirects?\s+but|works?\s+(?:locally\s+)?but|saves?\s+but|sends?\s+but|returns?\s+but|fetches?\s+but|connects?\s+but|renders?\s+but|deploys?\s+but|builds?\s+but)\b/;
@@ -178,6 +198,7 @@ function classifyTroubleshootingIntent(normalizedPrompt) {
   return { intent: null, skills: [], reason: "no troubleshooting intent" };
 }
 export {
+  adaptiveBoostTier,
   classifyTroubleshootingIntent,
   compilePromptSignals,
   matchPromptWithReason,

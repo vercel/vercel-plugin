@@ -14,6 +14,23 @@ metadata:
     - '\byarn\s+add\s+[^\n]*\bmicro\b'
     - '\bnpx\s+micro\b'
     - '\bnpx\s+micro-dev\b'
+retrieval:
+  aliases:
+    - microservice
+    - http server
+    - lightweight api
+    - micro framework
+  intents:
+    - create microservice
+    - build http server
+    - set up api endpoint
+    - use micro
+  entities:
+    - micro
+    - microservice
+    - HTTP
+    - async handler
+
 ---
 
 # micro — Asynchronous HTTP Microservices

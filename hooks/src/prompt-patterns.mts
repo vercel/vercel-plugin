@@ -41,6 +41,8 @@ export interface CompiledPromptSignals {
 
 type LexicalHit = { skill: string; score: number };
 
+export type BoostTier = "high" | "mid" | "low" | null;
+
 // ---------------------------------------------------------------------------
 // Contraction expansion
 // ---------------------------------------------------------------------------
@@ -226,6 +228,22 @@ function findMatchedPhrases(
   return compiled.phrases.filter((phrase) => normalizedPrompt.includes(phrase));
 }
 
+/**
+ * Determine the adaptive boost multiplier based on exact score relative to minScore.
+ *
+ * - high (1.5x): exact === 0 — no exact signals matched at all
+ * - mid  (1.35x): exact > 0 but < minScore/2 — weak exact signal
+ * - low  (1.1x): exact >= minScore/2 but < minScore — near-threshold exact signal
+ */
+export function adaptiveBoostTier(
+  exactScore: number,
+  minScore: number,
+): { multiplier: number; tier: BoostTier } {
+  if (exactScore <= 0) return { multiplier: 1.5, tier: "high" };
+  if (exactScore < minScore / 2) return { multiplier: 1.35, tier: "mid" };
+  return { multiplier: 1.1, tier: "low" };
+}
+
 export function scorePromptWithLexical(
   prompt: string,
   skillSlug: string,
@@ -236,12 +254,14 @@ export function scorePromptWithLexical(
   matchedPhrases: string[];
   lexicalScore: number;
   source: "exact" | "lexical" | "combined";
+  boostTier: BoostTier;
 } {
   const normalizedPrompt = normalizePromptText(prompt);
   const matchedPhrases = findMatchedPhrases(normalizedPrompt, compiled);
-  const exactScore = compiled
-    ? matchPromptWithReason(normalizedPrompt, compiled).score
-    : 0;
+  const exactResult = compiled
+    ? matchPromptWithReason(normalizedPrompt, compiled)
+    : { score: 0, matched: false };
+  const exactScore = exactResult.score;
 
   if (compiled && exactScore >= compiled.minScore) {
     return {
@@ -249,6 +269,18 @@ export function scorePromptWithLexical(
       matchedPhrases,
       lexicalScore: 0,
       source: "exact",
+      boostTier: null,
+    };
+  }
+
+  // noneOf suppression: if exact score is -Infinity, never boost via lexical
+  if (exactScore === -Infinity) {
+    return {
+      score: -Infinity,
+      matchedPhrases: [],
+      lexicalScore: 0,
+      source: "exact",
+      boostTier: null,
     };
   }
 
@@ -261,10 +293,13 @@ export function scorePromptWithLexical(
       matchedPhrases,
       lexicalScore: 0,
       source: "exact",
+      boostTier: null,
     };
   }
 
-  const lexicalBoost = lexicalHit.score * 1.35;
+  const minScore = compiled?.minScore ?? 6;
+  const { multiplier, tier } = adaptiveBoostTier(exactScore, minScore);
+  const lexicalBoost = lexicalHit.score * multiplier;
   return {
     score: Math.max(exactScore, lexicalBoost),
     matchedPhrases,
@@ -275,6 +310,7 @@ export function scorePromptWithLexical(
         : matchedPhrases.length > 0 || exactScore > 0
           ? "combined"
           : "lexical",
+    boostTier: tier,
   };
 }
 

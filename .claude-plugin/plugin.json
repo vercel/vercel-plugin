@@ -1,0 +1,27 @@
+{
+  "name": "vercel-plugin",
+  "version": "0.15.0",
+  "description": "Comprehensive Vercel ecosystem plugin — relational knowledge graph, skills for every major product, specialized agents, and Vercel conventions. Turns any AI agent into a Vercel expert.",
+  "author": {
+    "name": "Vercel Labs",
+    "url": "https://github.com/vercel-labs"
+  },
+  "repository": "https://github.com/vercel-labs/vercel-plugin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "vercel",
+    "nextjs",
+    "ai-sdk",
+    "turborepo",
+    "turbopack",
+    "workflow",
+    "deployment",
+    "edge-functions",
+    "serverless",
+    "ai-gateway",
+    "chat-sdk",
+    "chat-bot",
+    "slack-bot",
+    "discord-bot"
+  ]
+}

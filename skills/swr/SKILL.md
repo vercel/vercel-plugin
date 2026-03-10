@@ -35,6 +35,24 @@ metadata:
       - "pagination"
     noneOf: []
     minScore: 6
+retrieval:
+  aliases:
+    - data fetching
+    - client cache
+    - stale while revalidate
+    - react hooks data
+  intents:
+    - fetch data client side
+    - add caching
+    - implement pagination
+    - use swr
+  entities:
+    - SWR
+    - useSWR
+    - mutate
+    - revalidation
+    - stale-while-revalidate
+
 ---
 
 # SWR — React Hooks for Data Fetching

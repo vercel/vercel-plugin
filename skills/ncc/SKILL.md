@@ -12,6 +12,23 @@ metadata:
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/ncc\b'
     - '\byarn\s+add\s+[^\n]*@vercel/ncc\b'
     - '\bncc\s+build\b'
+retrieval:
+  aliases:
+    - node bundler
+    - single file bundle
+    - ncc compiler
+    - node compiler
+  intents:
+    - bundle node module
+    - compile to single file
+    - package serverless function
+    - use ncc
+  entities:
+    - @vercel/ncc
+    - ncc
+    - bundle
+    - single file
+
 ---
 
 # @vercel/ncc — Node.js Compiler Collection

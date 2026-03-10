@@ -16,6 +16,13 @@ export interface ValidationRule {
   severity: "error" | "warn";
 }
 
+export interface RetrievalMetadata {
+  aliases?: string[];
+  intents?: string[];
+  entities?: string[];
+  examples?: string[];
+}
+
 export interface SkillEntry {
   priority: number;
   summary?: string;
@@ -23,6 +30,7 @@ export interface SkillEntry {
   bashPatterns: string[];
   importPatterns: string[];
   validate?: ValidationRule[];
+  retrieval?: RetrievalMetadata;
 }
 
 /**

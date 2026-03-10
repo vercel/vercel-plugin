@@ -103,6 +103,24 @@ validate:
     message: 'next-forge uses proxy.ts (Next.js 16+), not middleware.ts — rename to proxy.ts'
     severity: warn
     skipIfFileContains: 'proxy\.ts'
+retrieval:
+  aliases:
+    - saas starter
+    - monorepo starter
+    - next forge
+    - turborepo template
+  intents:
+    - scaffold saas
+    - set up next-forge
+    - create monorepo project
+    - use next-forge
+  entities:
+    - next-forge
+    - @repo/*
+    - Turborepo
+    - monorepo
+    - SaaS starter
+
 ---
 
 # next-forge

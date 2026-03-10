@@ -51,6 +51,24 @@ metadata:
       - "aws deploy"
       - "heroku"
     minScore: 6
+retrieval:
+  aliases:
+    - vercel command line
+    - vc cli
+    - deploy command
+    - vercel terminal
+  intents:
+    - deploy from cli
+    - link project
+    - manage domains
+    - view logs from terminal
+  entities:
+    - vercel CLI
+    - vercel deploy
+    - vercel env
+    - vercel link
+    - vercel logs
+
 ---
 
 # Vercel CLI

@@ -12,6 +12,23 @@ metadata:
     - '.github/workflows/preview*.yaml'
   bashPatterns: 
     - '\bvercel\s+agent\b'
+retrieval:
+  aliases:
+    - ai code review
+    - incident debugger
+    - vercel ai tools
+    - pr analyzer
+  intents:
+    - set up vercel agent
+    - automate code review
+    - investigate incident
+    - configure ai tools
+  entities:
+    - Vercel Agent
+    - code review
+    - incident investigation
+    - SDK
+
 ---
 
 # Vercel Agent

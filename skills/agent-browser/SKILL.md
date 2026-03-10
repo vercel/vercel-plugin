@@ -27,6 +27,25 @@ metadata:
     - '\bopen\s+https?://'
     - '\bplaywright\b'
     - '\bcypress\b'
+retrieval:
+  aliases:
+    - browser automation
+    - puppeteer
+    - playwright
+    - web scraping
+  intents:
+    - automate browser
+    - take screenshot
+    - test web app
+    - fill form
+    - click button
+  entities:
+    - Puppeteer
+    - Playwright
+    - screenshot
+    - browser
+    - headless
+
 ---
 
 # Browser Automation with agent-browser

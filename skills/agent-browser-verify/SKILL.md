@@ -66,6 +66,23 @@ metadata:
       - "spinner"
       - "loading"
     minScore: 6
+retrieval:
+  aliases:
+    - browser verify
+    - dev server check
+    - visual check
+    - page verification
+  intents:
+    - verify dev server
+    - check page loads
+    - find console errors
+    - validate UI
+  entities:
+    - dev server
+    - console errors
+    - visual check
+    - gut-check
+
 ---
 
 # Dev Server Verification with agent-browser

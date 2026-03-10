@@ -15,6 +15,24 @@ validate:
     pattern: '"pipeline"\s*:'
     message: 'turbo.json "pipeline" was renamed to "tasks" in Turborepo v2 — update to "tasks" key'
     severity: error
+retrieval:
+  aliases:
+    - monorepo
+    - turbo
+    - workspace builds
+    - task runner
+  intents:
+    - set up monorepo
+    - configure turbo
+    - optimize build caching
+    - run tasks in parallel
+  entities:
+    - Turborepo
+    - turbo.json
+    - remote caching
+    - --affected
+    - pipeline
+
 ---
 
 # Turborepo

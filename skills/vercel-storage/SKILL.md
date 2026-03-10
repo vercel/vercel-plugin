@@ -86,6 +86,24 @@ validate:
     pattern: from\s+['"]@vercel/postgres['"]
     message: '@vercel/postgres is deprecated — use @neondatabase/serverless with drizzle-orm instead'
     severity: error
+retrieval:
+  aliases:
+    - database
+    - blob storage
+    - redis
+    - postgres
+  intents:
+    - add storage
+    - set up database
+    - configure blob storage
+    - use edge config
+  entities:
+    - Blob
+    - Edge Config
+    - Neon Postgres
+    - Upstash Redis
+    - Vercel Storage
+
 ---
 
 # Vercel Storage

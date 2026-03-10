@@ -27,6 +27,24 @@ validate:
     pattern: NextApiRequest|NextApiResponse
     message: 'NextApiRequest/NextApiResponse are Pages Router types — use Web API Request/Response'
     severity: error
+retrieval:
+  aliases:
+    - serverless functions
+    - api routes
+    - edge functions
+    - lambda
+  intents:
+    - create serverless function
+    - configure function runtime
+    - optimize cold starts
+    - add api route
+  entities:
+    - Serverless Functions
+    - Edge Functions
+    - Fluid Compute
+    - streaming
+    - Cron Jobs
+
 ---
 
 # Vercel Functions

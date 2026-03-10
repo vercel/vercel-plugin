@@ -23,6 +23,23 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*\bgeist\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*\bgeist\b'
     - '\byarn\s+add\s+[^\n]*\bgeist\b'
+retrieval:
+  aliases:
+    - vercel font
+    - geist font
+    - typography
+    - font family
+  intents:
+    - add geist font
+    - configure typography
+    - set up fonts
+    - use vercel font
+  entities:
+    - Geist Sans
+    - Geist Mono
+    - Geist Pixel
+    - next/font
+
 ---
 
 # Geist — Vercel's Font Family

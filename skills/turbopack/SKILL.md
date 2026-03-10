@@ -8,6 +8,23 @@ metadata:
   bashPatterns: 
     - '\bnext\s+dev\s+--turbo\b'
     - '\bnext\s+dev\s+--turbopack\b'
+retrieval:
+  aliases:
+    - next bundler
+    - turbopack
+    - fast bundler
+    - hmr
+  intents:
+    - enable turbopack
+    - fix build issue
+    - speed up dev server
+    - configure bundler
+  entities:
+    - Turbopack
+    - HMR
+    - bundler
+    - next dev --turbopack
+
 ---
 
 # Turbopack

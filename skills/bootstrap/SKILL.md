@@ -30,6 +30,23 @@ metadata:
     - 'next-auth'
     - '@auth/core'
     - 'better-auth'
+retrieval:
+  aliases:
+    - project setup
+    - repo init
+    - getting started
+    - scaffold
+  intents:
+    - set up project
+    - initialize repo
+    - link vercel project
+    - pull env vars
+  entities:
+    - vercel link
+    - env pull
+    - database setup
+    - first run
+
 ---
 
 # Project Bootstrap Orchestrator

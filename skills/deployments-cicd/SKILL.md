@@ -18,6 +18,25 @@ metadata:
     - '\bvercel\s+inspect\b'
     - '\bvercel\s+build\b'
     - '\bvercel\s+deploy\s+--prebuilt\b'
+retrieval:
+  aliases:
+    - deploy
+    - ci cd
+    - continuous deployment
+    - release pipeline
+  intents:
+    - deploy to vercel
+    - set up ci cd
+    - promote deployment
+    - rollback deploy
+  entities:
+    - vercel deploy
+    - preview
+    - production
+    - rollback
+    - promote
+    - CI workflow
+
 ---
 
 # Vercel Deployments & CI/CD
