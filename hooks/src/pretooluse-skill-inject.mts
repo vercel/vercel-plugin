@@ -8,7 +8,7 @@
  * Output: JSON on stdout with { hookSpecificOutput: { additionalContext: "..." } } or {}
  *
  * Injects skills in priority order until byte budget (default 18KB) is exhausted,
- * with a hard ceiling of 5 skills. Deduplicates per session.
+ * with a hard ceiling of 3 skills. Deduplicates per session.
  *
  * Log levels (VERCEL_PLUGIN_LOG_LEVEL): off | summary | debug | trace
  * Legacy: VERCEL_PLUGIN_DEBUG=1 / VERCEL_PLUGIN_HOOK_DEBUG=1 → debug level
@@ -45,6 +45,7 @@ import {
   matchBashWithReason,
   matchImportWithReason,
   rankEntries,
+  buildDocsBlock,
 } from "./patterns.mjs";
 import type { CompiledSkillEntry, CompiledPattern, CompileCallbacks, ManifestSkill } from "./patterns.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
@@ -52,7 +53,7 @@ import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 
-const MAX_SKILLS = 5;
+const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 18_000;
 const SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
 const SETUP_MODE_PRIORITY_BOOST = 50;
@@ -882,37 +883,31 @@ export function injectSkills(rankedSkills: string[], options?: InjectOptions): I
       continue;
     }
 
-    // Strip YAML frontmatter — only the body is useful to the model
-    const { body } = extractFrontmatter(raw);
-    const content = body.trimStart();
-
-    const wrapped = `<!-- skill:${skill} -->\n${content}\n<!-- /skill:${skill} -->`;
+    // Instead of injecting the full body, instruct the agent to invoke the Skill tool
+    const wrapped = `You must run the Skill(${skill}) tool.`;
     const byteLen = Buffer.byteLength(wrapped, "utf-8");
 
     // Budget check: always allow the first skill full body, then enforce budget
     if (loaded.length > 0 && usedBytes + byteLen > budget) {
-      // Try summary fallback if available
-      const summary = skillMap?.[skill]?.summary;
-      if (summary) {
-        const summaryWrapped = `<!-- skill:${skill} mode:summary -->\n${summary}\n<!-- /skill:${skill} -->`;
-        const summaryByteLen = Buffer.byteLength(summaryWrapped, "utf-8");
-        if (usedBytes + summaryByteLen <= budget) {
-          if (!canInjectSkill(skill)) {
-            continue;
-          }
-          parts.push(summaryWrapped);
-          loaded.push(skill);
-          summaryOnly.push(skill);
-          usedBytes += summaryByteLen;
-          if (injectedSkills) injectedSkills.add(skill);
-          if (hasEnvDedup && !sessionId) {
-            process.env.VERCEL_PLUGIN_SEEN_SKILLS = appendSeenSkill(
-              process.env.VERCEL_PLUGIN_SEEN_SKILLS, skill
-            );
-          }
-          l.debug("summary-fallback", { skill, fullBytes: byteLen, summaryBytes: summaryByteLen });
+      // Summary fallback uses the same Skill tool instruction
+      const summaryWrapped = `You must run the Skill(${skill}) tool.`;
+      const summaryByteLen = Buffer.byteLength(summaryWrapped, "utf-8");
+      if (usedBytes + summaryByteLen <= budget) {
+        if (!canInjectSkill(skill)) {
           continue;
         }
+        parts.push(summaryWrapped);
+        loaded.push(skill);
+        summaryOnly.push(skill);
+        usedBytes += summaryByteLen;
+        if (injectedSkills) injectedSkills.add(skill);
+        if (hasEnvDedup && !sessionId) {
+          process.env.VERCEL_PLUGIN_SEEN_SKILLS = appendSeenSkill(
+            process.env.VERCEL_PLUGIN_SEEN_SKILLS, skill
+          );
+        }
+        l.debug("summary-fallback", { skill, fullBytes: byteLen, summaryBytes: summaryByteLen });
+        continue;
       }
       droppedByBudget.push(skill);
       logDecision(l, { hook: "PreToolUse", event: "budget_exhausted", skill, reason: "over_budget", budgetBytes: budget, usedBytes, skillBytes: byteLen });
@@ -921,29 +916,25 @@ export function injectSkills(rankedSkills: string[], options?: InjectOptions): I
 
     // Force summary-only for dedup-bypassed companion skills
     if (forceSummarySkills?.has(skill)) {
-      const summary = skillMap?.[skill]?.summary;
-      if (summary) {
-        const summaryWrapped = `<!-- skill:${skill} mode:summary -->\n${summary}\n<!-- /skill:${skill} -->`;
-        const summaryByteLen = Buffer.byteLength(summaryWrapped, "utf-8");
-        if (usedBytes + summaryByteLen <= budget || loaded.length === 0) {
-          if (!canInjectSkill(skill)) {
-            continue;
-          }
-          parts.push(summaryWrapped);
-          loaded.push(skill);
-          summaryOnly.push(skill);
-          usedBytes += summaryByteLen;
-          if (injectedSkills) injectedSkills.add(skill);
-          if (hasEnvDedup && !sessionId) {
-            process.env.VERCEL_PLUGIN_SEEN_SKILLS = appendSeenSkill(
-              process.env.VERCEL_PLUGIN_SEEN_SKILLS, skill
-            );
-          }
-          l.debug("force-summary-companion", { skill, fullBytes: byteLen, summaryBytes: summaryByteLen });
+      const summaryWrapped = `You must run the Skill(${skill}) tool.`;
+      const summaryByteLen = Buffer.byteLength(summaryWrapped, "utf-8");
+      if (usedBytes + summaryByteLen <= budget || loaded.length === 0) {
+        if (!canInjectSkill(skill)) {
           continue;
         }
+        parts.push(summaryWrapped);
+        loaded.push(skill);
+        summaryOnly.push(skill);
+        usedBytes += summaryByteLen;
+        if (injectedSkills) injectedSkills.add(skill);
+        if (hasEnvDedup && !sessionId) {
+          process.env.VERCEL_PLUGIN_SEEN_SKILLS = appendSeenSkill(
+            process.env.VERCEL_PLUGIN_SEEN_SKILLS, skill
+          );
+        }
+        l.debug("force-summary-companion", { skill, fullBytes: byteLen, summaryBytes: summaryByteLen });
+        continue;
       }
-      // No summary available — fall through to full body
     }
 
     if (!canInjectSkill(skill)) {
@@ -1000,6 +991,7 @@ export interface FormatOutputParams {
   matchReasons?: Record<string, { pattern: string; matchType: string }>;
   reasons?: Record<string, SkillInjectionReason>;
   verificationId?: string;
+  skillMap?: Record<string, { docs?: string[] }>;
 }
 
 /**
@@ -1033,7 +1025,7 @@ function encodeJsonForHtmlComment(value: unknown): string {
   return JSON.stringify(value).replace(/-->/g, "--\\u003E");
 }
 
-export function formatOutput({ parts, matched, injectedSkills, summaryOnly, droppedByCap, droppedByBudget, toolName, toolTarget, matchReasons, reasons, verificationId }: FormatOutputParams): string {
+export function formatOutput({ parts, matched, injectedSkills, summaryOnly, droppedByCap, droppedByBudget, toolName, toolTarget, matchReasons, reasons, verificationId, skillMap }: FormatOutputParams): string {
   if (parts.length === 0) {
     return "{}";
   }
@@ -1061,11 +1053,16 @@ export function formatOutput({ parts, matched, injectedSkills, summaryOnly, drop
   const metaComment = `<!-- skillInjection: ${encodeJsonForHtmlComment(skillInjection)} -->`;
 
   const banner = buildBanner(injectedSkills, toolName, toolTarget, matchReasons);
+  const docsBlock = buildDocsBlock(injectedSkills, skillMap);
+
+  const sections = [banner];
+  if (docsBlock) sections.push(docsBlock);
+  sections.push(parts.join("\n\n"));
 
   const output: SyncHookJSONOutput = {
     hookSpecificOutput: {
       hookEventName: "PreToolUse" as const,
-      additionalContext: banner + "\n\n" + parts.join("\n\n") + "\n" + metaComment,
+      additionalContext: sections.join("\n\n") + "\n" + metaComment,
     },
   };
   return JSON.stringify(output);
@@ -1452,7 +1449,7 @@ function run(): string {
   }
 
   // Stage 6: formatOutput
-  const result = formatOutput({ parts, matched, injectedSkills: loaded, summaryOnly, droppedByCap, droppedByBudget, toolName, toolTarget, matchReasons, reasons, verificationId });
+  const result = formatOutput({ parts, matched, injectedSkills: loaded, summaryOnly, droppedByCap, droppedByBudget, toolName, toolTarget, matchReasons, reasons, verificationId, skillMap: skills.skillMap });
 
   if (loaded.length > 0) {
     appendAuditLog({

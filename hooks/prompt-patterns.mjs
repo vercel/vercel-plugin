@@ -1,4 +1,4 @@
-import { searchSkills } from "./lexical-index.mts";
+import { searchSkills } from "./lexical-index.mjs";
 const CONTRACTIONS = {
   "it's": "it is",
   "what's": "what is",

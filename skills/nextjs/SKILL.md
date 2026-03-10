@@ -3,6 +3,9 @@ name: nextjs
 description: Next.js App Router expert guidance. Use when building, debugging, or architecting Next.js applications — routing, Server Components, Server Actions, Cache Components, layouts, middleware/proxy, data fetching, rendering strategies, and deployment on Vercel.
 metadata:
   priority: 5
+  docs:
+    - "https://nextjs.org/docs"
+    - "https://nextjs.org/docs/app"
   pathPatterns:
     - 'next.config.*'
     - 'next-env.d.ts'
@@ -68,15 +71,15 @@ validate:
   -
     pattern: export\s+(default\s+)?function\s+middleware
     message: 'middleware() is renamed to proxy() in Next.js 16 — rename the function and the file to proxy.ts'
-    severity: warn
+    severity: recommended
   -
     pattern: revalidateTag\(\s*['"][^'"]+['"]\s*\)
     message: 'Single-arg revalidateTag(tag) is deprecated in Next.js 16 — pass a cacheLife profile: revalidateTag(tag, "max")'
-    severity: warn
+    severity: recommended
   -
     pattern: '\bcacheHandler\s*:'
     message: 'Singular cacheHandler is deprecated in Next.js 16 — use cacheHandlers (plural) with per-type handlers'
-    severity: warn
+    severity: recommended
   -
     pattern: useRef\(\s*\)
     message: 'useRef() requires an initial value in React 19 — use useRef(null) or useRef(0)'
@@ -98,12 +101,12 @@ validate:
   -
     pattern: =\s*(?!await\b)params\b
     message: 'params is async in Next.js 16 — add await: const { slug } = await params'
-    severity: warn
+    severity: recommended
     skipIfFileContains: "^['\"]use client['\"]"
   -
     pattern: =\s*(?!await\b)searchParams\b
     message: 'searchParams is async in Next.js 16 — add await: const { query } = await searchParams'
-    severity: warn
+    severity: recommended
     skipIfFileContains: "^['\"]use client['\"]"
 retrieval:
   aliases:
@@ -112,17 +115,26 @@ retrieval:
     - react framework
     - app router
   intents:
-    - build nextjs app
-    - configure app router
-    - add server component
-    - set up nextjs routing
+    - set up routing and layouts in a Next.js app
+    - choose between server and client components for a feature
+    - configure data fetching or caching in App Router
+    - add middleware or proxy logic to handle requests
+    - set up server rendering for React pages
+    - add a new page with dynamic route segments
   entities:
     - App Router
     - Server Components
     - Server Actions
+    - generateMetadata
     - layout
-    - middleware
+    - proxy
     - next.config
+  examples:
+    - add a new page with dynamic routing
+    - should this be a server or client component
+    - set up middleware for auth redirects
+    - configure caching for this data fetch
+    - set up server rendering for my pages
 
 ---
 

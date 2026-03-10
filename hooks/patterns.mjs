@@ -212,8 +212,29 @@ function rankEntries(entries) {
     return bPri - aPri || a.skill.localeCompare(b.skill);
   });
 }
+const DOCS_WARNING = "**MANDATORY: Your training data for these libraries is OUTDATED and UNRELIABLE.** APIs, method signatures, and config options change frequently and WITHOUT WARNING. You MUST open and read the official docs linked below BEFORE writing ANY code. DO NOT guess, assume, or rely on memorized APIs \u2014 they are likely WRONG.";
+function buildDocsBlock(injectedSkills, skillMap) {
+  if (!skillMap) return "";
+  const entries = [];
+  for (const skill of injectedSkills) {
+    const docs = skillMap[skill]?.docs;
+    if (docs && docs.length > 0) {
+      entries.push(`  - **${skill}**: ${docs.join(" , ")}`);
+    }
+  }
+  if (entries.length === 0) return "";
+  return [
+    "---",
+    DOCS_WARNING,
+    "",
+    "Official documentation:",
+    ...entries,
+    "---"
+  ].join("\n");
+}
 export {
   appendSeenSkill,
+  buildDocsBlock,
   compileSkillPatterns,
   globToRegex,
   importPatternToRegex,

@@ -59,7 +59,7 @@ export interface ValidationViolation {
   skill: string;
   line: number;
   message: string;
-  severity: "error" | "warn";
+  severity: "error" | "recommended" | "warn";
   matchedText: string;
 }
 
@@ -279,6 +279,7 @@ export function runValidation(
   l.debug("posttooluse-validate-violations", {
     total: violations.length,
     errors: violations.filter((v) => v.severity === "error").length,
+    recommended: violations.filter((v) => v.severity === "recommended").length,
     warns: violations.filter((v) => v.severity === "warn").length,
   });
 
@@ -358,6 +359,7 @@ export function markValidated(filePath: string, hash: string, sessionId?: string
 /**
  * Format validation violations into the hook output JSON.
  * Error-severity violations produce mandatory fix instructions.
+ * Recommended-severity violations produce imperative best-practice instructions.
  * Warn-severity violations produce soft-fix suggestions at all log levels.
  */
 export function formatOutput(
@@ -374,8 +376,10 @@ export function formatOutput(
   }
 
   const errors = violations.filter((v) => v.severity === "error");
+  const recommended = violations.filter((v) => v.severity === "recommended");
   const warns = violations.filter((v) => v.severity === "warn");
   const hasErrors = errors.length > 0;
+  const hasRecommended = recommended.length > 0;
   const hasWarns = warns.length > 0;
 
   // Group by skill for clear output
@@ -390,23 +394,29 @@ export function formatOutput(
     const errorLines = skillViolations
       .filter((v) => v.severity === "error")
       .map((v) => `- Line ${v.line} [ERROR]: ${v.message}`);
+    const recommendedLines = skillViolations
+      .filter((v) => v.severity === "recommended")
+      .map((v) => `- Line ${v.line} [RECOMMENDED]: ${v.message}`);
     const warnLines = skillViolations
       .filter((v) => v.severity === "warn")
       .map((v) => `- Line ${v.line} [SUGGESTION]: ${v.message}`);
-    parts.push([...errorLines, ...warnLines].join("\n"));
+    parts.push([...errorLines, ...recommendedLines, ...warnLines].join("\n"));
   }
 
   const skillList = [...bySkill.keys()].join(", ");
 
   const counts = [
     hasErrors ? `${errors.length} error${errors.length > 1 ? "s" : ""}` : "",
+    hasRecommended ? `${recommended.length} recommendation${recommended.length > 1 ? "s" : ""}` : "",
     hasWarns ? `${warns.length} suggestion${warns.length > 1 ? "s" : ""}` : "",
   ].filter(Boolean).join(", ");
 
-  // Errors demand fixes; warn-only gets a softer call to action
+  // Errors demand fixes; recommended gets imperative language; warn-only gets a softer call to action
   const callToAction = hasErrors
     ? `Please fix these issues before proceeding.`
-    : `Consider applying these suggestions to follow best practices.`;
+    : hasRecommended
+      ? `Apply these recommendations before continuing — they reflect current best practices.`
+      : `Consider applying these suggestions to follow best practices.`;
 
   const context = [
     `<!-- posttooluse-validate: ${skillList} -->`,
@@ -422,6 +432,7 @@ export function formatOutput(
     filePath,
     matchedSkills,
     errorCount: errors.length,
+    recommendedCount: recommended.length,
     warnCount: warns.length,
   };
   const metaComment = `<!-- postValidation: ${JSON.stringify(metadata)} -->`;
@@ -437,6 +448,7 @@ export function formatOutput(
     filePath,
     matchedSkills,
     errorCount: errors.length,
+    recommendedCount: recommended.length,
     warnCount: warns.length,
   });
 

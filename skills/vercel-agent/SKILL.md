@@ -3,6 +3,9 @@ name: vercel-agent
 description: Vercel Agent guidance — AI-powered code review, incident investigation, and SDK installation. Automates PR analysis and anomaly debugging. Use when configuring or understanding Vercel's AI development tools.
 metadata:
   priority: 4
+  docs:
+    - "https://vercel.com/docs"
+    - "https://sdk.vercel.ai/docs"
   pathPatterns: 
     - '.github/workflows/vercel*.yml'
     - '.github/workflows/vercel*.yaml'

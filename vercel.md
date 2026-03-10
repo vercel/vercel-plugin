@@ -1072,7 +1072,7 @@ Whenever Claude invokes `Read`, `Edit`, `Write`, or `Bash`, the `pretooluse-skil
 
 ### MAX_SKILLS cap and deduplication
 
-- At most **5 skills** are injected per hook invocation (`MAX_SKILLS = 5`), subject to an **18KB byte budget**. When more than 5 match, the highest-priority skills win; lower-priority matches are dropped.
+- At most **3 skills** are injected per hook invocation (`MAX_SKILLS = 3`), subject to an **18KB byte budget**. When more than 3 match, the highest-priority skills win; lower-priority matches are dropped.
 - **Session dedup**: each skill is injected only once per session. The hook persists injected skill names to a temp file keyed by `session_id` (SHA-256 hashed for long IDs). Subsequent invocations that match the same skill silently skip it.
 - Set `VERCEL_PLUGIN_HOOK_DEDUP=off` to disable dedup (every match re-injects). Set `RESET_DEDUP=1` to clear the dedup file at the start of an invocation.
 

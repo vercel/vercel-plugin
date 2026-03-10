@@ -2,7 +2,7 @@
   "description": "Consolidated golden snapshot fixtures for hook payload assertions",
   "fixtures": [
     {
-      "name": "vercel.json edit — all 5 skills fit cap",
+      "name": "vercel.json edit — cap 3 drops 2 lowest-priority",
       "input": {
         "tool_name": "Edit",
         "tool_input": {
@@ -24,11 +24,12 @@
           "injectedSkills": [
             "vercel-functions",
             "cron-jobs",
-            "deployments-cicd",
+            "deployments-cicd"
+          ],
+          "droppedByCap": [
             "routing-middleware",
             "vercel-cli"
           ],
-          "droppedByCap": [],
           "droppedByBudget": []
         }
       }
@@ -86,7 +87,7 @@
       }
     },
     {
-      "name": "AI SDK file edit",
+      "name": "AI SDK file edit — cap 3 drops nextjs",
       "input": {
         "tool_name": "Edit",
         "tool_input": {
@@ -107,16 +108,17 @@
           "injectedSkills": [
             "ai-sdk",
             "chat-sdk",
-            "vercel-functions",
+            "vercel-functions"
+          ],
+          "droppedByCap": [
             "nextjs"
           ],
-          "droppedByCap": [],
           "droppedByBudget": []
         }
       }
     },
     {
-      "name": "Read app/api/chat/route.ts — AI SDK route",
+      "name": "Read app/api/chat/route.ts — AI SDK route — cap 3 drops nextjs",
       "input": {
         "tool_name": "Read",
         "tool_input": {
@@ -137,16 +139,17 @@
           "injectedSkills": [
             "ai-sdk",
             "chat-sdk",
-            "vercel-functions",
+            "vercel-functions"
+          ],
+          "droppedByCap": [
             "nextjs"
           ],
-          "droppedByCap": [],
           "droppedByBudget": []
         }
       }
     },
     {
-      "name": "Write middleware.ts — routing middleware",
+      "name": "Write middleware.ts — cap 3 drops edge-runtime",
       "input": {
         "tool_name": "Write",
         "tool_input": {
@@ -167,16 +170,17 @@
           "injectedSkills": [
             "investigation-mode",
             "auth",
-            "routing-middleware",
+            "routing-middleware"
+          ],
+          "droppedByCap": [
             "edge-runtime"
           ],
-          "droppedByCap": [],
           "droppedByBudget": []
         }
       }
     },
     {
-      "name": "bash cap collision — npm install triggers 4 skills, all fit cap 5",
+      "name": "bash cap collision — npm install triggers 4 skills, cap 3 drops lowest",
       "input": {
         "tool_name": "Bash",
         "tool_input": {
@@ -197,10 +201,11 @@
           "injectedSkills": [
             "observability",
             "workflow",
-            "ai-sdk",
+            "ai-sdk"
+          ],
+          "droppedByCap": [
             "vercel-flags"
           ],
-          "droppedByCap": [],
           "droppedByBudget": []
         }
       }

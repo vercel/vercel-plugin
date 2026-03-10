@@ -19,7 +19,7 @@ export interface FrontmatterResult {
 export interface ValidationRule {
   pattern: string;
   message: string;
-  severity: "error" | "warn";
+  severity: "error" | "recommended" | "warn";
   /** If set, skip this rule when the file content matches this regex. */
   skipIfFileContains?: string;
 }
@@ -72,6 +72,7 @@ export interface PromptSignals {
 export interface SkillConfig {
   priority: number;
   summary: string;
+  docs: string[];
   pathPatterns: string[];
   bashPatterns: string[];
   importPatterns: string[];
@@ -474,7 +475,7 @@ function parseValidateRules(raw: unknown): ValidationRule[] {
     if (typeof obj.pattern !== "string" || obj.pattern === "") continue;
     if (typeof obj.message !== "string" || obj.message === "") continue;
     const severity = obj.severity;
-    if (severity !== "error" && severity !== "warn") continue;
+    if (severity !== "error" && severity !== "recommended" && severity !== "warn") continue;
     const rule: ValidationRule = {
       pattern: obj.pattern,
       message: obj.message,
@@ -912,11 +913,23 @@ export function buildSkillMap(rootDir: string): SkillMapResult {
       addWarning,
     });
 
+    // Parse docs (optional array of URL strings)
+    const rawDocs: unknown = meta.docs !== undefined ? meta.docs : [];
+    const filteredDocs = normalizePatternField({
+      raw: rawDocs,
+      skill: skill.dir,
+      field: "docs",
+      fieldTypeHint: "URL strings",
+      coerceStrings: true,
+      addWarning,
+    });
+
     // Key by directory name -- the canonical identity of a skill.
     // Frontmatter `name` may differ; directory name is authoritative.
     const entry: SkillConfig = {
       priority: (meta.priority as number) ?? 5,
       summary: skill.summary || "",
+      docs: filteredDocs,
       pathPatterns: filteredPathPatterns,
       bashPatterns: filteredBashPatterns,
       importPatterns: filteredImportPatterns,
@@ -946,6 +959,7 @@ export function buildSkillMap(rootDir: string): SkillMapResult {
 const KNOWN_KEYS = new Set([
   "priority",
   "summary",
+  "docs",
   "pathPatterns",
   "bashPatterns",
   "importPatterns",
@@ -1116,6 +1130,16 @@ export function validateSkillMap(raw: unknown): ValidationResult {
     // Normalize summary (optional string, default "")
     const summary = typeof cfg.summary === "string" ? cfg.summary : "";
 
+    // Normalize docs (optional array of URL strings, default [])
+    const docs = normalizePatternField({
+      raw: "docs" in cfg ? cfg.docs : [],
+      skill,
+      field: "docs",
+      fieldTypeHint: "URL strings",
+      coerceStrings: false,
+      addWarning,
+    });
+
     // Normalize validate (optional array of ValidationRule, default [])
     const validate = parseValidateRules(cfg.validate);
 
@@ -1128,6 +1152,7 @@ export function validateSkillMap(raw: unknown): ValidationResult {
     const normalizedEntry: SkillConfig = {
       priority,
       summary,
+      docs,
       pathPatterns,
       bashPatterns,
       importPatterns,

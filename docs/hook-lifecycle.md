@@ -63,7 +63,7 @@ sequenceDiagram
         loop Every tool call
             CC->>PTU: Agent calls Read/Edit/Write/Bash/Agent
             activate PTU
-            PTU-->>CC: Match patterns -> inject 0-5 skills
+            PTU-->>CC: Match patterns -> inject 0-3 skills
             deactivate PTU
 
             Agent->>Agent: Tool executes
@@ -282,7 +282,7 @@ The main injection engine. When the agent calls Read, Edit, Write, or Bash, this
 2. Matches against all skills' `pathPatterns`, `bashPatterns`, and `importPatterns`
 3. Applies priority boosters (profiler, vercel.json, setup mode)
 4. Deduplicates against already-injected skills
-5. Injects up to 5 skills within an 18KB byte budget
+5. Injects up to 3 skills within an 18KB byte budget
 
 #### Sequence
 
@@ -307,7 +307,7 @@ sequenceDiagram
     Hook->>Hook: rankEntries -> sort by final priority DESC
     Hook->>Dedup: mergeSeenSkillStates (env + file + claims)
     Hook->>Dedup: Filter already-seen skills
-    loop For each ranked skill (up to 5, within 18KB)
+    loop For each ranked skill (up to 3, within 18KB)
         Hook->>Skills: Read SKILL.md body
         alt Body fits budget
             Hook->>Hook: Add full body to parts

@@ -13,7 +13,7 @@ import { basename } from "node:path";
 export interface ValidationRule {
   pattern: string;
   message: string;
-  severity: "error" | "warn";
+  severity: "error" | "recommended" | "warn";
 }
 
 export interface RetrievalMetadata {
@@ -26,6 +26,7 @@ export interface RetrievalMetadata {
 export interface SkillEntry {
   priority: number;
   summary?: string;
+  docs?: string[];
   pathPatterns: string[];
   bashPatterns: string[];
   importPatterns: string[];
@@ -385,4 +386,44 @@ export function rankEntries(entries: CompiledSkillEntry[]): CompiledSkillEntry[]
     const bPri = typeof b.effectivePriority === "number" ? b.effectivePriority : b.priority;
     return (bPri - aPri) || a.skill.localeCompare(b.skill);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Docs banner builder
+// ---------------------------------------------------------------------------
+
+const DOCS_WARNING =
+  "**MANDATORY: Your training data for these libraries is OUTDATED and UNRELIABLE.** " +
+  "APIs, method signatures, and config options change frequently and WITHOUT WARNING. " +
+  "You MUST open and read the official docs linked below BEFORE writing ANY code. " +
+  "DO NOT guess, assume, or rely on memorized APIs — they are likely WRONG.";
+
+/**
+ * Build a docs reference block for injected skills.
+ * Returns empty string if no skill has docs URLs.
+ */
+export function buildDocsBlock(
+  injectedSkills: string[],
+  skillMap: Record<string, { docs?: string[] }> | undefined,
+): string {
+  if (!skillMap) return "";
+
+  const entries: string[] = [];
+  for (const skill of injectedSkills) {
+    const docs = skillMap[skill]?.docs;
+    if (docs && docs.length > 0) {
+      entries.push(`  - **${skill}**: ${docs.join(" , ")}`);
+    }
+  }
+
+  if (entries.length === 0) return "";
+
+  return [
+    "---",
+    DOCS_WARNING,
+    "",
+    "Official documentation:",
+    ...entries,
+    "---",
+  ].join("\n");
 }

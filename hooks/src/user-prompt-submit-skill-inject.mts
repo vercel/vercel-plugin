@@ -33,10 +33,11 @@ import {
 } from "./hook-env.mjs";
 import { loadSkills, injectSkills } from "./pretooluse-skill-inject.mjs";
 import type { LoadedSkills } from "./pretooluse-skill-inject.mjs";
-import { parseSeenSkills, appendSeenSkill, mergeSeenSkillStates, rankEntries } from "./patterns.mjs";
+import { parseSeenSkills, appendSeenSkill, mergeSeenSkillStates, rankEntries, buildDocsBlock } from "./patterns.mjs";
 import type { CompiledSkillEntry } from "./patterns.mjs";
-import { normalizePromptText, compilePromptSignals, matchPromptWithReason, classifyTroubleshootingIntent } from "./prompt-patterns.mjs";
+import { normalizePromptText, compilePromptSignals, matchPromptWithReason, scorePromptWithLexical, classifyTroubleshootingIntent } from "./prompt-patterns.mjs";
 import type { CompiledPromptSignals, TroubleshootingIntentResult } from "./prompt-patterns.mjs";
+import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
@@ -195,36 +196,75 @@ export interface PromptMatchEntry {
 /**
  * Evaluate all skills with promptSignals against the normalized prompt.
  * Returns matched entries sorted by score DESC then priority DESC.
+ *
+ * When lexical is true (VERCEL_PLUGIN_LEXICAL_PROMPT=1), uses
+ * scorePromptWithLexical() for hybrid exact+lexical matching with
+ * adaptive boost tiers. Default (false) preserves exact-match behavior.
  */
 export function matchPromptSignals(
   normalizedPrompt: string,
   skills: LoadedSkills,
   logger?: Logger,
+  options?: { lexical?: boolean },
 ): PromptMatchEntry[] {
   const l = logger || log;
+  const lexical = options?.lexical ?? false;
   const { skillMap } = skills;
   const matches: PromptMatchEntry[] = [];
+
+  // Pre-compute lexical hits once for all skills when enabled
+  const lexicalHits = lexical ? searchSkills(normalizedPrompt) : undefined;
 
   for (const [skill, config] of Object.entries(skillMap)) {
     if (!config.promptSignals) continue;
 
     const compiled = compilePromptSignals(config.promptSignals);
-    const result = matchPromptWithReason(normalizedPrompt, compiled);
 
-    l.trace("prompt-signal-eval", {
-      skill,
-      matched: result.matched,
-      score: result.score,
-      reason: result.reason,
-    });
+    if (lexical) {
+      // Lexical path: use scorePromptWithLexical for hybrid scoring
+      const lexResult = scorePromptWithLexical(normalizedPrompt, skill, compiled, lexicalHits);
+      const isMatched = lexResult.score >= compiled.minScore;
 
-    if (result.matched) {
-      matches.push({
+      const reason = lexResult.source === "exact"
+        ? matchPromptWithReason(normalizedPrompt, compiled).reason
+        : `${matchPromptWithReason(normalizedPrompt, compiled).reason}; lexical ${lexResult.source} (score ${lexResult.lexicalScore.toFixed(1)}, tier ${lexResult.boostTier ?? "none"})`;
+
+      l.trace("prompt-signal-eval", {
         skill,
+        matched: isMatched,
+        score: lexResult.score,
+        reason,
+        source: lexResult.source,
+        boostTier: lexResult.boostTier,
+      });
+
+      if (isMatched) {
+        matches.push({
+          skill,
+          score: lexResult.score,
+          reason,
+          priority: config.priority,
+        });
+      }
+    } else {
+      // Exact-match path (default): unchanged behavior
+      const result = matchPromptWithReason(normalizedPrompt, compiled);
+
+      l.trace("prompt-signal-eval", {
+        skill,
+        matched: result.matched,
         score: result.score,
         reason: result.reason,
-        priority: config.priority,
       });
+
+      if (result.matched) {
+        matches.push({
+          skill,
+          score: result.score,
+          reason: result.reason,
+          priority: config.priority,
+        });
+      }
     }
   }
 
@@ -238,6 +278,7 @@ export function matchPromptSignals(
   l.debug("prompt-matches", {
     totalWithSignals: Object.values(skillMap).filter((c) => c.promptSignals).length,
     matched: matches.map((m) => ({ skill: m.skill, score: m.score })),
+    lexical,
   });
 
   return matches;
@@ -368,6 +409,7 @@ export function formatOutput(
   droppedByCap: string[],
   droppedByBudget: string[],
   promptMatchReasons?: Record<string, string>,
+  skillMap?: Record<string, { docs?: string[] }>,
 ): string {
   if (parts.length === 0) {
     return "{}";
@@ -396,11 +438,16 @@ export function formatOutput(
     }
   }
   const banner = bannerLines.join("\n");
+  const docsBlock = buildDocsBlock(injectedSkills, skillMap);
+
+  const sections = [banner];
+  if (docsBlock) sections.push(docsBlock);
+  sections.push(parts.join("\n\n"));
 
   const output: SyncHookJSONOutput = {
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit" as const,
-      additionalContext: banner + "\n\n" + parts.join("\n\n") + "\n" + metaComment,
+      additionalContext: sections.join("\n\n") + "\n" + metaComment,
     },
   };
   return JSON.stringify(output);
@@ -457,7 +504,11 @@ export function run(): string {
   }
   const hasEnvDedup = !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string";
   const budget = getInjectionBudget();
-  const report = analyzePrompt(prompt, skills.skillMap, seenState, budget, MAX_SKILLS);
+  const lexicalEnabled = process.env.VERCEL_PLUGIN_LEXICAL_PROMPT === "1";
+  if (lexicalEnabled) {
+    initializeLexicalIndex(new Map(Object.entries(skills.skillMap)));
+  }
+  const report = analyzePrompt(prompt, skills.skillMap, seenState, budget, MAX_SKILLS, { lexicalEnabled });
   if (log.active) timing.analyze = Math.round(log.now() - tAnalyze);
 
   // --- Trace: full report ---
@@ -666,7 +717,7 @@ export function run(): string {
       promptMatchReasons[skill] = r.reason;
     }
   }
-  return formatOutput(parts, matchedSkills, loaded, summaryOnly, droppedByCap, droppedByBudget, promptMatchReasons);
+  return formatOutput(parts, matchedSkills, loaded, summaryOnly, droppedByCap, droppedByBudget, promptMatchReasons, skills.skillMap);
 }
 
 // ---------------------------------------------------------------------------

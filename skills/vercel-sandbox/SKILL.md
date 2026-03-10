@@ -3,6 +3,8 @@ name: vercel-sandbox
 description: Vercel Sandbox guidance — ephemeral Firecracker microVMs for running untrusted code safely. Supports AI agents, code generation, and experimentation. Use when executing user-generated or AI-generated code in isolation.
 metadata:
   priority: 4
+  docs:
+    - "https://vercel.com/docs/sandbox"
   pathPatterns: []
   importPatterns:
     - '@vercel/sandbox'

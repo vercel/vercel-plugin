@@ -17,8 +17,7 @@
  * so phrase/term authors don't need to account for both forms.
  */
 
-// @ts-ignore -- task requires the source-module import; local hooks tsconfig only permits .mjs paths.
-import { searchSkills } from "./lexical-index.mts";
+import { searchSkills } from "./lexical-index.mjs";
 import type { PromptSignals } from "./skill-map-frontmatter.mjs";
 
 // ---------------------------------------------------------------------------

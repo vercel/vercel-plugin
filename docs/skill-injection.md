@@ -82,7 +82,7 @@ flowchart TD
     MATCH["Stage 3: matchSkills<br/>Path globs / bash regex / import patterns"]
     SPECIAL["Stage 3.5: Special Triggers<br/>TSX review (+40) · Dev server (+45) · Env help"]
     RANK["Stage 4: Rank & Deduplicate<br/>vercel.json (±10) · Profiler (+5) · Setup (+50)"]
-    INJECT["Stage 5: injectSkills<br/>Budget: 18KB · Ceiling: 5 skills · Summary fallback"]
+    INJECT["Stage 5: injectSkills<br/>Budget: 18KB · Ceiling: 3 skills · Summary fallback"]
     FORMAT["Stage 6: formatOutput<br/>JSON with additionalContext"]
 
     INPUT --> PARSE --> LOAD --> MATCH --> SPECIAL --> RANK --> INJECT --> FORMAT
@@ -167,7 +167,7 @@ Steps:
 
 For each ranked skill in priority order:
 
-1. Check hard ceiling (max 5 skills) — drop with `cap_exceeded`
+1. Check hard ceiling (max 3 skills) — drop with `cap_exceeded`
 2. Read `skills/<name>/SKILL.md`, strip frontmatter, keep body
 3. Wrap in comment markers: `<!-- skill:name -->...<!-- /skill:name -->`
 4. Check byte budget — **first skill always gets full body**; subsequent must fit remaining budget

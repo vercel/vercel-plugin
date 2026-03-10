@@ -1,10 +1,16 @@
 #!/usr/bin/env bun
 /**
- * Sandbox eval runner with agent-browser verification.
+ * Sandbox eval runner with 3-phase pipeline: Build → Verify → Deploy.
  *
- * Phase 1: Claude Code builds 5 different Next.js apps in parallel sandboxes.
- * Phase 2: A follow-up Claude Code session uses agent-browser to walk through
- *          user stories, fixing issues until all stories pass.
+ * Phase 1 (BUILD):  Claude Code builds the app in a fresh sandbox.
+ * Phase 2 (VERIFY): A follow-up Claude Code session uses agent-browser to
+ *                    walk through user stories, fixing issues until all pass.
+ * Phase 3 (DEPLOY): A third Claude Code session links to vercel-labs, runs
+ *                    `vercel deploy`, and fixes build errors (up to 3 retries).
+ *                    Deployed apps have deployment protection enabled by default.
+ *
+ * Skills are tracked across all 3 phases — each phase may trigger additional
+ * skill injections as new files/patterns are created.
  *
  * Usage:
  *   bun run .claude/skills/benchmark-sandbox/run-eval.ts [options]
@@ -13,6 +19,8 @@
  *   --keep-alive        Keep sandboxes running after eval
  *   --keep-hours N      Hours to keep alive (default 8)
  *   --skip-verify       Skip the agent-browser verification phase
+ *   --skip-deploy       Skip the Vercel deploy phase
+ *   --scenarios a,b,c   Only run specific scenarios by slug
  */
 
 import { Sandbox } from "@vercel/sandbox";
@@ -40,9 +48,16 @@ let runId = "";
 const KEEP_ALIVE = args.includes("--keep-alive");
 const KEEP_ALIVE_HOURS = getArg("keep-hours", 8);
 const SKIP_VERIFY = args.includes("--skip-verify");
+const SKIP_DEPLOY = args.includes("--skip-deploy");
+const SCENARIO_FILTER = args.includes("--scenarios")
+  ? args[args.indexOf("--scenarios") + 1]?.split(",").map(s => s.trim()) ?? []
+  : [];
+const SCENARIOS_FILE = args.includes("--scenarios-file")
+  ? args[args.indexOf("--scenarios-file") + 1]
+  : undefined;
 
 // ---------------------------------------------------------------------------
-// 5 Creative Scenarios with User Stories
+// Scenarios — loaded from --scenarios-file if provided, otherwise defaults
 // ---------------------------------------------------------------------------
 
 interface Scenario {
@@ -155,6 +170,19 @@ After building all files, start the dev server on port 3000 with \`npx next dev 
   },
 ];
 
+// Load scenarios from file if --scenarios-file is provided
+let ACTIVE_SCENARIOS = SCENARIOS;
+if (SCENARIOS_FILE) {
+  try {
+    const raw = require("fs").readFileSync(SCENARIOS_FILE, "utf-8");
+    ACTIVE_SCENARIOS = JSON.parse(raw) as Scenario[];
+    console.log(`Loaded ${ACTIVE_SCENARIOS.length} scenarios from ${SCENARIOS_FILE}`);
+  } catch (e: any) {
+    console.error(`Failed to load scenarios from ${SCENARIOS_FILE}: ${e.message}`);
+    process.exit(1);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -211,7 +239,9 @@ async function sh(sandbox: any, cmd: string): Promise<string> {
 
 function buildVerificationPrompt(userStories: string[]): string {
   const stories = userStories.map((s, i) => `${i + 1}. ${s}`).join("\n");
-  return `The app is running at http://localhost:3000. Use agent-browser to verify these user stories:
+  return `First, make sure the dev server is running. Check if http://localhost:3000 responds. If not, run \`npx next dev --port 3000\` in the background and wait for it to be ready.
+
+Then use agent-browser to verify these user stories:
 
 ${stories}
 
@@ -387,7 +417,7 @@ async function runScenario(
 
     // 8. Phase 2: Verification with agent-browser
     let verification: VerificationResult | undefined;
-    if (!SKIP_VERIFY && port3000Up && projectFilesList.length > 3) {
+    if (!SKIP_VERIFY && projectFilesList.length > 1) {
       console.log(`  [${scenario.slug}] Phase 2: VERIFY with agent-browser (${elapsed(t0)})`);
       const verifyPrompt = buildVerificationPrompt(scenario.userStories);
       await sandbox.writeFiles([{ path: "/tmp/verify.txt", content: Buffer.from(verifyPrompt) }]);
@@ -396,7 +426,7 @@ async function runScenario(
       let verifyExit = -1;
       let verifyOut = "";
       try {
-        const vr = await sandbox.runCommand("sh", ["-c", verifyCmd], { signal: AbortSignal.timeout(300_000) });
+        const vr = await sandbox.runCommand("sh", ["-c", verifyCmd], { signal: AbortSignal.timeout(1_200_000) }); // 20 min
         verifyExit = (vr as any).exitCode ?? 0;
         verifyOut = (await vr.stdout()).trim();
       } catch (e: any) {
@@ -419,30 +449,83 @@ async function runScenario(
       verification = { ran: true, exitCode: verifyExit, stories, output: verifyOut.slice(-500) };
       const passCount = stories.filter(s => s.status === "pass").length;
       console.log(`  [${scenario.slug}] Verify: ${passCount}/${stories.length} passed (exit=${verifyExit}) (${elapsed(t0)})`);
+
+      // Re-extract skills after verify phase (agent-browser + fixes trigger more)
+      const postVerifySkills = (await sh(sandbox, "ls /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null")).split("\n").filter(Boolean);
+      if (postVerifySkills.length > claimedSkills.length) {
+        const newSkills = postVerifySkills.filter(s => !claimedSkills.includes(s));
+        if (newSkills.length > 0) {
+          console.log(`  [${scenario.slug}] +${newSkills.length} skills from verify: ${newSkills.join(", ")}`);
+          claimedSkills.push(...newSkills);
+        }
+      }
     } else if (SKIP_VERIFY) {
       console.log(`  [${scenario.slug}] Verification skipped (--skip-verify)`);
     } else {
-      console.log(`  [${scenario.slug}] Verification skipped (no dev server or too few files)`);
+      console.log(`  [${scenario.slug}] Verification skipped (only ${projectFilesList.length} files built)`);
     }
 
-    // 9. Deploy to Vercel for permanent URL
-    //    Uses the CLI auth file (written in step 3) — NOT the VERCEL_TOKEN env var.
-    //    The env var token (vca_*) is a session token that doesn't support deploy.
-    //    We unset VERCEL_TOKEN so the CLI falls back to ~/.local/share/com.vercel.cli/auth.json.
+    // 9. Phase 3: Deploy to Vercel for permanent URL
+    //    Uses Claude Code to link, fix build errors, and deploy.
+    //    Deployment protection is on by default for vercel-labs team.
     let deployUrl: string | undefined;
-    if (vercelToken && projectFilesList.length > 3) {
-      console.log(`  [${scenario.slug}] Deploying to Vercel... (${elapsed(t0)})`);
+    if (!SKIP_DEPLOY && vercelToken && projectFilesList.length > 3) {
+      console.log(`  [${scenario.slug}] Phase 3: DEPLOY (${elapsed(t0)})`);
       const ts = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
       const projectName = `${scenario.slug}-${ts}`.toLowerCase();
-      // Link to vercel-labs team, then deploy (unset VERCEL_TOKEN so CLI uses auth.json)
-      await sh(sandbox, `cd ${projectDir} && unset VERCEL_TOKEN && vercel link --yes --scope vercel-labs --project ${projectName} 2>&1 | tail -2`);
-      const deployOut = await sh(sandbox, `cd ${projectDir} && unset VERCEL_TOKEN && vercel deploy --yes 2>&1 | tail -5`);
-      const urlMatch = deployOut.match(/(https:\/\/[^\s]+\.vercel\.app)/);
+
+      const deployPrompt = `The app in this directory needs to be deployed to Vercel. Follow these steps exactly:
+
+1. Run: vercel link --yes --scope vercel-labs --project ${projectName}
+2. Run: vercel deploy --yes
+3. If the deploy fails with a build error, fix the code and try again (up to 3 attempts).
+4. After a successful deploy, output the deployment URL on its own line starting with DEPLOY_URL:
+
+Important:
+- Do NOT set or use VERCEL_TOKEN env var — the CLI auth is already configured
+- If you see tsconfig or type errors, fix them before retrying
+- Deployment protection is enabled by default, which is what we want`;
+
+      await sandbox.writeFiles([{ path: "/tmp/deploy.txt", content: Buffer.from(deployPrompt) }]);
+      const deployCmd = `cd ${projectDir} && unset VERCEL_TOKEN && ${claudeBin} --dangerously-skip-permissions --debug --settings ${settingsPath} "$(cat /tmp/deploy.txt)"`;
+
+      let deployExit = -1;
+      let deployOut = "";
+      try {
+        const dr = await sandbox.runCommand("sh", ["-c", deployCmd], { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        deployExit = (dr as any).exitCode ?? 0;
+        deployOut = (await dr.stdout()).trim();
+      } catch (e: any) {
+        if (e.message?.includes("timed out")) {
+          deployExit = 124;
+          console.log(`  [${scenario.slug}] Deploy timed out (${elapsed(t0)})`);
+        }
+      }
+
+      // Extract deploy URL from Claude's output
+      const urlMatch = deployOut.match(/DEPLOY_URL:\s*(https:\/\/[^\s]+\.vercel\.app)/);
       if (urlMatch) {
         deployUrl = urlMatch[1];
         console.log(`  [${scenario.slug}] Deployed: ${deployUrl} (${elapsed(t0)})`);
       } else {
-        console.log(`  [${scenario.slug}] Deploy: ${deployOut.slice(-150)} (${elapsed(t0)})`);
+        // Fall back to scanning for any vercel.app URL in output
+        const fallback = deployOut.match(/(https:\/\/[^\s]+\.vercel\.app)/);
+        if (fallback) {
+          deployUrl = fallback[1];
+          console.log(`  [${scenario.slug}] Deployed (parsed): ${deployUrl} (${elapsed(t0)})`);
+        } else {
+          console.log(`  [${scenario.slug}] Deploy failed (exit=${deployExit}) (${elapsed(t0)})`);
+        }
+      }
+
+      // Re-extract skills after deploy phase (Claude may have triggered more)
+      const postDeploySkills = (await sh(sandbox, "ls /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null")).split("\n").filter(Boolean);
+      if (postDeploySkills.length > claimedSkills.length) {
+        const newSkills = postDeploySkills.filter(s => !claimedSkills.includes(s));
+        if (newSkills.length > 0) {
+          console.log(`  [${scenario.slug}] +${newSkills.length} skills from deploy: ${newSkills.join(", ")}`);
+          claimedSkills.push(...newSkills);
+        }
       }
     }
 
@@ -662,11 +745,15 @@ async function main() {
   const resultsPath = join(RESULTS_DIR, runId);
   await mkdir(resultsPath, { recursive: true });
 
-  console.log("=== Sandbox Eval Runner (with agent-browser verification) ===");
-  console.log(`Scenarios: ${SCENARIOS.length}`);
+  const filtered = SCENARIO_FILTER.length > 0
+    ? ACTIVE_SCENARIOS.filter(s => SCENARIO_FILTER.includes(s.slug))
+    : ACTIVE_SCENARIOS;
+
+  console.log("=== Sandbox Eval Runner: Build → Verify → Deploy ===");
+  console.log(`Scenarios: ${filtered.length}${SCENARIO_FILTER.length ? ` (filtered: ${SCENARIO_FILTER.join(", ")})` : ""}`);
   console.log(`Concurrency: ${CONCURRENCY}`);
   console.log(`Timeout: ${TIMEOUT_MS / 1000}s per phase`);
-  console.log(`Verify: ${SKIP_VERIFY ? "SKIP" : "ON"}`);
+  console.log(`Phases: Build${SKIP_VERIFY ? "" : " → Verify"}${SKIP_DEPLOY ? "" : " → Deploy"}`);
   console.log(`Keep-alive: ${KEEP_ALIVE ? `${KEEP_ALIVE_HOURS}h` : "OFF"}`);
   console.log(`Results: ${resultsPath}\n`);
 
@@ -678,7 +765,7 @@ async function main() {
   const pluginFiles = await collectPluginFiles();
   console.log(`  ${pluginFiles.length} files (${(pluginFiles.reduce((a, f) => a + f.content.length, 0) / 1024).toFixed(0)}KB)\n`);
 
-  const queue = [...SCENARIOS];
+  const queue = [...filtered];
   const results: ScenarioResult[] = [];
 
   async function worker(): Promise<void> {
@@ -687,14 +774,23 @@ async function main() {
       console.log(`\n--- ${scenario.slug} ---`);
       const result = await runScenario(scenario, apiKey, baseUrl, vercelToken, pluginFiles);
       results.push(result);
+
+      // Write individual result immediately so it survives crashes
+      try {
+        const scenarioDir = join(resultsPath, result.slug);
+        await mkdir(scenarioDir, { recursive: true });
+        await writeFile(join(scenarioDir, "result.json"), JSON.stringify(result, null, 2));
+        // Also update the aggregate results.json with everything so far
+        await writeFile(join(resultsPath, "results.json"), JSON.stringify({ runId, results, totalMs: performance.now() - t0, complete: false }, null, 2));
+      } catch {}
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, SCENARIOS.length) }, () => worker()));
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, filtered.length) }, () => worker()));
 
-  // Save results
+  // Save final results (marks complete: true)
   const totalMs = performance.now() - t0;
-  await writeFile(join(resultsPath, "results.json"), JSON.stringify({ runId, results, totalMs }, null, 2));
+  await writeFile(join(resultsPath, "results.json"), JSON.stringify({ runId, results, totalMs, complete: true }, null, 2));
 
   // Generate markdown report
   await generateReport(runId, results, totalMs, resultsPath);

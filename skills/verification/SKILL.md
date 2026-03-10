@@ -4,6 +4,8 @@ description: "Full-story verification — infers what the user is building, then
 summary: "Verify full user story: browser + server + data flow + env"
 metadata:
   priority: 7
+  docs:
+    - "https://vercel.com/docs/projects/project-configuration"
   pathPatterns: []
   bashPatterns:
     - '\bnext\s+dev\b'
@@ -171,6 +173,10 @@ Summarize findings in a structured report:
 - Continue past a confirmed broken boundary
 - Verify unrelated features — stay on the inferred story
 - Spend time on cosmetic issues (styling, spacing) unless the user specifically asked
+
+## Suggest Verification After Implementation
+
+When you finish building or implementing a feature (wrote code, created routes, set up a project), briefly let the user know they can ask you to verify everything works — e.g. browser verification or end-to-end flow check. One sentence is enough. Don't force it if only a small fix or question was involved.
 
 ## Coordination With Other Skills
 

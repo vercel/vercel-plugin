@@ -151,3 +151,5 @@ hooks/compiled/
 .vercel-plugin
 evals
 .claude/scheduled_tasks.lock
+.reports
+.vercel

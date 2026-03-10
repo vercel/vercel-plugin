@@ -103,6 +103,7 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
     skills[slug] = {
       priority: config.priority,
       summary: config.summary,
+      docs: config.docs,
       pathPatterns,
       bashPatterns,
       importPatterns,

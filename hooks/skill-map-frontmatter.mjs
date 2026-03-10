@@ -259,7 +259,7 @@ function parseValidateRules(raw) {
     if (typeof obj.pattern !== "string" || obj.pattern === "") continue;
     if (typeof obj.message !== "string" || obj.message === "") continue;
     const severity = obj.severity;
-    if (severity !== "error" && severity !== "warn") continue;
+    if (severity !== "error" && severity !== "recommended" && severity !== "warn") continue;
     const rule = {
       pattern: obj.pattern,
       message: obj.message,
@@ -563,9 +563,19 @@ function buildSkillMap(rootDir) {
       skill: skill.dir,
       addWarning
     });
+    const rawDocs = meta.docs !== void 0 ? meta.docs : [];
+    const filteredDocs = normalizePatternField({
+      raw: rawDocs,
+      skill: skill.dir,
+      field: "docs",
+      fieldTypeHint: "URL strings",
+      coerceStrings: true,
+      addWarning
+    });
     const entry = {
       priority: meta.priority ?? 5,
       summary: skill.summary || "",
+      docs: filteredDocs,
       pathPatterns: filteredPathPatterns,
       bashPatterns: filteredBashPatterns,
       importPatterns: filteredImportPatterns,
@@ -589,6 +599,7 @@ function buildSkillMap(rootDir) {
 const KNOWN_KEYS = /* @__PURE__ */ new Set([
   "priority",
   "summary",
+  "docs",
   "pathPatterns",
   "bashPatterns",
   "importPatterns",
@@ -728,6 +739,14 @@ function validateSkillMap(raw) {
       addWarning
     });
     const summary = typeof cfg.summary === "string" ? cfg.summary : "";
+    const docs = normalizePatternField({
+      raw: "docs" in cfg ? cfg.docs : [],
+      skill,
+      field: "docs",
+      fieldTypeHint: "URL strings",
+      coerceStrings: false,
+      addWarning
+    });
     const validate = parseValidateRules(cfg.validate);
     const promptSignals = parsePromptSignals(cfg.promptSignals, {
       skill,
@@ -736,6 +755,7 @@ function validateSkillMap(raw) {
     const normalizedEntry = {
       priority,
       summary,
+      docs,
       pathPatterns,
       bashPatterns,
       importPatterns,

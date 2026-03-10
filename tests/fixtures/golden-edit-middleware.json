@@ -1,5 +1,5 @@
 {
-  "description": "Golden snapshot: Edit middleware.ts triggers routing-middleware",
+  "description": "Golden snapshot: Edit middleware.ts triggers 4 skills, cap 3 drops edge-runtime",
   "input": {
     "tool_name": "Edit",
     "tool_input": { "file_path": "/Users/me/project/middleware.ts" }
@@ -9,9 +9,9 @@
       "version": 1,
       "toolName": "Edit",
       "toolTarget": "/Users/me/project/middleware.ts",
-      "matchedSkills": ["auth", "edge-runtime", "investigation-mode", "routing-middleware"],
-      "injectedSkills": ["investigation-mode", "auth", "routing-middleware", "edge-runtime"],
-      "droppedByCap": [],
+      "matchedSkills": ["routing-middleware", "investigation-mode", "auth", "edge-runtime"],
+      "injectedSkills": ["investigation-mode", "auth", "routing-middleware"],
+      "droppedByCap": ["edge-runtime"],
       "droppedByBudget": []
     }
   }

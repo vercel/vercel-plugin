@@ -286,6 +286,27 @@ async function validateSkillFrontmatter(): Promise<void> {
       });
     }
 
+    // Validate metadata.docs: must be a non-empty array of HTTPS URLs
+    const docs = fm.metadata?.docs;
+    if (!docs || !Array.isArray(docs) || docs.length === 0) {
+      fail("FM_NO_DOCS", `skills/${dir}/SKILL.md — metadata.docs is missing or empty`, {
+        file: `skills/${dir}/SKILL.md`,
+        line: 1,
+        hint: "Add metadata.docs with at least one HTTPS URL to official documentation",
+      });
+    } else {
+      for (let i = 0; i < docs.length; i++) {
+        const url = docs[i];
+        if (typeof url !== "string" || !url.startsWith("https://")) {
+          fail("FM_DOCS_INVALID_URL", `skills/${dir}/SKILL.md — metadata.docs[${i}] is not a valid HTTPS URL: ${url}`, {
+            file: `skills/${dir}/SKILL.md`,
+            line: 1,
+            hint: "Each docs entry must be an HTTPS URL (e.g., 'https://nextjs.org/docs')",
+          });
+        }
+      }
+    }
+
     // Type-check metadata fields via shared validator (buildSkillMap + validateSkillMap)
     // is done below after the per-file loop.
 

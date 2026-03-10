@@ -6,8 +6,9 @@
  * prompt-patterns.mts — no logic duplication.
  */
 
-import { normalizePromptText, compilePromptSignals, matchPromptWithReason } from "./prompt-patterns.mjs";
+import { normalizePromptText, compilePromptSignals, matchPromptWithReason, scorePromptWithLexical } from "./prompt-patterns.mjs";
 import type { CompiledPromptSignals, PromptMatchResult } from "./prompt-patterns.mjs";
+import { searchSkills } from "./lexical-index.mjs";
 import { parseSeenSkills } from "./patterns.mjs";
 import type { SkillConfig, PromptSignals } from "./skill-map-frontmatter.mjs";
 
@@ -41,12 +42,21 @@ export interface PromptAnalysisReport {
 // analyzePrompt
 // ---------------------------------------------------------------------------
 
+export interface AnalyzePromptOptions {
+  /** When true, use lexical index as primary recall stage. Default false. */
+  lexicalEnabled?: boolean;
+}
+
 /**
  * Analyze a prompt against a skill map and return a structured report.
  *
  * This is a pure analysis function — it does not perform injection, does not
  * read stdin, and does not write to stdout. It reuses normalizePromptText,
  * compilePromptSignals, and matchPromptWithReason from prompt-patterns.mts.
+ *
+ * When lexicalEnabled is true, uses scorePromptWithLexical() as the primary
+ * recall stage — skills can be matched via retrieval metadata even without
+ * exact phrase hits. noneOf hard suppression is preserved regardless.
  */
 export function analyzePrompt(
   prompt: string,
@@ -54,8 +64,10 @@ export function analyzePrompt(
   seenSkills: string,
   budgetBytes: number,
   maxSkills: number,
+  options?: AnalyzePromptOptions,
 ): PromptAnalysisReport {
   const t0 = performance.now();
+  const lexicalEnabled = options?.lexicalEnabled ?? false;
 
   const normalizedPrompt = normalizePromptText(prompt);
 
@@ -69,25 +81,134 @@ export function analyzePrompt(
       : "memory-only";
   const seenSet = dedupOff ? new Set<string>() : parseSeenSkills(seenSkills);
 
-  // Evaluate all skills with promptSignals
+  // Pre-compute lexical hits once for all skills (when lexical is enabled)
+  const lexicalHits = lexicalEnabled ? searchSkills(prompt) : [];
+  // Build a lookup for fast per-skill lexical score access
+  const lexicalScoreMap = new Map(lexicalHits.map((h) => [h.skill, h.score]));
+
+  // Max additional points a lexical hit can contribute beyond the exact score.
+  // Bounded to prevent raw MiniSearch scores (which can be 1000+) from
+  // dominating the prompt-signal scoring range (0–20).
+  const LEXICAL_BOOST_CAP = 4;
+  // Higher cap for skills with curated retrieval metadata — trusted for
+  // primary recall so lexical alone can reach the default minScore of 6.
+  const RETRIEVAL_LEXICAL_BOOST_CAP = 8;
+  // Only the top-K lexical hits qualify for retrieval-only recall (exact=0).
+  // This prevents broad lexical matches from creating massive false positives.
+  const RETRIEVAL_TOP_K = 5;
+  const topKLexicalSkills = new Set(
+    lexicalHits.slice(0, RETRIEVAL_TOP_K).map((h) => h.skill),
+  );
+
+  // Evaluate skills
   const perSkillResults: Record<string, PerSkillResult> = {};
   const matched: Array<{ skill: string; score: number; priority: number }> = [];
 
   for (const [skill, config] of Object.entries(skillMap)) {
-    if (!config.promptSignals) continue;
+    const hasPromptSignals = !!config.promptSignals;
+    // When lexical is off, skip skills without promptSignals (existing behavior).
+    // When lexical is on, also consider skills with retrieval metadata.
+    if (!hasPromptSignals && !lexicalEnabled) continue;
+    if (!hasPromptSignals && !config.retrieval) continue;
 
-    const compiled = compilePromptSignals(config.promptSignals);
-    const result = matchPromptWithReason(normalizedPrompt, compiled);
+    const compiled = hasPromptSignals
+      ? compilePromptSignals(config.promptSignals!)
+      : undefined;
 
-    perSkillResults[skill] = {
-      score: result.score,
-      reason: result.reason,
-      matched: result.matched,
-      suppressed: result.score === -Infinity,
-    };
+    if (lexicalEnabled) {
+      // --- Two-stage lexical path ---
+      // Stage 1: exact matching (always primary for skills with promptSignals)
+      const exactResult = compiled
+        ? matchPromptWithReason(normalizedPrompt, compiled)
+        : { matched: false, score: 0, reason: "no promptSignals" };
 
-    if (result.matched) {
-      matched.push({ skill, score: result.score, priority: config.priority });
+      // noneOf hard suppression — always respected regardless of lexical score
+      if (exactResult.score === -Infinity) {
+        perSkillResults[skill] = {
+          score: -Infinity,
+          reason: exactResult.reason,
+          matched: false,
+          suppressed: true,
+        };
+        continue;
+      }
+
+      const minScore = compiled?.minScore ?? 6;
+      const rawLexical = lexicalScoreMap.get(skill) ?? 0;
+
+      if (exactResult.matched) {
+        // Exact match succeeded — use it directly (preserves existing behavior)
+        perSkillResults[skill] = {
+          score: exactResult.score,
+          reason: exactResult.reason,
+          matched: true,
+          suppressed: false,
+        };
+        matched.push({ skill, score: exactResult.score, priority: config.priority });
+      } else if (rawLexical > 0 && (exactResult.score > 0 || !hasPromptSignals || (!!config.retrieval && topKLexicalSkills.has(skill)))) {
+        // Stage 2: exact didn't reach threshold but lexical index has a hit.
+        // For skills with promptSignals but NO retrieval metadata, require at
+        // least some exact signal match (score > 0) before lexical can boost —
+        // prevents irrelevant skills from being recalled purely via broad
+        // lexical matches.
+        // For skills with retrieval metadata that are in the top-K lexical
+        // results, lexical alone suffices — their curated aliases/intents/
+        // entities are trusted as a primary recall mechanism. The top-K gate
+        // prevents low-ranked broad matches from creating false positives.
+        const lexResult = scorePromptWithLexical(prompt, skill, compiled, lexicalHits);
+        // Cap effective score: exact score + bounded lexical boost.
+        // Skills with retrieval metadata in top-K get a higher cap so
+        // lexical can reach the default minScore on its own.
+        const isRetrievalRecall = !!config.retrieval && topKLexicalSkills.has(skill) && exactResult.score <= 0;
+        const boostCap = isRetrievalRecall ? RETRIEVAL_LEXICAL_BOOST_CAP : LEXICAL_BOOST_CAP;
+        const lexicalBoost = Math.min(
+          Math.max(lexResult.score - exactResult.score, 0),
+          boostCap,
+        );
+        const effectiveScore = exactResult.score + lexicalBoost;
+        const isMatched = effectiveScore >= minScore;
+
+        // Build reason
+        const parts: string[] = [];
+        if (exactResult.score > 0) parts.push(exactResult.reason);
+        parts.push(
+          `lexical ${isMatched ? "recall" : "boost"} (raw ${rawLexical.toFixed(1)}, capped +${lexicalBoost.toFixed(1)}, source: ${lexResult.source})`,
+        );
+        const reason = parts.join("; ");
+
+        perSkillResults[skill] = {
+          score: effectiveScore,
+          reason,
+          matched: isMatched,
+          suppressed: false,
+        };
+
+        if (isMatched) {
+          matched.push({ skill, score: effectiveScore, priority: config.priority });
+        }
+      } else {
+        // No lexical hit either — record sub-threshold result
+        perSkillResults[skill] = {
+          score: exactResult.score,
+          reason: exactResult.reason,
+          matched: false,
+          suppressed: false,
+        };
+      }
+    } else {
+      // --- Existing exact-only path ---
+      const result = matchPromptWithReason(normalizedPrompt, compiled!);
+
+      perSkillResults[skill] = {
+        score: result.score,
+        reason: result.reason,
+        matched: result.matched,
+        suppressed: result.score === -Infinity,
+      };
+
+      if (result.matched) {
+        matched.push({ skill, score: result.score, priority: config.priority });
+      }
     }
   }
 

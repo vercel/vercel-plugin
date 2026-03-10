@@ -447,6 +447,45 @@ describe("posttooluse-validate.mjs", () => {
       expect(meta.warnCount).toBe(1);
     });
 
+    test("returns recommended output for recommended-only violations", () => {
+      const violations = [{
+        skill: "ai-sdk",
+        line: 2,
+        message: "outdated model",
+        severity: "recommended" as const,
+        matchedText: "gpt-4o",
+      }];
+      const result = formatOutput(violations, ["ai-sdk"], "/test/file.ts");
+      const parsed = JSON.parse(result);
+      expect(parsed.hookSpecificOutput).toBeDefined();
+      expect(parsed.hookSpecificOutput.hookEventName).toBe("PostToolUse");
+      const ctx = parsed.hookSpecificOutput.additionalContext;
+      expect(ctx).toContain("[RECOMMENDED]");
+      expect(ctx).toContain("outdated model");
+      expect(ctx).toContain("Apply these recommendations before continuing");
+      expect(ctx).not.toContain("[ERROR]");
+      expect(ctx).not.toContain("[SUGGESTION]");
+      expect(ctx).not.toContain("Consider applying");
+      const meta = extractPostValidation(parsed.hookSpecificOutput);
+      expect(meta.errorCount).toBe(0);
+      expect(meta.recommendedCount).toBe(1);
+      expect(meta.warnCount).toBe(0);
+    });
+
+    test("errors take precedence over recommended in call-to-action", () => {
+      const violations = [
+        { skill: "ai-sdk", line: 1, message: "error msg", severity: "error" as const, matchedText: "x" },
+        { skill: "ai-sdk", line: 2, message: "rec msg", severity: "recommended" as const, matchedText: "y" },
+      ];
+      const result = formatOutput(violations, ["ai-sdk"], "/test/file.ts");
+      const parsed = JSON.parse(result);
+      const ctx = parsed.hookSpecificOutput.additionalContext;
+      expect(ctx).toContain("[ERROR]");
+      expect(ctx).toContain("[RECOMMENDED]");
+      expect(ctx).toContain("Please fix these issues");
+      expect(ctx).not.toContain("Apply these recommendations");
+    });
+
     test("includes error violations in output", () => {
       const violations = [{
         skill: "ai-sdk",

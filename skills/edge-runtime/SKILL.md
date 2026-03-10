@@ -3,6 +3,9 @@ name: edge-runtime
 description: Expert guidance for Vercel's Edge Runtime — the lightweight JavaScript runtime for Vercel Edge Functions and Middleware. Use when building or configuring edge functions, edge middleware, or working with the Edge Runtime API and its packages.
 metadata:
   priority: 4
+  docs:
+    - "https://vercel.com/docs/functions/runtimes/edge-runtime"
+    - "https://edge-runtime.vercel.app"
   pathPatterns:
     - 'edge-runtime.config.*'
     - 'middleware.ts'

@@ -143,7 +143,7 @@ sequenceDiagram
     rect rgb(230, 255, 230)
         Note over PTU: Phase 3: Tool-Time Injection
         CC->>PTU: pretooluse-skill-inject (Read vercel.json)
-        Note over PTU: Path match: vercel.json → vercel-config<br/>Budget: 18KB, max 5 skills
+        Note over PTU: Path match: vercel.json → vercel-config<br/>Budget: 18KB, max 3 skills
         PTU-->>CC: Inject vercel-config skill
     end
 
@@ -200,7 +200,7 @@ Fires before each tool execution. Two matchers handle different tool types.
 
 | Hook | Matcher | Source | Purpose |
 |------|---------|--------|---------|
-| `pretooluse-skill-inject.mjs` | `Read\|Edit\|Write\|Bash` | `hooks/src/pretooluse-skill-inject.mts` | **Main injection engine.** Matches file paths (glob), bash commands (regex), and imports (regex) against skill patterns. Applies vercel.json routing (±10), profiler boost (+5), ranks by priority, deduplicates, and injects up to **5 skills within 18KB budget** |
+| `pretooluse-skill-inject.mjs` | `Read\|Edit\|Write\|Bash` | `hooks/src/pretooluse-skill-inject.mts` | **Main injection engine.** Matches file paths (glob), bash commands (regex), and imports (regex) against skill patterns. Applies vercel.json routing (±10), profiler boost (+5), ranks by priority, deduplicates, and injects up to **3 skills within 18KB budget** |
 | `pretooluse-subagent-spawn-observe.mjs` | `Agent` | `hooks/src/pretooluse-subagent-spawn-observe.mts` | **Observer.** Captures pending subagent spawn metadata (description, prompt, type) to a JSONL file. Later consumed by `subagent-start-bootstrap` to correlate skills with the subagent's task |
 
 **Special triggers in pretooluse-skill-inject:**
@@ -409,7 +409,7 @@ All of this happened transparently. The developer got expert-level Vercel guidan
 | **Hook** | A Node.js script registered in `hooks/hooks.json` that runs at a specific Claude Code lifecycle event. Hooks receive JSON on stdin and may output JSON on stdout to modify Claude's behavior (e.g., inject additionalContext) |
 | **Manifest** | `generated/skill-manifest.json` — a pre-compiled index of all skill frontmatter with glob patterns converted to regex at build time. Hooks load this at runtime instead of scanning SKILL.md files directly |
 | **Dedup** | The deduplication system that prevents the same skill from being injected twice in a session. Uses three layers: atomic file claims (O_EXCL), a session file (comma-delimited), and an env var (`VERCEL_PLUGIN_SEEN_SKILLS`). All three are merged via `mergeSeenSkillStates()` |
-| **Budget** | Byte limits that cap how much skill content can be injected per hook invocation. PreToolUse: 18KB max, 5 skills. UserPromptSubmit: 8KB max, 2 skills. SubagentStart: varies by agent type (1KB–8KB). Prevents context window bloat |
+| **Budget** | Byte limits that cap how much skill content can be injected per hook invocation. PreToolUse: 18KB max, 3 skills. UserPromptSubmit: 8KB max, 2 skills. SubagentStart: varies by agent type (1KB–8KB). Prevents context window bloat |
 | **Profiler** | The `session-start-profiler` hook that scans the project at session start — checking config files, package.json dependencies, and vercel.json keys — to pre-identify likely relevant skills. Profiled skills receive a +5 priority boost |
 | **Claim Dir** | `<tmpdir>/vercel-plugin-<sessionId>-seen-skills.d/` — a directory of empty files, one per claimed skill, created atomically with `O_EXCL` flag to prevent race conditions. The authoritative source of dedup truth. Agent-scoped variants exist for subagent isolation |
 | **Priority** | A numeric score (typically 4–8) that determines injection order. Base priority is set in SKILL.md frontmatter. Modified at runtime by vercel.json routing (±10), profiler boost (+5), and prompt signal scores. Higher priority = injected first |

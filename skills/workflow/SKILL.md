@@ -3,6 +3,9 @@ name: workflow
 description: Vercel Workflow DevKit (WDK) expert guidance. Use when building durable workflows, long-running tasks, API routes or agents that need pause/resume, retries, step-based execution, or crash-safe orchestration with Vercel Workflow.
 metadata:
   priority: 9
+  docs:
+    - "https://vercel.com/docs/workflow"
+    - "https://useworkflow.dev"
   pathPatterns:
     - 'lib/workflow/**'
     - 'src/lib/workflow/**'
@@ -252,7 +255,7 @@ validate:
   -
     pattern: from\s+['"]@vercel/workflow['"]
     message: 'Workflow DevKit requires AI Gateway OIDC setup — ensure vercel link + vercel env pull for VERCEL_OIDC_TOKEN'
-    severity: warn
+    severity: recommended
   -
     pattern: setTimeout|setInterval
     message: 'setTimeout/setInterval are not available in workflow sandbox scope — use sleep() from "workflow" for delays'
@@ -270,7 +273,7 @@ validate:
   -
     pattern: getWritable\(\)
     message: 'getWritable() must only be called inside "use step" functions — workflow sandbox scope does not support it'
-    severity: warn
+    severity: recommended
     skipIfFileContains: "use step"
   -
     pattern: createWorkflow\s*\(
@@ -284,12 +287,12 @@ validate:
   -
     pattern: await\s+\w+Workflow\s*\(
     message: 'Do not call workflow functions directly — use start() from "workflow/api" to register the run and get a runId'
-    severity: warn
+    severity: recommended
     skipIfFileContains: "use workflow"
   -
     pattern: \bfetch\s*\(
     message: 'Native fetch() is not available in workflow sandbox scope — import fetch from "workflow" or move the call into a "use step" function'
-    severity: warn
+    severity: recommended
     skipIfFileContains: "use step"
   -
     pattern: '"use step"'

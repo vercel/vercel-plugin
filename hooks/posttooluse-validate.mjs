@@ -143,6 +143,7 @@ function runValidation(fileContent, matchedSkills, rulesMap, logger) {
   l.debug("posttooluse-validate-violations", {
     total: violations.length,
     errors: violations.filter((v) => v.severity === "error").length,
+    recommended: violations.filter((v) => v.severity === "recommended").length,
     warns: violations.filter((v) => v.severity === "warn").length
   });
   return violations;
@@ -194,8 +195,10 @@ function formatOutput(violations, matchedSkills, filePath, logger) {
     return "{}";
   }
   const errors = violations.filter((v) => v.severity === "error");
+  const recommended = violations.filter((v) => v.severity === "recommended");
   const warns = violations.filter((v) => v.severity === "warn");
   const hasErrors = errors.length > 0;
+  const hasRecommended = recommended.length > 0;
   const hasWarns = warns.length > 0;
   const bySkill = /* @__PURE__ */ new Map();
   for (const v of violations) {
@@ -205,15 +208,17 @@ function formatOutput(violations, matchedSkills, filePath, logger) {
   const parts = [];
   for (const [skill, skillViolations] of bySkill) {
     const errorLines = skillViolations.filter((v) => v.severity === "error").map((v) => `- Line ${v.line} [ERROR]: ${v.message}`);
+    const recommendedLines = skillViolations.filter((v) => v.severity === "recommended").map((v) => `- Line ${v.line} [RECOMMENDED]: ${v.message}`);
     const warnLines = skillViolations.filter((v) => v.severity === "warn").map((v) => `- Line ${v.line} [SUGGESTION]: ${v.message}`);
-    parts.push([...errorLines, ...warnLines].join("\n"));
+    parts.push([...errorLines, ...recommendedLines, ...warnLines].join("\n"));
   }
   const skillList = [...bySkill.keys()].join(", ");
   const counts = [
     hasErrors ? `${errors.length} error${errors.length > 1 ? "s" : ""}` : "",
+    hasRecommended ? `${recommended.length} recommendation${recommended.length > 1 ? "s" : ""}` : "",
     hasWarns ? `${warns.length} suggestion${warns.length > 1 ? "s" : ""}` : ""
   ].filter(Boolean).join(", ");
-  const callToAction = hasErrors ? `Please fix these issues before proceeding.` : `Consider applying these suggestions to follow best practices.`;
+  const callToAction = hasErrors ? `Please fix these issues before proceeding.` : hasRecommended ? `Apply these recommendations before continuing \u2014 they reflect current best practices.` : `Consider applying these suggestions to follow best practices.`;
   const context = [
     `<!-- posttooluse-validate: ${skillList} -->`,
     `VALIDATION (${counts}) for \`${filePath}\`:`,
@@ -227,6 +232,7 @@ function formatOutput(violations, matchedSkills, filePath, logger) {
     filePath,
     matchedSkills,
     errorCount: errors.length,
+    recommendedCount: recommended.length,
     warnCount: warns.length
   };
   const metaComment = `<!-- postValidation: ${JSON.stringify(metadata)} -->`;
@@ -240,6 +246,7 @@ function formatOutput(violations, matchedSkills, filePath, logger) {
     filePath,
     matchedSkills,
     errorCount: errors.length,
+    recommendedCount: recommended.length,
     warnCount: warns.length
   });
   return JSON.stringify(output);

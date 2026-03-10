@@ -11,12 +11,13 @@
   "injectedSkills": [
     "vercel-functions",
     "vercel-cli",
-    "cron-jobs",
+    "cron-jobs"
+  ],
+  "summaryOnly": [],
+  "droppedByCap": [
     "deployments-cicd",
     "routing-middleware"
   ],
-  "summaryOnly": [],
-  "droppedByCap": [],
   "droppedByBudget": [],
   "reasons": {
     "vercel-functions": {
@@ -28,14 +29,6 @@
       "reasonCode": "pattern-match"
     },
     "cron-jobs": {
-      "trigger": "basename",
-      "reasonCode": "pattern-match"
-    },
-    "deployments-cicd": {
-      "trigger": "basename",
-      "reasonCode": "pattern-match"
-    },
-    "routing-middleware": {
       "trigger": "basename",
       "reasonCode": "pattern-match"
     }

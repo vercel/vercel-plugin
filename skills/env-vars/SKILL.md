@@ -3,6 +3,8 @@ name: env-vars
 description: Vercel environment variable expert guidance. Use when working with .env files, vercel env commands, OIDC tokens, or managing environment-specific configuration.
 metadata:
   priority: 7
+  docs:
+    - "https://vercel.com/docs/environment-variables"
   pathPatterns:
     - '.env'
     - '.env.*'

@@ -3,6 +3,9 @@ name: observability
 description: Vercel Observability expert guidance — Drains (logs, traces, speed insights, web analytics), Web Analytics, Speed Insights, runtime logs, custom events, OpenTelemetry integration, and monitoring dashboards. Use when instrumenting, debugging, or optimizing application performance and user experience on Vercel.
 metadata:
   priority: 6
+  docs:
+    - "https://vercel.com/docs/observability"
+    - "https://vercel.com/docs/observability/otel-overview"
   pathPatterns:
     - 'instrumentation.ts'
     - 'instrumentation.js'

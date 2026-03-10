@@ -26,7 +26,7 @@ Every hook registered in `hooks/hooks.json`. All hooks run via `node "${CLAUDE_P
 | SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — | Initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in the env file for dedup tracking |
 | SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — | Scans project config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost); detects greenfield mode |
 | SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — | Injects `vercel.md` ecosystem guide (~52KB) as additionalContext |
-| PreToolUse | `pretooluse-skill-inject.mjs` | `Read\|Edit\|Write\|Bash` | 5s | **Main injection engine.** Pattern match → rank → dedup → budget enforcement (max 5 skills, 18KB) |
+| PreToolUse | `pretooluse-skill-inject.mjs` | `Read\|Edit\|Write\|Bash` | 5s | **Main injection engine.** Pattern match → rank → dedup → budget enforcement (max 3 skills, 18KB) |
 | PreToolUse | `pretooluse-subagent-spawn-observe.mjs` | `Agent` | 5s | **Observer.** Captures pending subagent spawn metadata to JSONL file |
 | UserPromptSubmit | `user-prompt-submit-skill-inject.mjs` | *(all prompts)* | 5s | Prompt signal scoring engine — phrases, allOf, anyOf, noneOf → inject up to 2 skills within 8KB |
 | PostToolUse | `posttooluse-shadcn-font-fix.mjs` | `Bash` | 5s | Fixes shadcn font loading issues by patching font import statements |
@@ -367,7 +367,7 @@ All 45 skills, sorted by priority (highest first). Each skill lives in `skills/<
 | Constant | Default | Configurable Via | Description |
 |----------|---------|------------------|-------------|
 | PreToolUse byte budget | 18,000 bytes | `VERCEL_PLUGIN_INJECTION_BUDGET` | Max total skill content per PreToolUse invocation |
-| PreToolUse skill cap | 5 skills | — | Max number of skills injected per PreToolUse |
+| PreToolUse skill cap | 3 skills | — | Max number of skills injected per PreToolUse |
 | UserPromptSubmit byte budget | 8,000 bytes | `VERCEL_PLUGIN_PROMPT_INJECTION_BUDGET` | Max total skill content per UserPromptSubmit |
 | UserPromptSubmit skill cap | 2 skills | — | Max skills injected per UserPromptSubmit |
 | SubagentStart (Explore) | ~1,000 bytes | — | Skill names + profile summary only |

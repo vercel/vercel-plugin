@@ -4,6 +4,8 @@ description: "AI generation persistence patterns — unique IDs, addressable URL
 summary: "Persist every AI generation: unique ID, save to DB/Blob, addressable URL /chat/[id], track token cost"
 metadata:
   priority: 6
+  docs:
+    - "https://sdk.vercel.ai/docs/ai-sdk-ui/storing-messages"
   pathPatterns:
     - "app/api/generate/**"
     - "app/api/generations/**"

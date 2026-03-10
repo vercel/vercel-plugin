@@ -4,6 +4,9 @@ description: next-forge expert guidance — production-grade Turborepo monorepo 
 summary: next-forge monorepo SaaS starter (Turborepo, Clerk, Prisma/Neon, Stripe, Resend, shadcn/ui, Sentry, PostHog). See => skill:next-forge for full guide.
 metadata:
   priority: 6
+  docs:
+    - "https://next-forge.com/docs"
+    - "https://github.com/haydenbleasel/next-forge"
   pathPatterns:
     - 'pnpm-workspace.yaml'
     - 'apps/app/**'

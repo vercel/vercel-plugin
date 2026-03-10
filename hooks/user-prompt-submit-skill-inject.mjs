@@ -12,8 +12,9 @@ import {
   writeSessionFile
 } from "./hook-env.mjs";
 import { loadSkills, injectSkills } from "./pretooluse-skill-inject.mjs";
-import { parseSeenSkills, mergeSeenSkillStates } from "./patterns.mjs";
-import { normalizePromptText, compilePromptSignals, matchPromptWithReason, classifyTroubleshootingIntent } from "./prompt-patterns.mjs";
+import { parseSeenSkills, mergeSeenSkillStates, buildDocsBlock } from "./patterns.mjs";
+import { normalizePromptText, compilePromptSignals, matchPromptWithReason, scorePromptWithLexical, classifyTroubleshootingIntent } from "./prompt-patterns.mjs";
+import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 const MAX_SKILLS = 2;
@@ -97,27 +98,51 @@ function parsePromptInput(raw, logger) {
   l.debug("input-parsed", { promptLength: prompt.length, sessionId });
   return { prompt, sessionId, cwd };
 }
-function matchPromptSignals(normalizedPrompt, skills, logger) {
+function matchPromptSignals(normalizedPrompt, skills, logger, options) {
   const l = logger || log;
+  const lexical = options?.lexical ?? false;
   const { skillMap } = skills;
   const matches = [];
+  const lexicalHits = lexical ? searchSkills(normalizedPrompt) : void 0;
   for (const [skill, config] of Object.entries(skillMap)) {
     if (!config.promptSignals) continue;
     const compiled = compilePromptSignals(config.promptSignals);
-    const result = matchPromptWithReason(normalizedPrompt, compiled);
-    l.trace("prompt-signal-eval", {
-      skill,
-      matched: result.matched,
-      score: result.score,
-      reason: result.reason
-    });
-    if (result.matched) {
-      matches.push({
+    if (lexical) {
+      const lexResult = scorePromptWithLexical(normalizedPrompt, skill, compiled, lexicalHits);
+      const isMatched = lexResult.score >= compiled.minScore;
+      const reason = lexResult.source === "exact" ? matchPromptWithReason(normalizedPrompt, compiled).reason : `${matchPromptWithReason(normalizedPrompt, compiled).reason}; lexical ${lexResult.source} (score ${lexResult.lexicalScore.toFixed(1)}, tier ${lexResult.boostTier ?? "none"})`;
+      l.trace("prompt-signal-eval", {
         skill,
-        score: result.score,
-        reason: result.reason,
-        priority: config.priority
+        matched: isMatched,
+        score: lexResult.score,
+        reason,
+        source: lexResult.source,
+        boostTier: lexResult.boostTier
       });
+      if (isMatched) {
+        matches.push({
+          skill,
+          score: lexResult.score,
+          reason,
+          priority: config.priority
+        });
+      }
+    } else {
+      const result = matchPromptWithReason(normalizedPrompt, compiled);
+      l.trace("prompt-signal-eval", {
+        skill,
+        matched: result.matched,
+        score: result.score,
+        reason: result.reason
+      });
+      if (result.matched) {
+        matches.push({
+          skill,
+          score: result.score,
+          reason: result.reason,
+          priority: config.priority
+        });
+      }
     }
   }
   matches.sort((a, b) => {
@@ -127,7 +152,8 @@ function matchPromptSignals(normalizedPrompt, skills, logger) {
   });
   l.debug("prompt-matches", {
     totalWithSignals: Object.values(skillMap).filter((c) => c.promptSignals).length,
-    matched: matches.map((m) => ({ skill: m.skill, score: m.score }))
+    matched: matches.map((m) => ({ skill: m.skill, score: m.score })),
+    lexical
   });
   return matches;
 }
@@ -187,7 +213,7 @@ function deduplicateAndInject(matches, skills, logger) {
     matchedSkills: allMatched
   };
 }
-function formatOutput(parts, matchedSkills, injectedSkills, summaryOnly, droppedByCap, droppedByBudget, promptMatchReasons) {
+function formatOutput(parts, matchedSkills, injectedSkills, summaryOnly, droppedByCap, droppedByBudget, promptMatchReasons, skillMap) {
   if (parts.length === 0) {
     return "{}";
   }
@@ -211,10 +237,14 @@ function formatOutput(parts, matchedSkills, injectedSkills, summaryOnly, dropped
     }
   }
   const banner = bannerLines.join("\n");
+  const docsBlock = buildDocsBlock(injectedSkills, skillMap);
+  const sections = [banner];
+  if (docsBlock) sections.push(docsBlock);
+  sections.push(parts.join("\n\n"));
   const output = {
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",
-      additionalContext: banner + "\n\n" + parts.join("\n\n") + "\n" + metaComment
+      additionalContext: sections.join("\n\n") + "\n" + metaComment
     }
   };
   return JSON.stringify(output);
@@ -256,7 +286,11 @@ function run() {
   }
   const hasEnvDedup = !dedupOff && typeof process.env.VERCEL_PLUGIN_SEEN_SKILLS === "string";
   const budget = getInjectionBudget();
-  const report = analyzePrompt(prompt, skills.skillMap, seenState, budget, MAX_SKILLS);
+  const lexicalEnabled = process.env.VERCEL_PLUGIN_LEXICAL_PROMPT === "1";
+  if (lexicalEnabled) {
+    initializeLexicalIndex(new Map(Object.entries(skills.skillMap)));
+  }
+  const report = analyzePrompt(prompt, skills.skillMap, seenState, budget, MAX_SKILLS, { lexicalEnabled });
   if (log.active) timing.analyze = Math.round(log.now() - tAnalyze);
   log.trace("prompt-analysis-full", report);
   for (const [skill, r] of Object.entries(report.perSkillResults)) {
@@ -423,7 +457,7 @@ function run() {
       promptMatchReasons[skill] = r.reason;
     }
   }
-  return formatOutput(parts, matchedSkills, loaded, summaryOnly, droppedByCap, droppedByBudget, promptMatchReasons);
+  return formatOutput(parts, matchedSkills, loaded, summaryOnly, droppedByCap, droppedByBudget, promptMatchReasons, skills.skillMap);
 }
 function isMainModule() {
   try {

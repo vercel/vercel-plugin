@@ -3,6 +3,9 @@ name: geist
 description: Expert guidance for Geist, Vercel's default typography system and font family for precise Next.js interfaces. Use when configuring Geist Sans, Geist Mono, or Geist Pixel, setting up font imports, or applying Vercel typography and aesthetic guidance.
 metadata:
   priority: 4
+  docs:
+    - "https://vercel.com/font"
+    - "https://github.com/vercel/geist-font"
   pathPatterns:
     - 'app/layout.*'
     - 'src/app/layout.*'

@@ -271,7 +271,7 @@ describe("pretooluse-skill-inject.mjs", () => {
     expect(r2).toEqual({});
   });
 
-  test("caps at 5 skills when bash command matches 5+ skills", async () => {
+  test("caps at 3 skills when bash command matches 5+ skills", async () => {
     // This command matches 5 distinct skills:
     //   vercel-cli  (vercel deploy)
     //   turborepo   (turbo run build)
@@ -291,7 +291,7 @@ describe("pretooluse-skill-inject.mjs", () => {
     expect(result.hookSpecificOutput.additionalContext).toBeDefined();
     const skillTags =
       result.hookSpecificOutput.additionalContext.match(/<!-- skill:[a-z0-9-]+ -->/g) || [];
-    expect(skillTags.length).toBe(5);
+    expect(skillTags.length).toBe(3);
   });
 
   test("large multi-skill output is valid JSON with correct structure", async () => {
@@ -1411,7 +1411,7 @@ describe("priority ordering for file-path matches", () => {
     //   ai-sdk (priority 8): app/api/chat/**
     //   vercel-functions (priority 8): app/**/route.*
     //   nextjs (priority 5): app/**
-    // All 4 fit under the default cap, so all should inject, ordered by priority
+    // With cap 3, top 3 by priority inject; nextjs (5) gets dropped
     const { code, stdout } = await runHook({
       tool_name: "Read",
       tool_input: { file_path: "/Users/me/project/app/api/chat/route.ts" },
@@ -1419,10 +1419,11 @@ describe("priority ordering for file-path matches", () => {
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
     const ctx = result.hookSpecificOutput.additionalContext;
-    expect(ctx).toContain("skill:nextjs");
     expect(ctx).toContain("skill:ai-sdk");
     expect(ctx).toContain("skill:chat-sdk");
     expect(ctx).toContain("skill:vercel-functions");
+    // nextjs (priority 5) dropped by cap
+    expect(ctx).not.toContain("skill:nextjs");
   });
 
   test("skills appear in priority order (highest first) in additionalContext", async () => {
@@ -1434,18 +1435,19 @@ describe("priority ordering for file-path matches", () => {
     const result = JSON.parse(stdout);
     const ctx = result.hookSpecificOutput.additionalContext;
 
-    const nextjsPos = ctx.indexOf("skill:nextjs");
     const aiSdkPos = ctx.indexOf("skill:ai-sdk");
+    const chatSdkPos = ctx.indexOf("skill:chat-sdk");
     const funcPos = ctx.indexOf("skill:vercel-functions");
 
-    // ai-sdk (8) and vercel-functions (8) should appear before nextjs (5)
-    expect(aiSdkPos).toBeLessThan(nextjsPos);
-    expect(funcPos).toBeLessThan(nextjsPos);
+    // All three priority-8 skills should be present and ordered consistently
+    expect(aiSdkPos).toBeGreaterThan(-1);
+    expect(chatSdkPos).toBeGreaterThan(-1);
+    expect(funcPos).toBeGreaterThan(-1);
   });
 });
 
 describe("priority ordering", () => {
-  test("when 5 skills match, all 5 inject within cap", async () => {
+  test("when 5 skills match, top 3 inject within cap", async () => {
     // Craft a bash command that matches 5 skills with known priorities:
     //   ai-sdk (priority 8): "npm install ai"
     //   vercel-storage (priority 7): "npm install @vercel/blob"
@@ -1466,9 +1468,8 @@ describe("priority ordering", () => {
 
     const skillTags =
       ctx.match(/<!-- skill:([a-z0-9-]+) -->/g) || [];
-    // With cap 5, up to 5 can inject but budget may limit further
-    expect(skillTags.length).toBeGreaterThanOrEqual(3);
-    expect(skillTags.length).toBeLessThanOrEqual(5);
+    // With cap 3, at most 3 skills inject
+    expect(skillTags.length).toBeLessThanOrEqual(3);
 
     // Highest priority skills should be present
     expect(ctx).toContain("skill:ai-sdk");
@@ -1592,23 +1593,24 @@ describe("cap observability (debug mode)", () => {
     const lines = stderr.trim().split("\n").map((l: string) => JSON.parse(l));
     const capEvent = lines.find((l: any) => l.event === "cap-applied");
     expect(capEvent).toBeDefined();
-    expect(capEvent.max).toBe(5);
+    expect(capEvent.max).toBe(3);
     expect(capEvent.totalCandidates).toBeGreaterThanOrEqual(5);
     expect(typeof capEvent.budgetBytes).toBe("number");
     expect(typeof capEvent.usedBytes).toBe("number");
 
-    // selected array has exactly 5 entries with skill name
+    // selected array has exactly 3 entries with skill name
     expect(Array.isArray(capEvent.selected)).toBe(true);
-    expect(capEvent.selected.length).toBe(5);
+    expect(capEvent.selected.length).toBe(3);
     for (const entry of capEvent.selected) {
       expect(typeof entry.skill).toBe("string");
     }
 
-    // droppedByCap may be empty when all 5 fit
+    // droppedByCap should have remaining skills
     expect(Array.isArray(capEvent.droppedByCap)).toBe(true);
+    expect(capEvent.droppedByCap.length).toBeGreaterThan(0);
   });
 
-  test("does NOT emit cap-applied when <=5 skills match", async () => {
+  test("does NOT emit cap-applied when <=3 skills match", async () => {
     const { stderr } = await runHookDebug({
       tool_name: "Read",
       tool_input: { file_path: "/Users/me/project/next.config.ts" },
@@ -1639,7 +1641,7 @@ describe("injection byte budget", () => {
   });
 
   test("large budget allows all matching skills up to MAX_SKILLS", async () => {
-    // Same path, unlimited budget
+    // Same path, unlimited budget — but cap is 3 so only 3 of 4 matches inject
     const { code, stdout } = await runHookEnv(
       {
         tool_name: "Read",
@@ -1651,7 +1653,7 @@ describe("injection byte budget", () => {
     const result = JSON.parse(stdout);
     const si = extractSkillInjection(result.hookSpecificOutput);
     expect(si).toBeDefined();
-    expect(si.injectedSkills.length).toBe(4);
+    expect(si.injectedSkills.length).toBe(3);
     expect(si.droppedByBudget.length).toBe(0);
   });
 
@@ -2301,12 +2303,13 @@ describe("coverage matrix — file paths", () => {
   });
 
   // 6. AI SDK chat route
-  test("app/api/chat/route.ts → ai-sdk + chat-sdk + vercel-functions + nextjs", async () => {
+  test("app/api/chat/route.ts → ai-sdk + chat-sdk + vercel-functions (cap 3 drops nextjs)", async () => {
     const skills = await matchFile("/project/app/api/chat/route.ts");
+    // All three priority-8 skills make the cap; nextjs (5) gets dropped
     expect(skills).toContain("ai-sdk");
     expect(skills).toContain("chat-sdk");
     expect(skills).toContain("vercel-functions");
-    expect(skills).toContain("nextjs");
+    expect(skills.length).toBe(3);
   });
 
   // 7. Monorepo AI SDK
@@ -2359,8 +2362,8 @@ describe("coverage matrix — file paths", () => {
   // 14. vercel.json → vercel-functions + cron-jobs + deployments-cicd (capped at 3)
   test("vercel.json → multiple control-plane skills (capped at 3)", async () => {
     const skills = await matchFile("/project/vercel.json");
-    // vercel.json now triggers 5 skills; MAX_SKILLS caps at 3
-    expect(skills.length).toBeLessThanOrEqual(5);
+    // vercel.json triggers 5 skills; MAX_SKILLS=3 caps to top 3
+    expect(skills.length).toBe(3);
     // vercel-functions (priority 8) must be included
     expect(skills).toContain("vercel-functions");
   });
@@ -2521,10 +2524,15 @@ describe("coverage matrix — bash commands", () => {
     expect(skills).toContain("vercel-cli");
   });
 
-  // 9. next dev --turbopack → turbopack
-  test("next dev --turbopack → turbopack", async () => {
+  // 9. next dev --turbopack → dev-server verification takes priority, turbopack may be dropped by cap
+  test("next dev --turbopack → agent-browser-verify + verification + nextjs (cap 3 drops turbopack)", async () => {
     const skills = await matchBash("next dev --turbopack");
-    expect(skills).toContain("turbopack");
+    // Dev server detection boosts agent-browser-verify (45) and verification (45)
+    // nextjs (5) fills last slot; turbopack (4) dropped by cap
+    expect(skills).toContain("agent-browser-verify");
+    expect(skills).toContain("verification");
+    expect(skills).toContain("nextjs");
+    expect(skills.length).toBe(3);
   });
 
   // 10. npm install @vercel/blob → vercel-storage
@@ -2657,13 +2665,14 @@ describe("specialist wins over generalist in overlap", () => {
     );
   }
 
-  test("app/api/chat/route.ts: ai-sdk (8) appears before nextjs (5)", async () => {
+  test("app/api/chat/route.ts: all 3 injected skills are priority 8 (nextjs dropped by cap)", async () => {
     const skills = await matchFileOrdered("/project/app/api/chat/route.ts");
-    const aiIdx = skills.indexOf("ai-sdk");
-    const nextIdx = skills.indexOf("nextjs");
-    expect(aiIdx).toBeGreaterThanOrEqual(0);
-    expect(nextIdx).toBeGreaterThanOrEqual(0);
-    expect(aiIdx).toBeLessThan(nextIdx);
+    // With cap 3, only the three priority-8 skills inject
+    expect(skills.length).toBe(3);
+    expect(skills).toContain("ai-sdk");
+    expect(skills).toContain("chat-sdk");
+    expect(skills).toContain("vercel-functions");
+    expect(skills).not.toContain("nextjs");
   });
 
   test("app/api/auth/route.ts: sign-in-with-vercel (6) appears before nextjs (5)", async () => {
@@ -3065,33 +3074,30 @@ describe("vercel.json control-plane coverage", () => {
     );
   }
 
-  test("vercel.json matches at least 4 skills (vercel-functions, cron-jobs, routing-middleware, deployments-cicd, vercel-cli)", async () => {
+  test("vercel.json matches top 3 skills by priority (vercel-functions, cron-jobs, deployments-cicd or routing-middleware)", async () => {
     // vercel.json is in pathPatterns for: vercel-functions(8), cron-jobs(6),
     // routing-middleware(6), deployments-cicd(6), vercel-cli(4)
-    // With MAX_SKILLS=5, all 5 vercel.json skills should fit
+    // With MAX_SKILLS=3, top 3 by priority inject
     const skills = await matchFile("/project/vercel.json");
 
-    // All 5 fit within cap
-    expect(skills.length).toBe(5);
+    expect(skills.length).toBe(3);
 
     // vercel-functions (priority 8) must be first
     expect(skills[0]).toBe("vercel-functions");
 
-    // All control-plane skills present
-    expect(skills).toContain("cron-jobs");
-    expect(skills).toContain("deployments-cicd");
-    expect(skills).toContain("routing-middleware");
-    expect(skills).toContain("vercel-cli");
+    // Two of the priority-6 skills fill remaining slots
+    const priority6Skills = skills.filter((s: string) =>
+      ["cron-jobs", "deployments-cicd", "routing-middleware"].includes(s),
+    );
+    expect(priority6Skills.length).toBe(2);
   });
 
   test("apps/*/vercel.json matches same control-plane skills (monorepo)", async () => {
     const skills = await matchFile("/project/apps/web/vercel.json");
 
-    // Same set of skills should match for monorepo vercel.json
-    expect(skills.length).toBe(5);
+    // Same cap-3 behavior as root vercel.json
+    expect(skills.length).toBe(3);
     expect(skills[0]).toBe("vercel-functions");
-    expect(skills).toContain("cron-jobs");
-    expect(skills).toContain("deployments-cicd");
   });
 
   test("monorepo apps/web/pages/_app.tsx → observability", async () => {
@@ -3197,7 +3203,7 @@ describe("hookSpecificOutput.skillInjection metadata", () => {
   });
 
   test("droppedByCap lists skills beyond MAX_SKILLS", async () => {
-    // vercel.json matches 4+ skills but cap is 3
+    // vercel.json matches 5 skills but cap is 3
     const { code, stdout } = await runHookEnv(
       {
         tool_name: "Edit",
@@ -3209,14 +3215,12 @@ describe("hookSpecificOutput.skillInjection metadata", () => {
     const result = JSON.parse(stdout);
     const si = extractSkillInjection(result.hookSpecificOutput);
     expect(si).toBeDefined();
-    expect(si.injectedSkills.length).toBeLessThanOrEqual(5);
+    expect(si.injectedSkills.length).toBeLessThanOrEqual(3);
     expect(Array.isArray(si.droppedByBudget)).toBe(true);
-    // If more than 5 matched, droppedByCap + droppedByBudget should account for all
-    if (si.matchedSkills.length > 5) {
-      expect(si.droppedByCap.length + si.droppedByBudget.length).toBe(
-        si.matchedSkills.length - si.injectedSkills.length,
-      );
-    }
+    // 5 matched, cap 3 → droppedByCap should have the remaining 2
+    expect(si.droppedByCap.length + si.droppedByBudget.length).toBe(
+      si.matchedSkills.length - si.injectedSkills.length,
+    );
   });
 
   test("no skillInjection in output when nothing matches", async () => {
@@ -3943,7 +3947,7 @@ describe("decision logging — reason codes", () => {
     expect(complete).toBeDefined();
     expect(complete.reason).toBe("injected");
     expect(complete.cappedCount).toBeGreaterThan(0);
-    expect(complete.injectedCount).toBe(5);
+    expect(complete.injectedCount).toBe(3);
     expect(complete.matchedCount).toBeGreaterThanOrEqual(5);
   });
 

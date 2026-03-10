@@ -144,14 +144,14 @@ describe("ai-sdk validation rules", () => {
     expect(errors.length).toBe(0);
   });
 
-  test("flags onResponse callback (warn)", () => {
+  test("flags onResponse callback (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `useChat({ onResponse: (res) => console.log(res) });\n`,
       ["ai-sdk"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("onResponse"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("onResponse"))).toBe(true);
   });
 
   test("flags useChat({ api: }) v5 pattern", () => {
@@ -176,14 +176,14 @@ describe("ai-sdk validation rules", () => {
     expect(errors.length).toBe(0);
   });
 
-  test("flags body option in useChat (warn)", () => {
+  test("flags body option in useChat (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `useChat({ body: { userId: '123' } });\n`,
       ["ai-sdk"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("body option"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("body option"))).toBe(true);
   });
 
   test("passes clean ai-sdk usage", () => {
@@ -217,14 +217,14 @@ describe("ai-sdk validation rules", () => {
     expect(errors.length).toBe(0);
   });
 
-  test("flags stream.write() without .writer (warn)", () => {
+  test("flags stream.write() without .writer (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `stream.write({ type: 'text', text: 'hello' });\n`,
       ["ai-sdk"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("stream.writer.write"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("stream.writer.write"))).toBe(true);
   });
 
   test("does not flag stream.writer.write()", () => {
@@ -293,14 +293,14 @@ describe("ai-sdk validation rules", () => {
     expect(errors.length).toBeGreaterThanOrEqual(1);
   });
 
-  test("flags handleSubmit usage (warn)", () => {
+  test("flags handleSubmit usage (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `const { handleSubmit } = useChat();\n`,
       ["ai-sdk"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("sendMessage"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("sendMessage"))).toBe(true);
   });
 
   test("does not flag handleSubmit when locally defined as function (skipIfFileContains)", () => {
@@ -371,14 +371,14 @@ describe("ai-sdk validation rules", () => {
     expect(errors.length).toBe(0);
   });
 
-  test("flags isLoading in useChat context (warn)", () => {
+  test("flags isLoading in useChat context (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `const { messages, isLoading } = useChat();\nif (isLoading) return <Spinner />;\n`,
       ["ai-sdk"],
       data!.rulesMap,
     );
-    const warns = violations.filter((v) => v.severity === "warn" && v.message.includes("isLoading"));
+    const warns = violations.filter((v) => v.severity === "recommended" && v.message.includes("isLoading"));
     expect(warns.length).toBeGreaterThanOrEqual(1);
     expect(warns.some((v) => v.message.includes("status"))).toBe(true);
   });
@@ -394,14 +394,14 @@ describe("ai-sdk validation rules", () => {
     expect(warns.length).toBe(0);
   });
 
-  test("flags message.content in UI code (warn)", () => {
+  test("flags message.content in UI code (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `{messages.map((message) => <p key={message.id}>{message.content}</p>)}\n`,
       ["ai-sdk"],
       data!.rulesMap,
     );
-    const warns = violations.filter((v) => v.severity === "warn" && v.message.includes("message.content"));
+    const warns = violations.filter((v) => v.severity === "recommended" && v.message.includes("message.content"));
     expect(warns.length).toBeGreaterThanOrEqual(1);
     expect(warns.some((v) => v.message.includes("message.parts"))).toBe(true);
   });
@@ -434,7 +434,7 @@ describe("ai-gateway validation rules", () => {
     expect(violations.some((v) => v.message.includes("dots not hyphens"))).toBe(true);
   });
 
-  test("AI_GATEWAY_API_KEY is warn severity (fallback auth)", () => {
+  test("AI_GATEWAY_API_KEY is recommended severity (fallback auth)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `const key = process.env.AI_GATEWAY_API_KEY;\n`,
@@ -443,8 +443,8 @@ describe("ai-gateway validation rules", () => {
     );
     const matching = violations.filter((v) => v.message.includes("AI_GATEWAY_API_KEY") || v.message.includes("OIDC") || v.message.includes("fallback"));
     expect(matching.length).toBeGreaterThanOrEqual(1);
-    // Should be warn, not error — it's a supported fallback auth mechanism
-    expect(matching.every((v) => v.severity === "warn")).toBe(true);
+    // Should be recommended, not error — it's a supported fallback auth mechanism
+    expect(matching.every((v) => v.severity === "recommended")).toBe(true);
   });
 
   test("flags raw model string without provider/ prefix", () => {
@@ -469,14 +469,14 @@ describe("ai-gateway validation rules", () => {
     expect(prefixErrors.length).toBe(0);
   });
 
-  test("flags outdated gpt-4o model (warn)", () => {
+  test("flags outdated gpt-4o model (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `const model = gateway('openai/gpt-4o');\n`,
       ["ai-gateway"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("gpt-4o"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("gpt-4o"))).toBe(true);
   });
 
   test("does not warn about gpt-5.4", () => {
@@ -599,17 +599,17 @@ describe("nextjs validation rules", () => {
     expect(headErrors.length).toBe(0);
   });
 
-  test("flags middleware export function (warn)", () => {
+  test("flags middleware export function (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `export function middleware(request: NextRequest) {\n  return NextResponse.next();\n}\n`,
       ["nextjs"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("proxy()"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("proxy()"))).toBe(true);
   });
 
-  test("flags export default function middleware (warn)", () => {
+  test("flags export default function middleware (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `export default function middleware(request: NextRequest) {}\n`,
@@ -630,14 +630,14 @@ describe("nextjs validation rules", () => {
     expect(middlewareWarns.length).toBe(0);
   });
 
-  test("flags single-arg revalidateTag (warn)", () => {
+  test("flags single-arg revalidateTag (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `revalidateTag('users')\n`,
       ["nextjs"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("revalidateTag"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("revalidateTag"))).toBe(true);
   });
 
   test("does not flag revalidateTag with two args", () => {
@@ -651,14 +651,14 @@ describe("nextjs validation rules", () => {
     expect(revalidateWarns.length).toBe(0);
   });
 
-  test("flags singular cacheHandler config (warn)", () => {
+  test("flags singular cacheHandler config (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `const nextConfig = {\n  cacheHandler: require.resolve('./cache-handler.mjs'),\n};\n`,
       ["nextjs"],
       data!.rulesMap,
     );
-    expect(violations.some((v) => v.severity === "warn" && v.message.includes("cacheHandlers (plural)"))).toBe(true);
+    expect(violations.some((v) => v.severity === "recommended" && v.message.includes("cacheHandlers (plural)"))).toBe(true);
   });
 
   test("does not flag cacheHandlers (plural)", () => {
@@ -881,7 +881,7 @@ describe("nextjs validation rules", () => {
     expect(headerErrors.length).toBe(0);
   });
 
-  test("flags sync params destructuring without await (warn)", () => {
+  test("flags sync params destructuring without await (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       [
@@ -893,11 +893,11 @@ describe("nextjs validation rules", () => {
       ["nextjs"],
       data!.rulesMap,
     );
-    const warns = violations.filter((v) => v.severity === "warn" && v.message.includes("params") && v.message.includes("async"));
+    const warns = violations.filter((v) => v.severity === "recommended" && v.message.includes("params") && v.message.includes("async"));
     expect(warns.length).toBeGreaterThanOrEqual(1);
   });
 
-  test("flags sync params property access (warn)", () => {
+  test("flags sync params property access (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `  const id = params.id;\n`,
@@ -941,7 +941,7 @@ describe("nextjs validation rules", () => {
     expect(paramWarns.length).toBe(0);
   });
 
-  test("flags sync searchParams destructuring without await (warn)", () => {
+  test("flags sync searchParams destructuring without await (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       [
@@ -953,11 +953,11 @@ describe("nextjs validation rules", () => {
       ["nextjs"],
       data!.rulesMap,
     );
-    const warns = violations.filter((v) => v.severity === "warn" && v.message.includes("searchParams") && v.message.includes("async"));
+    const warns = violations.filter((v) => v.severity === "recommended" && v.message.includes("searchParams") && v.message.includes("async"));
     expect(warns.length).toBeGreaterThanOrEqual(1);
   });
 
-  test("flags sync searchParams property access (warn)", () => {
+  test("flags sync searchParams property access (recommended)", () => {
     const data = loadRealRules();
     const violations = runValidation(
       `  const q = searchParams.query;\n`,
@@ -1361,7 +1361,7 @@ describe("workflow validation rules", () => {
     const data = loadRealRules();
     const content = `import { createWorkflow } from '@vercel/workflow';\n`;
     const violations = runValidation(content, ["workflow"], data!.rulesMap);
-    const warns = violations.filter((v) => v.severity === "warn");
+    const warns = violations.filter((v) => v.severity === "recommended");
     expect(warns.length).toBeGreaterThanOrEqual(1);
     expect(warns.some((v) => v.message.includes("OIDC"))).toBe(true);
   });
@@ -1430,7 +1430,7 @@ describe("workflow validation rules", () => {
     const data = loadRealRules();
     const content = `async function myWorkflow() {\n  "use workflow";\n  const writer = getWritable().getWriter();\n}\n`;
     const violations = runValidation(content, ["workflow"], data!.rulesMap);
-    const warns = violations.filter((v) => v.severity === "warn" && v.message.includes("getWritable"));
+    const warns = violations.filter((v) => v.severity === "recommended" && v.message.includes("getWritable"));
     expect(warns.length).toBeGreaterThanOrEqual(1);
     expect(warns.some((v) => v.message.includes('"use step"'))).toBe(true);
   });
@@ -1481,7 +1481,7 @@ describe("workflow validation rules", () => {
     const data = loadRealRules();
     const content = `import { myWorkflow } from "@/workflows/my-workflow";\nconst result = await myWorkflow("input");\n`;
     const violations = runValidation(content, ["workflow"], data!.rulesMap);
-    const warns = violations.filter((v) => v.severity === "warn" && v.message.includes("start()"));
+    const warns = violations.filter((v) => v.severity === "recommended" && v.message.includes("start()"));
     expect(warns.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1497,7 +1497,7 @@ describe("workflow validation rules", () => {
     const data = loadRealRules();
     const content = `async function myWorkflow() {\n  "use workflow";\n  const res = await fetch("https://api.example.com");\n}\n`;
     const violations = runValidation(content, ["workflow"], data!.rulesMap);
-    const fetchWarns = violations.filter((v) => v.severity === "warn" && v.message.includes("fetch") && v.message.includes("workflow"));
+    const fetchWarns = violations.filter((v) => v.severity === "recommended" && v.message.includes("fetch") && v.message.includes("workflow"));
     expect(fetchWarns.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1706,8 +1706,8 @@ describe("negative tests: ai-gateway valid code", () => {
     const errors = violations.filter((v) => v.severity === "error");
     const keyWarns = violations.filter((v) => v.message.includes("AI_GATEWAY_API_KEY") || v.message.includes("OIDC"));
     expect(errors.filter((v) => v.message.includes("API_KEY") || v.message.includes("OIDC")).length).toBe(0);
-    // Warn is acceptable — it's a soft suggestion
-    expect(keyWarns.every((v) => v.severity === "warn")).toBe(true);
+    // Recommended is acceptable — it's a soft suggestion
+    expect(keyWarns.every((v) => v.severity === "recommended")).toBe(true);
   });
 
   test("correct gateway model slugs produce no errors", () => {

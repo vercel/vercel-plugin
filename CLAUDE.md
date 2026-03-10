@@ -44,7 +44,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `session-start-seen-skills.mts` — initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in `CLAUDE_ENV_FILE`
 - `session-start-profiler.mts` — scans config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost); detects greenfield mode
 - `inject-claude-md.mts` — outputs `vercel.md` ecosystem graph (52KB) as SessionStart additionalContext
-- `pretooluse-skill-inject.mts` — main injection engine: pattern matching → ranking → dedup → budget enforcement (max 5 skills, 18KB)
+- `pretooluse-skill-inject.mts` — main injection engine: pattern matching → ranking → dedup → budget enforcement (max 3 skills, 18KB)
 - `user-prompt-submit-skill-inject.mts` — prompt signal scoring engine (max 2 skills, 8KB budget)
 - `posttooluse-validate.mts` — runs skill-defined validation rules on written/edited files
 - `posttooluse-shadcn-font-fix.mjs` — fixes shadcn font loading issues (standalone, no .mts source)
@@ -62,8 +62,9 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 ### Skill Injection Flow
 
 1. **SessionStart**: Profiler scans project → sets `VERCEL_PLUGIN_LIKELY_SKILLS`
-2. **PreToolUse** (on Read/Edit/Write/Bash): Match file paths (glob), bash commands (regex), imports (regex+flags) → apply vercel.json routing → apply profiler boost → rank by priority → dedup → inject up to 5 skills within 18KB budget
+2. **PreToolUse** (on Read/Edit/Write/Bash): Match file paths (glob), bash commands (regex), imports (regex+flags) → apply vercel.json routing → apply profiler boost → rank by priority → dedup → inject up to 3 skills within 18KB budget
 3. **UserPromptSubmit**: Score prompt text against `promptSignals` (phrases/allOf/anyOf/noneOf) → inject up to 2 skills within 8KB budget
+   - **3b. Lexical fallback** (when `VERCEL_PLUGIN_LEXICAL_PROMPT=on`): If phrase/allOf/anyOf scoring yields no matches above `minScore`, re-score using a lexical stemmer that normalizes prompt tokens before comparison — catches natural phrasing that exact-substring matching misses
 4. **PostToolUse** (on Write/Edit): Match written file to skills → run `validate` rules → return fix instructions on error
 
 Special triggers in PreToolUse:
@@ -94,7 +95,7 @@ metadata:
   validate:                      # PostToolUse validation rules
     - pattern: "regex"
       message: "Error description"
-      severity: "error|warn"
+      severity: "error|recommended|warn"
       skipIfFileContains: "regex" # Optional conditional skip
 ---
 # Skill body (markdown, injected as additionalContext)
@@ -179,3 +180,4 @@ Snapshot updates: `bun run test:update-snapshots` (sets `UPDATE_SNAPSHOTS=1`).
 | `VERCEL_PLUGIN_REVIEW_THRESHOLD` | `3` | TSX edits before react-best-practices injection |
 | `VERCEL_PLUGIN_TSX_EDIT_COUNT` | `0` | Current .tsx edit count (PreToolUse tracks) |
 | `VERCEL_PLUGIN_AUDIT_LOG_FILE` | — | Audit log path or `off` |
+| `VERCEL_PLUGIN_LEXICAL_PROMPT` | `off` | `on` to enable lexical stemmer fallback in UserPromptSubmit scoring |

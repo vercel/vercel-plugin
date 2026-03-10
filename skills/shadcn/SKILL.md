@@ -3,6 +3,9 @@ name: shadcn
 description: shadcn/ui expert guidance — CLI, component installation, composition patterns, custom registries, theming, Tailwind CSS integration, and high-quality interface design. Use when initializing shadcn, adding components, composing product UI, building custom registries, configuring themes, or troubleshooting component issues.
 metadata:
   priority: 6
+  docs:
+    - "https://ui.shadcn.com/docs"
+    - "https://ui.shadcn.com/docs/components"
   pathPatterns:
     - 'components.json'
     - 'components/ui/**'
@@ -48,29 +51,38 @@ shadcn/ui is **not a component library** in the traditional sense. You don't ins
 
 ## CLI Commands
 
-### Initialize
+### Initialize (non-interactive — ALWAYS use this)
+
+**IMPORTANT**: `shadcn init` is interactive by default. Always use `-d` (defaults) for non-interactive initialization:
 
 ```bash
-npx shadcn@latest init
+# Non-interactive init with defaults — USE THIS
+npx shadcn@latest init -d
+
+# Non-interactive with a preset (recommended for consistent design systems)
+npx shadcn@latest init --preset <code> -f
+
+# Non-interactive with explicit base library choice
+npx shadcn@latest init -d --base radix
+npx shadcn@latest init -d --base base-ui
 
 # Scaffold a full project template (CLI v4)
-npx shadcn@latest init --template next
-npx shadcn@latest init --template vite
-npx shadcn@latest init --template react-router
-npx shadcn@latest init --template astro
-npx shadcn@latest init --template laravel
-npx shadcn@latest init --template tanstack-start
+npx shadcn@latest init --template next -d
+npx shadcn@latest init --template vite -d
 ```
 
 Options:
+- `-d, --defaults` — **Use default configuration, skip all interactive prompts** (REQUIRED for CI/agent use)
+- `-y, --yes` — Skip confirmation prompts (does NOT skip library selection — use `-d` instead)
+- `-f, --force` — Force overwrite existing configuration
 - `-t, --template` — Scaffold full project template (`next`, `vite`, `react-router`, `astro`, `laravel`, `tanstack-start`)
 - `--preset` — Apply a design system preset (colors, theme, icons, fonts, radius) as a single shareable code
 - `--base` — Choose primitive library: `radix` (default) or `base-ui`
 - `--monorepo` — Set up a monorepo structure
-- `-y, --yes` — Skip confirmation prompts
-- `-f, --force` — Force overwrite existing configuration
 
-> **Deprecated in CLI v4**: `--base-color`, `--src-dir`, `--no-base-style`, and `--css-variables` flags are removed. The `registry:build` and `registry:mcp` registry types are also deprecated. Use `registry:base` and `registry:font` instead.
+> **WARNING**: `-y`/`--yes` alone does NOT make init fully non-interactive — it still prompts for component library selection. Always use `-d` to skip ALL prompts.
+
+> **Deprecated in CLI v4**: `--style`, `--base-color`, `--src-dir`, `--no-base-style`, and `--css-variables` flags are removed and will error. The `registry:build` and `registry:mcp` registry types are also deprecated. Use `registry:base` and `registry:font` instead.
 
 The init command:
 1. Detects your framework (Next.js, Vite, React Router, Astro, Laravel, TanStack Start)

@@ -3,6 +3,8 @@ name: swr
 description: SWR data-fetching expert guidance. Use when building React apps with client-side data fetching, caching, revalidation, mutations, optimistic UI, pagination, or infinite loading using the SWR library.
 metadata:
   priority: 4
+  docs:
+    - "https://swr.vercel.app/docs"
   pathPatterns:
     - 'lib/fetcher.*'
     - 'src/lib/fetcher.*'
@@ -42,16 +44,24 @@ retrieval:
     - stale while revalidate
     - react hooks data
   intents:
-    - fetch data client side
-    - add caching
-    - implement pagination
-    - use swr
+    - refresh stale client cache after a mutation
+    - fetch and cache API data on the client side
+    - add infinite scroll or paginated data loading
+    - keep UI in sync with server data automatically
+    - revalidate cached data after updating a record
   entities:
-    - SWR
     - useSWR
+    - useSWRMutation
+    - useSWRInfinite
     - mutate
-    - revalidation
-    - stale-while-revalidate
+    - SWRConfig
+    - fetcher
+  examples:
+    - refresh stale client cache after mutation
+    - load more items on scroll
+    - revalidate data when the window regains focus
+    - fetch data client side with caching
+    - add infinite scrolling to load more items
 
 ---
 

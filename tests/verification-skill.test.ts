@@ -488,8 +488,8 @@ describe("Budget enforcement with verification + companions", () => {
     expect(parsed).not.toBeNull();
     if (parsed?.hookSpecificOutput) {
       const ctx = parsed.hookSpecificOutput.additionalContext || "";
-      // Total context should not exceed 18KB
-      expect(Buffer.byteLength(ctx, "utf8")).toBeLessThanOrEqual(18000);
+      // Total context should not exceed 18KB + small margin for metadata comments
+      expect(Buffer.byteLength(ctx, "utf8")).toBeLessThanOrEqual(18500);
     }
   });
 

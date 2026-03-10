@@ -1,5 +1,5 @@
 {
-  "description": "Golden snapshot: Read vercel.json with crons key triggers cron-jobs via key-aware routing",
+  "description": "Golden snapshot: Read vercel.json with crons key — cron-jobs boosted +10, other VERCEL_JSON_SKILLS demoted -10, vercel-cli unaffected",
   "input": {
     "tool_name": "Read",
     "tool_input": {
@@ -28,11 +28,12 @@
       "injectedSkills": [
         "cron-jobs",
         "vercel-cli",
-        "vercel-functions",
+        "vercel-functions"
+      ],
+      "droppedByCap": [
         "deployments-cicd",
         "routing-middleware"
       ],
-      "droppedByCap": [],
       "droppedByBudget": []
     }
   }

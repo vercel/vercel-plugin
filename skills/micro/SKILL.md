@@ -3,6 +3,8 @@ name: micro
 description: Expert guidance for micro — asynchronous HTTP microservices framework by Vercel. Use when building lightweight HTTP servers, API endpoints, or microservices using the micro library.
 metadata:
   priority: 4
+  docs:
+    - "https://github.com/vercel/micro"
   pathPatterns: []
   importPatterns:
     - 'micro'

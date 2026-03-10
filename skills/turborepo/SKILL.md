@@ -3,6 +3,8 @@ name: turborepo
 description: Turborepo expert guidance. Use when setting up or optimizing monorepo builds, configuring task caching, remote caching, parallel execution, or the --affected flag for incremental CI.
 metadata:
   priority: 5
+  docs:
+    - "https://turborepo.dev/docs"
   pathPatterns: 
     - 'turbo.json'
     - 'turbo/**'

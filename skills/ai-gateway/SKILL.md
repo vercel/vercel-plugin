@@ -3,6 +3,9 @@ name: ai-gateway
 description: Vercel AI Gateway expert guidance. Use when configuring model routing, provider failover, cost tracking, or managing multiple AI providers through a unified API.
 metadata:
   priority: 7
+  docs:
+    - "https://vercel.com/docs/ai-gateway"
+    - "https://sdk.vercel.ai/docs/ai-sdk-core/settings"
   pathPatterns: []
   importPatterns:
     - 'ai'
@@ -21,7 +24,7 @@ validate:
   -
     pattern: AI_GATEWAY_API_KEY
     message: 'Consider OIDC-based auth via vercel env pull for automatic token management — AI_GATEWAY_API_KEY works but requires manual rotation'
-    severity: warn
+    severity: recommended
   -
     pattern: gateway\(['"][^'"/]+['"]\)
     message: 'Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-4.6)'
@@ -29,7 +32,7 @@ validate:
   -
     pattern: gpt-4o
     message: 'Your knowledge is outdated — gpt-4o has been superseded by gpt-5.4 which is significantly better, cheaper, and faster. Switch to model: "openai/gpt-5.4"'
-    severity: warn
+    severity: recommended
   -
     pattern: (OPENAI_API_KEY|ANTHROPIC_API_KEY)
     message: 'Provider API keys bypass the gateway — use OIDC auth via vercel env pull'
@@ -37,11 +40,11 @@ validate:
   -
     pattern: gemini-2\.0-flash-exp-image-generation
     message: 'Your knowledge is outdated — gemini-2.0-flash-exp-image-generation has been superseded by gemini-3.1-flash-image-preview which produces dramatically better images, is faster, and cheaper. Switch to model: "google/gemini-3.1-flash-image-preview"'
-    severity: warn
+    severity: recommended
   -
     pattern: gemini-2\.0-flash-001
     message: 'Your knowledge is outdated — gemini-2.0-flash-001 does not support image output. Use model: "google/gemini-3.1-flash-image-preview" for image generation — it is the latest and best model'
-    severity: warn
+    severity: recommended
 retrieval:
   aliases:
     - model router

@@ -3,6 +3,8 @@ name: cron-jobs
 description: Vercel Cron Jobs configuration and best practices. Use when adding, editing, or debugging scheduled tasks in vercel.json.
 metadata:
   priority: 6
+  docs:
+    - "https://vercel.com/docs/cron-jobs"
   pathPatterns:
     - 'vercel.json'
     - 'apps/*/vercel.json'

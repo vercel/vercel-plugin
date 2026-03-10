@@ -3,6 +3,8 @@ name: vercel-firewall
 description: Vercel Firewall and security expert guidance. Use when configuring DDoS protection, WAF rules, rate limiting, bot filtering, IP allow/block lists, OWASP rulesets, Attack Challenge Mode, or any security configuration on the Vercel platform.
 metadata:
   priority: 5
+  docs:
+    - "https://vercel.com/docs/security/vercel-firewall"
   pathPatterns:
     - '.vercel/firewall/**'
   bashPatterns:

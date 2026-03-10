@@ -127,7 +127,7 @@ sequenceDiagram
 
     Note over Hook: Stage 5: injectSkills
     Hook->>FS: Read SKILL.md body for each ranked skill
-    Hook->>Hook: Budget check (18KB / 5 skills)
+    Hook->>Hook: Budget check (18KB / 3 skills)
     Hook->>Hook: Summary fallback if over budget
     Hook->>Dedup: Claim injected skills (atomic file lock)
 
@@ -191,7 +191,7 @@ This is where priority adjustments and filtering happen:
 **Source**: `pretooluse-skill-inject.mts:injectSkills()`
 
 For each ranked skill (in priority order):
-1. Check the hard ceiling (max 5 skills)
+1. Check the hard ceiling (max 3 skills)
 2. Read `skills/<name>/SKILL.md` from disk
 3. Strip YAML frontmatter, keep only the body
 4. Wrap in HTML comment markers: `<!-- skill:name -->...<!-- /skill:name -->`
@@ -698,7 +698,7 @@ This shows which skills match the file path, with a priority breakdown:
 Matches for "src/my-feature.config.ts":
   ✓ my-feature        priority=5  pattern="**/my-feature.config.ts"  match=suffix
 
-Budget simulation (18000 bytes, max 5 skills):
+Budget simulation (18000 bytes, max 3 skills):
   1. my-feature  body=2340B  cumulative=2340B  ✓ within budget
 ```
 

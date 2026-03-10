@@ -153,7 +153,7 @@ flowchart LR
 
     subgraph Filtering ["Filter & Budget"]
         DD["Dedup check<br/>(claim dir + env var + session file)"]
-        BG["Budget gate<br/>PreToolUse: 5 skills / 18KB<br/>PromptSubmit: 2 skills / 8KB"]
+        BG["Budget gate<br/>PreToolUse: 3 skills / 18KB<br/>PromptSubmit: 2 skills / 8KB"]
         SF["Summary fallback<br/>(over budget -> short summary)"]
     end
 
