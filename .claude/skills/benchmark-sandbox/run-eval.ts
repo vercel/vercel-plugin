@@ -21,6 +21,7 @@
  *   --skip-verify       Skip the agent-browser verification phase
  *   --skip-deploy       Skip the Vercel deploy phase
  *   --scenarios a,b,c   Only run specific scenarios by slug
+ *   --scenarios-file f  Load scenarios from a JSON file
  */
 
 import { Sandbox } from "@vercel/sandbox";
@@ -49,6 +50,8 @@ const KEEP_ALIVE = args.includes("--keep-alive");
 const KEEP_ALIVE_HOURS = getArg("keep-hours", 8);
 const SKIP_VERIFY = args.includes("--skip-verify");
 const SKIP_DEPLOY = args.includes("--skip-deploy");
+const BUILD_STATUS_INTERVAL_MS = 20_000;
+const BUILD_WAIT_POLL_MS = 15_000;
 const SCENARIO_FILTER = args.includes("--scenarios")
   ? args[args.indexOf("--scenarios") + 1]?.split(",").map(s => s.trim()) ?? []
   : [];
@@ -237,6 +240,50 @@ async function sh(sandbox: any, cmd: string): Promise<string> {
   catch { return "(cmd failed)"; }
 }
 
+function normalizeShellOutput(output: string): string {
+  return output === "(cmd failed)" ? "" : output.trim();
+}
+
+export function isExpectedRunCommandTimeout(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /timed out|deadline exceeded|operation timed out|request timeout/i.test(message);
+}
+
+export function parseBuildExitCode(output: string): number | null {
+  const normalized = normalizeShellOutput(output);
+  if (!normalized) return null;
+  if (/^\d+$/.test(normalized)) return parseInt(normalized, 10);
+  const matches = [...normalized.matchAll(/EXIT:(\d+)/g)];
+  if (matches.length === 0) return null;
+  return parseInt(matches[matches.length - 1][1], 10);
+}
+
+type BuildWaitInput = {
+  claudeProbe: string;
+  debugLine: string;
+  elapsedMs: number;
+  timeoutMs: number;
+};
+
+export type BuildWaitState = {
+  claudeRunning: boolean;
+  sessionEnded: boolean;
+  timedOut: boolean;
+  shouldKeepPolling: boolean;
+};
+
+export function evaluateBuildWaitState(input: BuildWaitInput): BuildWaitState {
+  const claudeRunning = normalizeShellOutput(input.claudeProbe).length > 0;
+  const sessionEnded = /\bSessionEnd\b/.test(normalizeShellOutput(input.debugLine));
+  const timedOut = input.elapsedMs >= input.timeoutMs;
+  return {
+    claudeRunning,
+    sessionEnded,
+    timedOut,
+    shouldKeepPolling: !timedOut && claudeRunning && !sessionEnded,
+  };
+}
+
 function buildVerificationPrompt(userStories: string[]): string {
   const stories = userStories.map((s, i) => `${i + 1}. ${s}`).join("\n");
   return `First, make sure the dev server is running. Check if http://localhost:3000 responds. If not, run \`npx next dev --port 3000\` in the background and wait for it to be ready.
@@ -267,6 +314,84 @@ STORY_3: PASS or FAIL`;
 }
 
 // ---------------------------------------------------------------------------
+// Structured scoring via haiku (runs inside sandbox, no hooks)
+// ---------------------------------------------------------------------------
+
+interface HaikuScore {
+  [key: string]: unknown;
+}
+
+async function scoreWithHaiku(
+  sandbox: any,
+  claudeBin: string,
+  prompt: string,
+  schema: Record<string, unknown>,
+  label: string,
+  slug: string,
+  t0: number,
+): Promise<HaikuScore | null> {
+  const schemaJson = JSON.stringify(schema).replace(/'/g, "'\\''"); // escape single quotes for shell
+  const promptPath = `/tmp/score-${label}.txt`;
+  await sandbox.writeFiles([{ path: promptPath, content: Buffer.from(prompt) }]);
+  const cmd = `${claudeBin} -p "$(cat ${promptPath})" --json-schema '${schemaJson}' --output-format json --model haiku --setting-sources ""`;
+  try {
+    const sr = await sandbox.runCommand("sh", ["-c", cmd], { signal: AbortSignal.timeout(120_000) }); // 2 min max
+    const out = (await sr.stdout()).trim();
+    const parsed = JSON.parse(out);
+    // claude -p --output-format json wraps the result — structured_output has our schema data
+    return parsed.structured_output ?? parsed;
+  } catch (e: any) {
+    console.log(`  [${slug}] ${label} score failed: ${e.message?.slice(0, 80)}`);
+    return null;
+  }
+}
+
+const STORIES_SCHEMA = {
+  type: "object",
+  properties: {
+    stories: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          index: { type: "number" },
+          status: { type: "string", enum: ["pass", "fail"] },
+          reason: { type: "string" },
+        },
+        required: ["index", "status", "reason"],
+      },
+    },
+  },
+  required: ["stories"],
+};
+
+const BUILD_SCORE_SCHEMA = {
+  type: "object",
+  properties: {
+    completeness: { type: "string", enum: ["complete", "partial", "minimal", "empty"] },
+    hasApiRoutes: { type: "boolean" },
+    hasUIComponents: { type: "boolean" },
+    hasAIFeature: { type: "boolean" },
+    devServerRunning: { type: "boolean" },
+    missingFeatures: { type: "array", items: { type: "string" } },
+    summary: { type: "string" },
+  },
+  required: ["completeness", "hasApiRoutes", "hasUIComponents", "hasAIFeature", "devServerRunning", "missingFeatures", "summary"],
+};
+
+const DEPLOY_SCORE_SCHEMA = {
+  type: "object",
+  properties: {
+    deployed: { type: "boolean" },
+    url: { type: "string" },
+    buildSucceeded: { type: "boolean" },
+    errors: { type: "array", items: { type: "string" } },
+    summary: { type: "string" },
+  },
+  required: ["deployed", "buildSucceeded", "summary"],
+};
+
+// ---------------------------------------------------------------------------
 // Per-scenario runner
 // ---------------------------------------------------------------------------
 
@@ -275,6 +400,25 @@ interface VerificationResult {
   exitCode: number;
   stories: Array<{ index: number; status: "pass" | "fail" | "unknown" }>;
   output: string;
+}
+
+interface ScenarioTiming {
+  sandboxCreateMs: number | null;
+  installMs: number | null;
+  pluginInstallMs: number | null;
+  buildStartMs: number | null;
+  buildEndMs: number | null;
+  verifyStartMs: number | null;
+  verifyEndMs: number | null;
+  deployStartMs: number | null;
+  deployEndMs: number | null;
+  extractMs: number | null;
+}
+
+interface ArtifactManifestEntry {
+  fileName: string;
+  sizeBytes: number;
+  description: string;
 }
 
 interface ScenarioResult {
@@ -291,6 +435,93 @@ interface ScenarioResult {
   error?: string;
   pollHistory: Array<{ elapsed: string; skills: string[]; files: number }>;
   verification?: VerificationResult;
+  buildScore?: HaikuScore | null;
+  deployScore?: HaikuScore | null;
+  timing: ScenarioTiming;
+}
+
+function captureElapsedMs(start: number, end = performance.now()): number {
+  return Math.max(0, Math.round(end - start));
+}
+
+function captureRelativeMs(start: number, end = performance.now()): number {
+  return Math.max(0, Math.round(end - start));
+}
+
+export function calculatePhaseDuration(startMs: number | null | undefined, endMs: number | null | undefined): number | null {
+  if (typeof startMs !== "number" || typeof endMs !== "number") return null;
+  return Math.max(0, endMs - startMs);
+}
+
+function formatTimingDuration(durationMs: number | null | undefined): string {
+  return typeof durationMs === "number" ? `${(durationMs / 1000).toFixed(1)}s` : "skip";
+}
+
+export function renderTimingMarkdownTable(results: Array<{ slug: string; timing?: ScenarioTiming }>): string {
+  let md = `## Timing\n\n`;
+  md += `| Scenario | Sandbox | Install | Plugin | Build | Verify | Deploy | Extract |\n`;
+  md += `|----------|---------|---------|--------|-------|--------|--------|---------|\n`;
+  for (const result of results) {
+    const timing = result.timing;
+    md += `| ${result.slug} | ${formatTimingDuration(timing?.sandboxCreateMs)} | ${formatTimingDuration(timing?.installMs)} | ${formatTimingDuration(timing?.pluginInstallMs)} | ${formatTimingDuration(calculatePhaseDuration(timing?.buildStartMs, timing?.buildEndMs))} | ${formatTimingDuration(calculatePhaseDuration(timing?.verifyStartMs, timing?.verifyEndMs))} | ${formatTimingDuration(calculatePhaseDuration(timing?.deployStartMs, timing?.deployEndMs))} | ${formatTimingDuration(timing?.extractMs)} |\n`;
+  }
+  return md;
+}
+
+export function buildArtifactManifest(entries: ArtifactManifestEntry[]) {
+  return {
+    generatedAt: new Date().toISOString(),
+    artifactCount: entries.length,
+    artifacts: [...entries].sort((a, b) => a.fileName.localeCompare(b.fileName)),
+  };
+}
+
+export function summarizeToolCalls(grepOutput: string): string {
+  const normalized = normalizeShellOutput(grepOutput);
+  if (!normalized) return "No executePreToolHooks entries found.";
+
+  return normalized
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const timestampMatch = line.match(/"timestamp":"([^"]+)"/) ?? line.match(/\d{4}-\d{2}-\d{2}T[^\s"]+/);
+      const timestamp = timestampMatch
+        ? timestampMatch[1] ?? timestampMatch[0]
+        : "unknown-timestamp";
+      const toolMatch =
+        line.match(/"tool(?:Name)?":"([^"]+)"/i)
+        ?? line.match(/\btool(?:Name)?[=: ]+["']?([A-Za-z0-9._-]+)["']?/i)
+        ?? line.match(/"tool_name":"([^"]+)"/i);
+      const toolName = toolMatch
+        ? toolMatch[1]
+        : "unknown-tool";
+      return `${timestamp} | ${toolName} | ${line}`;
+    })
+    .join("\n");
+}
+
+async function readSandboxFileBuffer(sandbox: any, path: string): Promise<Buffer | null> {
+  const stream = await sandbox.readFile({ path });
+  if (!stream) return null;
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
+}
+
+async function writeArchiveArtifact(
+  archiveDir: string,
+  fileName: string,
+  description: string,
+  content: Buffer | string,
+): Promise<ArtifactManifestEntry> {
+  const artifactPath = join(archiveDir, fileName);
+  await writeFile(artifactPath, content);
+  const artifactStats = await stat(artifactPath);
+  return {
+    fileName,
+    sizeBytes: artifactStats.size,
+    description,
+  };
 }
 
 async function runScenario(
@@ -303,11 +534,24 @@ async function runScenario(
   const t0 = performance.now();
   const projectDir = `${SANDBOX_HOME}/${scenario.slug}`;
   const pollHistory: ScenarioResult["pollHistory"] = [];
+  const timing: ScenarioTiming = {
+    sandboxCreateMs: null,
+    installMs: null,
+    pluginInstallMs: null,
+    buildStartMs: null,
+    buildEndMs: null,
+    verifyStartMs: null,
+    verifyEndMs: null,
+    deployStartMs: null,
+    deployEndMs: null,
+    extractMs: null,
+  };
   let sandbox: InstanceType<typeof Sandbox> | undefined;
 
   try {
     // 1. Create sandbox with port 3000
     console.log(`  [${scenario.slug}] Creating sandbox...`);
+    const sandboxCreateStartedAt = performance.now();
     sandbox = await Sandbox.create({
       runtime: "node24",
       ports: [3000],
@@ -319,12 +563,15 @@ async function runScenario(
       },
       timeout: TIMEOUT_MS + 300_000,
     } as any);
+    timing.sandboxCreateMs = captureElapsedMs(sandboxCreateStartedAt);
     let appUrl: string | undefined;
     try { appUrl = sandbox.domain(3000); } catch {}
     console.log(`  [${scenario.slug}] Sandbox ${sandbox.sandboxId}${appUrl ? ` | ${appUrl}` : ""} (${elapsed(t0)})`);
 
     // 2. Install Claude Code + Vercel CLI + agent-browser
+    const installStartedAt = performance.now();
     await sandbox.runCommand("sh", ["-c", "npm install -g @anthropic-ai/claude-code vercel agent-browser"]);
+    timing.installMs = captureElapsedMs(installStartedAt);
     const claudeBin = await sh(sandbox, "which claude");
     const abBin = await sh(sandbox, "which agent-browser");
     console.log(`  [${scenario.slug}] claude=${claudeBin} agent-browser=${abBin} (${elapsed(t0)})`);
@@ -338,50 +585,157 @@ async function runScenario(
     }
 
     // 4. Project setup + plugin
+    const pluginInstallStartedAt = performance.now();
     await sandbox.runCommand("sh", ["-c", `mkdir -p ${projectDir} && cd ${projectDir} && npm init -y`]);
     await sandbox.writeFiles(pluginFiles);
     await sh(sandbox, `cd ${projectDir} && npx -y add-plugin ${SANDBOX_PLUGIN_DIR} -s project -y --target claude-code 2>&1 | tail -1`);
+    timing.pluginInstallMs = captureElapsedMs(pluginInstallStartedAt);
     console.log(`  [${scenario.slug}] Plugin installed (${elapsed(t0)})`);
 
     // 5. Phase 1: Build the app
     await sandbox.writeFiles([{ path: "/tmp/prompt.txt", content: Buffer.from(scenario.prompt) }]);
     const settingsPath = `${projectDir}/.claude/settings.json`;
     const buildCmd = `cd ${projectDir} && ${claudeBin} --dangerously-skip-permissions --debug --settings ${settingsPath} "$(cat /tmp/prompt.txt)"`;
+    const buildStartedAt = Date.now();
+    timing.buildStartMs = captureRelativeMs(t0);
+    const logFile = "/tmp/claude-build-round-1.log";
+    const errFile = "/tmp/claude-build-round-1.err";
+    const exitFile = "/tmp/claude-build-round-1.exit";
 
-    console.log(`  [${scenario.slug}] Phase 1: BUILD started (${elapsed(t0)})`);
-    const buildPromise = sandbox.runCommand("sh", ["-c", buildCmd], { signal: AbortSignal.timeout(TIMEOUT_MS) });
-
-    // Poll during build
-    const pollInterval = setInterval(async () => {
+    async function pollBuildProgress(includeProcessState = false): Promise<BuildWaitState | null> {
       try {
-        const skills = (await sh(sandbox!, "ls /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null")).split("\n").filter(Boolean);
-        const fileCount = parseInt(await sh(sandbox!, `find ${projectDir} -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' -not -path '*/.claude/*' -newer /tmp/prompt.txt -type f 2>/dev/null | wc -l`), 10) || 0;
-        const port3000 = await sh(sandbox!, "curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 2>/dev/null || echo 'down'");
+        const [skillsRaw, fileCountRaw, port3000Raw, claudeProbeRaw, debugLineRaw] = await Promise.all([
+          sh(sandbox!, "ls /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null"),
+          sh(sandbox!, `find ${projectDir} -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' -not -path '*/.claude/*' -newer /tmp/prompt.txt -type f 2>/dev/null | wc -l`),
+          sh(sandbox!, "curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 2>/dev/null || echo 'down'"),
+          includeProcessState
+            ? sh(sandbox!, "pgrep -f claude 2>/dev/null || true")
+            : Promise.resolve(""),
+          includeProcessState
+            ? sh(sandbox!, "ls -t ~/.claude/debug/*.txt 2>/dev/null | head -1 | xargs tail -1 2>/dev/null || true")
+            : Promise.resolve(""),
+        ]);
+        const skills = normalizeShellOutput(skillsRaw).split("\n").filter(Boolean);
+        const fileCount = parseInt(normalizeShellOutput(fileCountRaw), 10) || 0;
+        const port3000 = normalizeShellOutput(port3000Raw) || "down";
         if (!appUrl && port3000 !== "000down" && port3000 !== "down") {
           try { appUrl = sandbox!.domain(3000); } catch {}
         }
         pollHistory.push({ elapsed: elapsed(t0), skills, files: fileCount });
-        console.log(`  [${scenario.slug}] ${elapsed(t0)} | skills: ${skills.join(", ") || "(none)"} | files: ${fileCount} | :3000=${port3000}`);
-      } catch {}
-    }, 20_000);
+        const waitState = includeProcessState
+          ? evaluateBuildWaitState({
+            claudeProbe: claudeProbeRaw,
+            debugLine: debugLineRaw,
+            elapsedMs: Date.now() - buildStartedAt,
+            timeoutMs: TIMEOUT_MS,
+          })
+          : null;
+        const debugLine = normalizeShellOutput(debugLineRaw);
+        const waitSuffix = waitState
+          ? ` | claude=${waitState.claudeRunning ? "running" : "exited"} | sessionEnd=${waitState.sessionEnded ? "yes" : "no"}${waitState.timedOut ? " | wait=timeout" : ""}${debugLine ? ` | debug=${debugLine.slice(-120)}` : ""}`
+          : "";
+        console.log(`  [${scenario.slug}] ${elapsed(t0)} | skills: ${skills.join(", ") || "(none)"} | files: ${fileCount} | :3000=${port3000}${waitSuffix}`);
+        return waitState;
+      } catch {
+        return null;
+      }
+    }
+
+    async function readBuildExitCode(): Promise<number | null> {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const exitRaw = await sh(sandbox!, `cat ${exitFile} 2>/dev/null || grep -o 'EXIT:[0-9]\\+' ${logFile} 2>/dev/null | tail -1`);
+        const parsed = parseBuildExitCode(exitRaw);
+        if (parsed !== null) return parsed;
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+      return null;
+    }
+
+    console.log(`  [${scenario.slug}] Phase 1: BUILD started (single launch + fire-and-forget poll after API timeout) (${elapsed(t0)})`);
+
+    const pollInterval = setInterval(() => {
+      void pollBuildProgress(false);
+    }, BUILD_STATUS_INTERVAL_MS);
 
     let buildExit = -1;
+    let buildLaunchTimedOut = false;
+    // Redirect stdout/stderr to files so we can capture them even if runCommand times out.
+    const wrappedCmd = `${buildCmd} > ${logFile} 2> ${errFile}; status=$?; echo "EXIT:$status" >> ${logFile}; printf '%s' "$status" > ${exitFile}`;
     try {
-      const r = await buildPromise;
-      clearInterval(pollInterval);
+      const r = await sandbox.runCommand("sh", ["-c", wrappedCmd]);
       buildExit = (r as any).exitCode ?? 0;
     } catch (e: any) {
-      clearInterval(pollInterval);
-      if (e.message?.includes("timed out") || e.message?.includes("abort")) {
-        console.log(`  [${scenario.slug}] Build timed out (${elapsed(t0)})`);
+      if (isExpectedRunCommandTimeout(e)) {
+        buildLaunchTimedOut = true;
         buildExit = 124;
-      } else throw e;
+        console.log(`  [${scenario.slug}] Build launch hit the expected 300s API timeout; waiting on sandbox process state (${elapsed(t0)})`);
+      } else {
+        console.log(`  [${scenario.slug}] Build launch failed | attempt=runCommand | state=launching | error=${e.message?.slice(0, 200)} (${elapsed(t0)})`);
+        buildExit = 1;
+      }
+    } finally {
+      clearInterval(pollInterval);
+    }
+
+    if (buildLaunchTimedOut) {
+      // After the HTTP timeout the shell keeps running inside the sandbox, so poll
+      // process/debug state until Claude exits or the phase deadline is exhausted.
+      while (true) {
+        const waitState = await pollBuildProgress(true);
+        if (!waitState) {
+          if (Date.now() - buildStartedAt >= TIMEOUT_MS) {
+            buildExit = 124;
+            console.log(`  [${scenario.slug}] Build wait probe stalled past phase timeout (${TIMEOUT_MS / 1000}s) (${elapsed(t0)})`);
+            break;
+          }
+          console.log(`  [${scenario.slug}] Build wait probe failed; retrying in ${BUILD_WAIT_POLL_MS / 1000}s (${elapsed(t0)})`);
+          await new Promise((resolve) => setTimeout(resolve, BUILD_WAIT_POLL_MS));
+          continue;
+        }
+        if (!waitState.shouldKeepPolling) {
+          if (waitState.timedOut) {
+            buildExit = 124;
+            console.log(`  [${scenario.slug}] Build wait reached phase timeout (${TIMEOUT_MS / 1000}s) (${elapsed(t0)})`);
+          } else {
+            const exitCode = await readBuildExitCode();
+            if (exitCode !== null) buildExit = exitCode;
+            console.log(`  [${scenario.slug}] Build process finished | claude=${waitState.claudeRunning ? "running" : "exited"} | sessionEnd=${waitState.sessionEnded ? "yes" : "no"} | exit=${exitCode ?? "unknown"} (${elapsed(t0)})`);
+          }
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, BUILD_WAIT_POLL_MS));
+      }
+    }
+
+    // Grab tail of stdout/stderr no matter what happened.
+    try {
+      const tail = await sh(sandbox, `tail -30 ${logFile} 2>/dev/null`);
+      const errTail = await sh(sandbox, `tail -10 ${errFile} 2>/dev/null`);
+      if (tail) console.log(`  [${scenario.slug}] Build stdout (last 30 lines):\n${tail}`);
+      if (errTail) console.log(`  [${scenario.slug}] Build stderr (last 10 lines):\n${errTail}`);
+    } catch {}
+    timing.buildEndMs = captureRelativeMs(t0);
+    if (buildExit === 0) {
+      console.log(`  [${scenario.slug}] Build completed (${elapsed(t0)})`);
     }
 
     // Extract artifacts after build
     const claimedSkills = (await sh(sandbox, "ls /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null")).split("\n").filter(Boolean);
     const projectFilesList = (await sh(sandbox, `find ${projectDir} -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' -not -path '*/.claude/*' -type f 2>/dev/null | head -40`)).split("\n").filter(Boolean);
     console.log(`  [${scenario.slug}] Build done (exit=${buildExit}) | skills=${claimedSkills.length} | files=${projectFilesList.length} (${elapsed(t0)})`);
+
+    // Score build completeness with haiku
+    let buildScore: HaikuScore | null = null;
+    if (projectFilesList.length > 0) {
+      const fileList = projectFilesList.map(f => f.replace(`${SANDBOX_HOME}/${scenario.slug}/`, "")).join("\n");
+      buildScore = await scoreWithHaiku(sandbox, claudeBin,
+        `A Next.js app was built with this prompt:\n"${scenario.prompt.slice(0, 500)}"\n\nThe following files were created:\n${fileList}\n\nPort 3000 status: ${await sh(sandbox, "curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 2>/dev/null || echo down")}\n\nScore the build completeness.`,
+        BUILD_SCORE_SCHEMA, "build", scenario.slug, t0,
+      );
+      if (buildScore) {
+        console.log(`  [${scenario.slug}] Build score: ${(buildScore as any).completeness} | API=${(buildScore as any).hasApiRoutes} UI=${(buildScore as any).hasUIComponents} AI=${(buildScore as any).hasAIFeature} (${elapsed(t0)})`);
+      }
+    }
 
     // 6. Start dev server (if not already running from the build prompt)
     let port3000Up = false;
@@ -419,6 +773,7 @@ async function runScenario(
     let verification: VerificationResult | undefined;
     if (!SKIP_VERIFY && projectFilesList.length > 1) {
       console.log(`  [${scenario.slug}] Phase 2: VERIFY with agent-browser (${elapsed(t0)})`);
+      timing.verifyStartMs = captureRelativeMs(t0);
       const verifyPrompt = buildVerificationPrompt(scenario.userStories);
       await sandbox.writeFiles([{ path: "/tmp/verify.txt", content: Buffer.from(verifyPrompt) }]);
 
@@ -434,6 +789,8 @@ async function runScenario(
           verifyExit = 124;
           console.log(`  [${scenario.slug}] Verify timed out (${elapsed(t0)})`);
         }
+      } finally {
+        timing.verifyEndMs = captureRelativeMs(t0);
       }
 
       // Re-extract skills after verify phase (agent-browser + fixes trigger more)
@@ -446,56 +803,21 @@ async function runScenario(
         }
       }
 
-      // Score verification results with structured JSON output via haiku
-      // This runs as a separate quick pass — no tools needed, just reads the verify output
+      // Score verification results with haiku structured output
       const storyList = scenario.userStories.map((s, i) => `${i + 1}. ${s}`).join("\n");
-      const jsonSchema = JSON.stringify({
-        type: "object",
-        properties: {
-          stories: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                index: { type: "number" },
-                status: { type: "string", enum: ["pass", "fail"] },
-                reason: { type: "string" },
-              },
-              required: ["index", "status", "reason"],
-            },
-          },
-        },
-        required: ["stories"],
-      });
+      const verifyScore = await scoreWithHaiku(sandbox, claudeBin,
+        `You are scoring whether user stories were verified in a web app test session.\n\nThe user stories were:\n${storyList}\n\nThe verification session output (last 2000 chars):\n${verifyOut.slice(-2000)}\n\nFor each story, determine if it PASSED or FAILED based on evidence in the output. If the output mentions screenshots, successful interactions, or confirmations — mark as pass. If there are errors, missing elements, or the story was never tested — mark as fail. Give a brief reason for each.`,
+        STORIES_SCHEMA, "verify", scenario.slug, t0,
+      );
 
-      const scorePrompt = `You are scoring whether user stories were verified in a web app test session.
-
-The user stories were:
-${storyList}
-
-The verification session output (last 2000 chars):
-${verifyOut.slice(-2000)}
-
-For each story, determine if it PASSED or FAILED based on the evidence in the output. If the output mentions screenshots, successful interactions, or confirmations — mark as pass. If there are errors, missing elements, or the story was never tested — mark as fail. Give a brief reason for each.`;
-
-      await sandbox.writeFiles([{ path: "/tmp/score-prompt.txt", content: Buffer.from(scorePrompt) }]);
-      const scoreCmd = `${claudeBin} -p "$(cat /tmp/score-prompt.txt)" --json-schema '${jsonSchema}' --output-format json --model haiku --setting-sources ""`;
       let stories: VerificationResult["stories"] = scenario.userStories.map((_, i) => ({
         index: i + 1, status: "unknown" as const,
       }));
-
-      try {
-        const sr = await sandbox.runCommand("sh", ["-c", scoreCmd], { signal: AbortSignal.timeout(60_000) }); // 1 min max
-        const scoreOut = (await sr.stdout()).trim();
-        const parsed = JSON.parse(scoreOut);
-        if (parsed.stories && Array.isArray(parsed.stories)) {
-          stories = parsed.stories.map((s: any) => ({
-            index: s.index,
-            status: s.status === "pass" ? "pass" as const : "fail" as const,
-          }));
-        }
-      } catch (e: any) {
-        console.log(`  [${scenario.slug}] Score parse failed: ${e.message?.slice(0, 80)}`);
+      if (verifyScore && Array.isArray((verifyScore as any).stories)) {
+        stories = (verifyScore as any).stories.map((s: any) => ({
+          index: s.index,
+          status: s.status === "pass" ? "pass" as const : "fail" as const,
+        }));
       }
 
       verification = { ran: true, exitCode: verifyExit, stories, output: verifyOut.slice(-500) };
@@ -508,64 +830,224 @@ For each story, determine if it PASSED or FAILED based on the evidence in the ou
     }
 
     // 9. Phase 3: Deploy to Vercel for permanent URL
-    //    Direct shell commands — no Claude Code session needed.
+    //    Uses Claude Code for skill tracking during deploy + build error fixes.
     //    Deployment protection is on by default for vercel-labs team.
     let deployUrl: string | undefined;
+    let deployScore: HaikuScore | null = null;
     if (!SKIP_DEPLOY && vercelToken && projectFilesList.length > 3) {
       console.log(`  [${scenario.slug}] Phase 3: DEPLOY (${elapsed(t0)})`);
-      const ts = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
+      timing.deployStartMs = captureRelativeMs(t0);
+      const ts = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
       const projectName = `${scenario.slug}-${ts}`.toLowerCase();
 
-      // Step 1: Link to vercel-labs team
-      const linkOut = await sh(sandbox, `cd ${projectDir} && unset VERCEL_TOKEN && vercel link --yes --scope vercel-labs --project ${projectName} 2>&1`);
-      console.log(`  [${scenario.slug}] Linked: ${linkOut.split("\n").pop()} (${elapsed(t0)})`);
+      const deployPrompt = `Deploy this app to Vercel. Follow these steps:
 
-      // Step 2: Deploy (up to 3 attempts)
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        const deployOut = await sh(sandbox, `cd ${projectDir} && unset VERCEL_TOKEN && vercel deploy --yes 2>&1`);
-        const urlMatch = deployOut.match(/(https:\/\/[^\s]+\.vercel\.app)/);
-        if (urlMatch) {
-          deployUrl = urlMatch[1];
-          console.log(`  [${scenario.slug}] Deployed: ${deployUrl} (attempt ${attempt}) (${elapsed(t0)})`);
-          break;
-        }
-        // Check if it's a build error we can fix with Claude
-        const hasBuildError = deployOut.includes("Command \"npm run build\" exited with") || deployOut.includes("Build error");
-        if (hasBuildError && attempt < 3) {
-          console.log(`  [${scenario.slug}] Deploy build failed (attempt ${attempt}), using Claude to fix... (${elapsed(t0)})`);
-          const fixPrompt = `The Vercel deploy failed with a build error. Here's the error output:\n\n${deployOut.slice(-1000)}\n\nFix the build errors in the code so that \`npm run build\` succeeds. Do not run the deploy — just fix the code.`;
-          await sandbox.writeFiles([{ path: "/tmp/fix-build.txt", content: Buffer.from(fixPrompt) }]);
-          const fixCmd = `cd ${projectDir} && ${claudeBin} --dangerously-skip-permissions --debug --settings ${settingsPath} "$(cat /tmp/fix-build.txt)"`;
-          try {
-            await sandbox.runCommand("sh", ["-c", fixCmd], { signal: AbortSignal.timeout(300_000) }); // 5 min to fix
-          } catch {}
-        } else if (!urlMatch) {
-          console.log(`  [${scenario.slug}] Deploy failed (attempt ${attempt}): ${deployOut.slice(-150)} (${elapsed(t0)})`);
-        }
-      }
-    }
+1. Run: vercel link --yes --scope vercel-labs --project ${projectName}
+2. Run: vercel deploy --yes
+3. If the deploy fails with a build error, fix the code and try again (up to 3 attempts).
 
-    // 10. Extract source code to local filesystem
-    let sourcePath: string | undefined;
-    if (projectFilesList.length > 3) {
+Important:
+- Do NOT set or use VERCEL_TOKEN env var — the CLI auth is already configured
+- If you see tsconfig or type errors, fix them before retrying
+- Deployment protection is enabled by default, which is what we want`;
+
+      await sandbox.writeFiles([{ path: "/tmp/deploy.txt", content: Buffer.from(deployPrompt) }]);
+      const deployCmd = `cd ${projectDir} && unset VERCEL_TOKEN && ${claudeBin} --dangerously-skip-permissions --debug --settings ${settingsPath} "$(cat /tmp/deploy.txt)"`;
+
+      let deployExit = -1;
+      let deployOut = "";
       try {
-        const archiveDir = join(RESULTS_DIR, runId, scenario.slug);
-        await mkdir(archiveDir, { recursive: true });
-        // Tar source (exclude node_modules, .next, .git)
-        await sandbox.runCommand("sh", ["-c", `cd ${SANDBOX_HOME} && tar czf /tmp/source.tar.gz --exclude='node_modules' --exclude='.next' --exclude='.git' ${scenario.slug}/`]);
-        const stream = await sandbox.readFile({ path: "/tmp/source.tar.gz" });
-        if (stream) {
-          const chunks: Buffer[] = [];
-          for await (const chunk of stream) chunks.push(Buffer.from(chunk));
-          const archivePath = join(archiveDir, "source.tar.gz");
-          await writeFile(archivePath, Buffer.concat(chunks));
-          sourcePath = archivePath;
-          console.log(`  [${scenario.slug}] Source saved: ${archivePath} (${(Buffer.concat(chunks).length / 1024).toFixed(0)}KB) (${elapsed(t0)})`);
-        }
+        const dr = await sandbox.runCommand("sh", ["-c", deployCmd], { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        deployExit = (dr as any).exitCode ?? 0;
+        deployOut = (await dr.stdout()).trim();
       } catch (e: any) {
-        console.log(`  [${scenario.slug}] Source extract failed: ${e.message?.slice(0, 80)}`);
+        if (e.message?.includes("timed out")) {
+          deployExit = 124;
+          console.log(`  [${scenario.slug}] Deploy timed out (${elapsed(t0)})`);
+        }
+      } finally {
+        timing.deployEndMs = captureRelativeMs(t0);
+      }
+
+      // Extract deploy URL from output (scan for any vercel.app URL)
+      const urlMatch = deployOut.match(/(https:\/\/[^\s]+\.vercel\.app)/);
+      if (urlMatch) {
+        deployUrl = urlMatch[1];
+        console.log(`  [${scenario.slug}] Deployed: ${deployUrl} (${elapsed(t0)})`);
+      }
+
+      // Re-extract skills after deploy phase
+      const postDeploySkills = (await sh(sandbox, "ls /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null")).split("\n").filter(Boolean);
+      if (postDeploySkills.length > claimedSkills.length) {
+        const newSkills = postDeploySkills.filter(s => !claimedSkills.includes(s));
+        if (newSkills.length > 0) {
+          console.log(`  [${scenario.slug}] +${newSkills.length} skills from deploy: ${newSkills.join(", ")}`);
+          claimedSkills.push(...newSkills);
+        }
+      }
+
+      // Score deploy results with haiku
+      deployScore = await scoreWithHaiku(sandbox, claudeBin,
+        `A Vercel deploy was attempted. Here's the output (last 1500 chars):\n\n${deployOut.slice(-1500)}\n\nDid the deploy succeed? Extract the URL if present. List any errors.`,
+        DEPLOY_SCORE_SCHEMA, "deploy", scenario.slug, t0,
+      );
+      if (deployScore) {
+        const ds = deployScore as any;
+        console.log(`  [${scenario.slug}] Deploy score: deployed=${ds.deployed} build=${ds.buildSucceeded}${ds.url ? ` url=${ds.url}` : ""} (${elapsed(t0)})`);
+        // If haiku found a URL we missed, use it
+        if (!deployUrl && ds.url && ds.url.includes("vercel.app")) {
+          deployUrl = ds.url;
+          console.log(`  [${scenario.slug}] Deploy URL from haiku: ${deployUrl}`);
+        }
+      }
+
+      if (!deployUrl) {
+        console.log(`  [${scenario.slug}] Deploy failed (exit=${deployExit}) (${elapsed(t0)})`);
       }
     }
+
+    // 10. Extract source code + debug logs to local filesystem
+    let sourcePath: string | undefined;
+    const archiveDir = join(RESULTS_DIR, runId, scenario.slug);
+    await mkdir(archiveDir, { recursive: true });
+    const extractStartedAt = performance.now();
+
+    const extractedArtifacts: ArtifactManifestEntry[] = [];
+    const trackArtifact = async (
+      fileName: string,
+      description: string,
+      content: Buffer | string,
+    ): Promise<ArtifactManifestEntry> => {
+      const artifact = await writeArchiveArtifact(archiveDir, fileName, description, content);
+      extractedArtifacts.push(artifact);
+      console.log(`  [${scenario.slug}] Artifact saved | file=${fileName} | sizeKB=${(artifact.sizeBytes / 1024).toFixed(0)} (${elapsed(t0)})`);
+      return artifact;
+    };
+
+    // Always extract debug logs (even if build produced few files)
+    try {
+      await sh(sandbox, `tar czf /tmp/debug-logs.tar.gz -C ${SANDBOX_HOME} .claude/debug/ 2>/dev/null`);
+      const debugBuffer = await readSandboxFileBuffer(sandbox, "/tmp/debug-logs.tar.gz");
+      if (!debugBuffer) throw new Error("sandbox file /tmp/debug-logs.tar.gz missing");
+      await trackArtifact("debug-logs.tar.gz", "Full Claude debug logs captured from ~/.claude/debug.", debugBuffer);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=debug-logs.tar.gz | attempted=tar-debug-logs | error=${e.message?.slice(0, 160)}`);
+    }
+
+    // Extract Claude Code stdout/stderr from all build rounds
+    try {
+      await sh(sandbox, "tar czf /tmp/claude-output.tar.gz /tmp/claude-build-round-*.log /tmp/claude-build-round-*.err 2>/dev/null");
+      const claudeOutputBuffer = await readSandboxFileBuffer(sandbox, "/tmp/claude-output.tar.gz");
+      if (!claudeOutputBuffer) throw new Error("sandbox file /tmp/claude-output.tar.gz missing");
+      await trackArtifact("claude-output.tar.gz", "Claude build stdout/stderr logs captured from /tmp.", claudeOutputBuffer);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=claude-output.tar.gz | attempted=tar-claude-output | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      await sh(sandbox, `cd ${SANDBOX_HOME} && tar czf /tmp/source.tar.gz --exclude='node_modules' --exclude='.next' --exclude='.git' ${scenario.slug}/ 2>/dev/null`);
+      const sourceBuffer = await readSandboxFileBuffer(sandbox, "/tmp/source.tar.gz");
+      if (!sourceBuffer) throw new Error("sandbox file /tmp/source.tar.gz missing");
+      const artifact = await trackArtifact("source.tar.gz", "Generated project source tree excluding node_modules, .next, and .git.", sourceBuffer);
+      sourcePath = join(archiveDir, artifact.fileName);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=source.tar.gz | attempted=tar-project-source | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const hookTrace = await sh(
+        sandbox,
+        "grep -RniE 'vercel-plugin|VERCEL_PLUGIN|PreToolUse|PostToolUse|SessionStart|SessionEnd|UserPromptSubmit' ~/.claude/debug 2>/dev/null || true",
+      );
+      const hookTraceOutput = normalizeShellOutput(hookTrace) || "No hook/session trace lines matched.";
+      await trackArtifact("hook-trace.txt", "Filtered hook and session trace lines from Claude debug logs.", `${hookTraceOutput}\n`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=hook-trace.txt | attempted=grep-hook-trace | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const fileTree = await sh(
+        sandbox,
+        `find ${projectDir} -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' -type f -exec ls -la {} + 2>/dev/null || true`,
+      );
+      const fileTreeOutput = normalizeShellOutput(fileTree) || "No project files found.";
+      await trackArtifact("file-tree.txt", "Readable file tree for the generated project.", `${fileTreeOutput}\n`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=file-tree.txt | attempted=find-project-files | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const pluginEnv = await sh(sandbox, "env | grep -i vercel_plugin || true");
+      const pluginEnvOutput = normalizeShellOutput(pluginEnv) || "No VERCEL_PLUGIN environment variables found.";
+      await trackArtifact("plugin-env.txt", "Sandbox environment variables matching VERCEL_PLUGIN.", `${pluginEnvOutput}\n`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=plugin-env.txt | attempted=grep-plugin-env | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const npmGlobals = await sh(sandbox, "npm ls -g --depth=0 2>/dev/null || true");
+      const npmGlobalsOutput = normalizeShellOutput(npmGlobals) || "npm global package listing returned no output.";
+      await trackArtifact("npm-globals.txt", "Globally installed npm packages inside the sandbox.", `${npmGlobalsOutput}\n`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=npm-globals.txt | attempted=npm-ls-global | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const settingsExists = await sh(sandbox, `test -f ${settingsPath} && echo present || true`);
+      if (normalizeShellOutput(settingsExists) === "present") {
+        const settingsBuffer = await readSandboxFileBuffer(sandbox, settingsPath);
+        if (!settingsBuffer) throw new Error(`sandbox file ${settingsPath} missing`);
+        await trackArtifact("settings.json", "Claude settings generated for the scenario project.", settingsBuffer);
+      }
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=settings.json | attempted=copy-settings | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const toolCallsRaw = await sh(sandbox, "grep -Rni 'executePreToolHooks called' ~/.claude/debug 2>/dev/null || true");
+      await trackArtifact("tool-calls.txt", "Pre-tool hook calls with parsed timestamp and tool name.", `${summarizeToolCalls(toolCallsRaw)}\n`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=tool-calls.txt | attempted=grep-pretool-hooks | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const claimDirs = await sh(sandbox, "ls -la /tmp/vercel-plugin-*-seen-skills.d/ 2>/dev/null || true");
+      const claimFiles = await sh(sandbox, "cat /tmp/vercel-plugin-*-seen-skills.txt 2>/dev/null || true");
+      const claimsOutput = [
+        "=== claim directories ===",
+        normalizeShellOutput(claimDirs) || "(none)",
+        "",
+        "=== claim files ===",
+        normalizeShellOutput(claimFiles) || "(none)",
+      ].join("\n");
+      await trackArtifact("skill-claims.txt", "Seen-skills claim directories and files emitted by the plugin.", `${claimsOutput}\n`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=skill-claims.txt | attempted=collect-skill-claims | error=${e.message?.slice(0, 160)}`);
+    }
+
+    try {
+      const manifestPath = join(archiveDir, "manifest.json");
+      const manifestEntry: ArtifactManifestEntry = {
+        fileName: "manifest.json",
+        sizeBytes: 0,
+        description: "Manifest of archived observability artifacts.",
+      };
+      const manifestEntries = [...extractedArtifacts, manifestEntry];
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await writeFile(manifestPath, JSON.stringify(buildArtifactManifest(manifestEntries), null, 2));
+        const manifestStats = await stat(manifestPath);
+        if (manifestEntry.sizeBytes === manifestStats.size) break;
+        manifestEntry.sizeBytes = manifestStats.size;
+      }
+      if (!extractedArtifacts.some((artifact) => artifact.fileName === "manifest.json")) {
+        extractedArtifacts.push(manifestEntry);
+      }
+      console.log(`  [${scenario.slug}] Artifact saved | file=manifest.json | sizeKB=${(manifestEntry.sizeBytes / 1024).toFixed(0)} (${elapsed(t0)})`);
+    } catch (e: any) {
+      console.log(`  [${scenario.slug}] Artifact extract failed | artifact=manifest.json | attempted=write-manifest | error=${e.message?.slice(0, 160)}`);
+    }
+
+    timing.extractMs = captureElapsedMs(extractStartedAt);
 
     console.log(`  [${scenario.slug}] DONE (${elapsed(t0)}) | skills=${claimedSkills.length} | files=${projectFilesList.length}${deployUrl ? ` | ${deployUrl}` : appUrl ? ` | ${appUrl}` : ""}`);
 
@@ -582,6 +1064,9 @@ For each story, determine if it PASSED or FAILED based on the evidence in the ou
       sourcePath,
       pollHistory,
       verification,
+      buildScore,
+      deployScore,
+      timing,
     };
   } catch (err: any) {
     console.error(`  [${scenario.slug}] ERROR: ${err.message?.slice(0, 200)}`);
@@ -595,6 +1080,7 @@ For each story, determine if it PASSED or FAILED based on the evidence in the ou
       projectFiles: [],
       error: err.message?.slice(0, 400),
       pollHistory,
+      timing,
     };
   } finally {
     if (sandbox && !KEEP_ALIVE) {
@@ -618,7 +1104,7 @@ async function generateReport(
   await mkdir(reportsDir, { recursive: true });
   const reportPath = join(reportsDir, `${ts}.md`);
 
-  const scenarioMap = Object.fromEntries(SCENARIOS.map(s => [s.slug, s]));
+  const scenarioMap = Object.fromEntries(ACTIVE_SCENARIOS.map(s => [s.slug, s]));
   const totalSkills = new Set(results.flatMap(r => r.claimedSkills));
   const verified = results.filter(r => r.verification?.ran);
   const totalStories = verified.reduce((a, r) => a + r.verification!.stories.length, 0);
@@ -647,6 +1133,8 @@ async function generateReport(
     const url = r.deployUrl ? `[${r.slug}](${r.deployUrl})` : r.appUrl ? `[sandbox](${r.appUrl})` : "—";
     md += `| ${r.slug} | ${build} | ${r.claimedSkills.length} | ${r.projectFiles.length} | ${verify} | ${(r.durationMs / 1000).toFixed(0)}s | ${url} |\n`;
   }
+
+  md += `\n${renderTimingMarkdownTable(results)}\n`;
 
   // Deployed + Live URLs
   const deployed = results.filter(r => r.deployUrl);
@@ -726,6 +1214,22 @@ async function generateReport(
       }
     }
 
+    // Build score (from haiku)
+    if (r.buildScore) {
+      const bs = r.buildScore as any;
+      md += `\n**Build Score** (haiku): ${bs.completeness} | API=${bs.hasApiRoutes} UI=${bs.hasUIComponents} AI=${bs.hasAIFeature} Server=${bs.devServerRunning}\n`;
+      if (bs.missingFeatures?.length) md += `Missing: ${bs.missingFeatures.join(", ")}\n`;
+      if (bs.summary) md += `> ${bs.summary}\n`;
+    }
+
+    // Deploy score (from haiku)
+    if (r.deployScore) {
+      const ds = r.deployScore as any;
+      md += `\n**Deploy Score** (haiku): deployed=${ds.deployed} build=${ds.buildSucceeded}${ds.url ? ` url=${ds.url}` : ""}\n`;
+      if (ds.errors?.length) md += `Errors: ${ds.errors.join(", ")}\n`;
+      if (ds.summary) md += `> ${ds.summary}\n`;
+    }
+
     // Verification
     if (r.verification?.ran) {
       md += `\n**Verification** (exit=${r.verification.exitCode}):\n`;
@@ -747,7 +1251,10 @@ async function generateReport(
   md += [...totalSkills].sort().map(s => `\`${s}\``).join(", ") + "\n";
 
   await writeFile(reportPath, md);
+  // Also write to results dir for easy access alongside results.json
+  await writeFile(join(resultsPath, "report.md"), md);
   console.log(`\nReport: ${reportPath}`);
+  console.log(`Report copy: ${join(resultsPath, "report.md")}`);
   return reportPath;
 }
 
@@ -876,4 +1383,6 @@ async function main() {
   }
 }
 
-main().catch(e => { console.error("Fatal:", e); process.exit(2); });
+if (import.meta.main) {
+  main().catch(e => { console.error("Fatal:", e); process.exit(2); });
+}
