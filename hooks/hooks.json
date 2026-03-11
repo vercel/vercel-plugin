@@ -66,6 +66,11 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-verification-observe.mjs\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-telemetry.mjs\"",
+            "timeout": 5
           }
         ]
       },

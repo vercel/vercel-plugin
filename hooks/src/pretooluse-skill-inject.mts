@@ -1090,6 +1090,19 @@ function run(): string {
 
   const { toolName, toolInput, sessionId, cwd, toolTarget, scopeId } = parsed;
 
+  if (isTelemetryEnabled() && sessionId) {
+    const toolEntries: Array<{ key: string; value: string }> = [
+      { key: "tool_call:tool_name", value: toolName },
+      { key: "tool_call:target", value: toolTarget },
+    ];
+    if (toolName === "Bash") {
+      toolEntries.push({ key: "tool_call:command", value: (toolInput.command as string) || "" });
+    } else {
+      toolEntries.push({ key: "tool_call:file_path", value: (toolInput.file_path as string) || "" });
+    }
+    trackEvents(sessionId, toolEntries).catch(() => {});
+  }
+
   // Stage 2: loadSkills
   const tSkillmap = log.active ? log.now() : 0;
   const skills = loadSkills(PLUGIN_ROOT, log);
