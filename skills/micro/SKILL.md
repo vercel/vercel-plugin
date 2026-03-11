@@ -16,6 +16,14 @@ metadata:
     - '\byarn\s+add\s+[^\n]*\bmicro\b'
     - '\bnpx\s+micro\b'
     - '\bnpx\s+micro-dev\b'
+validate:
+  -
+    pattern: 'from\s+[''"](micro)[''"]|send\s*\(\s*res\s*,'
+    message: 'Legacy micro framework detected. Modern Vercel serverless uses Web Request/Response API route handlers.'
+    severity: recommended
+    upgradeToSkill: vercel-functions
+    upgradeWhy: 'Migrate from micro send(res, status, data) to modern route handlers with return Response.json(data).'
+    skipIfFileContains: 'export\s+(async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)|Response\.json'
 retrieval:
   aliases:
     - microservice

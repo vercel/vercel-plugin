@@ -22,6 +22,14 @@ metadata:
     - '\bvercel\s+inspect\b'
     - '\bvercel\s+build\b'
     - '\bvercel\s+deploy\s+--prebuilt\b'
+validate:
+  -
+    pattern: 'cron:\s*[''"]|from\s+[''"](node-cron)[''"]|cron\.schedule\('
+    message: 'Manual cron scheduling detected. Use Vercel Cron Jobs (vercel.json crons) for platform-native scheduled tasks.'
+    severity: recommended
+    upgradeToSkill: cron-jobs
+    upgradeWhy: 'Replace node-cron or CI-based schedules with Vercel Cron Jobs in vercel.json for managed, observable scheduled execution.'
+    skipIfFileContains: 'vercel\.json.*crons|@vercel/cron'
 retrieval:
   aliases:
     - deploy

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-11T03:47:47.882Z",
+  "generatedAt": "2026-03-11T03:48:48.588Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -341,6 +341,17 @@
           "flags": "m"
         }
       ],
+      "validate": [
+        {
+          "pattern": "from\\s+[''\\"](micro)[''\\"]|send\\s*\\(\\s*res\\s*,",
+          "message": "Legacy micro framework detected. Modern Vercel serverless uses Web Request/Response API route handlers.",
+          "severity": "recommended",
+          "skipIfFileContains": "export\\s+(async\\s+)?function\\s+(GET|POST|PUT|PATCH|DELETE)|Response\\.json",
+          "upgradeToSkill": "vercel-functions",
+          "upgradeWhy": "Migrate from micro send(res, status, data) to modern route handlers with return Response.json(data).",
+          "upgradeMode": "soft"
+        }
+      ],
       "retrieval": {
         "aliases": [
           "microservice",
@@ -641,6 +652,17 @@
         "\\bvercel\\s+deploy\\s+--prebuilt\\b"
       ],
       "importRegexSources": [],
+      "validate": [
+        {
+          "pattern": "cron:\\s*[''\\"]|from\\s+[''\\"](node-cron)[''\\"]|cron\\.schedule\\(",
+          "message": "Manual cron scheduling detected. Use Vercel Cron Jobs (vercel.json crons) for platform-native scheduled tasks.",
+          "severity": "recommended",
+          "skipIfFileContains": "vercel\\.json.*crons|@vercel/cron",
+          "upgradeToSkill": "cron-jobs",
+          "upgradeWhy": "Replace node-cron or CI-based schedules with Vercel Cron Jobs in vercel.json for managed, observable scheduled execution.",
+          "upgradeMode": "soft"
+        }
+      ],
       "retrieval": {
         "aliases": [
           "deploy",
