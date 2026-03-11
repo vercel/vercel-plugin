@@ -343,7 +343,7 @@
       ],
       "validate": [
         {
-          "pattern": "from\\s+[''\\"](micro)[''\\"]|send\\s*\\(\\s*res\\s*,",
+          "pattern": "from\\s+[''\"](micro)[''\"]|send\\s*\\(\\s*res\\s*,",
           "message": "Legacy micro framework detected. Modern Vercel serverless uses Web Request/Response API route handlers.",
           "severity": "recommended",
           "skipIfFileContains": "export\\s+(async\\s+)?function\\s+(GET|POST|PUT|PATCH|DELETE)|Response\\.json",
@@ -654,7 +654,7 @@
       "importRegexSources": [],
       "validate": [
         {
-          "pattern": "cron:\\s*[''\\"]|from\\s+[''\\"](node-cron)[''\\"]|cron\\.schedule\\(",
+          "pattern": "cron:\\s*[''\"]|from\\s+[''\"](node-cron)[''\"]|cron\\.schedule\\(",
           "message": "Manual cron scheduling detected. Use Vercel Cron Jobs (vercel.json crons) for platform-native scheduled tasks.",
           "severity": "recommended",
           "skipIfFileContains": "vercel\\.json.*crons|@vercel/cron",
