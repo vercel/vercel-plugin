@@ -30,6 +30,14 @@ metadata:
     - 'vercel.mts'
   bashPatterns:
     - '\bnpx\s+@vercel/config\b'
+validate:
+  -
+    pattern: 'const\s+(blockedIps|denylist|allowlist)\s*=\s*\[|from\s+[''"](rate-limiter-flexible)[''"]|rateLimit'
+    message: 'App-layer rate limiting or IP blocking in middleware. Use Vercel Firewall/WAF for platform-level protection.'
+    severity: recommended
+    upgradeToSkill: vercel-firewall
+    upgradeWhy: 'Move IP blocking and rate limiting from middleware code to Vercel Firewall/WAF for better performance and maintainability.'
+    skipIfFileContains: '@vercel/firewall|vercel\.json.*firewall'
 retrieval:
   aliases:
     - request interceptor

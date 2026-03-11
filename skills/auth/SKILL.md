@@ -35,6 +35,14 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@auth0/nextjs-auth0\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@auth0/nextjs-auth0\b'
     - '\byarn\s+add\s+[^\n]*@auth0/nextjs-auth0\b'
+validate:
+  -
+    pattern: 'VERCEL_CLIENT_(ID|SECRET)|vercel\.com/oauth/(authorize|access_token|token)'
+    message: 'Hand-rolled Vercel OAuth detected. Use the dedicated Sign in with Vercel skill for OIDC-based Vercel identity.'
+    severity: recommended
+    upgradeToSkill: sign-in-with-vercel
+    upgradeWhy: 'Replace manual Vercel OAuth token exchange with the Sign in with Vercel OIDC provider.'
+    skipIfFileContains: 'signInWithVercel|@vercel/auth'
 retrieval:
   aliases:
     - authentication

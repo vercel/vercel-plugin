@@ -19,6 +19,21 @@ metadata:
   importPatterns:
     - 'react'
     - 'react-dom'
+validate:
+  -
+    pattern: 'from\s+[''"](axios)[''"]|axios\.(get|post|put|delete)\('
+    message: 'Client-side axios detected. Use SWR for React data fetching with caching, revalidation, and deduplication.'
+    severity: recommended
+    upgradeToSkill: swr
+    upgradeWhy: 'Replace manual fetch/axios with SWR for automatic caching, revalidation, and optimistic UI.'
+    skipIfFileContains: 'useSWR|from\s+[''"](swr)[''"]|@tanstack/react-query'
+  -
+    pattern: 'from\s+[''"](styled-components|@emotion/styled|@emotion/react|@mui/material|@chakra-ui/react)[''"]|styled\.'
+    message: 'Legacy CSS-in-JS or component library detected. Consider shadcn/ui + Tailwind for modern Vercel-native UI.'
+    severity: warn
+    upgradeToSkill: shadcn
+    upgradeWhy: 'Migrate from CSS-in-JS/MUI/Chakra to shadcn/ui + Tailwind CSS for better SSR performance and Vercel ecosystem alignment.'
+    skipIfFileContains: '@/components/ui|shadcn|tailwindcss'
 retrieval:
   aliases:
     - react review
