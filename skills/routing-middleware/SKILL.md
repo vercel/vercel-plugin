@@ -39,7 +39,7 @@ validate:
     upgradeWhy: 'Move IP blocking and rate limiting from middleware code to Vercel Firewall/WAF for better performance and maintainability.'
     skipIfFileContains: '@vercel/firewall|vercel\.json.*firewall'
   -
-    pattern: 'from\s+[''"]next/server[''"].*NextResponse'
+    pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
     message: 'Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. Run Skill(nextjs) for proxy.ts migration guidance.'
     severity: recommended
     upgradeToSkill: nextjs
@@ -72,7 +72,7 @@ chainTo:
     targetSkill: auth
     message: 'Auth logic in middleware — loading Auth guidance for Clerk/Auth0 integration patterns.'
   -
-    pattern: 'from\s+[''"]next/server[''"].*NextResponse'
+    pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
     targetSkill: nextjs
     message: 'middleware.ts with next/server imports detected — loading Next.js guidance for proxy.ts migration (Next.js 16 renames middleware.ts to proxy.ts with Node.js runtime).'
     skipIfFileContains: 'proxy\.ts|runtime.*nodejs'
