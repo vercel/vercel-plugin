@@ -28,7 +28,6 @@ import {
 } from "./patterns.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
-import { isTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 18e3;
 const SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
@@ -44,6 +43,8 @@ const DEV_SERVER_VERIFY_PRIORITY_BOOST = 45;
 const DEV_SERVER_VERIFY_MAX_ITERATIONS = 2;
 const DEV_SERVER_VERIFY_MARKER = "<!-- marker:dev-server-verify -->";
 const DEV_SERVER_COMPANION_SKILLS = ["verification"];
+const AI_SDK_SKILL = "ai-sdk";
+const AI_SDK_COMPANION_SKILLS = ["ai-elements"];
 const DEV_SERVER_UNAVAILABLE_WARNING = `<!-- agent-browser-unavailable -->
 **Recommendation: Install agent-browser for automatic verification**
 
@@ -119,6 +120,70 @@ function isTsxEditTool(toolName, toolInput) {
   if (toolName !== "Edit" && toolName !== "Write") return false;
   const filePath = toolInput.file_path || "";
   return /\.tsx$/.test(filePath);
+}
+function isClientReactFile(toolName, toolInput) {
+  if (toolName !== "Write" && toolName !== "Edit") return false;
+  const filePath = toolInput.file_path || "";
+  if (!/\.[jt]sx$/.test(filePath)) return false;
+  return !/\/(api|actions)\//.test(filePath) && !/\broute\.[jt]sx?$/.test(filePath);
+}
+const CURSOR_RUNTIME_ENV_KEYS = [
+  "VERCEL_PLUGIN_SEEN_SKILLS",
+  "VERCEL_PLUGIN_TSX_EDIT_COUNT",
+  "VERCEL_PLUGIN_DEV_VERIFY_COUNT"
+];
+function detectHookPlatform(input) {
+  if ("conversation_id" in input || "cursor_version" in input) {
+    return "cursor";
+  }
+  return "claude-code";
+}
+function resolveWorkspaceRoot(input) {
+  if (!Array.isArray(input.workspace_roots)) {
+    return null;
+  }
+  for (const root of input.workspace_roots) {
+    if (typeof root === "string" && root.trim() !== "") {
+      return root;
+    }
+  }
+  return null;
+}
+function resolveSessionId(input, env) {
+  if (typeof input.session_id === "string" && input.session_id.trim() !== "") {
+    return input.session_id;
+  }
+  if (typeof input.conversation_id === "string" && input.conversation_id.trim() !== "") {
+    return input.conversation_id;
+  }
+  if (typeof env.SESSION_ID === "string" && env.SESSION_ID.trim() !== "") {
+    return env.SESSION_ID;
+  }
+  return null;
+}
+function resolveHookCwd(input, env) {
+  const candidate = input.cwd ?? input.working_directory ?? resolveWorkspaceRoot(input) ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_ROOT ?? process.cwd();
+  return typeof candidate === "string" && candidate.trim() !== "" ? candidate : process.cwd();
+}
+function hasClaudeEnvFile(env = process.env) {
+  return typeof env.CLAUDE_ENV_FILE === "string" && env.CLAUDE_ENV_FILE.trim() !== "";
+}
+function captureRuntimeEnvSnapshot(env = process.env) {
+  return {
+    VERCEL_PLUGIN_SEEN_SKILLS: env.VERCEL_PLUGIN_SEEN_SKILLS,
+    VERCEL_PLUGIN_TSX_EDIT_COUNT: env.VERCEL_PLUGIN_TSX_EDIT_COUNT,
+    VERCEL_PLUGIN_DEV_VERIFY_COUNT: env.VERCEL_PLUGIN_DEV_VERIFY_COUNT
+  };
+}
+function collectRuntimeEnvUpdates(before, env = process.env) {
+  const updates = {};
+  for (const key of CURSOR_RUNTIME_ENV_KEYS) {
+    const next = env[key];
+    if (typeof next === "string" && next !== before[key]) {
+      updates[key] = next;
+    }
+  }
+  return updates;
 }
 function checkTsxReviewTrigger(toolName, toolInput, _injectedSkills, dedupOff, logger) {
   const l = logger || log;
@@ -212,7 +277,7 @@ function checkVercelEnvHelp(toolName, toolInput, injectedSkills, dedupOff, logge
   l.debug("vercel-env-help-triggered", { subcommand: match[1] });
   return { triggered: true, subcommand: match[1] };
 }
-function parseInput(raw, logger) {
+function parseInput(raw, logger, env = process.env) {
   const l = logger || log;
   const trimmed = (raw || "").trim();
   if (!trimmed) {
@@ -230,15 +295,15 @@ function parseInput(raw, logger) {
   }
   const toolName = input.tool_name || "";
   const toolInput = input.tool_input || {};
-  const sessionId = input.session_id || process.env.SESSION_ID || null;
-  const cwdCandidate = input.cwd ?? input.working_directory;
-  const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : null;
+  const platform = detectHookPlatform(input);
+  const sessionId = resolveSessionId(input, env);
+  const cwd = resolveHookCwd(input, env);
   const toolTarget = toolName === "Bash" ? toolInput.command || "" : toolInput.file_path || "";
   const agentId = typeof input.agent_id === "string" && input.agent_id.length > 0 ? input.agent_id : void 0;
   const scopeId = agentId;
-  l.debug("input-parsed", { toolName, sessionId, cwd, scopeId });
+  l.debug("input-parsed", { toolName, sessionId, cwd, platform, scopeId });
   l.debug("tool-target", { toolName, target: redactCommand(toolTarget) });
-  return { toolName, toolInput, sessionId, cwd, toolTarget, scopeId };
+  return { toolName, toolInput, sessionId, cwd, platform, toolTarget, scopeId };
 }
 function loadSkills(pluginRoot, logger) {
   const root = pluginRoot || PLUGIN_ROOT;
@@ -616,6 +681,28 @@ function injectSkills(rankedSkills, options) {
   l.debug("skills-injected", { injected: loaded, summaryOnly, skippedByConcurrentClaim, totalParts: parts.length, usedBytes, budgetBytes: budget });
   return { parts, loaded, summaryOnly, droppedByCap, droppedByBudget, skippedByConcurrentClaim };
 }
+function formatPlatformOutput(platform, additionalContext, env) {
+  if (platform === "cursor") {
+    const output2 = {};
+    if (additionalContext) {
+      output2.additional_context = additionalContext;
+    }
+    if (env && Object.keys(env).length > 0) {
+      output2.env = env;
+    }
+    return Object.keys(output2).length > 0 ? JSON.stringify(output2) : "{}";
+  }
+  if (!additionalContext) {
+    return "{}";
+  }
+  const output = {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      additionalContext
+    }
+  };
+  return JSON.stringify(output);
+}
 function buildBanner(injectedSkills, toolName, toolTarget, matchReasons) {
   const lines = ["[vercel-plugin] Best practices auto-suggested based on detected patterns:"];
   for (const skill of injectedSkills) {
@@ -633,8 +720,10 @@ function encodeJsonForHtmlComment(value) {
   return JSON.stringify(value).replace(/-->/g, "--\\u003E");
 }
 function formatOutput({ parts, matched, injectedSkills, summaryOnly, droppedByCap, droppedByBudget, toolName, toolTarget, matchReasons, reasons, verificationId, skillMap }) {
+  const platform = arguments[0].platform ?? "claude-code";
+  const env = arguments[0].env;
   if (parts.length === 0) {
-    return "{}";
+    return formatPlatformOutput(platform, void 0, env);
   }
   const skillInjection = {
     version: SKILL_INJECTION_VERSION,
@@ -658,13 +747,7 @@ function formatOutput({ parts, matched, injectedSkills, summaryOnly, droppedByCa
   const sections = [banner];
   if (docsBlock) sections.push(docsBlock);
   sections.push(parts.join("\n\n"));
-  const output = {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      additionalContext: sections.join("\n\n") + "\n" + metaComment
-    }
-  };
-  return JSON.stringify(output);
+  return formatPlatformOutput(platform, sections.join("\n\n") + "\n" + metaComment, env);
 }
 function run() {
   const timing = {};
@@ -678,20 +761,8 @@ function run() {
   const parsed = parseInput(raw, log);
   if (!parsed) return "{}";
   if (log.active) timing.stdin_parse = Math.round(log.now() - tPhase);
-  const { toolName, toolInput, sessionId, cwd, toolTarget, scopeId } = parsed;
-  if (isTelemetryEnabled() && sessionId) {
-    const toolEntries = [
-      { key: "tool_call:tool_name", value: toolName },
-      { key: "tool_call:target", value: toolTarget }
-    ];
-    if (toolName === "Bash") {
-      toolEntries.push({ key: "tool_call:command", value: toolInput.command || "" });
-    } else {
-      toolEntries.push({ key: "tool_call:file_path", value: toolInput.file_path || "" });
-    }
-    trackEvents(sessionId, toolEntries).catch(() => {
-    });
-  }
+  const { toolName, toolInput, sessionId, cwd, platform, toolTarget, scopeId } = parsed;
+  const runtimeEnvBefore = captureRuntimeEnvSnapshot();
   const tSkillmap = log.active ? log.now() : 0;
   const skills = loadSkills(PLUGIN_ROOT, log);
   if (!skills) return "{}";
@@ -849,6 +920,26 @@ function run() {
       log.debug("dev-server-companion-inject-past-guard", { skill: companion, iterationCount: devServerVerify.iterationCount, max: DEV_SERVER_VERIFY_MAX_ITERATIONS });
     }
   }
+  let aiSdkCompanionInjected = false;
+  if (rankedSkills.includes(AI_SDK_SKILL) && isClientReactFile(toolName, toolInput)) {
+    for (const companion of AI_SDK_COMPANION_SKILLS) {
+      if (rankedSkills.includes(companion)) continue;
+      const companionAlreadySeen = !dedupOff && injectedSkills.has(companion);
+      if (companionAlreadySeen) {
+        forceSummarySkills.add(companion);
+        log.debug("ai-sdk-companion-dedup-bypass", { skill: companion, mode: "summary" });
+      }
+      const sdkIdx = rankedSkills.indexOf(AI_SDK_SKILL);
+      if (sdkIdx !== -1) {
+        rankedSkills.splice(sdkIdx + 1, 0, companion);
+      } else {
+        rankedSkills.unshift(companion);
+      }
+      matched.add(companion);
+      aiSdkCompanionInjected = true;
+      log.debug("ai-sdk-companion-inject", { skill: companion });
+    }
+  }
   let vercelEnvHelpInjected = false;
   if (vercelEnvHelp.triggered) {
     let helpClaimed = true;
@@ -885,7 +976,8 @@ function run() {
       injectedSkills: [],
       boostsApplied: profilerBoosted
     }, log.active ? timing : null);
-    return "{}";
+    const envUpdates2 = platform === "cursor" || !hasClaudeEnvFile() ? collectRuntimeEnvUpdates(runtimeEnvBefore) : void 0;
+    return formatPlatformOutput(platform, void 0, envUpdates2);
   }
   const tSkillRead = log.active ? log.now() : 0;
   const { parts, loaded, summaryOnly, droppedByCap, droppedByBudget } = injectSkills(rankedSkills, {
@@ -977,6 +1069,16 @@ function run() {
       reasonCode: "tsx-review-trigger"
     };
   }
+  if (aiSdkCompanionInjected) {
+    for (const companion of AI_SDK_COMPANION_SKILLS) {
+      if (loaded.includes(companion) || summaryOnly && summaryOnly.includes(companion)) {
+        reasons[companion] = {
+          trigger: "ai-sdk-companion",
+          reasonCode: "ai-sdk-client-component"
+        };
+      }
+    }
+  }
   for (const skill of loaded) {
     if (!reasons[skill] && matchReasons?.[skill]) {
       reasons[skill] = {
@@ -985,7 +1087,23 @@ function run() {
       };
     }
   }
-  const result = formatOutput({ parts, matched, injectedSkills: loaded, summaryOnly, droppedByCap, droppedByBudget, toolName, toolTarget, matchReasons, reasons, verificationId, skillMap: skills.skillMap });
+  const envUpdates = platform === "cursor" || !hasClaudeEnvFile() ? collectRuntimeEnvUpdates(runtimeEnvBefore) : void 0;
+  const result = formatOutput({
+    parts,
+    matched,
+    injectedSkills: loaded,
+    summaryOnly,
+    droppedByCap,
+    droppedByBudget,
+    toolName,
+    toolTarget,
+    matchReasons,
+    reasons,
+    verificationId,
+    skillMap: skills.skillMap,
+    platform,
+    env: envUpdates
+  });
   if (loaded.length > 0) {
     appendAuditLog({
       event: "skill-injection",
@@ -997,21 +1115,6 @@ function run() {
       droppedByCap,
       droppedByBudget
     }, cwd);
-    if (isTelemetryEnabled() && sessionId) {
-      const telemetryEntries = [];
-      for (const skill of loaded) {
-        const reason = matchReasons?.[skill];
-        telemetryEntries.push(
-          { key: "skill:injected", value: skill },
-          { key: "skill:hook", value: "PreToolUse" },
-          { key: "skill:priority", value: String(reason?.effectivePriority ?? 0) },
-          { key: "skill:match_type", value: reason?.matchType ?? "unknown" },
-          { key: "skill:tool_name", value: toolName }
-        );
-      }
-      trackEvents(sessionId, telemetryEntries).catch(() => {
-      });
-    }
   }
   return result;
 }
@@ -1105,6 +1208,8 @@ if (isMainModule()) {
   }
 }
 export {
+  AI_SDK_COMPANION_SKILLS,
+  AI_SDK_SKILL,
   DEFAULT_REVIEW_THRESHOLD,
   DEV_SERVER_COMPANION_SKILLS,
   DEV_SERVER_UNAVAILABLE_WARNING,
@@ -1113,9 +1218,11 @@ export {
   DEV_SERVER_VERIFY_SKILL,
   REVIEW_MARKER,
   TSX_REVIEW_SKILL,
+  captureRuntimeEnvSnapshot,
   checkDevServerVerify,
   checkTsxReviewTrigger,
   checkVercelEnvHelp,
+  collectRuntimeEnvUpdates,
   deduplicateSkills,
   formatOutput,
   getDevServerVerifyCount,
@@ -1123,6 +1230,7 @@ export {
   getTsxEditCount,
   incrementDevServerVerifyCount,
   injectSkills,
+  isClientReactFile,
   isDevServerCommand,
   isTsxEditTool,
   loadSkills,

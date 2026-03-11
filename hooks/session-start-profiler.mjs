@@ -3,17 +3,15 @@ import {
   appendFileSync,
   constants as fsConstants,
   existsSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   writeFileSync
 } from "node:fs";
-import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { profileCachePath, requireEnvFile, safeReadJson } from "./hook-env.mjs";
+import { profileCachePath, safeReadJson } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
-import { isTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 const FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -90,6 +88,14 @@ const GREENFIELD_SETUP_SIGNALS = {
   setupMode: true
 };
 const log = createLogger();
+async function loadSessionHookCompat() {
+  try {
+    return await import("./compat.mjs");
+  } catch {
+    return {};
+  }
+}
+const sessionHookCompat = await loadSessionHookCompat();
 function readPackageJson(projectRoot) {
   return safeReadJson(join(projectRoot, "package.json"));
 }
@@ -315,45 +321,119 @@ const AGENT_BROWSER_BINARY = "agent-browser";
 function checkAgentBrowser() {
   return resolveBinaryFromPath(AGENT_BROWSER_BINARY) !== null;
 }
-function parseSessionStartInput() {
+function parseSessionStartInput(raw) {
   try {
-    const raw = require("node:fs").readFileSync(0, "utf8");
     if (!raw.trim()) return null;
     return JSON.parse(raw);
   } catch {
     return null;
   }
 }
-async function main() {
-  const envFile = requireEnvFile();
-  const hookInput = parseSessionStartInput();
-  const sessionId = hookInput?.session_id ?? null;
-  const projectRoot = process.env.CLAUDE_PROJECT_ROOT || process.cwd();
-  const greenfield = checkGreenfield(projectRoot);
+function detectSessionStartPlatform(input, env = process.env) {
+  const compatDetectHookPlatform = sessionHookCompat.detectHookPlatform;
+  if (typeof compatDetectHookPlatform === "function") {
+    try {
+      return compatDetectHookPlatform(input, env);
+    } catch {
+    }
+  }
+  if (env.CURSOR_PROJECT_DIR) {
+    return "cursor";
+  }
+  if (typeof input?.conversation_id === "string" && input.conversation_id.trim() !== "") {
+    return "cursor";
+  }
+  if (typeof input?.cursor_version === "string" && input.cursor_version.trim() !== "") {
+    return "cursor";
+  }
+  return "claude";
+}
+function normalizeSessionStartSessionId(input) {
+  const compatNormalizeSessionId = sessionHookCompat.normalizeSessionId;
+  if (typeof compatNormalizeSessionId === "function") {
+    try {
+      return compatNormalizeSessionId(input);
+    } catch {
+    }
+  }
+  const sessionId = input?.session_id;
+  if (typeof sessionId === "string" && sessionId.trim() !== "") {
+    return sessionId;
+  }
+  const conversationId = input?.conversation_id;
+  if (typeof conversationId === "string" && conversationId.trim() !== "") {
+    return conversationId;
+  }
+  return null;
+}
+function resolveSessionStartProjectRoot(env = process.env) {
+  return env.CLAUDE_PROJECT_ROOT || env.CURSOR_PROJECT_DIR || process.cwd();
+}
+function buildSessionStartProfilerEnvVars(args) {
+  const envVars = {
+    VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE: args.agentBrowserAvailable ? "1" : "0"
+  };
+  if (args.greenfield) {
+    envVars.VERCEL_PLUGIN_GREENFIELD = "true";
+  }
+  if (args.likelySkills.length > 0) {
+    envVars.VERCEL_PLUGIN_LIKELY_SKILLS = args.likelySkills.join(",");
+  }
+  if (args.setupSignals.bootstrapHints.length > 0) {
+    envVars.VERCEL_PLUGIN_BOOTSTRAP_HINTS = args.setupSignals.bootstrapHints.join(",");
+  }
+  if (args.setupSignals.resourceHints.length > 0) {
+    envVars.VERCEL_PLUGIN_RESOURCE_HINTS = args.setupSignals.resourceHints.join(",");
+  }
+  if (args.setupSignals.setupMode) {
+    envVars.VERCEL_PLUGIN_SETUP_MODE = "1";
+  }
+  return envVars;
+}
+function buildSessionStartProfilerUserMessages(greenfield, cliStatus) {
+  const messages = [];
   if (greenfield) {
-    process.stdout.write(
-      "This is a greenfield project. Skip exploration \u2014 there is no existing code to discover. Start executing immediately.\n"
+    messages.push(
+      "This is a greenfield project. Skip exploration \u2014 there is no existing code to discover. Start executing immediately."
     );
   }
-  const cliStatus = checkVercelCli();
   if (!cliStatus.installed) {
-    process.stdout.write(
+    messages.push(
       [
         "IMPORTANT: The Vercel CLI is not installed.",
-        "Strongly recommend the user install it with `npm i -g vercel` to unlock agentic features like `vercel env pull`, `vercel deploy`, and `vercel logs`.",
-        ""
+        "Strongly recommend the user install it with `npm i -g vercel` to unlock agentic features like `vercel env pull`, `vercel deploy`, and `vercel logs`."
       ].join("\n")
     );
   } else if (cliStatus.needsUpdate) {
-    process.stdout.write(
+    messages.push(
       [
         `IMPORTANT: The Vercel CLI is outdated (${cliStatus.currentVersion} \u2192 ${cliStatus.latestVersion}).`,
         "Strongly recommend the user upgrade with `npm i -g vercel@latest` or `pnpm add -g vercel@latest` for best compatibility.",
-        "The latest version includes significant agentic features and improvements that will greatly enhance their development experience.",
-        ""
+        "The latest version includes significant agentic features and improvements that will greatly enhance their development experience."
       ].join("\n")
     );
   }
+  return messages;
+}
+function formatSessionStartProfilerCursorOutput(envVars, userMessages) {
+  const additionalContext = userMessages.join("\n\n");
+  return JSON.stringify({
+    env: envVars,
+    ...additionalContext ? { additional_context: additionalContext } : {}
+  });
+}
+function main() {
+  const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
+  const platform = detectSessionStartPlatform(hookInput);
+  const sessionId = normalizeSessionStartSessionId(hookInput);
+  const projectRoot = resolveSessionStartProjectRoot();
+  const envFile = platform === "claude" ? process.env.CLAUDE_ENV_FILE : void 0;
+  if (platform === "claude" && !envFile) {
+    process.exit(0);
+  }
+  const greenfield = checkGreenfield(projectRoot);
+  const cliStatus = checkVercelCli();
+  const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
   const likelySkills = greenfield ? GREENFIELD_DEFAULT_SKILLS : profileProject(projectRoot);
   if (!greenfield && !likelySkills.includes("observability")) {
     likelySkills.push("observability");
@@ -361,41 +441,32 @@ async function main() {
   }
   const setupSignals = greenfield ? GREENFIELD_SETUP_SIGNALS : profileBootstrapSignals(projectRoot);
   const agentBrowserAvailable = checkAgentBrowser();
+  const envVars = buildSessionStartProfilerEnvVars({
+    agentBrowserAvailable,
+    greenfield: greenfield !== null,
+    likelySkills,
+    setupSignals
+  });
+  const cursorOutput = platform === "cursor" ? formatSessionStartProfilerCursorOutput(envVars, userMessages) : null;
   try {
-    appendEnvExport(envFile, "VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE", agentBrowserAvailable ? "1" : "0");
-    if (greenfield) {
-      appendEnvExport(envFile, "VERCEL_PLUGIN_GREENFIELD", "true");
-    }
-    if (likelySkills.length > 0) {
-      appendEnvExport(envFile, "VERCEL_PLUGIN_LIKELY_SKILLS", likelySkills.join(","));
-    }
-    if (setupSignals.bootstrapHints.length > 0) {
-      appendEnvExport(envFile, "VERCEL_PLUGIN_BOOTSTRAP_HINTS", setupSignals.bootstrapHints.join(","));
-    }
-    if (setupSignals.resourceHints.length > 0) {
-      appendEnvExport(envFile, "VERCEL_PLUGIN_RESOURCE_HINTS", setupSignals.resourceHints.join(","));
-    }
-    if (setupSignals.setupMode) {
-      appendEnvExport(envFile, "VERCEL_PLUGIN_SETUP_MODE", "1");
+    if (platform === "claude") {
+      for (const [key, value] of Object.entries(envVars)) {
+        appendEnvExport(envFile, key, value);
+      }
     }
   } catch (error) {
     logCaughtError(log, "session-start-profiler:append-env-export-failed", error, {
-      envFile,
+      envFile: envFile ?? null,
+      platform,
       projectRoot,
-      likelySkillsCount: likelySkills.length,
-      bootstrapHintCount: setupSignals.bootstrapHints.length,
-      resourceHintCount: setupSignals.resourceHints.length,
-      setupMode: setupSignals.setupMode
+      envVarCount: Object.keys(envVars).length
     });
   }
-  const telemetryPrefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
-  let telemetryPref = null;
-  try {
-    telemetryPref = readFileSync(telemetryPrefPath, "utf-8").trim();
-  } catch {
-  }
-  if (telemetryPref === "enabled") {
-    appendEnvExport(envFile, "VERCEL_PLUGIN_TELEMETRY", "on");
+  const additionalContext = userMessages.join("\n\n");
+  if (platform === "claude" && additionalContext) {
+    process.stdout.write(`${additionalContext}
+
+`);
   }
   if (sessionId) {
     try {
@@ -417,14 +488,8 @@ async function main() {
       });
     }
   }
-  if (isTelemetryEnabled() && sessionId) {
-    await trackEvents(sessionId, [
-      { key: "session:platform", value: process.platform },
-      { key: "session:likely_skills", value: likelySkills.join(",") },
-      { key: "session:greenfield", value: String(greenfield !== null) },
-      { key: "session:vercel_cli_installed", value: String(cliStatus.installed) },
-      { key: "session:vercel_cli_version", value: cliStatus.currentVersion || "" }
-    ]);
+  if (cursorOutput) {
+    process.stdout.write(cursorOutput);
   }
   process.exit(0);
 }
@@ -434,10 +499,17 @@ if (isSessionStartProfilerEntrypoint) {
   main();
 }
 export {
+  buildSessionStartProfilerEnvVars,
+  buildSessionStartProfilerUserMessages,
   checkAgentBrowser,
   checkGreenfield,
+  detectSessionStartPlatform,
   escapeShellEnvValue,
   formatEnvExport,
+  formatSessionStartProfilerCursorOutput,
+  normalizeSessionStartSessionId,
+  parseSessionStartInput,
   profileBootstrapSignals,
-  profileProject
+  profileProject,
+  resolveSessionStartProjectRoot
 };

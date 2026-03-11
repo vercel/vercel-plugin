@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { readdirSync, readFileSync, rmSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 const SAFE_SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
 function tempSessionIdSegment(sessionId2) {
@@ -22,23 +22,27 @@ function removeDirIfPresent(path) {
   } catch {
   }
 }
-function parseSessionIdFromStdin() {
+function parseSessionEndHookInput(raw) {
   try {
-    const raw = readFileSync(0, "utf8");
     if (!raw.trim()) return null;
-    const data = JSON.parse(raw);
-    return typeof data.session_id === "string" && data.session_id.length > 0 ? data.session_id : null;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
-try {
-  const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
-  const pref = readFileSync(prefPath, "utf-8").trim();
-  if (pref === "asked") {
-    writeFileSync(prefPath, "disabled");
+function normalizeSessionEndSessionId(input) {
+  const sessionId2 = input?.session_id;
+  if (typeof sessionId2 === "string" && sessionId2.length > 0) {
+    return sessionId2;
   }
-} catch {
+  const conversationId = input?.conversation_id;
+  if (typeof conversationId === "string" && conversationId.length > 0) {
+    return conversationId;
+  }
+  return null;
+}
+function parseSessionIdFromStdin() {
+  return normalizeSessionEndSessionId(parseSessionEndHookInput(readFileSync(0, "utf8")));
 }
 const sessionId = parseSessionIdFromStdin();
 if (sessionId !== null) {
@@ -59,3 +63,7 @@ if (sessionId !== null) {
   }
 }
 process.exit(0);
+export {
+  normalizeSessionEndSessionId,
+  parseSessionEndHookInput
+};
