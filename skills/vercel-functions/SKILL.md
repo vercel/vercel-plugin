@@ -31,6 +31,34 @@ validate:
     pattern: NextApiRequest|NextApiResponse
     message: 'NextApiRequest/NextApiResponse are Pages Router types — use Web API Request/Response'
     severity: error
+  -
+    pattern: 'from\s+[''"](openai|@anthropic-ai/sdk|anthropic)[''"]|new\s+(OpenAI|Anthropic)\('
+    message: 'Direct AI provider SDK detected in route handler. Use the Vercel AI SDK for streaming, tools, and provider abstraction.'
+    severity: recommended
+    upgradeToSkill: ai-sdk
+    upgradeWhy: 'Replace vendor-locked provider SDKs with @ai-sdk/openai or @ai-sdk/anthropic for unified streaming and tool support.'
+    skipIfFileContains: '@ai-sdk/|from\s+[''"](ai)[''"]|import.*from\s+[''"](ai)[''"]|streamText|generateText'
+  -
+    pattern: 'setTimeout\s*\(|setInterval\s*\(|await\s+new\s+Promise\s*\([^)]*setTimeout'
+    message: 'Long-running or polling logic detected in a serverless handler. Functions have execution time limits.'
+    severity: recommended
+    upgradeToSkill: workflow
+    upgradeWhy: 'Move delayed/polling logic to Vercel Workflow for durable execution with pause, resume, retries, and crash safety.'
+    skipIfFileContains: 'use workflow|use step|@vercel/workflow'
+  -
+    pattern: 'writeFile(Sync)?\(|createWriteStream\(|from\s+[''"](multer|formidable)[''"]|fs\.writeFile'
+    message: 'Local filesystem write detected. Serverless functions have ephemeral, read-only filesystems.'
+    severity: error
+    upgradeToSkill: vercel-storage
+    upgradeWhy: 'Replace local filesystem writes with Vercel Blob, Neon, or Upstash for persistent, platform-native storage.'
+    skipIfFileContains: '@vercel/blob|@upstash/|@neondatabase/'
+  -
+    pattern: 'export\s+(async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)\b'
+    message: 'Route handler has no observability instrumentation. Add logging and error tracking for production debugging.'
+    severity: warn
+    upgradeToSkill: observability
+    upgradeWhy: 'Add structured logging, error tracking, and OTel instrumentation to route handlers.'
+    skipIfFileContains: 'console\.error|logger\.|captureException|Sentry|@vercel/otel|withTracing'
 retrieval:
   aliases:
     - serverless functions
