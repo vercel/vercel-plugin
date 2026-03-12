@@ -16,8 +16,9 @@ import {
   normalizeInput,
   setSessionEnv
 } from "./compat.mjs";
-import { profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
+import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
+import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { isTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -337,6 +338,37 @@ function normalizeSessionStartSessionId(input) {
 function resolveSessionStartProjectRoot(env = process.env) {
   return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
+function collectBrokenSkillFrontmatterNames(files) {
+  return [...new Set(
+    files.map((file) => file.replaceAll("\\", "/").split("/").at(-2) || "").filter((skill) => skill !== "")
+  )].sort();
+}
+function logBrokenSkillFrontmatterSummary(rootDir = pluginRoot(), logger = log) {
+  if (!logger.isEnabled("summary")) {
+    return null;
+  }
+  try {
+    const built = buildSkillMap(join(rootDir, "skills"));
+    const brokenSkills = collectBrokenSkillFrontmatterNames(
+      built.diagnostics.map((diagnostic) => diagnostic.file)
+    );
+    if (brokenSkills.length === 0) {
+      return null;
+    }
+    const message = `WARNING: ${brokenSkills.length} skills have broken frontmatter: ${brokenSkills.join(", ")}`;
+    logger.summary("session-start-profiler:broken-skill-frontmatter", {
+      message,
+      brokenSkillCount: brokenSkills.length,
+      brokenSkills
+    });
+    return message;
+  } catch (error) {
+    logCaughtError(logger, "session-start-profiler:broken-skill-frontmatter-check-failed", error, {
+      rootDir
+    });
+    return null;
+  }
+}
 function buildSessionStartProfilerEnvVars(args) {
   const envVars = {
     VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE: args.agentBrowserAvailable ? "1" : "0"
@@ -395,6 +427,7 @@ function main() {
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
+  logBrokenSkillFrontmatterSummary();
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
@@ -441,7 +474,13 @@ function main() {
   } catch {
   }
   if (telemetryPref === "enabled") {
-    setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY", "on");
+    try {
+      setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY", "on");
+    } catch (error) {
+      logCaughtError(log, "session-start-profiler:telemetry-env-export-failed", error, {
+        platform
+      });
+    }
   }
   const additionalContext = userMessages.join("\n\n");
   if (platform === "claude-code" && additionalContext) {
@@ -496,6 +535,7 @@ export {
   checkGreenfield,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
+  logBrokenSkillFrontmatterSummary,
   normalizeSessionStartSessionId,
   parseSessionStartInput,
   profileBootstrapSignals,

@@ -784,6 +784,48 @@ describe("profileProject (unit)", () => {
   });
 });
 
+describe("logBrokenSkillFrontmatterSummary (unit)", () => {
+  test("emits one summary warning when a skill has malformed frontmatter", async () => {
+    const { logBrokenSkillFrontmatterSummary } = await import("../hooks/session-start-profiler.mjs");
+    const pluginDir = join(tempDir, "plugin-root");
+    const brokenSkillDir = join(pluginDir, "skills", "broken-skill");
+    mkdirSync(brokenSkillDir, { recursive: true });
+    writeFileSync(
+      join(brokenSkillDir, "SKILL.md"),
+      "---\nname: broken-skill\nmetadata:\n\tpathPatterns: []\n---\n# Broken\n",
+      "utf-8",
+    );
+
+    const summaries: Array<{ event: string; data: Record<string, unknown> }> = [];
+    const logger = {
+      level: "summary",
+      active: true,
+      t0: 0,
+      now: () => 0,
+      elapsed: () => 0,
+      summary: (event: string, data: Record<string, unknown>) => {
+        summaries.push({ event, data });
+      },
+      issue: () => {},
+      complete: () => {},
+      debug: () => {},
+      trace: () => {},
+      isEnabled: (minLevel: string) => minLevel === "summary" || minLevel === "off",
+    };
+
+    const message = logBrokenSkillFrontmatterSummary(pluginDir, logger as any);
+
+    expect(message).toBe("WARNING: 1 skills have broken frontmatter: broken-skill");
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].event).toBe("session-start-profiler:broken-skill-frontmatter");
+    expect(summaries[0].data).toEqual({
+      message: "WARNING: 1 skills have broken frontmatter: broken-skill",
+      brokenSkillCount: 1,
+      brokenSkills: ["broken-skill"],
+    });
+  });
+});
+
 describe("profileBootstrapSignals (unit)", () => {
   test("collects script and dependency-derived hints", async () => {
     const { profileBootstrapSignals } = await import("../hooks/session-start-profiler.mjs");

@@ -1,7 +1,7 @@
 ---
 name: next-forge
 description: next-forge expert guidance — production-grade Turborepo monorepo SaaS starter by Vercel. Use when working in a next-forge project, scaffolding with `npx next-forge init`, or editing @repo/* workspace packages.
-summary: next-forge monorepo SaaS starter (Turborepo, Clerk, Prisma/Neon, Stripe, Resend, shadcn/ui, Sentry, PostHog). See => skill:next-forge for full guide.
+summary: "next-forge monorepo SaaS starter (Turborepo, Clerk, Prisma/Neon, Stripe, Resend, shadcn/ui, Sentry, PostHog). See => skill:next-forge for full guide."
 metadata:
   priority: 6
   docs:
@@ -77,8 +77,14 @@ metadata:
       - 'next forge'
       - '@repo/'
     allOf:
-      - ['monorepo', 'saas', 'starter']
-      - ['turborepo', 'clerk', 'stripe']
+      -
+        - 'monorepo'
+        - 'saas'
+        - 'starter'
+      -
+        - 'turborepo'
+        - 'clerk'
+        - 'stripe'
     anyOf:
       - 'saas starter'
       - 'production monorepo'
@@ -134,11 +140,11 @@ chainTo:
     message: 'Clerk auth patterns in next-forge — loading Auth guidance for middleware auth, sign-in/sign-up flows, and organization handling.'
     skipIfFileContains: '@auth0/|@descope/'
   -
-    pattern: 'from\s+[''""](stripe|@stripe/stripe-js)[''""]|Stripe\(|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET'
+    pattern: from\s+['"](stripe|@stripe/stripe-js)['"]|Stripe\(|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET
     targetSkill: payments
     message: 'Stripe integration in next-forge — loading Payments guidance for checkout sessions, webhooks, and subscription billing.'
   -
-    pattern: 'from\s+[''""](resend|@react-email)[''""]|Resend\(|RESEND_API_KEY'
+    pattern: from\s+['"](resend|@react-email)['"]|Resend\(|RESEND_API_KEY
     targetSkill: email
     message: 'Resend/React Email in next-forge — loading Email guidance for transactional emails, domain verification, and template patterns.'
 

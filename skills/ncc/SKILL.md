@@ -37,7 +37,7 @@ chainTo:
     message: 'ncc bundling detected for serverless function — loading Vercel Functions guidance for runtime configuration, streaming, and Fluid Compute.'
     skipIfFileContains: 'vercel\.json|@vercel/node|edge-light'
   -
-    pattern: 'ncc\s+build|from\s+[''"]@vercel/ncc[''""]'
+    pattern: ncc\s+build|from\s+['"]@vercel/ncc['"]
     targetSkill: deployments-cicd
     message: 'ncc single-file bundling detected — loading Deployments/CI guidance for deploy --prebuilt and build output optimization.'
     skipIfFileContains: 'vercel\s+deploy|vercel\s+build|\.github/workflows'

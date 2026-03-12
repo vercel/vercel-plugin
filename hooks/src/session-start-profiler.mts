@@ -29,8 +29,9 @@ import {
   setSessionEnv,
   type HookPlatform,
 } from "./compat.mjs";
-import { profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
+import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
+import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { isTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
@@ -528,6 +529,47 @@ export function resolveSessionStartProjectRoot(env: NodeJS.ProcessEnv = process.
   return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 
+function collectBrokenSkillFrontmatterNames(files: string[]): string[] {
+  return [...new Set(
+    files
+      .map((file: string) => file.replaceAll("\\", "/").split("/").at(-2) || "")
+      .filter((skill: string) => skill !== ""),
+  )].sort();
+}
+
+export function logBrokenSkillFrontmatterSummary(
+  rootDir: string = pluginRoot(),
+  logger: Logger = log,
+): string | null {
+  if (!logger.isEnabled("summary")) {
+    return null;
+  }
+
+  try {
+    const built = buildSkillMap(join(rootDir, "skills"));
+    const brokenSkills = collectBrokenSkillFrontmatterNames(
+      built.diagnostics.map((diagnostic) => diagnostic.file),
+    );
+
+    if (brokenSkills.length === 0) {
+      return null;
+    }
+
+    const message = `WARNING: ${brokenSkills.length} skills have broken frontmatter: ${brokenSkills.join(", ")}`;
+    logger.summary("session-start-profiler:broken-skill-frontmatter", {
+      message,
+      brokenSkillCount: brokenSkills.length,
+      brokenSkills,
+    });
+    return message;
+  } catch (error) {
+    logCaughtError(logger, "session-start-profiler:broken-skill-frontmatter-check-failed", error, {
+      rootDir,
+    });
+    return null;
+  }
+}
+
 export function buildSessionStartProfilerEnvVars(args: {
   agentBrowserAvailable: boolean;
   greenfield: boolean;
@@ -606,6 +648,8 @@ function main(): void {
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
 
+  logBrokenSkillFrontmatterSummary();
+
   // Greenfield check — seed defaults and skip repository exploration.
   const greenfield: GreenfieldResult | null = checkGreenfield(projectRoot);
 
@@ -673,7 +717,13 @@ function main(): void {
   }
 
   if (telemetryPref === "enabled") {
-    setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY", "on");
+    try {
+      setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY", "on");
+    } catch (error) {
+      logCaughtError(log, "session-start-profiler:telemetry-env-export-failed", error, {
+        platform,
+      });
+    }
   }
 
   const additionalContext = userMessages.join("\n\n");
