@@ -1,22 +1,8 @@
 #!/usr/bin/env node
 
-import { readFileSync, appendFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { tmpdir } from "node:os";
 import { isTelemetryEnabled, trackEvents } from "./telemetry.mjs";
-
-const DEBUG = ["debug", "trace"].includes(process.env.VERCEL_PLUGIN_LOG_LEVEL || "")
-  || process.env.VERCEL_PLUGIN_DEBUG === "1"
-  || process.env.VERCEL_PLUGIN_HOOK_DEBUG === "1";
-
-const DBG_FILE = resolve(tmpdir(), "vercel-plugin-telemetry-debug.log");
-
-function dbg(event: string, data: Record<string, unknown>): void {
-  if (!DEBUG) return;
-  const line = JSON.stringify({ ts: new Date().toISOString(), hook: "posttooluse-telemetry", event, ...data }) + "\n";
-  process.stderr.write(line);
-  try { appendFileSync(DBG_FILE, line); } catch {}
-}
 
 function parseStdin(): Record<string, unknown> | null {
   try {
@@ -29,20 +15,13 @@ function parseStdin(): Record<string, unknown> | null {
 }
 
 async function main(): Promise<void> {
-  // Always log — unconditional, so we can verify the hook runs at all
-  try { appendFileSync(DBG_FILE, JSON.stringify({ ts: new Date().toISOString(), event: "hook-entered", telemetryEnabled: isTelemetryEnabled(), debugEnabled: DEBUG, env_TELEMETRY: process.env.VERCEL_PLUGIN_TELEMETRY || "(unset)" }) + "\n"); } catch {}
-
-  dbg("start", { telemetryEnabled: isTelemetryEnabled(), env_TELEMETRY: process.env.VERCEL_PLUGIN_TELEMETRY || "(unset)" });
-
   if (!isTelemetryEnabled()) {
-    dbg("bail", { reason: "telemetry_disabled" });
     process.stdout.write("{}");
     process.exit(0);
   }
 
   const input = parseStdin();
   if (!input) {
-    dbg("bail", { reason: "stdin_empty_or_invalid" });
     process.stdout.write("{}");
     process.exit(0);
   }
@@ -51,16 +30,7 @@ async function main(): Promise<void> {
   const toolInput = (input.tool_input as Record<string, unknown>) || {};
   const sessionId = (input.session_id as string) || (input.conversation_id as string) || "";
 
-  dbg("parsed", {
-    toolName,
-    hasSessionId: !!(input.session_id),
-    hasConversationId: !!(input.conversation_id),
-    resolvedSessionId: sessionId.slice(0, 20),
-    inputKeys: Object.keys(input),
-  });
-
   if (!sessionId) {
-    dbg("bail", { reason: "no_session_id" });
     process.stdout.write("{}");
     process.exit(0);
   }
@@ -94,13 +64,8 @@ async function main(): Promise<void> {
     );
   }
 
-  dbg("entries", { count: entries.length, keys: entries.map(e => e.key) });
-
   if (entries.length > 0) {
     await trackEvents(sessionId, entries);
-    dbg("sent", { count: entries.length, sessionId: sessionId.slice(0, 20) });
-  } else {
-    dbg("skip", { reason: "no_entries", toolName });
   }
 
   process.stdout.write("{}");

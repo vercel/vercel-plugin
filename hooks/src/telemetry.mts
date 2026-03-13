@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 const MAX_VALUE_BYTES = 100_000;
 const TRUNCATION_SUFFIX = "[TRUNCATED]";
@@ -21,33 +24,13 @@ function truncateValue(value: string): string {
   return truncated + TRUNCATION_SUFFIX;
 }
 
-import { appendFileSync, readFileSync } from "node:fs";
-import { resolve, join } from "node:path";
-import { tmpdir, homedir } from "node:os";
-
-const DEBUG = ["debug", "trace"].includes(process.env.VERCEL_PLUGIN_LOG_LEVEL || "")
-  || process.env.VERCEL_PLUGIN_DEBUG === "1"
-  || process.env.VERCEL_PLUGIN_HOOK_DEBUG === "1";
-
-const DBG_FILE = resolve(tmpdir(), "vercel-plugin-telemetry-debug.log");
-
-function dbgTelemetry(event: string, data: Record<string, unknown>): void {
-  if (!DEBUG) return;
-  const line = JSON.stringify({ ts: new Date().toISOString(), lib: "telemetry", event, ...data }) + "\n";
-  process.stderr.write(line);
-  try { appendFileSync(DBG_FILE, line); } catch {}
-}
-
 async function send(sessionId: string, events: TelemetryEvent[]): Promise<void> {
   if (events.length === 0) return;
-
-  const bodyBytes = Buffer.byteLength(JSON.stringify(events), "utf-8");
-  dbgTelemetry("send-start", { sessionId: sessionId.slice(0, 20), eventCount: events.length, bodyBytes, keys: events.map(e => e.key) });
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
   try {
-    const res = await fetch(BRIDGE_ENDPOINT, {
+    await fetch(BRIDGE_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -57,9 +40,8 @@ async function send(sessionId: string, events: TelemetryEvent[]): Promise<void> 
       body: JSON.stringify(events),
       signal: controller.signal,
     });
-    dbgTelemetry("send-response", { status: res.status, ok: res.ok, statusText: res.statusText });
-  } catch (err) {
-    dbgTelemetry("send-error", { error: (err as Error)?.message || String(err) });
+  } catch {
+    // Best-effort
   } finally {
     clearTimeout(timeout);
   }

@@ -1,8 +1,8 @@
 // hooks/src/telemetry.mts
 import { randomUUID } from "crypto";
-import { appendFileSync, readFileSync } from "fs";
-import { resolve, join } from "path";
-import { tmpdir, homedir } from "os";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 var MAX_VALUE_BYTES = 1e5;
 var TRUNCATION_SUFFIX = "[TRUNCATED]";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
@@ -14,25 +14,12 @@ function truncateValue(value) {
   const truncated = Buffer.from(value, "utf-8").subarray(0, MAX_VALUE_BYTES).toString("utf-8");
   return truncated + TRUNCATION_SUFFIX;
 }
-var DEBUG = ["debug", "trace"].includes(process.env.VERCEL_PLUGIN_LOG_LEVEL || "") || process.env.VERCEL_PLUGIN_DEBUG === "1" || process.env.VERCEL_PLUGIN_HOOK_DEBUG === "1";
-var DBG_FILE = resolve(tmpdir(), "vercel-plugin-telemetry-debug.log");
-function dbgTelemetry(event, data) {
-  if (!DEBUG) return;
-  const line = JSON.stringify({ ts: (/* @__PURE__ */ new Date()).toISOString(), lib: "telemetry", event, ...data }) + "\n";
-  process.stderr.write(line);
-  try {
-    appendFileSync(DBG_FILE, line);
-  } catch {
-  }
-}
 async function send(sessionId, events) {
   if (events.length === 0) return;
-  const bodyBytes = Buffer.byteLength(JSON.stringify(events), "utf-8");
-  dbgTelemetry("send-start", { sessionId: sessionId.slice(0, 20), eventCount: events.length, bodyBytes, keys: events.map((e) => e.key) });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
   try {
-    const res = await fetch(BRIDGE_ENDPOINT, {
+    await fetch(BRIDGE_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -42,9 +29,7 @@ async function send(sessionId, events) {
       body: JSON.stringify(events),
       signal: controller.signal
     });
-    dbgTelemetry("send-response", { status: res.status, ok: res.ok, statusText: res.statusText });
-  } catch (err) {
-    dbgTelemetry("send-error", { error: err?.message || String(err) });
+  } catch {
   } finally {
     clearTimeout(timeout);
   }

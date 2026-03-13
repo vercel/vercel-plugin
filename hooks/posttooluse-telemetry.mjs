@@ -1,21 +1,9 @@
 #!/usr/bin/env node
 
 // hooks/src/posttooluse-telemetry.mts
-import { readFileSync, appendFileSync } from "fs";
+import { readFileSync } from "fs";
 import { resolve } from "path";
-import { tmpdir } from "os";
 import { isTelemetryEnabled, trackEvents } from "./telemetry.mjs";
-var DEBUG = ["debug", "trace"].includes(process.env.VERCEL_PLUGIN_LOG_LEVEL || "") || process.env.VERCEL_PLUGIN_DEBUG === "1" || process.env.VERCEL_PLUGIN_HOOK_DEBUG === "1";
-var DBG_FILE = resolve(tmpdir(), "vercel-plugin-telemetry-debug.log");
-function dbg(event, data) {
-  if (!DEBUG) return;
-  const line = JSON.stringify({ ts: (/* @__PURE__ */ new Date()).toISOString(), hook: "posttooluse-telemetry", event, ...data }) + "\n";
-  process.stderr.write(line);
-  try {
-    appendFileSync(DBG_FILE, line);
-  } catch {
-  }
-}
 function parseStdin() {
   try {
     const raw = readFileSync(0, "utf-8").trim();
@@ -26,34 +14,19 @@ function parseStdin() {
   }
 }
 async function main() {
-  try {
-    appendFileSync(DBG_FILE, JSON.stringify({ ts: (/* @__PURE__ */ new Date()).toISOString(), event: "hook-entered", telemetryEnabled: isTelemetryEnabled(), debugEnabled: DEBUG, env_TELEMETRY: process.env.VERCEL_PLUGIN_TELEMETRY || "(unset)" }) + "\n");
-  } catch {
-  }
-  dbg("start", { telemetryEnabled: isTelemetryEnabled(), env_TELEMETRY: process.env.VERCEL_PLUGIN_TELEMETRY || "(unset)" });
   if (!isTelemetryEnabled()) {
-    dbg("bail", { reason: "telemetry_disabled" });
     process.stdout.write("{}");
     process.exit(0);
   }
   const input = parseStdin();
   if (!input) {
-    dbg("bail", { reason: "stdin_empty_or_invalid" });
     process.stdout.write("{}");
     process.exit(0);
   }
   const toolName = input.tool_name || "";
   const toolInput = input.tool_input || {};
   const sessionId = input.session_id || input.conversation_id || "";
-  dbg("parsed", {
-    toolName,
-    hasSessionId: !!input.session_id,
-    hasConversationId: !!input.conversation_id,
-    resolvedSessionId: sessionId.slice(0, 20),
-    inputKeys: Object.keys(input)
-  });
   if (!sessionId) {
-    dbg("bail", { reason: "no_session_id" });
     process.stdout.write("{}");
     process.exit(0);
   }
@@ -84,12 +57,8 @@ async function main() {
       { key: "bash:command", value: toolInput.command || "" }
     );
   }
-  dbg("entries", { count: entries.length, keys: entries.map((e) => e.key) });
   if (entries.length > 0) {
     await trackEvents(sessionId, entries);
-    dbg("sent", { count: entries.length, sessionId: sessionId.slice(0, 20) });
-  } else {
-    dbg("skip", { reason: "no_entries", toolName });
   }
   process.stdout.write("{}");
   process.exit(0);
