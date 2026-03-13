@@ -1,5 +1,8 @@
 // hooks/src/telemetry.mts
 import { randomUUID } from "crypto";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 var MAX_VALUE_BYTES = 1e5;
 var TRUNCATION_SUFFIX = "[TRUNCATED]";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
@@ -32,7 +35,14 @@ async function send(sessionId, events) {
   }
 }
 function isTelemetryEnabled() {
-  return process.env.VERCEL_PLUGIN_TELEMETRY === "on";
+  if (process.env.VERCEL_PLUGIN_TELEMETRY === "on") return true;
+  try {
+    const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
+    const pref = readFileSync(prefPath, "utf-8").trim();
+    return pref === "enabled";
+  } catch {
+    return false;
+  }
 }
 async function trackEvent(sessionId, key, value) {
   if (!isTelemetryEnabled()) return;

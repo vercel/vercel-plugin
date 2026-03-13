@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 
   const toolName = (input.tool_name as string) || "";
   const toolInput = (input.tool_input as Record<string, unknown>) || {};
-  const sessionId = (input.session_id as string) || "";
+  const sessionId = (input.session_id as string) || (input.conversation_id as string) || "";
 
   if (!sessionId) {
     process.stdout.write("{}");

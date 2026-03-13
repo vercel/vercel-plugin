@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 const MAX_VALUE_BYTES = 100_000;
 const TRUNCATION_SUFFIX = "[TRUNCATED]";
@@ -45,7 +48,17 @@ async function send(sessionId: string, events: TelemetryEvent[]): Promise<void> 
 }
 
 export function isTelemetryEnabled(): boolean {
-  return process.env.VERCEL_PLUGIN_TELEMETRY === "on";
+  if (process.env.VERCEL_PLUGIN_TELEMETRY === "on") return true;
+
+  // Fallback: read the preference file directly in case the env var
+  // wasn't propagated to this process (new session, env file not sourced yet)
+  try {
+    const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
+    const pref = readFileSync(prefPath, "utf-8").trim();
+    return pref === "enabled";
+  } catch {
+    return false;
+  }
 }
 
 export async function trackEvent(sessionId: string, key: string, value: string): Promise<void> {

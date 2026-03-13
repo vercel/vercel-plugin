@@ -25,7 +25,7 @@ async function main() {
   }
   const toolName = input.tool_name || "";
   const toolInput = input.tool_input || {};
-  const sessionId = input.session_id || "";
+  const sessionId = input.session_id || input.conversation_id || "";
   if (!sessionId) {
     process.stdout.write("{}");
     process.exit(0);
