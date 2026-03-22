@@ -7,7 +7,7 @@ ai-sdk - COPIED
 auth - OURS, KEEP
 bootstrap - OURS, KEEP
 chat-sdk - OURS, KEEP
-cms - OURS, KEEP due to dependencies
+cms - OURS, DELETED
 cron-jobs - OURS
 deployments-cicd - OURS -> replace with agent-browser
 email - OURS -> delete
