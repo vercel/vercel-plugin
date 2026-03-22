@@ -1,0 +1,56 @@
+name: next-upgrade
+description: Upgrade Next.js to the latest version following official migration guides and codemods. Use when upgrading Next.js versions, running codemods, or migrating between major releases.
+metadata:
+  priority: 6
+  docs:
+    - "https://nextjs.org/docs/app/guides/upgrading"
+    - "https://nextjs.org/docs/app/guides/upgrading/codemods"
+  pathPatterns:
+    - 'next.config.*'
+    - 'package.json'
+  bashPatterns:
+    - '\bnpx\s+@next/codemod\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*\bnext@'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*\bnext@'
+    - '\bbun\s+(install|i|add)\s+[^\n]*\bnext@'
+    - '\byarn\s+add\s+[^\n]*\bnext@'
+  promptSignals:
+    phrases:
+      - "upgrade next"
+      - "upgrade nextjs"
+      - "migrate next"
+      - "update next.js"
+      - "next.js upgrade"
+      - "nextjs migration"
+      - "next codemod"
+    allOf:
+      - [upgrade, next]
+      - [migrate, next]
+      - [update, nextjs]
+    anyOf:
+      - "breaking changes"
+      - "codemod"
+      - "migration guide"
+      - "version upgrade"
+    noneOf: []
+    minScore: 6
+retrieval:
+  aliases:
+    - next upgrade
+    - nextjs migration
+    - next codemod
+  intents:
+    - upgrade Next.js to latest version
+    - run Next.js codemods
+    - migrate between major Next.js versions
+  entities:
+    - codemod
+    - migration
+    - upgrade
+    - breaking changes
+chainTo:
+  -
+    pattern: 'getServerSideProps|getStaticProps|next/router|next/head|next/document'
+    targetSkill: nextjs
+    message: 'Pages Router patterns detected during upgrade — loading Next.js best practices for App Router migration.'
+
