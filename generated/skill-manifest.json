@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-22T21:01:19.335Z",
+  "generatedAt": "2026-03-22T21:06:16.760Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -3245,104 +3245,6 @@
         "examples": []
       }
     },
-    "geist": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://vercel.com/font",
-        "https://github.com/vercel/geist-font"
-      ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "pathPatterns": [
-        "app/layout.*",
-        "src/app/layout.*",
-        "app/globals.css",
-        "src/app/globals.css",
-        "styles/**",
-        "tailwind.config.*",
-        "apps/*/app/layout.*",
-        "apps/*/src/app/layout.*",
-        "apps/*/app/globals.css",
-        "apps/*/src/app/globals.css"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bgeist\\b"
-      ],
-      "importPatterns": [
-        "geist",
-        "geist/font",
-        "geist/font/*"
-      ],
-      "bodyPath": "skills/geist/SKILL.md",
-      "pathRegexSources": [
-        "^app\\/layout\\.[^/]*$",
-        "^src\\/app\\/layout\\.[^/]*$",
-        "^app\\/globals\\.css$",
-        "^src\\/app\\/globals\\.css$",
-        "^styles\\/.*$",
-        "^tailwind\\.config\\.[^/]*$",
-        "^apps\\/[^/]*\\/app\\/layout\\.[^/]*$",
-        "^apps\\/[^/]*\\/src\\/app\\/layout\\.[^/]*$",
-        "^apps\\/[^/]*\\/app\\/globals\\.css$",
-        "^apps\\/[^/]*\\/src\\/app\\/globals\\.css$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bgeist\\b"
-      ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "localFont\\s*\\(|next/font/local|next/font/google",
-          "targetSkill": "nextjs",
-          "message": "Font loading in Next.js layout detected — loading Next.js guidance for next/font optimization, layout patterns, and CSS variable setup."
-        },
-        {
-          "pattern": "--font-geist|geist.*className|fontFamily.*geist",
-          "targetSkill": "shadcn",
-          "message": "Geist CSS variable or className usage detected — loading shadcn/ui guidance for theme integration and Tailwind font configuration."
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "vercel font",
-          "geist font",
-          "typography",
-          "font family"
-        ],
-        "intents": [
-          "add geist font",
-          "configure typography",
-          "set up fonts",
-          "use vercel font"
-        ],
-        "entities": [
-          "Geist Sans",
-          "Geist Mono",
-          "Geist Pixel",
-          "next/font"
-        ],
-        "examples": []
-      }
-    },
     "workflow": {
       "priority": 9,
       "summary": "",
@@ -6557,129 +6459,6 @@
         "examples": []
       }
     },
-    "email": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://resend.com/docs",
-        "https://react.email/docs/introduction"
-      ],
-      "sitemap": "https://resend.com/sitemap.xml",
-      "pathPatterns": [
-        "emails/**",
-        "src/emails/**",
-        "components/emails/**",
-        "src/components/emails/**",
-        "app/api/send/**",
-        "src/app/api/send/**",
-        "app/api/email/**",
-        "src/app/api/email/**",
-        "app/api/emails/**",
-        "src/app/api/emails/**",
-        "lib/resend.*",
-        "src/lib/resend.*",
-        "lib/email.*",
-        "src/lib/email.*",
-        "lib/email*",
-        "src/lib/email*",
-        "**/email-template*"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bresend\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\byarn\\s+add\\s+[^\\n]*@react-email/",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\byarn\\s+add\\s+[^\\n]*react-email\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/email/SKILL.md",
-      "pathRegexSources": [
-        "^emails\\/.*$",
-        "^src\\/emails\\/.*$",
-        "^components\\/emails\\/.*$",
-        "^src\\/components\\/emails\\/.*$",
-        "^app\\/api\\/send\\/.*$",
-        "^src\\/app\\/api\\/send\\/.*$",
-        "^app\\/api\\/email\\/.*$",
-        "^src\\/app\\/api\\/email\\/.*$",
-        "^app\\/api\\/emails\\/.*$",
-        "^src\\/app\\/api\\/emails\\/.*$",
-        "^lib\\/resend\\.[^/]*$",
-        "^src\\/lib\\/resend\\.[^/]*$",
-        "^lib\\/email\\.[^/]*$",
-        "^src\\/lib\\/email\\.[^/]*$",
-        "^lib\\/email[^/]*$",
-        "^src\\/lib\\/email[^/]*$",
-        "^(?:[^/]+\\/)*email-template[^/]*$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bresend\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\byarn\\s+add\\s+[^\\n]*@react-email/",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\byarn\\s+add\\s+[^\\n]*react-email\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "from\\s+[''\\\"](nodemailer)[''\"]|require\\s*\\(\\s*[''\\\"](nodemailer)[''\"]|from\\s+[''\"\"]@sendgrid/mail[''\"\"]|from\\s+[''\"\"]mailgun[-.\"]|from\\s+[''\"\"]postmark[''\"\"]|createTransport\\s*\\(",
-          "targetSkill": "email",
-          "message": "Legacy email library detected (nodemailer/SendGrid/Mailgun/Postmark) — use Resend with React Email for native Vercel Marketplace integration, unified billing, and JSX email templates."
-        },
-        {
-          "pattern": "setTimeout\\s*\\(|setInterval\\s*\\(|cron\\.schedule",
-          "targetSkill": "workflow",
-          "message": "Delayed or scheduled email logic detected — loading Workflow DevKit for durable execution with pause, resume, and retries."
-        },
-        {
-          "pattern": "(retries|retryCount|attempts|maxRetries)\\s*[=:<]|catch\\s*\\([^)]*\\)\\s*\\{[^}]*(retry|resend)",
-          "targetSkill": "workflow",
-          "message": "Manual retry logic in email handler — loading Workflow DevKit for durable retries with backoff.",
-          "skipIfFileContains": "createWorkflow|use workflow|use step"
-        },
-        {
-          "pattern": "for\\s*\\([^)]*emails|\\.map\\s*\\([^)]*send|Promise\\.all\\s*\\([^)]*send|batch.*emails?|campaign",
-          "targetSkill": "workflow",
-          "message": "Batch or campaign email orchestration detected — loading Workflow DevKit for durable step-based orchestration with pause/resume.",
-          "skipIfFileContains": "createWorkflow|use workflow|use step"
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "send email",
-          "transactional email",
-          "resend",
-          "react email"
-        ],
-        "intents": [
-          "send email",
-          "set up email",
-          "create email template",
-          "verify domain for email"
-        ],
-        "entities": [
-          "Resend",
-          "React Email",
-          "transactional",
-          "domain verification"
-        ],
-        "examples": []
-      }
-    },
     "vercel-api": {
       "priority": 7,
       "summary": "",
@@ -7055,11 +6834,6 @@
           "pattern": "from\\s+['\"](stripe|@stripe/stripe-js)['\"]|Stripe\\(|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET",
           "targetSkill": "payments",
           "message": "Stripe integration in next-forge — loading Payments guidance for checkout sessions, webhooks, and subscription billing."
-        },
-        {
-          "pattern": "from\\s+['\"](resend|@react-email)['\"]|Resend\\(|RESEND_API_KEY",
-          "targetSkill": "email",
-          "message": "Resend/React Email in next-forge — loading Email guidance for transactional emails, domain verification, and template patterns."
         }
       ],
       "promptSignals": {

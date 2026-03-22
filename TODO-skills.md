@@ -8,16 +8,16 @@ auth - OURS, KEEP
 bootstrap - OURS, KEEP
 chat-sdk - OURS, KEEP
 cms - OURS, DELETED
-cron-jobs - OURS
+cron-jobs - OURS, KEEP
 deployments-cicd - OURS -> replace with agent-browser
-email - OURS -> delete
-env-vars - OURS
-geist - OURS -> delete
+email - OURS -> DELETED
+env-vars - OURS, keep
+geist - OURS -> DELETED
 geistdocs - OURS -> delete
-investigation-mode - OURS
+investigation-mode - OURS, keep
 json-render - PAUSE -> ask John, its a combinatin
-marketplace - OURS
-micro - OURS -> ?
+marketplace - OURS -> delete
+micro - OURS ->
 ncc - OURS -> ?
 next-forge - COPIED
 nextjs - COPIED

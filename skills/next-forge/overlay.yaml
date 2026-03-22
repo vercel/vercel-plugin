@@ -142,8 +142,4 @@ chainTo:
     pattern: from\s+['"](stripe|@stripe/stripe-js)['"]|Stripe\(|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET
     targetSkill: payments
     message: 'Stripe integration in next-forge — loading Payments guidance for checkout sessions, webhooks, and subscription billing.'
-  -
-    pattern: from\s+['"](resend|@react-email)['"]|Resend\(|RESEND_API_KEY
-    targetSkill: email
-    message: 'Resend/React Email in next-forge — loading Email guidance for transactional emails, domain verification, and template patterns.'
 
