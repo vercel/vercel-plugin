@@ -1,13 +1,13 @@
-agent-browser-verify - OURS
-agent-browser - COPIED
+agent-browser-verify - OURS, KEEP
+agent-browser - COPIED, KEEP
 ai-elements - PAUSED -> ask John
-ai-gateway - OURS
-ai-generation-persistence - OURS
+ai-gateway - OURS, KEEP
+ai-generation-persistence - OURS, DELETED
 ai-sdk - COPIED
-auth - OURS
-bootstrap - OURS
-chat-sdk - OURS
-cms - OURS
+auth - OURS, KEEP
+bootstrap - OURS, KEEP
+chat-sdk - OURS, KEEP
+cms - OURS, KEEP due to dependencies
 cron-jobs - OURS
 deployments-cicd - OURS -> replace with agent-browser
 email - OURS -> delete
