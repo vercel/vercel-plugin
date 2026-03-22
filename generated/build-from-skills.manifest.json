@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-03-19T04:56:49.438Z",
+  "generatedAt": "2026-03-22T05:01:32.665Z",
   "templates": [
     {
       "template": "agents/ai-architect.md.tmpl",
@@ -10,16 +10,16 @@
       ],
       "includes": [
         {
-          "marker": "{{include:skill:ai-sdk:Core Functions > Agents}}",
+          "marker": "{{include:skill:ai-sdk:file:references/type-safe-agents.md}}",
           "skillName": "ai-sdk",
-          "target": "Core Functions > Agents",
+          "target": "file:references/type-safe-agents.md",
           "type": "section",
           "lineNumber": 85
         },
         {
-          "marker": "{{include:skill:ai-sdk:Migration from AI SDK 5}}",
+          "marker": "{{include:skill:ai-sdk:file:references/common-errors.md}}",
           "skillName": "ai-sdk",
-          "target": "Migration from AI SDK 5",
+          "target": "file:references/common-errors.md",
           "type": "section",
           "lineNumber": 201
         }
@@ -30,7 +30,8 @@
       "output": "agents/performance-optimizer.md",
       "dependencies": [
         "observability",
-        "nextjs"
+        "nextjs",
+        "next-cache-components"
       ],
       "includes": [
         {
@@ -41,30 +42,30 @@
           "lineNumber": 13
         },
         {
-          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Rendering Strategy Guidance}}",
+          "marker": "{{include:skill:nextjs:file:references/rsc-boundaries.md}}",
           "skillName": "nextjs",
-          "target": "Rendering Strategy Decision > Rendering Strategy Guidance",
+          "target": "file:references/rsc-boundaries.md",
           "type": "section",
           "lineNumber": 118
         },
         {
-          "marker": "{{include:skill:nextjs:Bundle Analyzer (`next experimental-analyze`)}}",
+          "marker": "{{include:skill:nextjs:file:references/bundling.md:Bundle Analysis}}",
           "skillName": "nextjs",
-          "target": "Bundle Analyzer (`next experimental-analyze`)",
+          "target": "file:references/bundling.md:Bundle Analysis",
           "type": "section",
           "lineNumber": 125
         },
         {
-          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Caching Strategy Matrix}}",
+          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Decision Tree}}",
           "skillName": "nextjs",
-          "target": "Rendering Strategy Decision > Caching Strategy Matrix",
+          "target": "file:references/data-patterns.md:Decision Tree",
           "type": "section",
           "lineNumber": 132
         },
         {
-          "marker": "{{include:skill:nextjs:Cache Components (Next.js 16) > Cache Invalidation}}",
-          "skillName": "nextjs",
-          "target": "Cache Components (Next.js 16) > Cache Invalidation",
+          "marker": "{{include:skill:next-cache-components:Cache Invalidation}}",
+          "skillName": "next-cache-components",
+          "target": "Cache Invalidation",
           "type": "section",
           "lineNumber": 137
         },
@@ -76,30 +77,30 @@
           "lineNumber": 144
         },
         {
-          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Image Optimization Pattern}}",
+          "marker": "{{include:skill:nextjs:file:references/image.md}}",
           "skillName": "nextjs",
-          "target": "Rendering Strategy Decision > Image Optimization Pattern",
+          "target": "file:references/image.md",
           "type": "section",
           "lineNumber": 153
         },
         {
-          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Font Loading Pattern}}",
+          "marker": "{{include:skill:nextjs:file:references/font.md}}",
           "skillName": "nextjs",
-          "target": "Rendering Strategy Decision > Font Loading Pattern",
+          "target": "file:references/font.md",
           "type": "section",
           "lineNumber": 158
         },
         {
-          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Cache Components Pattern}}",
-          "skillName": "nextjs",
-          "target": "Rendering Strategy Decision > Cache Components Pattern",
+          "marker": "{{include:skill:next-cache-components:`use cache` Directive}}",
+          "skillName": "next-cache-components",
+          "target": "`use cache` Directive",
           "type": "section",
           "lineNumber": 163
         },
         {
-          "marker": "{{include:skill:nextjs:Rendering Strategy Decision > Optimistic UI Pattern}}",
+          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Client Component Data Fetching}}",
           "skillName": "nextjs",
-          "target": "Rendering Strategy Decision > Optimistic UI Pattern",
+          "target": "file:references/data-patterns.md:Client Component Data Fetching",
           "type": "section",
           "lineNumber": 168
         }

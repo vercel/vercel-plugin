@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-18T17:37:03.940Z",
+  "generatedAt": "2026-03-22T05:01:32.634Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -5451,6 +5451,98 @@
         "examples": []
       }
     },
+    "next-upgrade": {
+      "priority": 6,
+      "summary": "",
+      "docs": [
+        "https://nextjs.org/docs/app/guides/upgrading",
+        "https://nextjs.org/docs/app/guides/upgrading/codemods"
+      ],
+      "pathPatterns": [
+        "next.config.*",
+        "package.json"
+      ],
+      "bashPatterns": [
+        "\\bnpx\\s+@next/codemod\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\byarn\\s+add\\s+[^\\n]*\\bnext@"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/next-upgrade/SKILL.md",
+      "pathRegexSources": [
+        "^next\\.config\\.[^/]*$",
+        "^package\\.json$"
+      ],
+      "bashRegexSources": [
+        "\\bnpx\\s+@next/codemod\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\byarn\\s+add\\s+[^\\n]*\\bnext@"
+      ],
+      "importRegexSources": [],
+      "chainTo": [
+        {
+          "pattern": "getServerSideProps|getStaticProps|next/router|next/head|next/document",
+          "targetSkill": "nextjs",
+          "message": "Pages Router patterns detected during upgrade — loading Next.js best practices for App Router migration."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "upgrade next",
+          "upgrade nextjs",
+          "migrate next",
+          "update next.js",
+          "next.js upgrade",
+          "nextjs migration",
+          "next codemod"
+        ],
+        "allOf": [
+          [
+            "upgrade",
+            "next"
+          ],
+          [
+            "migrate",
+            "next"
+          ],
+          [
+            "update",
+            "nextjs"
+          ]
+        ],
+        "anyOf": [
+          "breaking changes",
+          "codemod",
+          "migration guide",
+          "version upgrade"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "next upgrade",
+          "nextjs migration",
+          "next codemod"
+        ],
+        "intents": [
+          "upgrade Next.js to latest version",
+          "run Next.js codemods",
+          "migrate between major Next.js versions"
+        ],
+        "entities": [
+          "codemod",
+          "migration",
+          "upgrade",
+          "breaking changes"
+        ],
+        "examples": []
+      }
+    },
     "satori": {
       "priority": 4,
       "summary": "",
@@ -6391,6 +6483,109 @@
           "generate structured output from GPT",
           "run an agent loop that calls tools automatically"
         ]
+      }
+    },
+    "next-cache-components": {
+      "priority": 6,
+      "summary": "",
+      "docs": [
+        "https://nextjs.org/docs/app/getting-started/cache-components",
+        "https://nextjs.org/docs/app/api-reference/directives/use-cache"
+      ],
+      "pathPatterns": [
+        "next.config.*",
+        "app/**",
+        "src/app/**",
+        "apps/*/app/**",
+        "apps/*/src/app/**"
+      ],
+      "bashPatterns": [
+        "\\bnext\\s+(dev|build)\\b"
+      ],
+      "importPatterns": [
+        "next/cache"
+      ],
+      "bodyPath": "skills/next-cache-components/SKILL.md",
+      "pathRegexSources": [
+        "^next\\.config\\.[^/]*$",
+        "^app\\/.*$",
+        "^src\\/app\\/.*$",
+        "^apps\\/[^/]*\\/app\\/.*$",
+        "^apps\\/[^/]*\\/src\\/app\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnext\\s+(dev|build)\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]next\\/cache(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "use cache",
+          "targetSkill": "nextjs",
+          "message": "Cache component detected — loading Next.js best practices for RSC boundaries and data patterns alongside caching.",
+          "skipIfFileContains": "next-best-practices"
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "use cache",
+          "cache components",
+          "partial prerendering",
+          "PPR",
+          "cacheLife",
+          "cacheTag",
+          "updateTag",
+          "unstable_cache"
+        ],
+        "allOf": [
+          [
+            "cache",
+            "component"
+          ],
+          [
+            "cache",
+            "directive"
+          ],
+          [
+            "partial",
+            "prerender"
+          ]
+        ],
+        "anyOf": [
+          "revalidateTag",
+          "stale",
+          "revalidate",
+          "cache profile"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "cache components",
+          "partial prerendering",
+          "PPR",
+          "use cache"
+        ],
+        "intents": [
+          "enable partial prerendering in Next.js",
+          "cache async data with use cache directive",
+          "invalidate cache with cacheTag",
+          "migrate from unstable_cache"
+        ],
+        "entities": [
+          "use cache",
+          "cacheLife",
+          "cacheTag",
+          "updateTag",
+          "revalidateTag",
+          "PPR"
+        ],
+        "examples": []
       }
     },
     "v0-dev": {

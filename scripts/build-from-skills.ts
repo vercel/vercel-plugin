@@ -2,9 +2,11 @@
 /**
  * Template include engine that resolves skill content into templates.
  *
- * Supports two marker formats:
+ * Supports three marker formats:
  *   {{include:skill:<name>:<heading>}}           — extracts a markdown section by heading
  *   {{include:skill:<name>:frontmatter:<field>}} — extracts a frontmatter field value
+ *   {{include:skill:<name>:file:<path>}}         — includes an entire file relative to the skill directory
+ *   {{include:skill:<name>:file:<path>:<heading>}} — extracts a heading from a file relative to the skill directory
  *
  * Heading paths use the heading text (case-insensitive, ignoring leading #s).
  * The extracted section includes all content from the heading until the next
@@ -254,6 +256,9 @@ const INCLUDE_RE = /\{\{include:skill:([^:}]+):([^}]+)\}\}/g;
 /** Regex to detect frontmatter field references: frontmatter:<field> */
 const FRONTMATTER_PREFIX = "frontmatter:";
 
+/** Prefix to detect file references: file:<path> or file:<path>:<heading> */
+const FILE_PREFIX = "file:";
+
 interface ResolveOptions {
   skillsDir?: string;
   /** If true, throw on unresolved includes. Default: true. */
@@ -298,6 +303,20 @@ function resolveIncludes(template: string, options: ResolveOptions = {}): string
           skillName,
           target,
           type: "frontmatter",
+          contentLength: content.length,
+          lineNumber,
+        });
+        return content;
+      }
+      // File reference: file:<path> or file:<path>:<heading>
+      if (target.startsWith(FILE_PREFIX)) {
+        const fileTarget = target.slice(FILE_PREFIX.length);
+        const content = resolveFileReference(skillName, fileTarget, skillsDir);
+        resolved.push({
+          marker,
+          skillName,
+          target,
+          type: "section",
           contentLength: content.length,
           lineNumber,
         });
@@ -388,6 +407,46 @@ function compileTemplate(
   const { skillsDir = DEFAULT_SKILLS_DIR } = opts;
   const template = readFileSync(templatePath, "utf-8");
   return resolveIncludes(template, { skillsDir, strict: false, structured: true });
+}
+
+/**
+ * Resolve a file reference from a skill directory.
+ * Supports two forms:
+ *   file:<path>           — returns the entire file content
+ *   file:<path>:<heading> — extracts a heading section from the file
+ *
+ * Path is relative to the skill directory (e.g. "references/type-safe-agents.md").
+ */
+function resolveFileReference(
+  skillName: string,
+  fileTarget: string,
+  skillsDir: string,
+): string {
+  const colonIdx = fileTarget.indexOf(":");
+  const filePath = colonIdx === -1 ? fileTarget : fileTarget.slice(0, colonIdx);
+  const heading = colonIdx === -1 ? null : fileTarget.slice(colonIdx + 1);
+
+  const fullPath = join(skillsDir, skillName, filePath);
+  let content: string;
+  try {
+    content = readFileSync(fullPath, "utf-8");
+  } catch {
+    throw new Error(
+      `File "${filePath}" not found in skill "${skillName}": ${fullPath} does not exist`,
+    );
+  }
+
+  if (!heading) {
+    return content.trim();
+  }
+
+  const section = extractSectionFromMarkdown(content, heading);
+  if (!section) {
+    throw new Error(
+      `Heading "${heading}" not found in file "${filePath}" of skill "${skillName}"`,
+    );
+  }
+  return section;
 }
 
 /**
