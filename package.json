@@ -1,6 +1,6 @@
 {
   "name": "vercel-plugin",
-  "version": "0.22.1",
+  "version": "0.23.0",
   "private": true,
   "bin": {
     "vercel-plugin": "src/cli/index.ts"
@@ -9,8 +9,10 @@
     "build:hooks": "tsup --config hooks/tsup.config.ts",
     "build:manifest": "bun run scripts/build-manifest.ts",
     "build:from-skills": "bun run scripts/build-from-skills.ts",
+    "build:skills": "bun run scripts/build-skills.ts",
+    "build:skills:check": "bun run scripts/build-skills.ts --check",
     "build:from-skills:check": "bun run scripts/build-from-skills.ts --check",
-    "build": "bun run build:hooks && bun run build:manifest && bun run build:from-skills",
+    "build": "bun run build:skills && bun run build:hooks && bun run build:manifest && bun run build:from-skills",
     "validate": "bun run scripts/validate.ts",
     "doctor": "bun run src/cli/index.ts doctor",
     "typecheck": "tsc -p hooks/tsconfig.json --noEmit",

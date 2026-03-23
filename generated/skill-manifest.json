@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-18T17:37:03.940Z",
+  "generatedAt": "2026-03-22T22:50:07.847Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -132,15 +132,6 @@
       "importRegexSources": [],
       "validate": [
         {
-          "pattern": "const\\s+(blockedIps|denylist|allowlist)\\s*=\\s*\\[|from\\s+[''\"](rate-limiter-flexible)[''\"]|rateLimit",
-          "message": "App-layer rate limiting or IP blocking in middleware. Use Vercel Firewall/WAF for platform-level protection.",
-          "severity": "recommended",
-          "skipIfFileContains": "@vercel/firewall|vercel\\.json.*firewall",
-          "upgradeToSkill": "vercel-firewall",
-          "upgradeWhy": "Move IP blocking and rate limiting from middleware code to Vercel Firewall/WAF for better performance and maintainability.",
-          "upgradeMode": "soft"
-        },
-        {
           "pattern": "NextResponse.*from\\s+[''\"]next/server[''\"]|from\\s+[''\"]next/server[''\"].*NextResponse",
           "message": "Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. Run Skill(nextjs) for proxy.ts migration guidance.",
           "severity": "recommended",
@@ -151,11 +142,6 @@
         }
       ],
       "chainTo": [
-        {
-          "pattern": "const\\s+(blockedIps|denylist|allowlist)\\s*=\\s*\\[|from\\s+[''\\\"](rate-limiter-flexible)[''\"]|rateLimit",
-          "targetSkill": "vercel-firewall",
-          "message": "App-layer rate limiting or IP blocking in middleware — loading Vercel Firewall guidance for platform-level protection."
-        },
         {
           "pattern": "from\\s+[''\"\"]next-auth[''\"\"]",
           "targetSkill": "auth",
@@ -365,85 +351,6 @@
         "examples": []
       }
     },
-    "micro": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://github.com/vercel/micro"
-      ],
-      "pathPatterns": [],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bmicro\\b",
-        "\\bnpx\\s+micro\\b",
-        "\\bnpx\\s+micro-dev\\b"
-      ],
-      "importPatterns": [
-        "micro",
-        "micro-dev"
-      ],
-      "bodyPath": "skills/micro/SKILL.md",
-      "pathRegexSources": [],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bmicro\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bmicro\\b",
-        "\\bnpx\\s+micro\\b",
-        "\\bnpx\\s+micro-dev\\b"
-      ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]micro(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]micro-dev(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "validate": [
-        {
-          "pattern": "from\\s+[''\"](micro)[''\"]|send\\s*\\(\\s*res\\s*,",
-          "message": "Legacy micro framework detected. Modern Vercel serverless uses Web Request/Response API route handlers.",
-          "severity": "recommended",
-          "skipIfFileContains": "export\\s+(async\\s+)?function\\s+(GET|POST|PUT|PATCH|DELETE)|Response\\.json",
-          "upgradeToSkill": "vercel-functions",
-          "upgradeWhy": "Migrate from micro send(res, status, data) to modern route handlers with return Response.json(data).",
-          "upgradeMode": "soft"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "from\\s+[''\\\"](micro)[''\"]|send\\s*\\(\\s*res\\s*,",
-          "targetSkill": "vercel-functions",
-          "message": "Legacy micro framework detected — loading Vercel Functions guidance for modern route handler migration."
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "microservice",
-          "http server",
-          "lightweight api",
-          "micro framework"
-        ],
-        "intents": [
-          "create microservice",
-          "build http server",
-          "set up api endpoint",
-          "use micro"
-        ],
-        "entities": [
-          "micro",
-          "microservice",
-          "HTTP",
-          "async handler"
-        ],
-        "examples": []
-      }
-    },
     "agent-browser": {
       "priority": 3,
       "summary": "",
@@ -603,131 +510,6 @@
           "tool call",
           "streaming",
           "message parts"
-        ],
-        "examples": []
-      }
-    },
-    "payments": {
-      "priority": 5,
-      "summary": "",
-      "docs": [
-        "https://docs.stripe.com",
-        "https://docs.stripe.com/payments/quickstart"
-      ],
-      "sitemap": "https://docs.stripe.com/sitemap.xml",
-      "pathPatterns": [
-        "app/api/webhook/stripe/**",
-        "app/api/webhooks/stripe/**",
-        "src/app/api/webhook/stripe/**",
-        "src/app/api/webhooks/stripe/**",
-        "pages/api/webhook/stripe.*",
-        "pages/api/webhooks/stripe.*",
-        "app/api/checkout/**",
-        "src/app/api/checkout/**",
-        "app/api/stripe/**",
-        "src/app/api/stripe/**",
-        "lib/stripe.*",
-        "src/lib/stripe.*",
-        "utils/stripe.*",
-        "src/utils/stripe.*"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bstripe\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bstripe\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bstripe\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bstripe\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@stripe/react-stripe-js\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/payments/SKILL.md",
-      "pathRegexSources": [
-        "^app\\/api\\/webhook\\/stripe\\/.*$",
-        "^app\\/api\\/webhooks\\/stripe\\/.*$",
-        "^src\\/app\\/api\\/webhook\\/stripe\\/.*$",
-        "^src\\/app\\/api\\/webhooks\\/stripe\\/.*$",
-        "^pages\\/api\\/webhook\\/stripe\\.[^/]*$",
-        "^pages\\/api\\/webhooks\\/stripe\\.[^/]*$",
-        "^app\\/api\\/checkout\\/.*$",
-        "^src\\/app\\/api\\/checkout\\/.*$",
-        "^app\\/api\\/stripe\\/.*$",
-        "^src\\/app\\/api\\/stripe\\/.*$",
-        "^lib\\/stripe\\.[^/]*$",
-        "^src\\/lib\\/stripe\\.[^/]*$",
-        "^utils\\/stripe\\.[^/]*$",
-        "^src\\/utils\\/stripe\\.[^/]*$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bstripe\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bstripe\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bstripe\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bstripe\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@stripe/stripe-js\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@stripe/react-stripe-js\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@stripe/react-stripe-js\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "setTimeout\\s*\\(|setInterval\\s*\\(",
-          "targetSkill": "workflow",
-          "message": "Timer-based retry or polling in payment handler — loading Workflow DevKit for durable execution with automatic retries."
-        },
-        {
-          "pattern": "(retries|retryCount|attempts|maxRetries)\\s*[=:<]|catch\\s*\\([^)]*\\)\\s*\\{[^}]*(retry|again)",
-          "targetSkill": "workflow",
-          "message": "Manual retry logic in payment handler — loading Workflow DevKit for automatic retries with backoff and durable execution.",
-          "skipIfFileContains": "createWorkflow|use workflow|use step"
-        },
-        {
-          "pattern": "stripe\\.webhooks\\.constructEvent|constructWebhookEvent|STRIPE_WEBHOOK_SECRET|whsec_",
-          "targetSkill": "payments",
-          "message": "Stripe webhook handling detected — loading Payments guidance for Vercel Marketplace setup with auto-provisioned env vars and unified billing.",
-          "skipIfFileContains": "vercel integration add stripe|STRIPE_SECRET_KEY.*sks_"
-        },
-        {
-          "pattern": "from\\\\s+['\\\"]stripe['\\\"]",
-          "targetSkill": "payments",
-          "message": "Stripe SDK import detected — loading Payments guidance for Vercel Marketplace setup with auto-provisioned env vars, webhook verification, and subscription billing patterns.",
-          "skipIfFileContains": "vercel integration add stripe"
-        },
-        {
-          "pattern": "paypal|braintree",
-          "targetSkill": "payments",
-          "message": "PayPal/Braintree detected — Stripe is the native Vercel Marketplace payment provider with auto-provisioned env vars, unified billing, and first-class Next.js integration.",
-          "skipIfFileContains": "from\\\\s+['\\\"]stripe['\\\"]|vercel integration add stripe"
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "stripe",
-          "billing",
-          "checkout",
-          "subscriptions"
-        ],
-        "intents": [
-          "add payments",
-          "set up stripe",
-          "implement checkout",
-          "handle subscriptions"
-        ],
-        "entities": [
-          "Stripe",
-          "checkout",
-          "webhook",
-          "subscription",
-          "payment intent"
         ],
         "examples": []
       }
@@ -1108,74 +890,6 @@
           "Neon Postgres",
           "Upstash Redis",
           "Vercel Storage"
-        ],
-        "examples": []
-      }
-    },
-    "ncc": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://github.com/vercel/ncc"
-      ],
-      "pathPatterns": [],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@vercel/ncc\\b",
-        "\\bncc\\s+build\\b"
-      ],
-      "importPatterns": [
-        "@vercel/ncc"
-      ],
-      "bodyPath": "skills/ncc/SKILL.md",
-      "pathRegexSources": [],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/ncc\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@vercel/ncc\\b",
-        "\\bncc\\s+build\\b"
-      ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/ncc(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "ncc\\s+build.*api/|ncc\\s+build.*handler|ncc\\s+build.*serverless|ncc\\s+build.*function",
-          "targetSkill": "vercel-functions",
-          "message": "ncc bundling detected for serverless function — loading Vercel Functions guidance for runtime configuration, streaming, and Fluid Compute.",
-          "skipIfFileContains": "vercel\\.json|@vercel/node|edge-light"
-        },
-        {
-          "pattern": "ncc\\s+build|from\\s+['\"]@vercel/ncc['\"]",
-          "targetSkill": "deployments-cicd",
-          "message": "ncc single-file bundling detected — loading Deployments/CI guidance for deploy --prebuilt and build output optimization.",
-          "skipIfFileContains": "vercel\\s+deploy|vercel\\s+build|\\.github/workflows"
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "node bundler",
-          "single file bundle",
-          "ncc compiler",
-          "node compiler"
-        ],
-        "intents": [
-          "bundle node module",
-          "compile to single file",
-          "package serverless function",
-          "use ncc"
-        ],
-        "entities": [
-          "@vercel/ncc",
-          "ncc",
-          "bundle",
-          "single file"
         ],
         "examples": []
       }
@@ -2171,206 +1885,6 @@
         ]
       }
     },
-    "ai-generation-persistence": {
-      "priority": 6,
-      "summary": "Persist every AI generation: unique ID, save to DB/Blob, addressable URL /chat/[id], track token cost",
-      "docs": [
-        "https://sdk.vercel.ai/docs/ai-sdk-ui/storing-messages"
-      ],
-      "sitemap": "https://sdk.vercel.ai/sitemap.xml",
-      "pathPatterns": [
-        "app/api/generate/**",
-        "app/api/generations/**",
-        "src/app/api/generate/**",
-        "src/app/api/generations/**",
-        "app/chat/[id]/**",
-        "app/generate/[id]/**",
-        "src/app/chat/[id]/**",
-        "src/app/generate/[id]/**",
-        "lib/generations/**",
-        "src/lib/generations/**"
-      ],
-      "bashPatterns": [],
-      "importPatterns": [
-        "ai",
-        "@ai-sdk/*",
-        "@vercel/blob",
-        "nanoid",
-        "@paralleldrive/cuid2"
-      ],
-      "bodyPath": "skills/ai-generation-persistence/SKILL.md",
-      "pathRegexSources": [
-        "^app\\/api\\/generate\\/.*$",
-        "^app\\/api\\/generations\\/.*$",
-        "^src\\/app\\/api\\/generate\\/.*$",
-        "^src\\/app\\/api\\/generations\\/.*$",
-        "^app\\/chat\\/\\[id\\]\\/.*$",
-        "^app\\/generate\\/\\[id\\]\\/.*$",
-        "^src\\/app\\/chat\\/\\[id\\]\\/.*$",
-        "^src\\/app\\/generate\\/\\[id\\]\\/.*$",
-        "^lib\\/generations\\/.*$",
-        "^src\\/lib\\/generations\\/.*$"
-      ],
-      "bashRegexSources": [],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]ai(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@ai-sdk\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/blob(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]nanoid(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@paralleldrive\\/cuid2(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "validate": [
-        {
-          "pattern": "streamText\\\\(|generateText\\\\(",
-          "message": "Ensure this AI generation is persisted with a unique ID (nanoid/cuid2) — generations are expensive assets that should be saved and addressable via URL",
-          "severity": "warn",
-          "skipIfFileContains": "nanoid|cuid|createId|randomUUID|uuid"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "streamText\\s*\\(|generateText\\s*\\(",
-          "targetSkill": "ai-gateway",
-          "message": "AI generation call without cost tracking — loading AI Gateway guidance for OIDC auth, usage attribution, and per-generation cost visibility.",
-          "skipIfFileContains": "gateway\\(|@ai-sdk/gateway|ai-gateway|providerOptions.*gateway|usage.*cost|trackUsage"
-        },
-        {
-          "pattern": "from\\s+[''\"]@vercel/blob[''\"\"]",
-          "targetSkill": "vercel-storage",
-          "message": "Vercel Blob import detected for generation persistence — loading Storage guidance for blob upload patterns, ETags, and client upload helpers.",
-          "skipIfFileContains": "put\\(\\s*.*\\{.*access|del\\(\\s*.*url"
-        }
-      ],
-      "promptSignals": {
-        "phrases": [
-          "save generations",
-          "persist generations",
-          "generation history",
-          "chat history",
-          "save chat",
-          "generation id",
-          "ai chat",
-          "chat app",
-          "chatbot",
-          "image generation",
-          "text generation",
-          "ai app"
-        ],
-        "allOf": [
-          [
-            "generate",
-            "save"
-          ],
-          [
-            "generate",
-            "persist"
-          ],
-          [
-            "generate",
-            "store"
-          ],
-          [
-            "ai",
-            "persist"
-          ],
-          [
-            "ai",
-            "history"
-          ],
-          [
-            "ai",
-            "database"
-          ],
-          [
-            "chat",
-            "persist"
-          ],
-          [
-            "chat",
-            "database"
-          ],
-          [
-            "chat",
-            "url"
-          ],
-          [
-            "generation",
-            "url"
-          ],
-          [
-            "generation",
-            "id"
-          ],
-          [
-            "image",
-            "generate"
-          ],
-          [
-            "stream",
-            "save"
-          ],
-          [
-            "stream",
-            "persist"
-          ]
-        ],
-        "anyOf": [
-          "shareable",
-          "retrievable",
-          "permalink",
-          "cost tracking",
-          "token usage",
-          "nanoid",
-          "cuid",
-          "openai",
-          "anthropic",
-          "llm",
-          "gpt",
-          "claude"
-        ],
-        "noneOf": [
-          "github actions",
-          "ci workflow"
-        ],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "ai storage",
-          "generation history",
-          "llm persistence",
-          "ai audit"
-        ],
-        "intents": [
-          "save ai generations",
-          "track llm costs",
-          "store completions",
-          "persist ai output"
-        ],
-        "entities": [
-          "generation ID",
-          "addressable URL",
-          "cost tracking",
-          "LLM generation"
-        ],
-        "examples": []
-      }
-    },
     "vercel-queues": {
       "priority": 5,
       "summary": "",
@@ -2576,11 +2090,6 @@
           "pattern": "CLERK_|@clerk/|clerkMiddleware",
           "targetSkill": "auth",
           "message": "Clerk integration detected — loading Auth guidance for middleware setup, route protection, and organization flows."
-        },
-        {
-          "pattern": "SANITY_|CONTENTFUL_|STORYBLOK_|DATOCMS_|sanity|contentful|storyblok",
-          "targetSkill": "cms",
-          "message": "CMS integration detected — loading CMS guidance for content modeling, preview mode, and revalidation webhooks."
         }
       ],
       "retrieval": {
@@ -3446,247 +2955,6 @@
           "data flow",
           "end-to-end",
           "verification"
-        ],
-        "examples": []
-      }
-    },
-    "cms": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://vercel.com/docs/solutions/cms",
-        "https://nextjs.org/docs/app/building-your-application/data-fetching"
-      ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "pathPatterns": [
-        "sanity.config.*",
-        "sanity.cli.*",
-        "sanity/**",
-        "studio/**",
-        "schemas/*.ts",
-        "schemas/*.tsx",
-        "src/sanity/**",
-        "lib/sanity.*",
-        "src/lib/sanity.*",
-        "lib/contentful.*",
-        "src/lib/contentful.*",
-        "app/api/draft/**",
-        "src/app/api/draft/**",
-        "app/api/revalidate/**",
-        "src/app/api/revalidate/**",
-        "app/studio/**",
-        "src/app/studio/**"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@sanity/client\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@sanity/client\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@sanity/client\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@sanity/client\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bcontentful\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bcontentful\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bcontentful\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bcontentful\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@storyblok/\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@storyblok/\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@storyblok/\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@storyblok/\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*datocms-client\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*datocms-client\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*datocms-client\\b",
-        "\\byarn\\s+add\\s+[^\\n]*datocms-client\\b",
-        "\\bnpx\\s+create-sanity\\b",
-        "\\bnpx\\s+sanity\\s+init\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/cms/SKILL.md",
-      "pathRegexSources": [
-        "^sanity\\.config\\.[^/]*$",
-        "^sanity\\.cli\\.[^/]*$",
-        "^sanity\\/.*$",
-        "^studio\\/.*$",
-        "^schemas\\/[^/]*\\.ts$",
-        "^schemas\\/[^/]*\\.tsx$",
-        "^src\\/sanity\\/.*$",
-        "^lib\\/sanity\\.[^/]*$",
-        "^src\\/lib\\/sanity\\.[^/]*$",
-        "^lib\\/contentful\\.[^/]*$",
-        "^src\\/lib\\/contentful\\.[^/]*$",
-        "^app\\/api\\/draft\\/.*$",
-        "^src\\/app\\/api\\/draft\\/.*$",
-        "^app\\/api\\/revalidate\\/.*$",
-        "^src\\/app\\/api\\/revalidate\\/.*$",
-        "^app\\/studio\\/.*$",
-        "^src\\/app\\/studio\\/.*$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@sanity/client\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@sanity/client\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@sanity/client\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@sanity/client\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bnext-sanity\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bcontentful\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bcontentful\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bcontentful\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bcontentful\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@builder\\.io/sdk\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@storyblok/\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@storyblok/\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@storyblok/\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@storyblok/\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*datocms-client\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*datocms-client\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*datocms-client\\b",
-        "\\byarn\\s+add\\s+[^\\n]*datocms-client\\b",
-        "\\bnpx\\s+create-sanity\\b",
-        "\\bnpx\\s+sanity\\s+init\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "getStaticProps|getServerSideProps|getInitialProps",
-          "targetSkill": "nextjs",
-          "message": "Pages Router data-fetching pattern detected — loading Next.js guidance for App Router migration with Server Components and async request APIs.",
-          "skipIfFileContains": "app/.*page\\.(tsx|ts|jsx|js)|generateStaticParams|use cache"
-        },
-        {
-          "pattern": "revalidatePath\\s*\\(|revalidateTag\\s*\\(",
-          "targetSkill": "runtime-cache",
-          "message": "Revalidation call detected — loading Runtime Cache guidance for tag-based invalidation, per-region caching, and cache coordination patterns.",
-          "skipIfFileContains": "cacheTag\\s*\\(|unstable_cache|use cache"
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "headless cms",
-          "content management",
-          "sanity",
-          "contentful"
-        ],
-        "intents": [
-          "add cms",
-          "set up content management",
-          "configure preview mode",
-          "create content model"
-        ],
-        "entities": [
-          "Sanity",
-          "Contentful",
-          "DatoCMS",
-          "Storyblok",
-          "Visual Editing",
-          "revalidation"
-        ],
-        "examples": []
-      }
-    },
-    "geist": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://vercel.com/font",
-        "https://github.com/vercel/geist-font"
-      ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "pathPatterns": [
-        "app/layout.*",
-        "src/app/layout.*",
-        "app/globals.css",
-        "src/app/globals.css",
-        "styles/**",
-        "tailwind.config.*",
-        "apps/*/app/layout.*",
-        "apps/*/src/app/layout.*",
-        "apps/*/app/globals.css",
-        "apps/*/src/app/globals.css"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bgeist\\b"
-      ],
-      "importPatterns": [
-        "geist",
-        "geist/font",
-        "geist/font/*"
-      ],
-      "bodyPath": "skills/geist/SKILL.md",
-      "pathRegexSources": [
-        "^app\\/layout\\.[^/]*$",
-        "^src\\/app\\/layout\\.[^/]*$",
-        "^app\\/globals\\.css$",
-        "^src\\/app\\/globals\\.css$",
-        "^styles\\/.*$",
-        "^tailwind\\.config\\.[^/]*$",
-        "^apps\\/[^/]*\\/app\\/layout\\.[^/]*$",
-        "^apps\\/[^/]*\\/src\\/app\\/layout\\.[^/]*$",
-        "^apps\\/[^/]*\\/app\\/globals\\.css$",
-        "^apps\\/[^/]*\\/src\\/app\\/globals\\.css$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bgeist\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bgeist\\b"
-      ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]geist\\/font\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "localFont\\s*\\(|next/font/local|next/font/google",
-          "targetSkill": "nextjs",
-          "message": "Font loading in Next.js layout detected — loading Next.js guidance for next/font optimization, layout patterns, and CSS variable setup."
-        },
-        {
-          "pattern": "--font-geist|geist.*className|fontFamily.*geist",
-          "targetSkill": "shadcn",
-          "message": "Geist CSS variable or className usage detected — loading shadcn/ui guidance for theme integration and Tailwind font configuration."
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "vercel font",
-          "geist font",
-          "typography",
-          "font family"
-        ],
-        "intents": [
-          "add geist font",
-          "configure typography",
-          "set up fonts",
-          "use vercel font"
-        ],
-        "entities": [
-          "Geist Sans",
-          "Geist Mono",
-          "Geist Pixel",
-          "next/font"
         ],
         "examples": []
       }
@@ -4567,15 +3835,6 @@
       ],
       "validate": [
         {
-          "pattern": "from\\s+[''\"](axios)[''\"]|axios\\.(get|post|put|delete)\\(",
-          "message": "Client-side axios detected. Use SWR for React data fetching with caching, revalidation, and deduplication.",
-          "severity": "recommended",
-          "skipIfFileContains": "useSWR|from\\s+[''\"](swr)[''\"]|@tanstack/react-query",
-          "upgradeToSkill": "swr",
-          "upgradeWhy": "Replace manual fetch/axios with SWR for automatic caching, revalidation, and optimistic UI.",
-          "upgradeMode": "soft"
-        },
-        {
           "pattern": "from\\s+[''\"](styled-components|@emotion/styled|@emotion/react|@mui/material|@chakra-ui/react)[''\"]|styled\\.",
           "message": "Legacy CSS-in-JS or component library detected. Consider shadcn/ui + Tailwind for modern Vercel-native UI.",
           "severity": "warn",
@@ -4587,20 +3846,9 @@
       ],
       "chainTo": [
         {
-          "pattern": "from\\s+[''\\\"](axios)[''\"]|axios\\.(get|post|put|delete)\\(",
-          "targetSkill": "swr",
-          "message": "Client-side axios detected — loading SWR guidance for React data fetching with caching and revalidation."
-        },
-        {
           "pattern": "from\\s+[''\\\"](styled-components|@emotion/styled|@emotion/react|@mui/material|@chakra-ui/react)[''\"]|styled\\.",
           "targetSkill": "shadcn",
           "message": "Legacy CSS-in-JS or component library detected — loading shadcn/ui guidance for modern Vercel-native UI."
-        },
-        {
-          "pattern": "fetch\\s*\\([^)]*\\)\\s*\\.then\\s*\\(|\\.then\\s*\\(\\s*(res|response)\\s*=>",
-          "targetSkill": "swr",
-          "message": "Manual fetch().then() in component — loading SWR guidance for declarative data fetching with caching and revalidation.",
-          "skipIfFileContains": "useSWR|from\\s+[''\"\"](swr)[''\"\"]|useQuery|@tanstack/react-query"
         }
       ],
       "retrieval": {
@@ -4950,12 +4198,6 @@
           "targetSkill": "vercel-functions",
           "message": "Pages Router API route (pages/api/) detected — loading Vercel Functions guidance for App Router route handlers with named HTTP exports.",
           "skipIfFileContains": "export\\s+(async\\s+)?function\\s+(GET|POST|PUT|PATCH|DELETE)"
-        },
-        {
-          "pattern": "from\\\\s+['\\\"]react-dom/server['\\\"]|renderToString\\\\s*\\\\(",
-          "targetSkill": "satori",
-          "message": "react-dom/server renderToString detected — for OG image generation, use Satori (@vercel/og) which converts JSX to SVG/PNG without a full React DOM render. Loading Satori guidance.",
-          "skipIfFileContains": "@vercel/og|ImageResponse|satori"
         }
       ],
       "promptSignals": {
@@ -5451,125 +4693,94 @@
         "examples": []
       }
     },
-    "satori": {
-      "priority": 4,
+    "next-upgrade": {
+      "priority": 6,
       "summary": "",
       "docs": [
-        "https://github.com/vercel/satori",
-        "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image"
+        "https://nextjs.org/docs/app/guides/upgrading",
+        "https://nextjs.org/docs/app/guides/upgrading/codemods"
       ],
-      "sitemap": "https://nextjs.org/sitemap.xml",
       "pathPatterns": [
-        "app/**/og/**",
-        "app/**/og.*",
-        "app/**/opengraph-image.*",
-        "app/**/twitter-image.*",
-        "src/app/**/og/**",
-        "src/app/**/og.*",
-        "src/app/**/opengraph-image.*",
-        "src/app/**/twitter-image.*",
-        "pages/api/og.*",
-        "pages/api/og/**",
-        "src/pages/api/og.*",
-        "src/pages/api/og/**",
-        "apps/*/app/**/og/**",
-        "apps/*/app/**/og.*",
-        "apps/*/app/**/opengraph-image.*",
-        "apps/*/app/**/twitter-image.*"
+        "next.config.*",
+        "package.json"
       ],
       "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bsatori\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@vercel/og\\b"
+        "\\bnpx\\s+@next/codemod\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\byarn\\s+add\\s+[^\\n]*\\bnext@"
       ],
-      "importPatterns": [
-        "satori",
-        "satori/wasm",
-        "@vercel/og",
-        "next/og"
-      ],
-      "bodyPath": "skills/satori/SKILL.md",
+      "importPatterns": [],
+      "bodyPath": "skills/next-upgrade/SKILL.md",
       "pathRegexSources": [
-        "^app\\/(?:[^/]+\\/)*og\\/.*$",
-        "^app\\/(?:[^/]+\\/)*og\\.[^/]*$",
-        "^app\\/(?:[^/]+\\/)*opengraph-image\\.[^/]*$",
-        "^app\\/(?:[^/]+\\/)*twitter-image\\.[^/]*$",
-        "^src\\/app\\/(?:[^/]+\\/)*og\\/.*$",
-        "^src\\/app\\/(?:[^/]+\\/)*og\\.[^/]*$",
-        "^src\\/app\\/(?:[^/]+\\/)*opengraph-image\\.[^/]*$",
-        "^src\\/app\\/(?:[^/]+\\/)*twitter-image\\.[^/]*$",
-        "^pages\\/api\\/og\\.[^/]*$",
-        "^pages\\/api\\/og\\/.*$",
-        "^src\\/pages\\/api\\/og\\.[^/]*$",
-        "^src\\/pages\\/api\\/og\\/.*$",
-        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*og\\/.*$",
-        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*og\\.[^/]*$",
-        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*opengraph-image\\.[^/]*$",
-        "^apps\\/[^/]*\\/app\\/(?:[^/]+\\/)*twitter-image\\.[^/]*$"
+        "^next\\.config\\.[^/]*$",
+        "^package\\.json$"
       ],
       "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bsatori\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bsatori\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/og\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@vercel/og\\b"
+        "\\bnpx\\s+@next/codemod\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bnext@",
+        "\\byarn\\s+add\\s+[^\\n]*\\bnext@"
       ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]satori(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]satori\\/wasm(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/og(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]next\\/og(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
+      "importRegexSources": [],
       "chainTo": [
         {
-          "pattern": "from\\s+[''\"\"]puppeteer[''\"\"]|from\\s+[''\"\"]playwright[''\"\"]|launch\\(\\s*\\{.*headless",
-          "targetSkill": "vercel-functions",
-          "message": "Headless browser for OG image generation detected — Satori generates OG images without a browser. Loading Functions guidance for lightweight serverless deployment."
-        },
-        {
-          "pattern": "from\\s+[''\"\"]canvas[''\"\"]|createCanvas\\(",
-          "targetSkill": "vercel-functions",
-          "message": "Node canvas for image generation detected — Satori uses JSX-to-SVG without native dependencies. Loading Functions guidance for serverless-compatible OG images."
+          "pattern": "getServerSideProps|getStaticProps|next/router|next/head|next/document",
+          "targetSkill": "nextjs",
+          "message": "Pages Router patterns detected during upgrade — loading Next.js best practices for App Router migration."
         }
       ],
+      "promptSignals": {
+        "phrases": [
+          "upgrade next",
+          "upgrade nextjs",
+          "migrate next",
+          "update next.js",
+          "next.js upgrade",
+          "nextjs migration",
+          "next codemod"
+        ],
+        "allOf": [
+          [
+            "upgrade",
+            "next"
+          ],
+          [
+            "migrate",
+            "next"
+          ],
+          [
+            "update",
+            "nextjs"
+          ]
+        ],
+        "anyOf": [
+          "breaking changes",
+          "codemod",
+          "migration guide",
+          "version upgrade"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
       "retrieval": {
         "aliases": [
-          "og image",
-          "social image",
-          "html to svg",
-          "open graph"
+          "next upgrade",
+          "nextjs migration",
+          "next codemod"
         ],
         "intents": [
-          "generate og image",
-          "create social image",
-          "convert html to svg",
-          "dynamic og"
+          "upgrade Next.js to latest version",
+          "run Next.js codemods",
+          "migrate between major Next.js versions"
         ],
         "entities": [
-          "Satori",
-          "OG image",
-          "SVG",
-          "open graph"
+          "codemod",
+          "migration",
+          "upgrade",
+          "breaking changes"
         ],
         "examples": []
       }
@@ -6393,6 +5604,109 @@
         ]
       }
     },
+    "next-cache-components": {
+      "priority": 6,
+      "summary": "",
+      "docs": [
+        "https://nextjs.org/docs/app/getting-started/cache-components",
+        "https://nextjs.org/docs/app/api-reference/directives/use-cache"
+      ],
+      "pathPatterns": [
+        "next.config.*",
+        "app/**",
+        "src/app/**",
+        "apps/*/app/**",
+        "apps/*/src/app/**"
+      ],
+      "bashPatterns": [
+        "\\bnext\\s+(dev|build)\\b"
+      ],
+      "importPatterns": [
+        "next/cache"
+      ],
+      "bodyPath": "skills/next-cache-components/SKILL.md",
+      "pathRegexSources": [
+        "^next\\.config\\.[^/]*$",
+        "^app\\/.*$",
+        "^src\\/app\\/.*$",
+        "^apps\\/[^/]*\\/app\\/.*$",
+        "^apps\\/[^/]*\\/src\\/app\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnext\\s+(dev|build)\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]next\\/cache(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "use cache",
+          "targetSkill": "nextjs",
+          "message": "Cache component detected — loading Next.js best practices for RSC boundaries and data patterns alongside caching.",
+          "skipIfFileContains": "next-best-practices"
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "use cache",
+          "cache components",
+          "partial prerendering",
+          "PPR",
+          "cacheLife",
+          "cacheTag",
+          "updateTag",
+          "unstable_cache"
+        ],
+        "allOf": [
+          [
+            "cache",
+            "component"
+          ],
+          [
+            "cache",
+            "directive"
+          ],
+          [
+            "partial",
+            "prerender"
+          ]
+        ],
+        "anyOf": [
+          "revalidateTag",
+          "stale",
+          "revalidate",
+          "cache profile"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "cache components",
+          "partial prerendering",
+          "PPR",
+          "use cache"
+        ],
+        "intents": [
+          "enable partial prerendering in Next.js",
+          "cache async data with use cache directive",
+          "invalidate cache with cacheTag",
+          "migrate from unstable_cache"
+        ],
+        "entities": [
+          "use cache",
+          "cacheLife",
+          "cacheTag",
+          "updateTag",
+          "revalidateTag",
+          "PPR"
+        ],
+        "examples": []
+      }
+    },
     "v0-dev": {
       "priority": 5,
       "summary": "",
@@ -6552,283 +5866,6 @@
           "vercel env",
           "OIDC",
           "environment variable"
-        ],
-        "examples": []
-      }
-    },
-    "geistdocs": {
-      "priority": 5,
-      "summary": "",
-      "docs": [
-        "https://preview.geistdocs.com/docs",
-        "https://preview.geistdocs.com/docs/getting-started",
-        "https://preview.geistdocs.com/docs/configuration",
-        "https://preview.geistdocs.com/docs/syntax",
-        "https://github.com/vercel/geistdocs"
-      ],
-      "sitemap": "https://preview.geistdocs.com/sitemap.xml",
-      "pathPatterns": [
-        "geistdocs.tsx",
-        "content/docs/**/*.mdx",
-        "content/docs/**/*.md",
-        "apps/*/geistdocs.tsx",
-        "apps/*/content/docs/**/*.mdx",
-        "apps/*/content/docs/**/*.md"
-      ],
-      "bashPatterns": [
-        "\\bnpx\\s+@vercel/geistdocs\\s+init\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bfumadocs\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bfumadocs\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bfumadocs\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bfumadocs\\b",
-        "\\bpnpm\\s+translate\\b"
-      ],
-      "importPatterns": [
-        "@vercel/geistdocs",
-        "fumadocs-core",
-        "fumadocs-ui",
-        "fumadocs-mdx"
-      ],
-      "bodyPath": "skills/geistdocs/SKILL.md",
-      "pathRegexSources": [
-        "^geistdocs\\.tsx$",
-        "^content\\/docs\\/(?:[^/]+\\/)*[^/]*\\.mdx$",
-        "^content\\/docs\\/(?:[^/]+\\/)*[^/]*\\.md$",
-        "^apps\\/[^/]*\\/geistdocs\\.tsx$",
-        "^apps\\/[^/]*\\/content\\/docs\\/(?:[^/]+\\/)*[^/]*\\.mdx$",
-        "^apps\\/[^/]*\\/content\\/docs\\/(?:[^/]+\\/)*[^/]*\\.md$"
-      ],
-      "bashRegexSources": [
-        "\\bnpx\\s+@vercel/geistdocs\\s+init\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bfumadocs\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bfumadocs\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bfumadocs\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bfumadocs\\b",
-        "\\bpnpm\\s+translate\\b"
-      ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/geistdocs(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]fumadocs-core(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]fumadocs-ui(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]fumadocs-mdx(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "validate": [
-        {
-          "pattern": "from\\s+['\"]fumadocs",
-          "message": "Geistdocs wraps Fumadocs — prefer importing from geistdocs components rather than fumadocs directly unless extending internals",
-          "severity": "warn",
-          "skipIfFileContains": "fumadocs-core|fumadocs-ui/provider"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "from\\s+[''\"\"]nextra[''\"\"]|require\\s*\\(\\s*[''\"\"]nextra[''\"\"\\)]",
-          "targetSkill": "nextjs",
-          "message": "Nextra detected — Geistdocs replaces Nextra as the Vercel documentation template. Loading Next.js guidance for migration."
-        }
-      ],
-      "promptSignals": {
-        "phrases": [
-          "geistdocs",
-          "documentation site",
-          "documentation template",
-          "docs site",
-          "docs page",
-          "fumadocs",
-          "llms.txt"
-        ],
-        "allOf": [
-          [
-            "docs",
-            "mdx"
-          ],
-          [
-            "docs",
-            "template"
-          ],
-          [
-            "documentation",
-            "vercel"
-          ],
-          [
-            "docs",
-            "i18n"
-          ],
-          [
-            "docs",
-            "feedback"
-          ]
-        ],
-        "anyOf": [
-          "documentation",
-          "docs",
-          "mdx content",
-          "ask ai",
-          "rss feed",
-          "edit on github",
-          "internationalization"
-        ],
-        "noneOf": [
-          "api reference generator",
-          "storybook",
-          "docusaurus"
-        ],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "vercel docs template",
-          "documentation template",
-          "docs site",
-          "fumadocs"
-        ],
-        "intents": [
-          "create documentation site",
-          "set up docs",
-          "build docs page",
-          "configure geistdocs",
-          "add docs content"
-        ],
-        "entities": [
-          "Geistdocs",
-          "Fumadocs",
-          "MDX",
-          "GeistdocsProvider"
-        ],
-        "examples": []
-      }
-    },
-    "email": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://resend.com/docs",
-        "https://react.email/docs/introduction"
-      ],
-      "sitemap": "https://resend.com/sitemap.xml",
-      "pathPatterns": [
-        "emails/**",
-        "src/emails/**",
-        "components/emails/**",
-        "src/components/emails/**",
-        "app/api/send/**",
-        "src/app/api/send/**",
-        "app/api/email/**",
-        "src/app/api/email/**",
-        "app/api/emails/**",
-        "src/app/api/emails/**",
-        "lib/resend.*",
-        "src/lib/resend.*",
-        "lib/email.*",
-        "src/lib/email.*",
-        "lib/email*",
-        "src/lib/email*",
-        "**/email-template*"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bresend\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\byarn\\s+add\\s+[^\\n]*@react-email/",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\byarn\\s+add\\s+[^\\n]*react-email\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/email/SKILL.md",
-      "pathRegexSources": [
-        "^emails\\/.*$",
-        "^src\\/emails\\/.*$",
-        "^components\\/emails\\/.*$",
-        "^src\\/components\\/emails\\/.*$",
-        "^app\\/api\\/send\\/.*$",
-        "^src\\/app\\/api\\/send\\/.*$",
-        "^app\\/api\\/email\\/.*$",
-        "^src\\/app\\/api\\/email\\/.*$",
-        "^app\\/api\\/emails\\/.*$",
-        "^src\\/app\\/api\\/emails\\/.*$",
-        "^lib\\/resend\\.[^/]*$",
-        "^src\\/lib\\/resend\\.[^/]*$",
-        "^lib\\/email\\.[^/]*$",
-        "^src\\/lib\\/email\\.[^/]*$",
-        "^lib\\/email[^/]*$",
-        "^src\\/lib\\/email[^/]*$",
-        "^(?:[^/]+\\/)*email-template[^/]*$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bresend\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bresend\\b",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@react-email/",
-        "\\byarn\\s+add\\s+[^\\n]*@react-email/",
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*react-email\\b",
-        "\\byarn\\s+add\\s+[^\\n]*react-email\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "from\\s+[''\\\"](nodemailer)[''\"]|require\\s*\\(\\s*[''\\\"](nodemailer)[''\"]|from\\s+[''\"\"]@sendgrid/mail[''\"\"]|from\\s+[''\"\"]mailgun[-.\"]|from\\s+[''\"\"]postmark[''\"\"]|createTransport\\s*\\(",
-          "targetSkill": "email",
-          "message": "Legacy email library detected (nodemailer/SendGrid/Mailgun/Postmark) — use Resend with React Email for native Vercel Marketplace integration, unified billing, and JSX email templates."
-        },
-        {
-          "pattern": "setTimeout\\s*\\(|setInterval\\s*\\(|cron\\.schedule",
-          "targetSkill": "workflow",
-          "message": "Delayed or scheduled email logic detected — loading Workflow DevKit for durable execution with pause, resume, and retries."
-        },
-        {
-          "pattern": "(retries|retryCount|attempts|maxRetries)\\s*[=:<]|catch\\s*\\([^)]*\\)\\s*\\{[^}]*(retry|resend)",
-          "targetSkill": "workflow",
-          "message": "Manual retry logic in email handler — loading Workflow DevKit for durable retries with backoff.",
-          "skipIfFileContains": "createWorkflow|use workflow|use step"
-        },
-        {
-          "pattern": "for\\s*\\([^)]*emails|\\.map\\s*\\([^)]*send|Promise\\.all\\s*\\([^)]*send|batch.*emails?|campaign",
-          "targetSkill": "workflow",
-          "message": "Batch or campaign email orchestration detected — loading Workflow DevKit for durable step-based orchestration with pause/resume.",
-          "skipIfFileContains": "createWorkflow|use workflow|use step"
-        }
-      ],
-      "retrieval": {
-        "aliases": [
-          "send email",
-          "transactional email",
-          "resend",
-          "react email"
-        ],
-        "intents": [
-          "send email",
-          "set up email",
-          "create email template",
-          "verify domain for email"
-        ],
-        "entities": [
-          "Resend",
-          "React Email",
-          "transactional",
-          "domain verification"
         ],
         "examples": []
       }
@@ -7203,16 +6240,6 @@
           "targetSkill": "auth",
           "message": "Clerk auth patterns in next-forge — loading Auth guidance for middleware auth, sign-in/sign-up flows, and organization handling.",
           "skipIfFileContains": "@auth0/|@descope/"
-        },
-        {
-          "pattern": "from\\s+['\"](stripe|@stripe/stripe-js)['\"]|Stripe\\(|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET",
-          "targetSkill": "payments",
-          "message": "Stripe integration in next-forge — loading Payments guidance for checkout sessions, webhooks, and subscription billing."
-        },
-        {
-          "pattern": "from\\s+['\"](resend|@react-email)['\"]|Resend\\(|RESEND_API_KEY",
-          "targetSkill": "email",
-          "message": "Resend/React Email in next-forge — loading Email guidance for transactional emails, domain verification, and template patterns."
         }
       ],
       "promptSignals": {
@@ -7263,77 +6290,6 @@
           "Turborepo",
           "monorepo",
           "SaaS starter"
-        ],
-        "examples": []
-      }
-    },
-    "vercel-firewall": {
-      "priority": 5,
-      "summary": "",
-      "docs": [
-        "https://vercel.com/docs/security/vercel-firewall"
-      ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "pathPatterns": [
-        ".vercel/firewall/**"
-      ],
-      "bashPatterns": [
-        "\\bvercel\\s+firewall\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/vercel-firewall/SKILL.md",
-      "pathRegexSources": [
-        "^\\.vercel\\/firewall\\/.*$"
-      ],
-      "bashRegexSources": [
-        "\\bvercel\\s+firewall\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "from\\s+[''\"\"]express-rate-limit[''\"\"]|from\\s+[''\"\"]rate-limiter-flexible[''\"\"]",
-          "targetSkill": "routing-middleware",
-          "message": "Application-level rate limiting detected — Vercel Firewall provides platform-level rate limiting without code. Loading Routing Middleware for request interception patterns."
-        },
-        {
-          "pattern": "req\\.ip|request\\.headers\\.get\\([''\"]x-forwarded-for[''\"]\\).*block|ipBlock|denyList",
-          "targetSkill": "routing-middleware",
-          "message": "Manual IP blocking in application code detected — Vercel Firewall handles IP blocking at the edge. Loading Routing Middleware guidance for proper request interception."
-        }
-      ],
-      "promptSignals": {
-        "phrases": [
-          "rate limit",
-          "rate limiting",
-          "firewall",
-          "WAF",
-          "DDoS protection"
-        ],
-        "allOf": [],
-        "anyOf": [],
-        "noneOf": [],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "waf",
-          "ddos protection",
-          "security rules",
-          "rate limiting"
-        ],
-        "intents": [
-          "configure firewall",
-          "add rate limiting",
-          "block ips",
-          "set up waf rules"
-        ],
-        "entities": [
-          "WAF",
-          "DDoS",
-          "rate limiting",
-          "IP block",
-          "OWASP",
-          "Attack Challenge Mode"
         ],
         "examples": []
       }
@@ -7530,138 +6486,6 @@
           "Cron Jobs"
         ],
         "examples": []
-      }
-    },
-    "swr": {
-      "priority": 4,
-      "summary": "",
-      "docs": [
-        "https://swr.vercel.app/docs"
-      ],
-      "sitemap": "https://swr.vercel.app/sitemap.xml",
-      "pathPatterns": [
-        "lib/fetcher.*",
-        "src/lib/fetcher.*",
-        "utils/fetcher.*",
-        "src/utils/fetcher.*",
-        "hooks/use*SWR*",
-        "src/hooks/use*SWR*",
-        "hooks/useFetch*",
-        "src/hooks/useFetch*"
-      ],
-      "bashPatterns": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bswr\\b"
-      ],
-      "importPatterns": [
-        "swr",
-        "swr/*"
-      ],
-      "bodyPath": "skills/swr/SKILL.md",
-      "pathRegexSources": [
-        "^lib\\/fetcher\\.[^/]*$",
-        "^src\\/lib\\/fetcher\\.[^/]*$",
-        "^utils\\/fetcher\\.[^/]*$",
-        "^src\\/utils\\/fetcher\\.[^/]*$",
-        "^hooks\\/use[^/]*SWR[^/]*$",
-        "^src\\/hooks\\/use[^/]*SWR[^/]*$",
-        "^hooks\\/useFetch[^/]*$",
-        "^src\\/hooks\\/useFetch[^/]*$"
-      ],
-      "bashRegexSources": [
-        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
-        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
-        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bswr\\b",
-        "\\byarn\\s+add\\s+[^\\n]*\\bswr\\b"
-      ],
-      "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]swr(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]swr\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "from\\s+[''\\\"](openai|@anthropic-ai/sdk|anthropic)[''\"]|new\\s+(OpenAI|Anthropic)\\(",
-          "targetSkill": "ai-sdk",
-          "message": "Direct AI provider SDK detected alongside SWR — loading AI SDK guidance for unified streaming and provider-agnostic patterns."
-        },
-        {
-          "pattern": "from\\s+[''\"\"]@vercel/(postgres|kv)[''\"\"]",
-          "targetSkill": "vercel-storage",
-          "message": "@vercel/postgres and @vercel/kv are sunset — loading Vercel Storage guidance for Neon and Upstash migration."
-        },
-        {
-          "pattern": "useEffect\\s*\\([^)]*\\)\\s*\\{[^}]*fetch\\s*\\(|useEffect\\s*\\(\\s*\\(\\)\\s*=>\\s*\\{[^}]*fetch\\s*\\(",
-          "targetSkill": "swr",
-          "message": "Manual useEffect+fetch pattern detected — SWR provides automatic caching, deduplication, revalidation, and error retry. Replace with useSWR for cleaner data fetching."
-        },
-        {
-          "pattern": "from\\s+[''\\\"](axios)[''\"]|require\\s*\\(\\s*[''\\\"](axios)[''\"]",
-          "targetSkill": "swr",
-          "message": "Axios detected in React component — SWR with a native fetch wrapper provides caching, deduplication, and revalidation that axios alone cannot. Use useSWR with a fetcher function instead."
-        }
-      ],
-      "promptSignals": {
-        "phrases": [
-          "swr",
-          "useswr",
-          "stale-while-revalidate"
-        ],
-        "allOf": [
-          [
-            "data fetching",
-            "client"
-          ],
-          [
-            "cache",
-            "revalidat"
-          ]
-        ],
-        "anyOf": [
-          "mutation",
-          "optimistic",
-          "infinite loading",
-          "pagination"
-        ],
-        "noneOf": [],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "data fetching",
-          "client cache",
-          "stale while revalidate",
-          "react hooks data"
-        ],
-        "intents": [
-          "refresh stale client cache after a mutation",
-          "fetch and cache API data on the client side",
-          "add infinite scroll or paginated data loading",
-          "keep UI in sync with server data automatically",
-          "revalidate cached data after updating a record"
-        ],
-        "entities": [
-          "useSWR",
-          "useSWRMutation",
-          "useSWRInfinite",
-          "mutate",
-          "SWRConfig",
-          "fetcher"
-        ],
-        "examples": [
-          "refresh stale client cache after mutation",
-          "load more items on scroll",
-          "revalidate data when the window regains focus",
-          "fetch data client side with caching",
-          "add infinite scrolling to load more items"
-        ]
       }
     }
   }

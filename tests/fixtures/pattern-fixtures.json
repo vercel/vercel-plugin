@@ -8,10 +8,10 @@
       "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "cron-jobs", "vercel-functions"]
     },
     {
-      "description": "next.config.ts triggers nextjs and turbopack",
+      "description": "next.config.ts triggers nextjs, turbopack, next-cache-components, and next-upgrade",
       "type": "path",
       "input": "next.config.ts",
-      "expectedSkills": ["nextjs", "turbopack"]
+      "expectedSkills": ["nextjs", "turbopack", "next-cache-components", "next-upgrade"]
     },
     {
       "description": "middleware.ts triggers routing-middleware, auth, and investigation-mode",
@@ -26,10 +26,10 @@
       "expectedSkills": ["env-vars"]
     },
     {
-      "description": "app/api/chat/route.ts triggers ai-sdk, nextjs, and vercel-functions",
+      "description": "app/api/chat/route.ts triggers ai-sdk, nextjs, vercel-functions, chat-sdk, and next-cache-components",
       "type": "path",
       "input": "app/api/chat/route.ts",
-      "expectedSkills": ["ai-sdk", "nextjs", "vercel-functions", "chat-sdk"]
+      "expectedSkills": ["ai-sdk", "nextjs", "vercel-functions", "chat-sdk", "next-cache-components"]
     },
     {
       "description": "turbo.json triggers turborepo",
@@ -80,10 +80,10 @@
       "expectedSkills": ["shadcn"]
     },
     {
-      "description": "next dev --turbo triggers turbopack, nextjs, and agent-browser",
+      "description": "next dev --turbo triggers turbopack, nextjs, agent-browser, and next-cache-components",
       "type": "bash",
       "input": "next dev --turbo",
-      "expectedSkills": ["turbopack", "nextjs", "agent-browser", "agent-browser-verify", "verification"]
+      "expectedSkills": ["turbopack", "nextjs", "agent-browser", "agent-browser-verify", "verification", "next-cache-components"]
     },
     {
       "description": "vercel env pull triggers env-vars, ai-gateway, and vercel-cli",
@@ -92,22 +92,10 @@
       "expectedSkills": ["env-vars", "ai-gateway", "vercel-cli"]
     },
     {
-      "description": "npm install stripe triggers payments",
-      "type": "bash",
-      "input": "npm install stripe",
-      "expectedSkills": ["payments"]
-    },
-    {
       "description": "turbo run build triggers turborepo",
       "type": "bash",
       "input": "turbo run build",
       "expectedSkills": ["turborepo"]
-    },
-    {
-      "description": "vercel firewall triggers vercel-firewall and vercel-cli",
-      "type": "bash",
-      "input": "vercel firewall list",
-      "expectedSkills": ["vercel-firewall", "vercel-cli"]
     },
     {
       "description": "src/components/Button.tsx triggers react-best-practices",
@@ -122,10 +110,10 @@
       "expectedSkills": ["react-best-practices"]
     },
     {
-      "description": "app/components/Modal.tsx triggers react-best-practices and nextjs",
+      "description": "app/components/Modal.tsx triggers react-best-practices, nextjs, and next-cache-components",
       "type": "path",
       "input": "app/components/Modal.tsx",
-      "expectedSkills": ["react-best-practices", "nextjs"]
+      "expectedSkills": ["react-best-practices", "nextjs", "next-cache-components"]
     },
     {
       "description": "npm run dev triggers nextjs, agent-browser, agent-browser-verify, verification",
@@ -176,16 +164,16 @@
       "expectedSkills": ["auth"]
     },
     {
-      "description": "yarn add stripe @clerk/nextjs triggers payments and auth",
+      "description": "yarn add @clerk/nextjs triggers auth",
       "type": "bash",
-      "input": "yarn add stripe @clerk/nextjs",
-      "expectedSkills": ["payments", "auth"]
+      "input": "yarn add @clerk/nextjs",
+      "expectedSkills": ["auth"]
     },
     {
-      "description": "pnpm add prisma stripe langchain currently triggers payments only",
+      "description": "pnpm add prisma langchain currently triggers no direct skill matches",
       "type": "bash",
-      "input": "pnpm add prisma stripe langchain",
-      "expectedSkills": ["payments"]
+      "input": "pnpm add prisma langchain",
+      "expectedSkills": []
     }
   ]
 }

@@ -37,10 +37,6 @@ chainTo:
     pattern: 'CLERK_|@clerk/|clerkMiddleware'
     targetSkill: auth
     message: 'Clerk integration detected — loading Auth guidance for middleware setup, route protection, and organization flows.'
-  -
-    pattern: 'SANITY_|CONTENTFUL_|STORYBLOK_|DATOCMS_|sanity|contentful|storyblok'
-    targetSkill: cms
-    message: 'CMS integration detected — loading CMS guidance for content modeling, preview mode, and revalidation webhooks.'
 
 ---
 
@@ -484,8 +480,6 @@ curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
 - **Drains REST API endpoints** → `⤳ skill: vercel-api`
 - **CLI log streaming (`--follow`, `--since`, `--level`)** → `⤳ skill: vercel-cli`
 - **Safe project setup sequencing (link, env pull, then run db/dev)** → `⤳ skill:bootstrap`
-- **Headless CMS integrations (Sanity, Contentful)** → `⤳ skill:cms`
-
 ## Official Documentation
 
 - [Vercel Marketplace](https://vercel.com/marketplace)

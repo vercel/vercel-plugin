@@ -32,13 +32,6 @@ metadata:
     - '\bnpx\s+@vercel/config\b'
 validate:
   -
-    pattern: 'const\s+(blockedIps|denylist|allowlist)\s*=\s*\[|from\s+[''"](rate-limiter-flexible)[''"]|rateLimit'
-    message: 'App-layer rate limiting or IP blocking in middleware. Use Vercel Firewall/WAF for platform-level protection.'
-    severity: recommended
-    upgradeToSkill: vercel-firewall
-    upgradeWhy: 'Move IP blocking and rate limiting from middleware code to Vercel Firewall/WAF for better performance and maintainability.'
-    skipIfFileContains: '@vercel/firewall|vercel\.json.*firewall'
-  -
     pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
     message: 'Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. Run Skill(nextjs) for proxy.ts migration guidance.'
     severity: recommended
@@ -63,10 +56,6 @@ retrieval:
     - personalization
     - Edge
 chainTo:
-  -
-    pattern: 'const\s+(blockedIps|denylist|allowlist)\s*=\s*\[|from\s+[''\"](rate-limiter-flexible)[''"]|rateLimit'
-    targetSkill: vercel-firewall
-    message: 'App-layer rate limiting or IP blocking in middleware — loading Vercel Firewall guidance for platform-level protection.'
   -
     pattern: 'from\s+[''""]next-auth[''""]'
     targetSkill: auth

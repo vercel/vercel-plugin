@@ -139,292 +139,147 @@ chainTo:
     targetSkill: auth
     message: 'Clerk auth patterns in next-forge — loading Auth guidance for middleware auth, sign-in/sign-up flows, and organization handling.'
     skipIfFileContains: '@auth0/|@descope/'
-  -
-    pattern: from\s+['"](stripe|@stripe/stripe-js)['"]|Stripe\(|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET
-    targetSkill: payments
-    message: 'Stripe integration in next-forge — loading Payments guidance for checkout sessions, webhooks, and subscription billing.'
-  -
-    pattern: from\s+['"](resend|@react-email)['"]|Resend\(|RESEND_API_KEY
-    targetSkill: email
-    message: 'Resend/React Email in next-forge — loading Email guidance for transactional emails, domain verification, and template patterns.'
 
 ---
 
 # next-forge
 
-You are an expert in next-forge v5 — a production-grade Turborepo monorepo starter for SaaS applications, created by Vercel. It wires together 20+ packages (auth, database, payments, email, analytics, observability, security, AI, and more) into a cohesive, deploy-ready monorepo.
+next-forge is a production-grade Turborepo template for building Next.js SaaS applications. It provides a monorepo structure with multiple apps, shared packages, and integrations for authentication, database, payments, email, CMS, analytics, observability, security, and more.
 
-## Monorepo Structure
+## Quick Start
 
-```
-├── apps/
-│   ├── app/          # Main SaaS app (port 3000) — Clerk auth, route groups
-│   ├── web/          # Marketing site (port 3001) — blog, pricing, i18n
-│   ├── api/          # API server (port 3002) — webhooks, cron jobs
-│   ├── email/        # React Email preview (port 3003)
-│   ├── docs/         # Mintlify docs
-│   ├── studio/       # Prisma Studio
-│   └── storybook/    # Component dev (port 6006)
-├── packages/
-│   ├── ai/               # @repo/ai — AI SDK + OpenAI
-│   ├── analytics/        # @repo/analytics — PostHog + GA + Vercel Analytics
-│   ├── auth/             # @repo/auth — Clerk
-│   ├── cms/              # @repo/cms — BaseHub
-│   ├── collaboration/    # @repo/collaboration — Liveblocks
-│   ├── database/         # @repo/database — Prisma + Neon
-│   ├── design-system/    # @repo/design-system — shadcn/ui + Geist
-│   ├── email/            # @repo/email — Resend + React Email
-│   ├── feature-flags/    # @repo/feature-flags — Vercel Flags SDK
-│   ├── internationalization/ # @repo/internationalization — next-international
-│   ├── next-config/      # @repo/next-config — shared Next.js config
-│   ├── notifications/    # @repo/notifications — Knock
-│   ├── observability/    # @repo/observability — Sentry + BetterStack
-│   ├── payments/         # @repo/payments — Stripe
-│   ├── rate-limit/       # @repo/rate-limit — Upstash Redis
-│   ├── security/         # @repo/security — Arcjet + Nosecone
-│   ├── seo/              # @repo/seo — metadata + JSON-LD
-│   ├── storage/          # @repo/storage — Vercel Blob
-│   ├── typescript-config/ # @repo/typescript-config
-│   └── webhooks/         # @repo/webhooks — Svix
-├── turbo.json
-├── pnpm-workspace.yaml
-└── biome.jsonc           # Biome via ultracite
-```
-
-**Key principle**: Packages are self-contained — they do not depend on each other. Apps compose packages.
-
-## Getting Started
+Initialize a new project:
 
 ```bash
-npx next-forge@latest init     # Scaffold project (interactive)
-# Post-install:
-pnpm migrate                   # prisma format + generate + db push
-pnpm dev                       # Start all apps via turbo
+npx next-forge@latest init
 ```
 
-**Minimum env vars to run locally**: `DATABASE_URL` + Clerk keys + app URLs. Everything else is optional.
+The CLI prompts for a project name and package manager (bun, npm, yarn, or pnpm). After installation:
 
-## Workspace Imports (@repo/*)
+1. Set the `DATABASE_URL` in `packages/database/.env` pointing to a PostgreSQL database (Neon recommended).
+2. Run database migrations: `bun run migrate`
+3. Add any optional integration keys to the appropriate `.env.local` files.
+4. Start development: `bun run dev`
 
-All packages use `@repo/*` workspace protocol with specific subpath exports:
+All integrations besides the database are optional. Missing environment variables gracefully disable features rather than causing errors.
 
-```ts
-// Auth
-import { auth } from "@repo/auth/server";
-import { ClerkProvider } from "@repo/auth/provider";
-import { currentUser } from "@repo/auth/server";
+## Architecture Overview
 
-// Database
-import { database } from "@repo/database";
+The monorepo contains apps and packages. Apps are deployable applications. Packages are shared libraries imported as `@repo/<package-name>`.
 
-// Design System
-import { Button } from "@repo/design-system/components/ui/button";
-import { DesignSystemProvider } from "@repo/design-system";
-import { fonts } from "@repo/design-system/lib/fonts";
+**Apps** (in `/apps/`):
 
-// Payments
-import { stripe } from "@repo/payments";
+| App | Port | Purpose |
+|-----|------|---------|
+| `app` | 3000 | Main authenticated SaaS application |
+| `web` | 3001 | Marketing website with CMS and SEO |
+| `api` | 3002 | Serverless API for webhooks, cron jobs |
+| `email` | 3003 | React Email preview server |
+| `docs` | 3004 | Documentation site (Mintlify) |
+| `storybook` | 6006 | Design system component workshop |
+| `studio` | 3005 | Prisma Studio for database editing |
 
-// Email
-import { resend } from "@repo/email";
+**Core Packages**: `auth`, `database`, `payments`, `email`, `cms`, `design-system`, `analytics`, `observability`, `security`, `storage`, `seo`, `feature-flags`, `internationalization`, `webhooks`, `cron`, `notifications`, `collaboration`, `ai`, `rate-limit`, `next-config`, `typescript-config`.
 
-// Observability
-import { log } from "@repo/observability/log";
-import { captureException } from "@repo/observability/error";
+For detailed structure, see `references/architecture.md`.
 
-// Analytics
-import { AnalyticsProvider } from "@repo/analytics/provider";
+## Key Concepts
 
-// Security
-import { secure } from "@repo/security";
+### Environment Variables
 
-// Feature Flags
-import { createFlag } from "@repo/feature-flags";
+Environment variable files live alongside apps and packages:
 
-// SEO
-import { createMetadata } from "@repo/seo/metadata";
-import { JsonLd } from "@repo/seo/json-ld";
+- `apps/app/.env.local` — Main app keys (Clerk, Stripe, etc.)
+- `apps/web/.env.local` — Marketing site keys
+- `apps/api/.env.local` — API keys
+- `packages/database/.env` — `DATABASE_URL` (required)
+- `packages/cms/.env.local` — BaseHub token
+- `packages/internationalization/.env.local` — Languine project ID
 
-// Storage
-import { put } from "@repo/storage";
+Each package has a `keys.ts` file that validates environment variables with Zod via `@t3-oss/env-nextjs`. Type safety is enforced at build time.
 
-// AI
-import { models } from "@repo/ai/lib/models";
+### Inter-App URLs
+
+Local URLs are pre-configured:
+
+- `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+- `NEXT_PUBLIC_WEB_URL=http://localhost:3001`
+- `NEXT_PUBLIC_API_URL=http://localhost:3002`
+- `NEXT_PUBLIC_DOCS_URL=http://localhost:3004`
+
+Update these to production domains when deploying (e.g., `app.yourdomain.com`, `www.yourdomain.com`).
+
+### Server Components First
+
+`page.tsx` and `layout.tsx` files are always server components. Client interactivity goes in separate files with `'use client'`. Access databases, secrets, and server-only APIs directly in server components and server actions.
+
+### Graceful Degradation
+
+All integrations beyond the database are optional. Clients use optional chaining (e.g., `stripe?.prices.list()`, `resend?.emails.send()`). If the corresponding environment variable is not set, the feature is silently disabled.
+
+## Common Tasks
+
+### Running Development
+
+```bash
+bun run dev                  # All apps
+bun dev --filter app         # Single app (port 3000)
+bun dev --filter web         # Marketing site (port 3001)
 ```
 
-## Environment Variables
+### Database Migrations
 
-### Type-safe env validation
+After changing `packages/database/prisma/schema.prisma`:
 
-Every package has a `keys.ts` using `@t3-oss/env-nextjs` + Zod. Apps compose them in `env.ts`:
-
-```ts
-// apps/app/env.ts
-import { createEnv } from "@t3-oss/env-nextjs";
-import { auth } from "@repo/auth/keys";
-import { database } from "@repo/database/keys";
-import { payments } from "@repo/payments/keys";
-export const env = createEnv({ extends: [auth(), database(), payments()] });
+```bash
+bun run migrate
 ```
 
-### Env file locations
+This runs Prisma format, generate, and db push in sequence.
 
-| File | Purpose |
-|------|---------|
-| `apps/app/.env.local` | Main app env vars |
-| `apps/web/.env.local` | Marketing site |
-| `apps/api/.env.local` | API server |
-| `packages/database/.env` | `DATABASE_URL` |
+### Adding shadcn/ui Components
 
-### Required env vars (minimum)
-
-| Var | Package | Required for |
-|-----|---------|-------------|
-| `DATABASE_URL` | database | Any database access |
-| `CLERK_SECRET_KEY` | auth | Authentication |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | auth | Client-side auth |
-| `NEXT_PUBLIC_APP_URL` | — | Cross-app linking |
-| `NEXT_PUBLIC_WEB_URL` | — | Cross-app linking |
-| `NEXT_PUBLIC_API_URL` | — | Cross-app linking |
-
-### Optional service env vars
-
-| Service | Vars |
-|---------|------|
-| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
-| Resend | `RESEND_TOKEN`, `RESEND_FROM` |
-| PostHog | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` |
-| Sentry | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT` |
-| BetterStack | `BETTERSTACK_API_KEY`, `BETTERSTACK_URL` |
-| BaseHub | `BASEHUB_TOKEN` |
-| Arcjet | `ARCJET_KEY` |
-| Liveblocks | `LIVEBLOCKS_SECRET` |
-| Knock | `KNOCK_SECRET_API_KEY`, `NEXT_PUBLIC_KNOCK_API_KEY` |
-| Upstash | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
-| Vercel Blob | `BLOB_READ_WRITE_TOKEN` |
-| Svix | `SVIX_TOKEN` |
-| OpenAI | `OPENAI_API_KEY` |
-| Feature Flags | `FLAGS_SECRET` |
-
-## Middleware / Proxy Pattern
-
-next-forge uses `proxy.ts` (Next.js 16+), NOT `middleware.ts`:
-
-```ts
-// apps/app/proxy.ts — Clerk auth + Nosecone security
-import { clerkMiddleware } from "@clerk/nextjs/server";
-import { createMiddleware as createNosecone } from "@nosecone/next";
-export default clerkMiddleware(createNosecone());
+```bash
+npx shadcn@latest add [component] -c packages/design-system
 ```
 
-```ts
-// apps/web/proxy.ts — Clerk + i18n + Arcjet + Nosecone, composed with nemo
-import { compose } from "@rescale/nemo";
-export default compose([clerkMiddleware, i18nMiddleware, arcjetMiddleware, noseconeMiddleware]);
+Update existing components:
+
+```bash
+bun run bump-ui
 ```
 
-## Database (Prisma + Neon)
+### Adding a New Package
 
-- Schema: `packages/database/prisma/schema.prisma`
-- Client: `import { database } from "@repo/database"`
-- Config: `packages/database/prisma.config.ts` (Neon adapter)
-- Commands: `pnpm migrate` (format + generate + db push)
-- Studio: `apps/studio` (Prisma Studio)
+Create a new directory in `/packages/` with a `package.json` using the `@repo/<name>` naming convention. Add it as a dependency in consuming apps.
 
-## Key Commands
+### Linting and Formatting
 
-| Command | Purpose |
-|---------|---------|
-| `pnpm dev` | Start all apps |
-| `pnpm dev --filter app` | Start single app |
-| `pnpm build` | Build all |
-| `pnpm migrate` | Prisma format + generate + db push |
-| `pnpm bump-deps` | Update all dependencies |
-| `pnpm bump-ui` | Update shadcn/ui components |
-| `pnpm run boundaries` | Check Turborepo boundaries |
-| `npx next-forge@latest update` | Update next-forge (diff-based) |
-| `npx shadcn@latest add <comp> -c packages/design-system` | Add UI component |
-| `stripe listen --forward-to localhost:3002/webhooks/payments` | Local Stripe webhooks |
-
-## Deployment to Vercel
-
-Deploy as **3 separate Vercel projects** (app, api, web), each with Root Directory set to `apps/<name>`:
-
-1. Create project → set Root Directory to `apps/app`
-2. Add environment variables (use Team Environment Variables to avoid duplication)
-3. Repeat for `apps/api` and `apps/web`
-
-Recommended subdomains: `app.yourdomain.com`, `api.yourdomain.com`, `www.yourdomain.com`
-
-## API App Patterns
-
-```
-apps/api/
-├── app/
-│   ├── cron/           # Cron jobs (GET handlers)
-│   │   └── keep-alive/route.ts
-│   ├── webhooks/       # Inbound webhooks
-│   │   ├── auth/route.ts      # Clerk webhooks
-│   │   └── payments/route.ts  # Stripe webhooks
-│   └── health/route.ts
-└── vercel.json         # Cron schedules
+```bash
+bun run lint                 # Check code style (Ultracite/Biome)
+bun run format               # Fix code style
 ```
 
-## Design System
+### Testing
 
-- shadcn/ui (New York style, neutral palette)
-- Geist Sans + Geist Mono fonts
-- Tailwind CSS v4 + tw-animate-css
-- Components at `packages/design-system/components/ui/`
-- Add components: `npx shadcn@latest add <name> -c packages/design-system`
+```bash
+bun run test                 # Run tests across monorepo
+```
 
-## Common Gotchas
+### Building
 
-1. **Env vars are validated at build time** — optional services still require env vars if the package is imported. Remove the import or provide a value.
-2. **Multiple .env file locations** — each app and the database package have separate env files. There is no single root `.env`.
-3. **`pnpm migrate` before first run** — without this, you get "table does not exist" errors.
-4. **Clerk webhooks cannot be tested locally** — need a staging deployment.
-5. **Heavy middleware imports** → edge function >1MB on Vercel. Keep proxy.ts imports light.
-6. **Prisma v7**: use `--config` not `--schema` for `prisma studio`.
-7. **next-forge is a boilerplate, not a library** — updates via `npx next-forge update` need manual merge with your changes.
-8. **`turbo.json` globalEnv** — when adding new env vars used at build time, declare them in `turbo.json` `globalEnv` or they won't invalidate cache.
+```bash
+bun run build                # Build all apps and packages
+bun run analyze              # Bundle analysis
+```
 
-## Removing Optional Services
+### Deployment
 
-To remove an unused service (e.g., Stripe, BaseHub, Liveblocks):
-1. Delete the package directory (`packages/<service>/`)
-2. Remove all `@repo/<service>` imports from apps
-3. Remove the `keys()` call from each app's `env.ts`
-4. Remove the workspace entry from `pnpm-workspace.yaml` if needed
-5. Run `pnpm install` to clean lockfile
+Deploy to Vercel by creating separate projects for `app`, `web`, and `api` — each pointing to its respective root directory under `/apps/`. Add environment variables per project or use Vercel Team Environment Variables.
 
-## Migration Alternatives
+For detailed setup and customization instructions, see:
 
-| Category | Default | Alternatives |
-|----------|---------|-------------|
-| Auth | Clerk | Auth.js, Better Auth, Supabase Auth |
-| Database | Prisma + Neon | Drizzle, Supabase, PlanetScale, Turso |
-| Payments | Stripe | Lemon Squeezy, Paddle |
-| CMS | BaseHub | Content Collections |
-| Docs | Mintlify | Fumadocs |
-| Feature Flags | Vercel Flags | Hypertune |
-| Storage | Vercel Blob | UploadThing |
-| Formatting | Biome | ESLint |
-
-## Cross-references
-
-=> skill: turborepo — Monorepo configuration, caching, remote cache
-=> skill: auth — Clerk setup, middleware patterns, sign-in/up flows
-=> skill: payments — Stripe integration, webhooks, pricing
-=> skill: email — Resend + React Email templates
-=> skill: shadcn — shadcn/ui components, theming, CLI
-=> skill: observability — Sentry + logging setup
-=> skill: vercel-storage — Blob, Neon, Upstash
-=> skill: vercel-flags — Feature flags with Vercel Flags SDK
-=> skill: ai-sdk — AI SDK integration
-=> skill: bootstrap — Project bootstrapping flow
-
-## Official Documentation
-
-- https://docs.next-forge.com
-- https://github.com/vercel/next-forge
+- `references/setup.md` — Installation, prerequisites, environment variables, database and Stripe CLI setup
+- `references/packages.md` — Detailed documentation for every package
+- `references/customization.md` — Swapping providers, extending features, deployment configuration
+- `references/architecture.md` — Full monorepo structure, Turborepo pipeline, scripts

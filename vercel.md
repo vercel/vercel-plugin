@@ -122,7 +122,7 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 │   ⊃ Server Actions / Server Functions ('use server')
 │   ⊃ Route Handlers (API endpoints)
 │   ⊃ Middleware → renamed to Proxy in v16
-│   ⊃ Cache Components ('use cache')
+│   ⊃ Cache Components ('use cache')              ⤳ skill: next-cache-components
 │   ⊃ Layouts, Loading, Error boundaries
 │   ⊃ Parallel & Intercepting Routes
 │   ⊃ Dynamic Segments ([id], [...slug], [[...slug]])
@@ -134,6 +134,8 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 │   ⊃ PPR (Partial Prerendering) → evolving to Cache Components
 │   ⊃ Streaming (React Suspense boundaries)
 │
+├── Upgrading                                    ⤳ skill: next-upgrade
+│
 ├── Build System
 │   → Turbopack (default bundler in v16)
 │   → Webpack (legacy, still supported)
@@ -142,7 +144,7 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 │   ↔ Vercel AI SDK (chat UIs, streaming, tool calling)
 │   ↔ Vercel Analytics / Speed Insights           ⤳ skill: observability
 │   ↔ Vercel Image Optimization (next/image)      ⤳ skill: nextjs
-│   ↔ Satori / @vercel/og (dynamic OG images)     ⤳ skill: satori
+│   ↔ Satori / @vercel/og (dynamic OG images)     ⤳ skill: nextjs
 │   ↔ Vercel Font Optimization (next/font)
 │   ↔ Vercel Functions (automatic from route handlers / server actions)
 │
@@ -249,7 +251,7 @@ AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
     ↔ Next.js (chat apps, AI features in web apps)
     ↔ Workflow DevKit (durable agents)
     ↔ AI Gateway (model routing, cost tracking)
-    ↔ Generation Persistence (IDs, URLs, cost tracking) ⤳ skill: ai-generation-persistence
+    ↔ Generation Persistence (IDs, URLs, cost tracking) ⤳ skill: ai-sdk
     ↔ v0 (AI-generated UI components)
     ↔ AI Elements (production chat UI components)      ⤳ skill: ai-elements
     ↔ shadcn/ui (component foundation)                 ⤳ skill: shadcn
@@ -474,61 +476,6 @@ REACT BEST PRACTICES                       ⤳ skill: react-best-practices
 │
 └── Use When: After editing multiple TSX components, before shipping
 
-SWR (v2, React Hooks)                      ⤳ skill: swr  📖 docs: https://swr.vercel.app
-├── Purpose: Client-side data fetching with stale-while-revalidate caching
-│   ⊃ useSWR (data fetching with auto-revalidation)
-│   ⊃ useSWRMutation (remote mutations, optimistic UI)
-│   ⊃ useSWRInfinite (pagination & infinite loading)
-│   ⊃ SWRConfig (global configuration provider)
-│
-├── Key Features
-│   ⊃ Request deduplication
-│   ⊃ Revalidation on focus, reconnect, interval
-│   ⊃ Built-in cache with shared keys
-│   ⊃ Middleware support
-│
-└── Integrations
-    ↔ Next.js (App Router & Pages Router)
-    ↔ React (any React framework)
-
-NCC (Node.js Compiler Collection)          ⤳ skill: ncc  📖 docs: https://github.com/vercel/ncc
-├── Purpose: Compile Node.js modules into a single file with all dependencies
-│   ⊃ Serverless function bundling
-│   ⊃ CLI tool distribution
-│   ⊃ GitHub Actions bundling
-│   ⊃ TypeScript compilation (uses project tsconfig.json)
-│   ⊃ External module exclusion
-│
-└── Use When: Single-file deployment, reducing node_modules, bundling serverless functions
-
-MICRO (HTTP Microservices)                 ⤳ skill: micro  📖 docs: https://github.com/vercel/micro
-├── Purpose: Lightweight async HTTP microservices framework
-│   ⊃ Single-endpoint HTTP servers
-│   ⊃ JSON/text/buffer body parsing
-│   ⊃ Composable handler middleware
-│   ⊃ micro-dev for hot-reloading development
-│
-└── Use When: Minimal HTTP services, single-purpose API endpoints
-
-GEIST (Font Family)                        ⤳ skill: geist  📖 docs: https://github.com/vercel/geist-font
-├── Purpose: Vercel's open-source font family for Next.js
-│   ⊃ Geist Sans (modern sans-serif for UI)
-│   ⊃ Geist Mono (monospace for code)
-│   ⊃ next/font integration (zero layout shift)
-│   ⊃ CSS variables (--font-geist-sans, --font-geist-mono)
-│   ⊃ Variable font (all weights 100–900)
-│
-└── Use When: Typography setup in Next.js, Vercel design system styling
-
-GEISTDOCS (Documentation Template)         ⤳ skill: geistdocs  📖 docs: https://preview.geistdocs.com/docs
-├── Purpose: Production-ready documentation template for Vercel microsites
-│   ⊃ Next.js 16 + Fumadocs framework
-│   ⊃ MDX authoring with auto-routing (content/docs/)
-│   ⊃ AI-powered chat (Ask AI, llms.txt, Open in Chat)
-│   ⊃ i18n, feedback widget, RSS, Edit on GitHub
-│   ⊃ geistdocs.tsx config (Logo, nav, title, prompt, translations)
-│
-└── Use When: Building documentation sites, docs microsites, developer docs
 
 ---
 
@@ -574,28 +521,6 @@ MARKETPLACE STORAGE (partner-provided)     ⤳ skill: vercel-storage
 ## 6. Security
 
 ```
-VERCEL FIREWALL                            ⤳ skill: vercel-firewall  📖 docs: https://vercel.com/docs/security/vercel-firewall
-├── DDoS Protection (automatic, all plans)
-│   ⊃ Layer 3/4 mitigation
-│   ⊃ Layer 7 protection
-│   ⊃ 40x faster with stream processing
-│
-├── Web Application Firewall (WAF)
-│   ⊃ Custom rules engine (path, user-agent, IP, geo, JA4)
-│   ⊃ Framework-aware rules (no regex needed)
-│   ⊃ Managed rulesets (OWASP Top 10, Enterprise)
-│   ⊃ Rate limiting
-│   ⊃ Bot Filter (public beta, all plans)
-│   ⊃ Attack Challenge Mode
-│   ⊃ Persistent Actions (block repeat offenders)
-│   ⊃ Firewall API (programmatic control)
-│   ⊃ 300ms global propagation
-│
-└── Integrations
-    ↔ Edge Network (embedded in request lifecycle)
-    ↔ Vercel Observability (linked logs)
-    ↔ Vercel REST API (Firewall API)
-
 SIGN IN WITH VERCEL                        ⤳ skill: sign-in-with-vercel  📖 docs: https://vercel.com/docs/security/sign-in-with-vercel
 ├── OAuth 2.0 / OIDC Identity Provider
 │   ⊃ Authorization Code flow
@@ -754,10 +679,10 @@ VERCEL REST API / @vercel/sdk               ⤳ skill: vercel-api  📖 docs: ht
 VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: https://vercel.com/marketplace
 ├── Categories
 │   ⊃ Databases (Neon, MongoDB, Supabase, PlanetScale)
-│   ⊃ CMS (Sanity, Contentful, Storyblok)      ⤳ skill: cms
-│   ⊃ Auth (Clerk, Auth0)
-│   ⊃ Payments (Stripe)                       ⤳ skill: payments
-│   ⊃ Email (Resend)                          ⤳ skill: email
+│   ⊃ CMS (Sanity, Contentful, Storyblok)
+│   ⊃ Auth (Clerk, Auth0)                     ⤳ skill: auth
+│   ⊃ Payments (Stripe)
+│   ⊃ Email (Resend)
 │   ⊃ Feature Flags (LaunchDarkly, Statsig)
 │   ⊃ AI Agents (CodeRabbit, Corridor, Sourcery, Parallel)
 │   ⊃ Storage (Upstash Redis, Cloudinary)
