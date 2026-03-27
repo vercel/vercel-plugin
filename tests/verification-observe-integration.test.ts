@@ -3,6 +3,7 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  buildBoundaryEvent,
   classifyBoundary,
   inferRoute,
   parseInput,
@@ -344,5 +345,77 @@ describe("verification story from prompt", () => {
     recordStory(testSessionId, "flow-verification", "/settings", "settings broken", []);
     const plan = recordStory(testSessionId, "flow-verification", "/dashboard", "dashboard broken", []);
     expect(plan.stories).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildBoundaryEvent
+// ---------------------------------------------------------------------------
+
+describe("buildBoundaryEvent", () => {
+  test("redacts secrets and marks suggested matches", () => {
+    const event = buildBoundaryEvent({
+      command: "curl -H 'Authorization: Bearer sk-secret-value' http://localhost:3000/settings",
+      boundary: "clientRequest",
+      matchedPattern: "http-client",
+      inferredRoute: "/settings",
+      verificationId: "verification-1",
+      timestamp: "2026-03-27T00:00:00.000Z",
+      env: {
+        VERCEL_PLUGIN_VERIFICATION_BOUNDARY: "clientRequest",
+        VERCEL_PLUGIN_VERIFICATION_ACTION: "curl http://localhost:3000/settings",
+      } as NodeJS.ProcessEnv,
+    });
+
+    expect(event.command).toContain("[REDACTED]");
+    expect(event.command).not.toContain("sk-secret-value");
+    expect(event.suggestedBoundary).toBe("clientRequest");
+    expect(event.matchedSuggestedAction).toBe(true);
+  });
+
+  test("matchedSuggestedAction is false when boundaries differ", () => {
+    const event = buildBoundaryEvent({
+      command: "curl http://localhost:3000/api",
+      boundary: "clientRequest",
+      matchedPattern: "http-client",
+      inferredRoute: "/api",
+      verificationId: "v2",
+      timestamp: "2026-03-27T00:00:00.000Z",
+      env: {
+        VERCEL_PLUGIN_VERIFICATION_BOUNDARY: "serverHandler",
+      } as NodeJS.ProcessEnv,
+    });
+
+    expect(event.matchedSuggestedAction).toBe(false);
+  });
+
+  test("handles missing env vars gracefully", () => {
+    const event = buildBoundaryEvent({
+      command: "curl http://localhost:3000/test",
+      boundary: "clientRequest",
+      matchedPattern: "http-client",
+      inferredRoute: "/test",
+      verificationId: "v3",
+      timestamp: "2026-03-27T00:00:00.000Z",
+      env: {} as NodeJS.ProcessEnv,
+    });
+
+    expect(event.suggestedBoundary).toBeNull();
+    expect(event.suggestedAction).toBeNull();
+    expect(event.matchedSuggestedAction).toBe(false);
+  });
+
+  test("truncates command to 200 characters", () => {
+    const longCommand = "curl " + "x".repeat(300);
+    const event = buildBoundaryEvent({
+      command: longCommand,
+      boundary: "clientRequest",
+      matchedPattern: "http-client",
+      inferredRoute: null,
+      verificationId: "v4",
+      env: {} as NodeJS.ProcessEnv,
+    });
+
+    expect(event.command.length).toBeLessThanOrEqual(200);
   });
 });

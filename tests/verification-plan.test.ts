@@ -17,7 +17,9 @@ import {
   loadCachedPlanResult,
   formatVerificationBanner,
   formatPlanHuman,
+  selectPrimaryStory,
   type VerificationPlanResult,
+  type VerificationPlanStorySummary,
 } from "../hooks/src/verification-plan.mts";
 
 // ---------------------------------------------------------------------------
@@ -198,7 +200,7 @@ describe("formatVerificationBanner", () => {
   test("returns null when all boundaries satisfied and no next action", () => {
     const result: VerificationPlanResult = {
       hasStories: true,
-      stories: [{ id: "abc", kind: "flow-verification", route: "/settings", promptExcerpt: "test" }],
+      stories: [{ id: "abc", kind: "flow-verification", route: "/settings", promptExcerpt: "test", createdAt: T0, updatedAt: T0 }],
       observationCount: 4,
       satisfiedBoundaries: ["clientRequest", "environment", "serverHandler", "uiRender"],
       missingBoundaries: [],
@@ -212,7 +214,7 @@ describe("formatVerificationBanner", () => {
   test("includes story, evidence, and next action", () => {
     const result: VerificationPlanResult = {
       hasStories: true,
-      stories: [{ id: "abc", kind: "flow-verification", route: "/settings", promptExcerpt: "save fails" }],
+      stories: [{ id: "abc", kind: "flow-verification", route: "/settings", promptExcerpt: "save fails", createdAt: T0, updatedAt: T0 }],
       observationCount: 1,
       satisfiedBoundaries: ["clientRequest"],
       missingBoundaries: ["environment", "serverHandler", "uiRender"],
@@ -238,7 +240,7 @@ describe("formatVerificationBanner", () => {
   test("shows blocked reason when no next action possible", () => {
     const result: VerificationPlanResult = {
       hasStories: true,
-      stories: [{ id: "abc", kind: "browser-only", route: null, promptExcerpt: "blank page" }],
+      stories: [{ id: "abc", kind: "browser-only", route: null, promptExcerpt: "blank page", createdAt: T0, updatedAt: T0 }],
       observationCount: 3,
       satisfiedBoundaries: ["clientRequest", "environment", "serverHandler"],
       missingBoundaries: ["uiRender"],
@@ -276,7 +278,7 @@ describe("formatPlanHuman", () => {
   test("shows full plan details", () => {
     const result: VerificationPlanResult = {
       hasStories: true,
-      stories: [{ id: "abc", kind: "flow-verification", route: "/settings", promptExcerpt: "save fails" }],
+      stories: [{ id: "abc", kind: "flow-verification", route: "/settings", promptExcerpt: "save fails", createdAt: T0, updatedAt: T0 }],
       observationCount: 2,
       satisfiedBoundaries: ["clientRequest", "serverHandler"],
       missingBoundaries: ["environment", "uiRender"],
@@ -301,7 +303,7 @@ describe("formatPlanHuman", () => {
   test("shows blocked reasons", () => {
     const result: VerificationPlanResult = {
       hasStories: true,
-      stories: [{ id: "abc", kind: "stuck-investigation", route: null, promptExcerpt: "hangs" }],
+      stories: [{ id: "abc", kind: "stuck-investigation", route: null, promptExcerpt: "hangs", createdAt: T0, updatedAt: T0 }],
       observationCount: 3,
       satisfiedBoundaries: ["clientRequest", "environment", "serverHandler"],
       missingBoundaries: ["uiRender"],
@@ -318,7 +320,7 @@ describe("formatPlanHuman", () => {
   test("shows all satisfied message", () => {
     const result: VerificationPlanResult = {
       hasStories: true,
-      stories: [{ id: "abc", kind: "flow-verification", route: null, promptExcerpt: "test" }],
+      stories: [{ id: "abc", kind: "flow-verification", route: null, promptExcerpt: "test", createdAt: T0, updatedAt: T0 }],
       observationCount: 4,
       satisfiedBoundaries: ["clientRequest", "environment", "serverHandler", "uiRender"],
       missingBoundaries: [],
@@ -436,5 +438,114 @@ describe("no regressions", () => {
     const banner = formatVerificationBanner(result);
     expect(banner).not.toBeNull();
     expect(banner).toContain("Next action:");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectPrimaryStory
+// ---------------------------------------------------------------------------
+
+describe("selectPrimaryStory", () => {
+  test("returns null for empty array", () => {
+    expect(selectPrimaryStory([])).toBeNull();
+  });
+
+  test("returns the only story when single element", () => {
+    const story: VerificationPlanStorySummary = {
+      id: "only",
+      kind: "flow-verification",
+      route: "/settings",
+      promptExcerpt: "test",
+      createdAt: T0,
+      updatedAt: T0,
+    };
+    expect(selectPrimaryStory([story])?.id).toBe("only");
+  });
+
+  test("prefers the most recently updated story", () => {
+    const result = selectPrimaryStory([
+      {
+        id: "older",
+        kind: "flow-verification",
+        route: "/older",
+        promptExcerpt: "older",
+        createdAt: "2026-03-27T00:00:00.000Z",
+        updatedAt: "2026-03-27T00:00:00.000Z",
+      },
+      {
+        id: "newer",
+        kind: "flow-verification",
+        route: "/settings",
+        promptExcerpt: "newer",
+        createdAt: "2026-03-27T00:01:00.000Z",
+        updatedAt: "2026-03-27T00:02:00.000Z",
+      },
+    ]);
+
+    expect(result?.id).toBe("newer");
+  });
+
+  test("breaks updatedAt ties with createdAt", () => {
+    const result = selectPrimaryStory([
+      {
+        id: "created-first",
+        kind: "flow-verification",
+        route: "/a",
+        promptExcerpt: "a",
+        createdAt: "2026-03-27T00:00:00.000Z",
+        updatedAt: "2026-03-27T01:00:00.000Z",
+      },
+      {
+        id: "created-later",
+        kind: "flow-verification",
+        route: "/b",
+        promptExcerpt: "b",
+        createdAt: "2026-03-27T00:30:00.000Z",
+        updatedAt: "2026-03-27T01:00:00.000Z",
+      },
+    ]);
+
+    expect(result?.id).toBe("created-later");
+  });
+
+  test("breaks full tie with id (lexicographic ascending)", () => {
+    const result = selectPrimaryStory([
+      {
+        id: "beta",
+        kind: "flow-verification",
+        route: null,
+        promptExcerpt: "beta",
+        createdAt: T0,
+        updatedAt: T0,
+      },
+      {
+        id: "alpha",
+        kind: "flow-verification",
+        route: null,
+        promptExcerpt: "alpha",
+        createdAt: T0,
+        updatedAt: T0,
+      },
+    ]);
+
+    expect(result?.id).toBe("alpha");
+  });
+
+  test("planToResult includes createdAt and updatedAt in stories", () => {
+    const plan = derivePlan(
+      [makeObs("a", "clientRequest")],
+      [{
+        id: storyId("flow-verification", "/settings"),
+        kind: "flow-verification",
+        route: "/settings",
+        promptExcerpt: "test",
+        createdAt: T0,
+        updatedAt: T1,
+        requestedSkills: [],
+      }],
+    );
+    const result = planToResult(plan);
+    expect(result.stories[0].createdAt).toBe(T0);
+    expect(result.stories[0].updatedAt).toBe(T1);
   });
 });

@@ -290,10 +290,12 @@ function loadPlanState(sessionId, logger) {
 }
 function recordObservation(sessionId, observation, options, logger) {
   const log = logger ?? createLogger();
-  let observations = loadObservations(sessionId, log);
+  const existingObservations = loadObservations(sessionId, log);
   const stories = loadStories(sessionId, log);
-  observations = appendObservation(observations, observation);
-  persistObservation(sessionId, observation, log);
+  const observations = appendObservation(existingObservations, observation);
+  if (observations !== existingObservations) {
+    persistObservation(sessionId, observation, log);
+  }
   const plan = derivePlan(observations, stories, options);
   persistPlanState(sessionId, plan, log);
   return plan;

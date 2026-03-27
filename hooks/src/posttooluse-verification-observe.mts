@@ -44,6 +44,9 @@ export interface VerificationBoundaryEvent {
   matchedPattern: string;
   inferredRoute: string | null;
   timestamp: string;
+  suggestedBoundary: string | null;
+  suggestedAction: string | null;
+  matchedSuggestedAction: boolean;
 }
 
 export interface VerificationReport {
@@ -120,6 +123,46 @@ export function classifyBoundary(command: string): { boundary: BoundaryType; mat
     }
   }
   return { boundary: "unknown", matchedPattern: "none" };
+}
+
+// ---------------------------------------------------------------------------
+// Boundary event builder (pure, testable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a structured boundary event with redacted commands and directive matching.
+ * Compares the observed boundary/action against the suggested directive from env vars.
+ */
+export function buildBoundaryEvent(input: {
+  command: string;
+  boundary: BoundaryType;
+  matchedPattern: string;
+  inferredRoute: string | null;
+  verificationId: string;
+  timestamp?: string;
+  env?: NodeJS.ProcessEnv;
+}): VerificationBoundaryEvent {
+  const env = input.env ?? process.env;
+  const redactedCommand = redactCommand(input.command).slice(0, 200);
+  const suggestedBoundary = env.VERCEL_PLUGIN_VERIFICATION_BOUNDARY || null;
+  const suggestedAction = env.VERCEL_PLUGIN_VERIFICATION_ACTION
+    ? redactCommand(env.VERCEL_PLUGIN_VERIFICATION_ACTION).slice(0, 200)
+    : null;
+
+  return {
+    event: "verification.boundary_observed",
+    boundary: input.boundary,
+    verificationId: input.verificationId,
+    command: redactedCommand,
+    matchedPattern: input.matchedPattern,
+    inferredRoute: input.inferredRoute,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    suggestedBoundary,
+    suggestedAction,
+    matchedSuggestedAction:
+      (suggestedBoundary !== null && suggestedBoundary === input.boundary) ||
+      (suggestedAction !== null && suggestedAction === redactedCommand),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +271,10 @@ export function run(rawInput?: string): string {
   const { boundary, matchedPattern } = classifyBoundary(command);
 
   if (boundary === "unknown") {
-    log.trace("verification-observe-skip", { reason: "no_boundary_match", command: command.slice(0, 120) });
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      command: redactCommand(command).slice(0, 120),
+    });
     return "{}";
   }
 
@@ -236,15 +282,13 @@ export function run(rawInput?: string): string {
   const recentEdits = process.env.VERCEL_PLUGIN_RECENT_EDITS || "";
   const inferredRoute = inferRoute(command, recentEdits);
 
-  const boundaryEvent: VerificationBoundaryEvent = {
-    event: "verification.boundary_observed",
+  const boundaryEvent = buildBoundaryEvent({
+    command,
     boundary,
-    verificationId,
-    command: command.slice(0, 200),
     matchedPattern,
     inferredRoute,
-    timestamp: new Date().toISOString(),
-  };
+    verificationId,
+  });
 
   log.summary("verification.boundary_observed", boundaryEvent as unknown as Record<string, unknown>);
 

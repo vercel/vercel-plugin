@@ -43,6 +43,24 @@ function classifyBoundary(command) {
   }
   return { boundary: "unknown", matchedPattern: "none" };
 }
+function buildBoundaryEvent(input) {
+  const env = input.env ?? process.env;
+  const redactedCommand = redactCommand(input.command).slice(0, 200);
+  const suggestedBoundary = env.VERCEL_PLUGIN_VERIFICATION_BOUNDARY || null;
+  const suggestedAction = env.VERCEL_PLUGIN_VERIFICATION_ACTION ? redactCommand(env.VERCEL_PLUGIN_VERIFICATION_ACTION).slice(0, 200) : null;
+  return {
+    event: "verification.boundary_observed",
+    boundary: input.boundary,
+    verificationId: input.verificationId,
+    command: redactedCommand,
+    matchedPattern: input.matchedPattern,
+    inferredRoute: input.inferredRoute,
+    timestamp: input.timestamp ?? (/* @__PURE__ */ new Date()).toISOString(),
+    suggestedBoundary,
+    suggestedAction,
+    matchedSuggestedAction: suggestedBoundary !== null && suggestedBoundary === input.boundary || suggestedAction !== null && suggestedAction === redactedCommand
+  };
+}
 var ROUTE_REGEX = /\b(?:app|pages|src\/pages|src\/app)\/([\w[\].-]+(?:\/[\w[\].-]+)*)/;
 var URL_ROUTE_REGEX = /https?:\/\/[^/\s]+(\/([\w-]+(?:\/[\w-]+)*))/;
 function inferRoute(command, recentEdits) {
@@ -101,21 +119,22 @@ function run(rawInput) {
   const { command, sessionId } = parsed;
   const { boundary, matchedPattern } = classifyBoundary(command);
   if (boundary === "unknown") {
-    log.trace("verification-observe-skip", { reason: "no_boundary_match", command: command.slice(0, 120) });
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      command: redactCommand(command).slice(0, 120)
+    });
     return "{}";
   }
   const verificationId = generateVerificationId();
   const recentEdits = process.env.VERCEL_PLUGIN_RECENT_EDITS || "";
   const inferredRoute = inferRoute(command, recentEdits);
-  const boundaryEvent = {
-    event: "verification.boundary_observed",
+  const boundaryEvent = buildBoundaryEvent({
+    command,
     boundary,
-    verificationId,
-    command: command.slice(0, 200),
     matchedPattern,
     inferredRoute,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString()
-  };
+    verificationId
+  });
   log.summary("verification.boundary_observed", boundaryEvent);
   log.complete("verification-observe-done", {
     matchedCount: 1,
@@ -148,6 +167,7 @@ if (isMainModule()) {
   }
 }
 export {
+  buildBoundaryEvent,
   classifyBoundary,
   inferRoute,
   isVerificationReport,

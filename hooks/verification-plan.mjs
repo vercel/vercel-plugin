@@ -6,6 +6,16 @@ import {
   loadPlanState
 } from "./verification-ledger.mjs";
 import { createLogger } from "./logger.mjs";
+function selectPrimaryStory(stories) {
+  if (stories.length === 0) return null;
+  return [...stories].sort((a, b) => {
+    const updatedDiff = Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+    if (Number.isFinite(updatedDiff) && updatedDiff !== 0) return updatedDiff;
+    const createdDiff = Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    if (Number.isFinite(createdDiff) && createdDiff !== 0) return createdDiff;
+    return a.id.localeCompare(b.id);
+  })[0];
+}
 function computePlan(sessionId, options, logger) {
   const log = logger ?? createLogger();
   const observations = loadObservations(sessionId, log);
@@ -27,7 +37,9 @@ function planToResult(plan) {
       id: s.id,
       kind: s.kind,
       route: s.route,
-      promptExcerpt: s.promptExcerpt
+      promptExcerpt: s.promptExcerpt,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt
     })),
     observationCount: plan.observations.length,
     satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
@@ -47,7 +59,9 @@ function loadCachedPlanResult(sessionId, logger) {
       id: s.id,
       kind: s.kind,
       route: s.route,
-      promptExcerpt: s.promptExcerpt
+      promptExcerpt: s.promptExcerpt,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt
     })),
     observationCount: state.observationIds.length,
     satisfiedBoundaries: [...state.satisfiedBoundaries].sort(),
@@ -62,7 +76,7 @@ function formatVerificationBanner(result) {
   if (!result.primaryNextAction && result.missingBoundaries.length === 0) return null;
   const lines = ["<!-- verification-plan -->"];
   lines.push("**[Verification Plan]**");
-  const story = result.stories[0];
+  const story = selectPrimaryStory(result.stories);
   if (story) {
     const routePart = story.route ? ` (${story.route})` : "";
     lines.push(`Story: ${story.kind}${routePart} \u2014 "${story.promptExcerpt}"`);
@@ -125,5 +139,6 @@ export {
   formatPlanHuman,
   formatVerificationBanner,
   loadCachedPlanResult,
-  planToResult
+  planToResult,
+  selectPrimaryStory
 };

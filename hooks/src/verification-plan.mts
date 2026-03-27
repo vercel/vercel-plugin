@@ -26,16 +26,20 @@ import { createLogger, type Logger } from "./logger.mjs";
 // Public plan result (JSON-serializable, shared by CLI and hooks)
 // ---------------------------------------------------------------------------
 
+export interface VerificationPlanStorySummary {
+  id: string;
+  kind: string;
+  route: string | null;
+  promptExcerpt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface VerificationPlanResult {
   /** Whether any verification stories exist. */
   hasStories: boolean;
   /** Active story summaries. */
-  stories: Array<{
-    id: string;
-    kind: string;
-    route: string | null;
-    promptExcerpt: string;
-  }>;
+  stories: VerificationPlanStorySummary[];
   /** Total observation count. */
   observationCount: number;
   /** Boundaries with at least one observation. */
@@ -48,6 +52,31 @@ export interface VerificationPlanResult {
   primaryNextAction: VerificationNextAction | null;
   /** Reasons certain actions were blocked. */
   blockedReasons: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic story selection
+// ---------------------------------------------------------------------------
+
+/**
+ * Select the primary story from a list of summaries.
+ * Prefers the most recently updated story, breaking ties by createdAt
+ * (newest first), then by id (lexicographic ascending) for full determinism.
+ */
+export function selectPrimaryStory(
+  stories: VerificationPlanStorySummary[],
+): VerificationPlanStorySummary | null {
+  if (stories.length === 0) return null;
+
+  return [...stories].sort((a, b) => {
+    const updatedDiff = Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+    if (Number.isFinite(updatedDiff) && updatedDiff !== 0) return updatedDiff;
+
+    const createdDiff = Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    if (Number.isFinite(createdDiff) && createdDiff !== 0) return createdDiff;
+
+    return a.id.localeCompare(b.id);
+  })[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +127,8 @@ export function planToResult(plan: VerificationPlan): VerificationPlanResult {
       kind: s.kind,
       route: s.route,
       promptExcerpt: s.promptExcerpt,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
     })),
     observationCount: plan.observations.length,
     satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
@@ -128,6 +159,8 @@ export function loadCachedPlanResult(
       kind: s.kind,
       route: s.route,
       promptExcerpt: s.promptExcerpt,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
     })),
     observationCount: state.observationIds.length,
     satisfiedBoundaries: [...state.satisfiedBoundaries].sort(),
@@ -155,8 +188,8 @@ export function formatVerificationBanner(
   const lines: string[] = ["<!-- verification-plan -->"];
   lines.push("**[Verification Plan]**");
 
-  // Current story
-  const story = result.stories[0];
+  // Current story — use deterministic selection
+  const story = selectPrimaryStory(result.stories);
   if (story) {
     const routePart = story.route ? ` (${story.route})` : "";
     lines.push(`Story: ${story.kind}${routePart} — "${story.promptExcerpt}"`);

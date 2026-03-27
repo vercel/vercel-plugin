@@ -13,8 +13,14 @@ import {
   type VerificationObservation,
   type VerificationBoundary,
 } from "../hooks/src/verification-ledger.mts";
-import { computePlan } from "../hooks/src/verification-plan.mts";
-import { buildVerificationContext, resolveBudgetCategory } from "../hooks/src/subagent-start-bootstrap.mts";
+import { computePlan, selectPrimaryStory, type VerificationPlanResult } from "../hooks/src/verification-plan.mts";
+import {
+  buildVerificationContext,
+  buildVerificationContextFromPlan,
+  buildVerificationDirective,
+  buildVerificationEnv,
+  resolveBudgetCategory,
+} from "../hooks/src/subagent-start-bootstrap.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "subagent-start-bootstrap.mjs");
@@ -601,5 +607,171 @@ describe("subagent-start-context: evidence isolation", () => {
 
     expect(JSON.stringify(plan1, null, 2)).toBe(JSON.stringify(plan2, null, 2));
     expect(JSON.stringify(plan2, null, 2)).toBe(JSON.stringify(plan3, null, 2));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildVerificationContextFromPlan: deterministic story selection
+// ---------------------------------------------------------------------------
+
+describe("subagent-start-context: buildVerificationContextFromPlan", () => {
+  test("uses primary story (most recently updated) for standard agents", () => {
+    const plan: VerificationPlanResult = {
+      hasStories: true,
+      stories: [
+        {
+          id: "older",
+          kind: "flow-verification",
+          route: "/older",
+          promptExcerpt: "older prompt",
+          createdAt: "2026-03-27T00:00:00.000Z",
+          updatedAt: "2026-03-27T00:00:00.000Z",
+        },
+        {
+          id: "newer",
+          kind: "flow-verification",
+          route: "/settings",
+          promptExcerpt: "verify settings flow",
+          createdAt: "2026-03-27T00:01:00.000Z",
+          updatedAt: "2026-03-27T00:02:00.000Z",
+        },
+      ],
+      observationCount: 1,
+      satisfiedBoundaries: ["serverHandler"],
+      missingBoundaries: ["clientRequest", "environment", "uiRender"],
+      recentRoutes: ["/settings"],
+      primaryNextAction: {
+        action: "curl <LOCAL_DEV_ORIGIN>/settings",
+        targetBoundary: "clientRequest",
+        reason: "No HTTP request observation yet — verify the endpoint responds",
+      },
+      blockedReasons: [],
+    };
+
+    const context = buildVerificationContextFromPlan(plan, "standard");
+    expect(context).toContain("Verification story: flow-verification (/settings)");
+    expect(context).toContain("Primary action:");
+    expect(context).not.toContain("(/older)");
+  });
+
+  test("returns null for plan with no stories", () => {
+    const plan: VerificationPlanResult = {
+      hasStories: false,
+      stories: [],
+      observationCount: 0,
+      satisfiedBoundaries: [],
+      missingBoundaries: [],
+      recentRoutes: [],
+      primaryNextAction: null,
+      blockedReasons: [],
+    };
+
+    expect(buildVerificationContextFromPlan(plan, "standard")).toBeNull();
+  });
+
+  test("minimal scope contains only story kind and route", () => {
+    const plan: VerificationPlanResult = {
+      hasStories: true,
+      stories: [{
+        id: "s1",
+        kind: "browser-only",
+        route: "/dashboard",
+        promptExcerpt: "blank page",
+        createdAt: T0,
+        updatedAt: T0,
+      }],
+      observationCount: 0,
+      satisfiedBoundaries: [],
+      missingBoundaries: ["clientRequest", "environment", "serverHandler", "uiRender"],
+      recentRoutes: [],
+      primaryNextAction: { action: "curl /dashboard", targetBoundary: "clientRequest", reason: "test" },
+      blockedReasons: [],
+    };
+
+    const ctx = buildVerificationContextFromPlan(plan, "minimal");
+    expect(ctx).toContain("browser-only");
+    expect(ctx).toContain("/dashboard");
+    expect(ctx).not.toContain("Missing");
+    expect(ctx).not.toContain("Primary action");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Verification directive and env
+// ---------------------------------------------------------------------------
+
+describe("subagent-start-context: verification directive", () => {
+  test("buildVerificationDirective returns null for empty plan", () => {
+    expect(buildVerificationDirective(null)).toBeNull();
+    expect(buildVerificationDirective({
+      hasStories: false,
+      stories: [],
+      observationCount: 0,
+      satisfiedBoundaries: [],
+      missingBoundaries: [],
+      recentRoutes: [],
+      primaryNextAction: null,
+      blockedReasons: [],
+    })).toBeNull();
+  });
+
+  test("buildVerificationDirective selects primary story", () => {
+    const plan: VerificationPlanResult = {
+      hasStories: true,
+      stories: [
+        { id: "old", kind: "flow-verification", route: "/old", promptExcerpt: "old", createdAt: T0, updatedAt: T0 },
+        { id: "new", kind: "flow-verification", route: "/new", promptExcerpt: "new", createdAt: "2026-03-27T01:00:00.000Z", updatedAt: "2026-03-27T01:00:00.000Z" },
+      ],
+      observationCount: 1,
+      satisfiedBoundaries: ["serverHandler"],
+      missingBoundaries: ["clientRequest"],
+      recentRoutes: [],
+      primaryNextAction: { action: "curl /new", targetBoundary: "clientRequest", reason: "test" },
+      blockedReasons: [],
+    };
+
+    const directive = buildVerificationDirective(plan);
+    expect(directive).not.toBeNull();
+    expect(directive!.version).toBe(1);
+    expect(directive!.storyId).toBe("new");
+    expect(directive!.route).toBe("/new");
+    expect(directive!.primaryNextAction?.action).toBe("curl /new");
+  });
+
+  test("buildVerificationEnv returns env vars from directive", () => {
+    const directive = {
+      version: 1 as const,
+      storyId: "abc123",
+      storyKind: "flow-verification",
+      route: "/settings",
+      missingBoundaries: ["clientRequest"],
+      satisfiedBoundaries: ["serverHandler"],
+      primaryNextAction: {
+        action: "curl <LOCAL_DEV_ORIGIN>/settings",
+        targetBoundary: "clientRequest",
+        reason: "test",
+      },
+      blockedReasons: [],
+    };
+
+    const env = buildVerificationEnv(directive);
+    expect(env.VERCEL_PLUGIN_VERIFICATION_STORY_ID).toBe("abc123");
+    expect(env.VERCEL_PLUGIN_VERIFICATION_BOUNDARY).toBe("clientRequest");
+    expect(env.VERCEL_PLUGIN_VERIFICATION_ACTION).toBe("curl <LOCAL_DEV_ORIGIN>/settings");
+  });
+
+  test("buildVerificationEnv returns empty when no next action", () => {
+    const directive = {
+      version: 1 as const,
+      storyId: "abc",
+      storyKind: "flow-verification",
+      route: null,
+      missingBoundaries: [],
+      satisfiedBoundaries: [],
+      primaryNextAction: null,
+      blockedReasons: [],
+    };
+
+    expect(buildVerificationEnv(directive)).toEqual({});
   });
 });

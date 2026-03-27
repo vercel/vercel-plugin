@@ -25,7 +25,12 @@ import { compilePromptSignals, matchPromptWithReason, normalizePromptText } from
 import { loadSkills } from "./pretooluse-skill-inject.mjs";
 import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 import { claimPendingLaunch } from "./subagent-state.mjs";
-import { loadCachedPlanResult, type VerificationPlanResult } from "./verification-plan.mjs";
+import {
+  computePlan,
+  loadCachedPlanResult,
+  selectPrimaryStory,
+  type VerificationPlanResult,
+} from "./verification-plan.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
 
@@ -211,44 +216,130 @@ function resolveLikelySkillsFromPendingLaunch(
 }
 
 // ---------------------------------------------------------------------------
+// Verification plan resolution (cached → fresh fallback)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the verification plan for a session, trying the cached state first
+ * and falling back to a fresh computation from the ledger when the cache is
+ * missing or empty but ledger data exists.
+ */
+function resolveVerificationPlan(
+  sessionId: string | undefined,
+): VerificationPlanResult | null {
+  if (!sessionId) return null;
+
+  try {
+    const cached = loadCachedPlanResult(sessionId);
+    if (cached?.hasStories) {
+      log.debug("subagent-start-bootstrap:verification-plan-cached", { sessionId });
+      return cached;
+    }
+    log.debug("subagent-start-bootstrap:verification-plan-cache-miss", { sessionId });
+  } catch (error) {
+    logCaughtError(log, "subagent-start-bootstrap:verification-plan-cache-failed", error, {
+      sessionId,
+    });
+  }
+
+  try {
+    const fresh = computePlan(sessionId, {
+      agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+      lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null,
+    });
+    if (fresh.hasStories) {
+      log.debug("subagent-start-bootstrap:verification-plan-fresh", { sessionId });
+      return fresh;
+    }
+    log.debug("subagent-start-bootstrap:verification-plan-empty", { sessionId });
+  } catch (error) {
+    logCaughtError(log, "subagent-start-bootstrap:verification-plan-fresh-failed", error, {
+      sessionId,
+    });
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Verification directive (machine-readable handoff)
+// ---------------------------------------------------------------------------
+
+interface VerificationDirective {
+  version: 1;
+  storyId: string;
+  storyKind: string;
+  route: string | null;
+  missingBoundaries: string[];
+  satisfiedBoundaries: string[];
+  primaryNextAction: VerificationPlanResult["primaryNextAction"];
+  blockedReasons: string[];
+}
+
+function buildVerificationDirective(
+  plan: VerificationPlanResult | null,
+): VerificationDirective | null {
+  if (!plan?.hasStories || plan.stories.length === 0) return null;
+
+  const story = selectPrimaryStory(plan.stories);
+  if (!story) return null;
+
+  return {
+    version: 1,
+    storyId: story.id,
+    storyKind: story.kind,
+    route: story.route,
+    missingBoundaries: [...plan.missingBoundaries],
+    satisfiedBoundaries: [...plan.satisfiedBoundaries],
+    primaryNextAction: plan.primaryNextAction,
+    blockedReasons: [...plan.blockedReasons],
+  };
+}
+
+function buildVerificationEnv(
+  directive: VerificationDirective | null,
+): Record<string, string> {
+  if (!directive?.primaryNextAction) return {};
+
+  return {
+    VERCEL_PLUGIN_VERIFICATION_STORY_ID: directive.storyId,
+    VERCEL_PLUGIN_VERIFICATION_BOUNDARY: directive.primaryNextAction.targetBoundary,
+    VERCEL_PLUGIN_VERIFICATION_ACTION: directive.primaryNextAction.action,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Verification context scoping
 // ---------------------------------------------------------------------------
 
 /**
- * Load verification plan for the session and format a scoped snippet
- * appropriate for the agent type's budget category.
+ * Format a scoped verification context snippet from a resolved plan.
+ * Uses deterministic story selection via selectPrimaryStory.
  *
- * - Explore (minimal): story kind + route only
- * - Plan (light): story + missing boundaries + candidate actions
- * - general-purpose (standard): story + full primary action + evidence summary
- *
- * Returns null if no verification plan exists or no stories are active.
+ * - minimal: story kind + route only
+ * - light: story + missing boundaries + candidate actions
+ * - standard: story + full primary action + evidence summary
  */
-function buildVerificationContext(
-  sessionId: string | undefined,
+function buildVerificationContextFromPlan(
+  plan: VerificationPlanResult,
   category: BudgetCategory,
 ): string | null {
-  if (!sessionId) return null;
+  if (!plan.hasStories || plan.stories.length === 0) return null;
 
-  let plan: VerificationPlanResult | null;
-  try {
-    plan = loadCachedPlanResult(sessionId);
-  } catch {
-    return null;
-  }
+  const story = selectPrimaryStory(plan.stories);
+  if (!story) return null;
 
-  if (!plan || !plan.hasStories || plan.stories.length === 0) return null;
-
-  const story = plan.stories[0];
   const routePart = story.route ? ` (${story.route})` : "";
 
   switch (category) {
     case "minimal": {
-      // Explore: just story + route for orientation
-      return `<!-- verification-context scope="minimal" -->\nVerification story: ${story.kind}${routePart}\n<!-- /verification-context -->`;
+      return [
+        `<!-- verification-context scope="minimal" -->`,
+        `Verification story: ${story.kind}${routePart}`,
+        `<!-- /verification-context -->`,
+      ].join("\n");
     }
     case "light": {
-      // Plan: story + missing boundaries + candidate actions
       const lines: string[] = [
         `<!-- verification-context scope="light" -->`,
         `Verification story: ${story.kind}${routePart} — "${story.promptExcerpt}"`,
@@ -266,7 +357,6 @@ function buildVerificationContext(
       return lines.join("\n");
     }
     case "standard": {
-      // General: full primary action + evidence summary
       const lines: string[] = [
         `<!-- verification-context scope="standard" -->`,
         `Verification story: ${story.kind}${routePart} — "${story.promptExcerpt}"`,
@@ -291,6 +381,23 @@ function buildVerificationContext(
       return lines.join("\n");
     }
   }
+}
+
+/**
+ * Load verification plan for the session and format a scoped snippet
+ * appropriate for the agent type's budget category.
+ *
+ * Uses resolveVerificationPlan for cached→fresh fallback, and
+ * selectPrimaryStory for deterministic story selection.
+ *
+ * Returns null if no verification plan exists or no stories are active.
+ */
+function buildVerificationContext(
+  sessionId: string | undefined,
+  category: BudgetCategory,
+): string | null {
+  const plan = resolveVerificationPlan(sessionId);
+  return plan ? buildVerificationContextFromPlan(plan, category) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +607,11 @@ function main(): void {
   const pendingLaunchMatched = likelySkills.length !== profilerLikelySkills.length
     || likelySkills.some((s) => !profilerLikelySkills.includes(s));
 
+  // Build verification directive for downstream hooks
+  const verificationPlan = resolveVerificationPlan(sessionId);
+  const verificationDirective = buildVerificationDirective(verificationPlan);
+  const verificationEnv = buildVerificationEnv(verificationDirective);
+
   log.summary("subagent-start-bootstrap:complete", {
     agent_id: agentId,
     agent_type: agentType,
@@ -508,13 +620,16 @@ function main(): void {
     budget_max: maxBytes,
     budget_category: category,
     pending_launch_matched: pendingLaunchMatched,
+    verification_directive: verificationDirective !== null,
+    verification_env_keys: Object.keys(verificationEnv),
   });
 
-  const output: SyncHookJSONOutput = {
+  const output: SyncHookJSONOutput & { env?: Record<string, string> } = {
     hookSpecificOutput: {
       hookEventName: "SubagentStart",
       additionalContext: context,
     },
+    ...(Object.keys(verificationEnv).length > 0 ? { env: verificationEnv } : {}),
   };
 
   process.stdout.write(JSON.stringify(output));
@@ -537,8 +652,12 @@ export {
   buildLightContext,
   buildStandardContext,
   buildVerificationContext,
+  buildVerificationContextFromPlan,
+  buildVerificationDirective,
+  buildVerificationEnv,
+  resolveVerificationPlan,
   getLikelySkills,
   resolveBudgetCategory,
   main,
 };
-export type { SubagentStartInput, ProfileCache, BudgetCategory };
+export type { SubagentStartInput, ProfileCache, BudgetCategory, VerificationDirective };

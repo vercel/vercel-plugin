@@ -10,7 +10,11 @@ import { compilePromptSignals, matchPromptWithReason, normalizePromptText } from
 import { loadSkills } from "./pretooluse-skill-inject.mjs";
 import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 import { claimPendingLaunch } from "./subagent-state.mjs";
-import { loadCachedPlanResult } from "./verification-plan.mjs";
+import {
+  computePlan,
+  loadCachedPlanResult,
+  selectPrimaryStory
+} from "./verification-plan.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var MINIMAL_BUDGET_BYTES = 1024;
 var LIGHT_BUDGET_BYTES = 3072;
@@ -126,22 +130,72 @@ function resolveLikelySkillsFromPendingLaunch(sessionId, agentType, likelySkills
     return likelySkills;
   }
 }
-function buildVerificationContext(sessionId, category) {
+function resolveVerificationPlan(sessionId) {
   if (!sessionId) return null;
-  let plan;
   try {
-    plan = loadCachedPlanResult(sessionId);
-  } catch {
-    return null;
+    const cached = loadCachedPlanResult(sessionId);
+    if (cached?.hasStories) {
+      log.debug("subagent-start-bootstrap:verification-plan-cached", { sessionId });
+      return cached;
+    }
+    log.debug("subagent-start-bootstrap:verification-plan-cache-miss", { sessionId });
+  } catch (error) {
+    logCaughtError(log, "subagent-start-bootstrap:verification-plan-cache-failed", error, {
+      sessionId
+    });
   }
-  if (!plan || !plan.hasStories || plan.stories.length === 0) return null;
-  const story = plan.stories[0];
+  try {
+    const fresh = computePlan(sessionId, {
+      agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+      lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null
+    });
+    if (fresh.hasStories) {
+      log.debug("subagent-start-bootstrap:verification-plan-fresh", { sessionId });
+      return fresh;
+    }
+    log.debug("subagent-start-bootstrap:verification-plan-empty", { sessionId });
+  } catch (error) {
+    logCaughtError(log, "subagent-start-bootstrap:verification-plan-fresh-failed", error, {
+      sessionId
+    });
+  }
+  return null;
+}
+function buildVerificationDirective(plan) {
+  if (!plan?.hasStories || plan.stories.length === 0) return null;
+  const story = selectPrimaryStory(plan.stories);
+  if (!story) return null;
+  return {
+    version: 1,
+    storyId: story.id,
+    storyKind: story.kind,
+    route: story.route,
+    missingBoundaries: [...plan.missingBoundaries],
+    satisfiedBoundaries: [...plan.satisfiedBoundaries],
+    primaryNextAction: plan.primaryNextAction,
+    blockedReasons: [...plan.blockedReasons]
+  };
+}
+function buildVerificationEnv(directive) {
+  if (!directive?.primaryNextAction) return {};
+  return {
+    VERCEL_PLUGIN_VERIFICATION_STORY_ID: directive.storyId,
+    VERCEL_PLUGIN_VERIFICATION_BOUNDARY: directive.primaryNextAction.targetBoundary,
+    VERCEL_PLUGIN_VERIFICATION_ACTION: directive.primaryNextAction.action
+  };
+}
+function buildVerificationContextFromPlan(plan, category) {
+  if (!plan.hasStories || plan.stories.length === 0) return null;
+  const story = selectPrimaryStory(plan.stories);
+  if (!story) return null;
   const routePart = story.route ? ` (${story.route})` : "";
   switch (category) {
     case "minimal": {
-      return `<!-- verification-context scope="minimal" -->
-Verification story: ${story.kind}${routePart}
-<!-- /verification-context -->`;
+      return [
+        `<!-- verification-context scope="minimal" -->`,
+        `Verification story: ${story.kind}${routePart}`,
+        `<!-- /verification-context -->`
+      ].join("\n");
     }
     case "light": {
       const lines = [
@@ -185,6 +239,10 @@ Verification story: ${story.kind}${routePart}
       return lines.join("\n");
     }
   }
+}
+function buildVerificationContext(sessionId, category) {
+  const plan = resolveVerificationPlan(sessionId);
+  return plan ? buildVerificationContextFromPlan(plan, category) : null;
 }
 function profileLine(agentType, likelySkills) {
   return "Vercel plugin active. Project likely uses: " + (likelySkills.length > 0 ? likelySkills.join(", ") : "unknown stack") + ".";
@@ -335,6 +393,9 @@ function main() {
   }
   const budgetUsed = Buffer.byteLength(context, "utf8");
   const pendingLaunchMatched = likelySkills.length !== profilerLikelySkills.length || likelySkills.some((s) => !profilerLikelySkills.includes(s));
+  const verificationPlan = resolveVerificationPlan(sessionId);
+  const verificationDirective = buildVerificationDirective(verificationPlan);
+  const verificationEnv = buildVerificationEnv(verificationDirective);
   log.summary("subagent-start-bootstrap:complete", {
     agent_id: agentId,
     agent_type: agentType,
@@ -342,13 +403,16 @@ function main() {
     budget_used: budgetUsed,
     budget_max: maxBytes,
     budget_category: category,
-    pending_launch_matched: pendingLaunchMatched
+    pending_launch_matched: pendingLaunchMatched,
+    verification_directive: verificationDirective !== null,
+    verification_env_keys: Object.keys(verificationEnv)
   });
   const output = {
     hookSpecificOutput: {
       hookEventName: "SubagentStart",
       additionalContext: context
-    }
+    },
+    ...Object.keys(verificationEnv).length > 0 ? { env: verificationEnv } : {}
   };
   process.stdout.write(JSON.stringify(output));
   process.exit(0);
@@ -366,8 +430,12 @@ export {
   buildMinimalContext,
   buildStandardContext,
   buildVerificationContext,
+  buildVerificationContextFromPlan,
+  buildVerificationDirective,
+  buildVerificationEnv,
   getLikelySkills,
   main,
   parseInput,
-  resolveBudgetCategory
+  resolveBudgetCategory,
+  resolveVerificationPlan
 };
