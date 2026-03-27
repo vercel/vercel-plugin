@@ -37,6 +37,7 @@ import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from ".
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
 import { loadCachedPlanResult, selectPrimaryStory } from "./verification-plan.mjs";
+import { resolveVerificationRuntimeState, buildVerificationEnv } from "./verification-directive.mjs";
 import { applyPolicyBoosts } from "./routing-policy.mjs";
 import {
   appendSkillExposure,
@@ -1056,8 +1057,9 @@ function run() {
       boostsApplied: profilerBoosted,
       policyBoosted
     }, log.active ? timing : null);
-    const envUpdates2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
-    return formatPlatformOutput(platform, void 0, envUpdates2);
+    const earlyEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+    const clearingEnv = { ...earlyEnv ?? {}, ...buildVerificationEnv(null) };
+    return formatPlatformOutput(platform, void 0, clearingEnv);
   }
   const tSkillRead = log.active ? log.now() : 0;
   const { parts, loaded, summaryOnly, droppedByCap, droppedByBudget } = injectSkills(rankedSkills, {
@@ -1144,8 +1146,9 @@ function run() {
       boostsApplied: profilerBoosted,
       policyBoosted
     }, log.active ? timing : null);
-    const envUpdates2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
-    return formatPlatformOutput(platform, void 0, envUpdates2);
+    const earlyEnv2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+    const clearingEnv2 = { ...earlyEnv2 ?? {}, ...buildVerificationEnv(null) };
+    return formatPlatformOutput(platform, void 0, clearingEnv2);
   }
   if (log.active) timing.total = log.elapsed();
   const cappedCount = droppedByCap.length + droppedByBudget.length;
@@ -1205,7 +1208,24 @@ function run() {
       };
     }
   }
-  const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+  const verificationRuntime = resolveVerificationRuntimeState(sessionId, {
+    agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+    lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null
+  }, log);
+  if (verificationRuntime.banner) {
+    parts.unshift(verificationRuntime.banner);
+    log.summary("pretooluse.verification-banner-injected", {
+      sessionId,
+      storyId: verificationRuntime.directive?.storyId ?? null,
+      route: verificationRuntime.directive?.route ?? null,
+      source: verificationRuntime.plan ? "cache-or-compute" : "none"
+    });
+  }
+  const runtimeEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+  const envUpdates = {
+    ...runtimeEnv ?? {},
+    ...verificationRuntime.env
+  };
   const result = formatOutput({
     parts,
     matched,
@@ -1220,7 +1240,7 @@ function run() {
     verificationId,
     skillMap: skills.skillMap,
     platform,
-    env: envUpdates
+    env: Object.keys(envUpdates).length > 0 ? envUpdates : void 0
   });
   if (loaded.length > 0) {
     appendAuditLog({

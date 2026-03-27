@@ -31,6 +31,11 @@ import {
   selectPrimaryStory,
   type VerificationPlanResult,
 } from "./verification-plan.mjs";
+import {
+  buildVerificationDirective,
+  buildVerificationEnv,
+  type VerificationDirective,
+} from "./verification-directive.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
 
@@ -259,53 +264,6 @@ function resolveVerificationPlan(
   }
 
   return null;
-}
-
-// ---------------------------------------------------------------------------
-// Verification directive (machine-readable handoff)
-// ---------------------------------------------------------------------------
-
-interface VerificationDirective {
-  version: 1;
-  storyId: string;
-  storyKind: string;
-  route: string | null;
-  missingBoundaries: string[];
-  satisfiedBoundaries: string[];
-  primaryNextAction: VerificationPlanResult["primaryNextAction"];
-  blockedReasons: string[];
-}
-
-function buildVerificationDirective(
-  plan: VerificationPlanResult | null,
-): VerificationDirective | null {
-  if (!plan?.hasStories || plan.stories.length === 0) return null;
-
-  const story = selectPrimaryStory(plan.stories);
-  if (!story) return null;
-
-  return {
-    version: 1,
-    storyId: story.id,
-    storyKind: story.kind,
-    route: story.route,
-    missingBoundaries: [...plan.missingBoundaries],
-    satisfiedBoundaries: [...plan.satisfiedBoundaries],
-    primaryNextAction: plan.primaryNextAction,
-    blockedReasons: [...plan.blockedReasons],
-  };
-}
-
-function buildVerificationEnv(
-  directive: VerificationDirective | null,
-): Record<string, string> {
-  if (!directive?.primaryNextAction) return {};
-
-  return {
-    VERCEL_PLUGIN_VERIFICATION_STORY_ID: directive.storyId,
-    VERCEL_PLUGIN_VERIFICATION_BOUNDARY: directive.primaryNextAction.targetBoundary,
-    VERCEL_PLUGIN_VERIFICATION_ACTION: directive.primaryNextAction.action,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -653,11 +611,12 @@ export {
   buildStandardContext,
   buildVerificationContext,
   buildVerificationContextFromPlan,
-  buildVerificationDirective,
-  buildVerificationEnv,
   resolveVerificationPlan,
   getLikelySkills,
   resolveBudgetCategory,
   main,
 };
-export type { SubagentStartInput, ProfileCache, BudgetCategory, VerificationDirective };
+// Re-export shared directive helpers so existing consumers don't break
+export { buildVerificationDirective, buildVerificationEnv } from "./verification-directive.mjs";
+export type { VerificationDirective } from "./verification-directive.mjs";
+export type { SubagentStartInput, ProfileCache, BudgetCategory };

@@ -202,6 +202,32 @@ export function buildLedgerObservation(
 }
 
 // ---------------------------------------------------------------------------
+// Directive env helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a trimmed non-empty string from the environment, or null.
+ */
+export function envString(
+  env: NodeJS.ProcessEnv,
+  key: string,
+): string | null {
+  const value = env[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+/**
+ * Resolve the observed route: prefer command/edit inference, fall back to
+ * VERCEL_PLUGIN_VERIFICATION_ROUTE from the directive env.
+ */
+export function resolveObservedRoute(
+  inferredRoute: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  return inferredRoute ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_ROUTE");
+}
+
+// ---------------------------------------------------------------------------
 // Story inference
 // ---------------------------------------------------------------------------
 
@@ -314,9 +340,10 @@ export function run(rawInput?: string): string {
     return "{}";
   }
 
+  const env = process.env;
   const verificationId = generateVerificationId();
-  const recentEdits = process.env.VERCEL_PLUGIN_RECENT_EDITS || "";
-  const inferredRoute = inferRoute(command, recentEdits);
+  const recentEdits = env.VERCEL_PLUGIN_RECENT_EDITS || "";
+  const inferredRoute = resolveObservedRoute(inferRoute(command, recentEdits), env);
 
   const boundaryEvent = buildBoundaryEvent({
     command,
@@ -350,27 +377,34 @@ export function run(rawInput?: string): string {
       blockedReasons: [...plan.blockedReasons],
     });
 
-    // Resolve routing policy exposures for this boundary, scoped to story + route
+    // Resolve routing policy exposures for this boundary, scoped to story + route.
+    // Fall back to directive env for story and route when plan inference is unavailable.
     const primaryStory = plan.stories.length > 0
       ? selectPrimaryStory(plan.stories)
       : null;
+
+    const resolvedStoryId =
+      primaryStory?.id ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_STORY_ID") ?? null;
 
     if (boundaryEvent.boundary !== "unknown") {
       const resolved = resolveBoundaryOutcome({
         sessionId,
         boundary: boundaryEvent.boundary as "uiRender" | "clientRequest" | "serverHandler" | "environment",
         matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
-        storyId: primaryStory?.id ?? null,
+        storyId: resolvedStoryId,
         route: inferredRoute,
         now: boundaryEvent.timestamp,
       });
+
       if (resolved.length > 0) {
+        const outcomeKind = boundaryEvent.matchedSuggestedAction ? "directive-win" : "win";
         log.summary("verification.routing-policy-resolved", {
           verificationId,
           boundary: boundaryEvent.boundary,
-          storyId: primaryStory?.id ?? null,
+          storyId: resolvedStoryId,
           route: inferredRoute,
           resolvedCount: resolved.length,
+          outcomeKind,
           skills: resolved.map((e) => e.skill),
         });
       }
@@ -395,18 +429,18 @@ export function run(rawInput?: string): string {
       toolTarget: redactedTarget,
       timestamp: boundaryEvent.timestamp,
       primaryStory: {
-        id: primaryStory?.id ?? null,
+        id: resolvedStoryId,
         kind: primaryStory?.kind ?? null,
-        storyRoute: primaryStory?.route ?? null,
+        storyRoute: primaryStory?.route ?? inferredRoute,
         targetBoundary: boundaryEvent.boundary === "unknown" ? null : boundaryEvent.boundary,
       },
       observedRoute: inferredRoute,
-      policyScenario: primaryStory
-        ? `PostToolUse|${primaryStory.kind ?? "none"}|${boundaryEvent.boundary}|Bash`
+      policyScenario: resolvedStoryId
+        ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|Bash`
         : null,
       matchedSkills: [],
       injectedSkills: [],
-      skippedReasons: primaryStory ? [] : ["no_active_verification_story"],
+      skippedReasons: resolvedStoryId ? [] : ["no_active_verification_story"],
       ranked: [],
       verification: {
         verificationId,

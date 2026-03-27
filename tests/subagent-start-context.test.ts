@@ -756,6 +756,7 @@ describe("subagent-start-context: verification directive", () => {
 
     const env = buildVerificationEnv(directive);
     expect(env.VERCEL_PLUGIN_VERIFICATION_STORY_ID).toBe("abc123");
+    expect(env.VERCEL_PLUGIN_VERIFICATION_ROUTE).toBe("/settings");
     expect(env.VERCEL_PLUGIN_VERIFICATION_BOUNDARY).toBe("clientRequest");
     expect(env.VERCEL_PLUGIN_VERIFICATION_ACTION).toBe("curl <LOCAL_DEV_ORIGIN>/settings");
   });
@@ -772,6 +773,11 @@ describe("subagent-start-context: verification directive", () => {
       blockedReasons: [],
     };
 
-    expect(buildVerificationEnv(directive)).toEqual({});
+    expect(buildVerificationEnv(directive)).toEqual({
+      VERCEL_PLUGIN_VERIFICATION_STORY_ID: "",
+      VERCEL_PLUGIN_VERIFICATION_ROUTE: "",
+      VERCEL_PLUGIN_VERIFICATION_BOUNDARY: "",
+      VERCEL_PLUGIN_VERIFICATION_ACTION: "",
+    });
   });
 });

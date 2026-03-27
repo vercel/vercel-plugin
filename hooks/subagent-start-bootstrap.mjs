@@ -15,6 +15,10 @@ import {
   loadCachedPlanResult,
   selectPrimaryStory
 } from "./verification-plan.mjs";
+import {
+  buildVerificationDirective,
+  buildVerificationEnv
+} from "./verification-directive.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var MINIMAL_BUDGET_BYTES = 1024;
 var LIGHT_BUDGET_BYTES = 3072;
@@ -160,29 +164,6 @@ function resolveVerificationPlan(sessionId) {
     });
   }
   return null;
-}
-function buildVerificationDirective(plan) {
-  if (!plan?.hasStories || plan.stories.length === 0) return null;
-  const story = selectPrimaryStory(plan.stories);
-  if (!story) return null;
-  return {
-    version: 1,
-    storyId: story.id,
-    storyKind: story.kind,
-    route: story.route,
-    missingBoundaries: [...plan.missingBoundaries],
-    satisfiedBoundaries: [...plan.satisfiedBoundaries],
-    primaryNextAction: plan.primaryNextAction,
-    blockedReasons: [...plan.blockedReasons]
-  };
-}
-function buildVerificationEnv(directive) {
-  if (!directive?.primaryNextAction) return {};
-  return {
-    VERCEL_PLUGIN_VERIFICATION_STORY_ID: directive.storyId,
-    VERCEL_PLUGIN_VERIFICATION_BOUNDARY: directive.primaryNextAction.targetBoundary,
-    VERCEL_PLUGIN_VERIFICATION_ACTION: directive.primaryNextAction.action
-  };
 }
 function buildVerificationContextFromPlan(plan, category) {
   if (!plan.hasStories || plan.stories.length === 0) return null;

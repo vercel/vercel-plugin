@@ -86,6 +86,13 @@ function buildLedgerObservation(event) {
     }
   };
 }
+function envString(env, key) {
+  const value = env[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+function resolveObservedRoute(inferredRoute, env = process.env) {
+  return inferredRoute ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_ROUTE");
+}
 var ROUTE_REGEX = /\b(?:app|pages|src\/pages|src\/app)\/([\w[\].-]+(?:\/[\w[\].-]+)*)/;
 var URL_ROUTE_REGEX = /https?:\/\/[^/\s]+(\/([\w-]+(?:\/[\w-]+)*))/;
 function inferRoute(command, recentEdits) {
@@ -150,9 +157,10 @@ function run(rawInput) {
     });
     return "{}";
   }
+  const env = process.env;
   const verificationId = generateVerificationId();
-  const recentEdits = process.env.VERCEL_PLUGIN_RECENT_EDITS || "";
-  const inferredRoute = inferRoute(command, recentEdits);
+  const recentEdits = env.VERCEL_PLUGIN_RECENT_EDITS || "";
+  const inferredRoute = resolveObservedRoute(inferRoute(command, recentEdits), env);
   const boundaryEvent = buildBoundaryEvent({
     command,
     boundary,
@@ -180,22 +188,25 @@ function run(rawInput) {
       blockedReasons: [...plan.blockedReasons]
     });
     const primaryStory = plan.stories.length > 0 ? selectPrimaryStory(plan.stories) : null;
+    const resolvedStoryId = primaryStory?.id ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_STORY_ID") ?? null;
     if (boundaryEvent.boundary !== "unknown") {
       const resolved = resolveBoundaryOutcome({
         sessionId,
         boundary: boundaryEvent.boundary,
         matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
-        storyId: primaryStory?.id ?? null,
+        storyId: resolvedStoryId,
         route: inferredRoute,
         now: boundaryEvent.timestamp
       });
       if (resolved.length > 0) {
+        const outcomeKind = boundaryEvent.matchedSuggestedAction ? "directive-win" : "win";
         log.summary("verification.routing-policy-resolved", {
           verificationId,
           boundary: boundaryEvent.boundary,
-          storyId: primaryStory?.id ?? null,
+          storyId: resolvedStoryId,
           route: inferredRoute,
           resolvedCount: resolved.length,
+          outcomeKind,
           skills: resolved.map((e) => e.skill)
         });
       }
@@ -217,16 +228,16 @@ function run(rawInput) {
       toolTarget: redactedTarget,
       timestamp: boundaryEvent.timestamp,
       primaryStory: {
-        id: primaryStory?.id ?? null,
+        id: resolvedStoryId,
         kind: primaryStory?.kind ?? null,
-        storyRoute: primaryStory?.route ?? null,
+        storyRoute: primaryStory?.route ?? inferredRoute,
         targetBoundary: boundaryEvent.boundary === "unknown" ? null : boundaryEvent.boundary
       },
       observedRoute: inferredRoute,
-      policyScenario: primaryStory ? `PostToolUse|${primaryStory.kind ?? "none"}|${boundaryEvent.boundary}|Bash` : null,
+      policyScenario: resolvedStoryId ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|Bash` : null,
       matchedSkills: [],
       injectedSkills: [],
-      skippedReasons: primaryStory ? [] : ["no_active_verification_story"],
+      skippedReasons: resolvedStoryId ? [] : ["no_active_verification_story"],
       ranked: [],
       verification: {
         verificationId,
@@ -275,9 +286,11 @@ export {
   buildBoundaryEvent,
   buildLedgerObservation,
   classifyBoundary,
+  envString,
   inferRoute,
   isVerificationReport,
   parseInput,
   redactCommand,
+  resolveObservedRoute,
   run
 };

@@ -61,6 +61,7 @@ import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
 import { loadCachedPlanResult, selectPrimaryStory } from "./verification-plan.mjs";
+import { resolveVerificationRuntimeState, buildVerificationEnv } from "./verification-directive.mjs";
 import { applyPolicyBoosts } from "./routing-policy.mjs";
 import type { RoutingHookName, RoutingToolName } from "./routing-policy.mjs";
 import {
@@ -1181,13 +1182,13 @@ export interface FormatOutputParams {
   verificationId?: string;
   skillMap?: Record<string, { docs?: string[]; sitemap?: string }>;
   platform?: HookPlatform;
-  env?: RuntimeEnvUpdates;
+  env?: Record<string, string>;
 }
 
 function formatPlatformOutput(
   platform: HookPlatform,
   additionalContext?: string,
-  env?: RuntimeEnvUpdates,
+  env?: Record<string, string>,
 ): string {
   if (platform === "cursor") {
     const output: Record<string, unknown> = {};
@@ -1611,8 +1612,9 @@ function run(): string {
       boostsApplied: profilerBoosted,
       policyBoosted,
     }, log.active ? timing : null);
-    const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
-    return formatPlatformOutput(platform, undefined, envUpdates);
+    const earlyEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+    const clearingEnv: Record<string, string> = { ...(earlyEnv ?? {}), ...buildVerificationEnv(null) };
+    return formatPlatformOutput(platform, undefined, clearingEnv);
   }
 
   // Stage 5: injectSkills (enforces byte budget + MAX_SKILLS ceiling)
@@ -1717,8 +1719,9 @@ function run(): string {
       boostsApplied: profilerBoosted,
       policyBoosted,
     }, log.active ? timing : null);
-    const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
-    return formatPlatformOutput(platform, undefined, envUpdates);
+    const earlyEnv2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+    const clearingEnv2: Record<string, string> = { ...(earlyEnv2 ?? {}), ...buildVerificationEnv(null) };
+    return formatPlatformOutput(platform, undefined, clearingEnv2);
   }
 
   if (log.active) timing.total = log.elapsed();
@@ -1783,8 +1786,28 @@ function run(): string {
     }
   }
 
-  // Stage 6: formatOutput
-  const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+  // Stage 6: resolve verification directive and formatOutput
+  const verificationRuntime = resolveVerificationRuntimeState(sessionId, {
+    agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+    lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null,
+  }, log);
+
+  if (verificationRuntime.banner) {
+    parts.unshift(verificationRuntime.banner);
+    log.summary("pretooluse.verification-banner-injected", {
+      sessionId,
+      storyId: verificationRuntime.directive?.storyId ?? null,
+      route: verificationRuntime.directive?.route ?? null,
+      source: verificationRuntime.plan ? "cache-or-compute" : "none",
+    });
+  }
+
+  const runtimeEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+  const envUpdates: Record<string, string> = {
+    ...(runtimeEnv ?? {}),
+    ...verificationRuntime.env,
+  };
+
   const result = formatOutput({
     parts,
     matched,
@@ -1799,7 +1822,7 @@ function run(): string {
     verificationId,
     skillMap: skills.skillMap,
     platform,
-    env: envUpdates,
+    env: Object.keys(envUpdates).length > 0 ? envUpdates : undefined,
   });
 
   if (loaded.length > 0) {
