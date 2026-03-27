@@ -68,7 +68,7 @@ import {
   appendSkillExposure,
   loadProjectRoutingPolicy,
 } from "./routing-policy-ledger.mjs";
-import { selectPolicyRecallCandidates } from "./policy-recall.mjs";
+import { explainPolicyRecall } from "./routing-diagnosis.mjs";
 import {
   appendRoutingDecisionTrace,
   createDecisionId,
@@ -1583,7 +1583,7 @@ function run(): string {
 
   // Stage 4.95: Route-scoped policy recall — inject historically verified winners
   // that pattern matching missed. Only fires when an active verification story
-  // and target boundary exist. Phase 1: max 1 recalled skill, summary-only.
+  // and target boundary exist. Phase 1: max 1 recalled skill.
   const policyRecallSynthetic = new Set<string>();
   if (cwd && sessionId) {
     const recallPlan = loadCachedPlanResult(sessionId, log);
@@ -1596,32 +1596,47 @@ function run(): string {
       | null) ?? null;
 
     if (recallStory && recallBoundary) {
-      const policy = loadProjectRoutingPolicy(cwd);
-      const recalled = selectPolicyRecallCandidates(
-        policy,
-        {
-          hook: "PreToolUse",
-          storyKind: recallStory.kind ?? null,
-          targetBoundary: recallBoundary,
-          toolName: toolName as RoutingToolName,
-          routeScope: recallStory.route ?? null,
-        },
-        {
-          maxCandidates: 1,
-          excludeSkills: new Set([...rankedSkills, ...injectedSkills]),
-        },
-      );
+      const recallScenario = {
+        hook: "PreToolUse" as RoutingHookName,
+        storyKind: recallStory.kind ?? null,
+        targetBoundary: recallBoundary,
+        toolName: toolName as RoutingToolName,
+        routeScope: recallStory.route ?? null,
+      };
 
-      for (const candidate of recalled) {
+      const policy = loadProjectRoutingPolicy(cwd);
+      const excludeSkills = new Set([...rankedSkills, ...injectedSkills]);
+
+      const recallDiagnosis = explainPolicyRecall(policy, recallScenario, {
+        maxCandidates: 1,
+        excludeSkills,
+      });
+
+      log.debug("policy-recall-lookup", {
+        requestedScenario:
+          `${recallScenario.hook}|${recallScenario.storyKind ?? "none"}|` +
+          `${recallScenario.targetBoundary ?? "none"}|${recallScenario.toolName}|` +
+          `${recallScenario.routeScope ?? "*"}`,
+        checkedScenarios: recallDiagnosis.checkedScenarios,
+        selectedBucket: recallDiagnosis.selectedBucket,
+        selectedSkills: recallDiagnosis.selected.map((candidate) => candidate.skill),
+        rejected: recallDiagnosis.rejected.map((candidate) => ({
+          skill: candidate.skill,
+          scenario: candidate.scenario,
+          exposures: candidate.exposures,
+          successRate: candidate.successRate,
+          policyBoost: candidate.policyBoost,
+          excluded: candidate.excluded,
+          rejectedReason: candidate.rejectedReason,
+        })),
+        hintCodes: recallDiagnosis.hints.map((hint) => hint.code),
+      });
+
+      for (const candidate of recallDiagnosis.selected) {
         if (rankedSkills.includes(candidate.skill)) continue;
-        // Bounded insertion: place recalled skill behind the top direct match
-        // so it never preempts a stronger current-evidence winner.
         const insertIdx = rankedSkills.length > 0 ? 1 : 0;
         rankedSkills.splice(insertIdx, 0, candidate.skill);
         matched.add(candidate.skill);
-        // Do NOT add to forceSummarySkills — the summary path uses the same
-        // payload as full injection (skillInvocationMessage), so forcing
-        // summary-only is a no-op that pretends to save cost when it does not.
         policyRecallSynthetic.add(candidate.skill);
         log.debug("policy-recall-injected", {
           skill: candidate.skill,

@@ -606,6 +606,30 @@ Where `successRate = (wins + directiveWins × 0.25) / max(exposures, 1)`.
 **Log events**:
 - `policy-recall-injected` (debug): Emitted per recalled skill with `skill`, `scenario`, `insertionIndex`, `exposures`, `wins`, `directiveWins`, `successRate`, `policyBoost`, `recallScore`
 - `policy-recall-skipped` (debug): Emitted when preconditions fail, with `reason`: `"no_active_verification_story"` or `"no_target_boundary"`
+- `policy-recall-lookup` (debug): Emitted before any recalled skill is inserted, with `requestedScenario`, `checkedScenarios[]`, `selectedBucket`, `selectedSkills[]`, `rejected[]`, and `hintCodes[]`
+
+### Routing Doctor (`session-explain --json`)
+
+`session-explain` includes an additive `doctor` object that explains the latest routing decision without changing routing behavior.
+
+```json
+{
+  "doctor": {
+    "latestDecisionId": "abc123",
+    "latestScenario": "PreToolUse|flow-verification|clientRequest|Bash|/settings",
+    "latestRanked": [],
+    "policyRecall": {
+      "selectedBucket": "PreToolUse|flow-verification|clientRequest|Bash|/settings",
+      "selected": [],
+      "rejected": [],
+      "hints": []
+    },
+    "hints": []
+  }
+}
+```
+
+The contract is additive-only and intended for downstream agents, CI diagnostics, and local operator debugging.
 
 ### Ranking Function
 

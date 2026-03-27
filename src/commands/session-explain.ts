@@ -13,12 +13,22 @@ import { join } from "node:path";
 import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
 import { filterExcludedSkillMap, type SkillExclusion } from "../shared/skill-exclusion-policy.ts";
 import { readRoutingDecisionTrace } from "../../hooks/src/routing-decision-trace.mts";
-import { loadSessionExposures } from "../../hooks/src/routing-policy-ledger.mts";
+import {
+  loadProjectRoutingPolicy,
+  loadSessionExposures,
+} from "../../hooks/src/routing-policy-ledger.mts";
 import {
   computePlan,
   loadCachedPlanResult,
+  selectPrimaryStory,
   type VerificationPlanResult,
 } from "../../hooks/src/verification-plan.mts";
+import {
+  explainPolicyRecall,
+  parsePolicyScenario,
+  type PolicyRecallDiagnosis,
+  type RoutingDiagnosisHint,
+} from "../../hooks/src/routing-diagnosis.mts";
 import {
   buildVerificationDirective,
   buildVerificationEnv,
@@ -34,6 +44,24 @@ export interface SessionExplainDiagnosis {
   code: string;
   message: string;
   hint?: string;
+}
+
+export interface SessionExplainDoctorRankedSkill {
+  skill: string;
+  basePriority: number;
+  effectivePriority: number;
+  policyBoost: number;
+  policyReason: string | null;
+  synthetic: boolean;
+  droppedReason: string | null;
+}
+
+export interface SessionExplainDoctor {
+  latestDecisionId: string | null;
+  latestScenario: string | null;
+  latestRanked: SessionExplainDoctorRankedSkill[];
+  policyRecall: PolicyRecallDiagnosis | null;
+  hints: RoutingDiagnosisHint[];
 }
 
 export interface SessionExplainResult {
@@ -70,11 +98,113 @@ export interface SessionExplainResult {
     staleMisses: number;
   };
   diagnosis: SessionExplainDiagnosis[];
+  doctor: SessionExplainDoctor | null;
 }
 
 // ---------------------------------------------------------------------------
 // Core logic
 // ---------------------------------------------------------------------------
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function buildRoutingDoctor(
+  latestTrace: unknown,
+  plan: VerificationPlanResult,
+  projectRoot: string,
+): SessionExplainDoctor | null {
+  const trace = toRecord(latestTrace);
+  if (Object.keys(trace).length === 0) return null;
+
+  const rankedSource = Array.isArray(trace.ranked) ? trace.ranked : [];
+  const latestRanked = rankedSource
+    .map((entry) => {
+      const obj = toRecord(entry);
+      const skill = stringOrNull(obj.skill);
+      if (!skill) return null;
+      return {
+        skill,
+        basePriority: numberOrZero(obj.basePriority),
+        effectivePriority: numberOrZero(obj.effectivePriority),
+        policyBoost: numberOrZero(obj.policyBoost),
+        policyReason: stringOrNull(obj.policyReason),
+        synthetic: obj.synthetic === true,
+        droppedReason: stringOrNull(obj.droppedReason),
+      };
+    })
+    .filter(
+      (entry): entry is SessionExplainDoctorRankedSkill => entry !== null,
+    );
+
+  const latestScenario = stringOrNull(trace.policyScenario);
+  const parsedScenario = parsePolicyScenario(latestScenario);
+
+  const primaryStory = selectPrimaryStory(plan.stories);
+  const primaryStoryRecord = toRecord(trace.primaryStory);
+  const routeScope =
+    stringOrNull(trace.observedRoute) ??
+    stringOrNull(primaryStoryRecord.storyRoute) ??
+    primaryStory?.route ??
+    null;
+
+  const scenario = parsedScenario
+    ? {
+        ...parsedScenario,
+        routeScope: parsedScenario.routeScope ?? routeScope,
+      }
+    : null;
+
+  const injectedSkills = Array.isArray(trace.injectedSkills)
+    ? trace.injectedSkills.map((skill) => String(skill))
+    : [];
+
+  const excludeSkills = new Set<string>([
+    ...latestRanked.map((entry) => entry.skill),
+    ...injectedSkills,
+  ]);
+
+  const policy = loadProjectRoutingPolicy(projectRoot);
+  const policyRecall =
+    scenario &&
+    scenario.hook === "PreToolUse" &&
+    scenario.targetBoundary
+      ? explainPolicyRecall(policy, scenario, {
+          excludeSkills,
+          maxCandidates: 1,
+        })
+      : null;
+
+  const hints: RoutingDiagnosisHint[] = [...(policyRecall?.hints ?? [])];
+
+  if (latestRanked.length === 0) {
+    hints.push({
+      severity: "warning",
+      code: "ROUTING_TRACE_MISSING_RANKED",
+      message:
+        "Latest routing trace has no ranked[] candidates",
+      hint: "Ensure PreToolUse/UserPromptSubmit persists ranked[] into the routing decision trace",
+    });
+  }
+
+  return {
+    latestDecisionId: stringOrNull(trace.decisionId),
+    latestScenario,
+    latestRanked,
+    policyRecall,
+    hints,
+  };
+}
 
 export function runSessionExplain(
   sessionId: string | null,
@@ -174,6 +304,9 @@ export function runSessionExplain(
   // --- Exposures ---
   const exposures = sessionId ? loadSessionExposures(sessionId) : [];
 
+  // --- Routing doctor ---
+  const doctor = buildRoutingDoctor(latest, plan, projectRoot);
+
   // --- Assemble result ---
   const result: SessionExplainResult = {
     ok: true,
@@ -209,6 +342,7 @@ export function runSessionExplain(
       staleMisses: exposures.filter((e) => e.outcome === "stale-miss").length,
     },
     diagnosis,
+    doctor,
   };
 
   // Log structured state transition
@@ -220,6 +354,8 @@ export function runSessionExplain(
     routingDecisions: traces.length,
     hasVerificationStories: plan.hasStories,
     diagnosisCount: diagnosis.length,
+    doctorDecisionId: result.doctor?.latestDecisionId ?? null,
+    doctorHintCount: result.doctor?.hints.length ?? 0,
   }));
 
   if (json) return JSON.stringify(result, null, 2);
@@ -251,6 +387,36 @@ function formatSessionExplainText(result: SessionExplainResult): string {
     for (const d of result.diagnosis) {
       lines.push(`  [${d.severity}] ${d.code}: ${d.message}`);
       if (d.hint) lines.push(`    -> ${d.hint}`);
+    }
+  }
+
+  if (result.doctor) {
+    lines.push("");
+    lines.push("Routing doctor:");
+    lines.push(`  Decision: ${result.doctor.latestDecisionId ?? "none"}`);
+    lines.push(`  Scenario: ${result.doctor.latestScenario ?? "none"}`);
+    if (result.doctor.latestRanked.length > 0) {
+      const top = result.doctor.latestRanked
+        .slice(0, 3)
+        .map((entry) => `${entry.skill}=${entry.effectivePriority}`)
+        .join(", ");
+      lines.push(`  Top ranked: ${top}`);
+    }
+    if (result.doctor.policyRecall) {
+      lines.push(
+        `  Recall bucket: ${result.doctor.policyRecall.selectedBucket ?? "none"}`,
+      );
+      lines.push(
+        `  Recall selected: ${
+          result.doctor.policyRecall.selected
+            .map((candidate) => candidate.skill)
+            .join(", ") || "none"
+        }`,
+      );
+    }
+    for (const hint of result.doctor.hints) {
+      lines.push(`  [${hint.severity}] ${hint.code}: ${hint.message}`);
+      if (hint.hint) lines.push(`    -> ${hint.hint}`);
     }
   }
 

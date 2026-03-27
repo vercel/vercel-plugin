@@ -43,7 +43,7 @@ import {
   appendSkillExposure,
   loadProjectRoutingPolicy
 } from "./routing-policy-ledger.mjs";
-import { selectPolicyRecallCandidates } from "./policy-recall.mjs";
+import { explainPolicyRecall } from "./routing-diagnosis.mjs";
 import {
   appendRoutingDecisionTrace,
   createDecisionId
@@ -1033,22 +1033,36 @@ function run() {
     const recallStory = recallPlan ? selectPrimaryStory(recallPlan.stories ?? []) : null;
     const recallBoundary = recallPlan?.primaryNextAction?.targetBoundary ?? null;
     if (recallStory && recallBoundary) {
+      const recallScenario = {
+        hook: "PreToolUse",
+        storyKind: recallStory.kind ?? null,
+        targetBoundary: recallBoundary,
+        toolName,
+        routeScope: recallStory.route ?? null
+      };
       const policy = loadProjectRoutingPolicy(cwd);
-      const recalled = selectPolicyRecallCandidates(
-        policy,
-        {
-          hook: "PreToolUse",
-          storyKind: recallStory.kind ?? null,
-          targetBoundary: recallBoundary,
-          toolName,
-          routeScope: recallStory.route ?? null
-        },
-        {
-          maxCandidates: 1,
-          excludeSkills: /* @__PURE__ */ new Set([...rankedSkills, ...injectedSkills])
-        }
-      );
-      for (const candidate of recalled) {
+      const excludeSkills = /* @__PURE__ */ new Set([...rankedSkills, ...injectedSkills]);
+      const recallDiagnosis = explainPolicyRecall(policy, recallScenario, {
+        maxCandidates: 1,
+        excludeSkills
+      });
+      log.debug("policy-recall-lookup", {
+        requestedScenario: `${recallScenario.hook}|${recallScenario.storyKind ?? "none"}|${recallScenario.targetBoundary ?? "none"}|${recallScenario.toolName}|${recallScenario.routeScope ?? "*"}`,
+        checkedScenarios: recallDiagnosis.checkedScenarios,
+        selectedBucket: recallDiagnosis.selectedBucket,
+        selectedSkills: recallDiagnosis.selected.map((candidate) => candidate.skill),
+        rejected: recallDiagnosis.rejected.map((candidate) => ({
+          skill: candidate.skill,
+          scenario: candidate.scenario,
+          exposures: candidate.exposures,
+          successRate: candidate.successRate,
+          policyBoost: candidate.policyBoost,
+          excluded: candidate.excluded,
+          rejectedReason: candidate.rejectedReason
+        })),
+        hintCodes: recallDiagnosis.hints.map((hint) => hint.code)
+      });
+      for (const candidate of recallDiagnosis.selected) {
         if (rankedSkills.includes(candidate.skill)) continue;
         const insertIdx = rankedSkills.length > 0 ? 1 : 0;
         rankedSkills.splice(insertIdx, 0, candidate.skill);

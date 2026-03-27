@@ -532,6 +532,11 @@ After all pattern-matched skills are ranked and before injection, the hook check
 
 **When recall is skipped**, a `policy-recall-skipped` log line is emitted with reason `no_active_verification_story` or `no_target_boundary`.
 
+**Observability**:
+- `policy-recall-lookup` is emitted before any recalled skill is inserted
+- It includes `requestedScenario`, `checkedScenarios[]`, `selectedBucket`, `selectedSkills[]`, `rejected[]`, and `hintCodes[]`
+- This is the canonical machine-readable explanation for why route-scoped recall did or did not fire
+
 ### Unified Ranker
 
 **Source**: `patterns.mts:rankEntries()`
