@@ -26,6 +26,12 @@ import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { loadCachedPlanResult } from "./verification-plan.mjs";
+import { applyPolicyBoosts } from "./routing-policy.mjs";
+import {
+  appendSkillExposure,
+  loadProjectRoutingPolicy
+} from "./routing-policy-ledger.mjs";
 var MAX_SKILLS = 2;
 var DEFAULT_INJECTION_BUDGET_BYTES = 8e3;
 var MIN_PROMPT_LENGTH = 10;
@@ -701,6 +707,45 @@ function run() {
     }, log.active ? timing : null);
     return formatEmptyOutput(platform, finalizePromptEnvUpdates(platform, promptEnvBefore));
   }
+  const promptPolicyBoosted = [];
+  if (cwd && report.selectedSkills.length > 0) {
+    const promptPolicyScenario = {
+      hook: "UserPromptSubmit",
+      storyKind: intentResult.intent ?? null,
+      targetBoundary: null,
+      toolName: "Prompt"
+    };
+    const promptPolicy = loadProjectRoutingPolicy(cwd);
+    const rankable = report.selectedSkills.map((skill) => {
+      const r = report.perSkillResults[skill];
+      return {
+        skill,
+        priority: r?.score ?? 0,
+        effectivePriority: r?.score ?? 0
+      };
+    });
+    const boosted = applyPolicyBoosts(rankable, promptPolicy, promptPolicyScenario);
+    boosted.sort(
+      (a, b) => b.effectivePriority - a.effectivePriority || a.skill.localeCompare(b.skill)
+    );
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...boosted.map((b) => b.skill));
+    for (const b of boosted) {
+      if (b.policyBoost !== 0) {
+        promptPolicyBoosted.push({
+          skill: b.skill,
+          boost: b.policyBoost,
+          reason: b.policyReason
+        });
+      }
+    }
+    if (promptPolicyBoosted.length > 0) {
+      log.debug("prompt-policy-boosted", {
+        scenario: `${promptPolicyScenario.hook}|${promptPolicyScenario.storyKind ?? "none"}|none|Prompt`,
+        boostedSkills: promptPolicyBoosted
+      });
+    }
+  }
   const tInject = log.active ? log.now() : 0;
   const injectedSkills = dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState);
   const injectResult = injectSkills(report.selectedSkills, {
@@ -723,6 +768,33 @@ function run() {
   const droppedByCap = [...injectResult.droppedByCap, ...report.droppedByCap];
   const droppedByBudget = [...injectResult.droppedByBudget, ...report.droppedByBudget];
   const matchedSkills = allMatched;
+  if (loaded.length > 0 && sessionId) {
+    const plan = loadCachedPlanResult(sessionId, log);
+    const story = plan?.stories[0] ?? null;
+    for (const skill of loaded) {
+      appendSkillExposure({
+        id: `${sessionId}:prompt:${skill}:${Date.now()}`,
+        sessionId,
+        projectRoot: cwd,
+        storyId: story?.id ?? null,
+        storyKind: story?.kind ?? null,
+        route: story?.route ?? null,
+        hook: "UserPromptSubmit",
+        toolName: "Prompt",
+        skill,
+        targetBoundary: null,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        resolvedAt: null,
+        outcome: "pending"
+      });
+    }
+    log.summary("routing-policy-exposures-recorded", {
+      hook: "UserPromptSubmit",
+      skills: loaded,
+      storyKind: story?.kind ?? null,
+      policyBoosted: promptPolicyBoosted
+    });
+  }
   if (parts.length === 0) {
     log.complete("all_deduped", {
       matchedCount: matchedSkills.length,

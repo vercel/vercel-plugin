@@ -10,6 +10,7 @@ import { readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "no
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { finalizeStaleExposures } from "./routing-policy-ledger.mjs";
 
 type SessionEndHookInput = {
   session_id?: string;
@@ -83,6 +84,13 @@ function main(): void {
   }
   const tempRoot = tmpdir();
   const prefix = `vercel-plugin-${tempSessionIdSegment(sessionId)}-`;
+
+  // Finalize any pending routing policy exposures before deleting temp files
+  try {
+    finalizeStaleExposures(sessionId, new Date().toISOString());
+  } catch {
+    // Best-effort: don't block cleanup on policy finalization failure
+  }
 
   // Glob all session-scoped temp entries (main + agent-scoped claim dirs, files, profile cache)
   let entries: string[] = [];

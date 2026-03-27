@@ -26,6 +26,7 @@ import {
   recordObservation,
   type VerificationObservation,
 } from "./verification-ledger.mjs";
+import { resolveBoundaryOutcome } from "./routing-policy-ledger.mjs";
 
 export { redactCommand };
 
@@ -343,6 +344,24 @@ export function run(rawInput?: string): string {
       primaryNextAction: plan.primaryNextAction,
       blockedReasons: [...plan.blockedReasons],
     });
+
+    // Resolve routing policy exposures for this boundary
+    if (boundaryEvent.boundary !== "unknown") {
+      const resolved = resolveBoundaryOutcome({
+        sessionId,
+        boundary: boundaryEvent.boundary as "uiRender" | "clientRequest" | "serverHandler" | "environment",
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+        now: boundaryEvent.timestamp,
+      });
+      if (resolved.length > 0) {
+        log.summary("verification.routing-policy-resolved", {
+          verificationId,
+          boundary: boundaryEvent.boundary,
+          resolvedCount: resolved.length,
+          skills: resolved.map((e) => e.skill),
+        });
+      }
+    }
   }
 
   log.complete("verification-observe-done", {

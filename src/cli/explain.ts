@@ -27,6 +27,13 @@ import {
   isVercelJsonPath,
   VERCEL_JSON_SKILLS,
 } from "../../hooks/vercel-config.mjs";
+import {
+  applyPolicyBoosts,
+  type RoutingPolicyFile,
+} from "../../hooks/src/routing-policy.mts";
+import {
+  loadProjectRoutingPolicy,
+} from "../../hooks/src/routing-policy-ledger.mts";
 
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 12_000;
@@ -45,6 +52,10 @@ export interface ExplainMatch {
   bodyBytes: number | null;
   /** Human-readable explanation of why the skill was dropped or how it was injected */
   capReason: string;
+  /** Policy boost applied (0 when no policy data or below threshold) */
+  policyBoost?: number;
+  /** Human-readable policy stats when policy data is present */
+  policyReason?: string | null;
 }
 
 export interface ExplainCollision {
@@ -78,6 +89,8 @@ export interface ExplainOptions {
   fileContent?: string;
   /** Explicit tool name (Read, Edit, Write, Bash) — overrides auto-detection */
   toolName?: string;
+  /** Pre-loaded routing policy (loads from project tmpdir if not provided) */
+  policyFile?: RoutingPolicyFile;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +232,28 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
     }
   }
 
+  // Policy boost: apply verified routing policy boosts
+  const policy = opts.policyFile ?? loadProjectRoutingPolicy(projectRoot);
+  const toolForPolicy = opts.toolName ?? (targetType === "bash" ? "Bash" : "Read");
+  const policyScenario = {
+    hook: "PreToolUse" as const,
+    storyKind: null as string | null,
+    targetBoundary: null as null,
+    toolName: toolForPolicy as "Read" | "Edit" | "Write" | "Bash",
+  };
+  const boostedEntries = applyPolicyBoosts(matchedEntries, policy, policyScenario);
+
+  // Write back boosted effective priorities and track policy data
+  const policyData = new Map<string, { boost: number; reason: string | null }>();
+  for (const b of boostedEntries) {
+    if (b.policyBoost !== 0 || b.policyReason) {
+      policyData.set(b.skill, { boost: b.policyBoost, reason: b.policyReason });
+    }
+    // Update matched entry with policy-adjusted effective priority
+    const orig = matchedEntries.find((e) => e.skill === b.skill);
+    if (orig) orig.effectivePriority = b.effectivePriority;
+  }
+
   // Sort by effectivePriority DESC, then skill name ASC
   const rankedEntries = rankEntries(matchedEntries);
 
@@ -228,7 +263,8 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
   // Build result with injection/cap/budget tracking
   const matches: ExplainMatch[] = rankedEntries.map((entry, idx) => {
     const plan = injectionPlan.get(entry.skill)!;
-    return {
+    const pd = policyData.get(entry.skill);
+    const match: ExplainMatch = {
       skill: entry.skill,
       priority: entry.priority,
       effectivePriority: entry.effectivePriority,
@@ -240,6 +276,11 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
       bodyBytes: plan.bodyBytes,
       capReason: plan.capReason,
     };
+    if (pd) {
+      match.policyBoost = pd.boost;
+      match.policyReason = pd.reason;
+    }
+    return match;
   });
 
   // Detect collisions: skills at same priority competing for injection slots
@@ -286,6 +327,10 @@ interface InjectionPlan {
   capReason: string;
 }
 
+function explainSkillInvocationMessage(skill: string): string {
+  return `You must run the Skill(${skill}) tool.`;
+}
+
 function simulateInjection(
   rankedEntries: Array<{ skill: string }>,
   skillMap: Record<string, { summary?: string; bodyPath?: string }>,
@@ -300,14 +345,14 @@ function simulateInjection(
     const skill = entry.skill;
     const skillPath = join(projectRoot, "skills", skill, "SKILL.md");
 
-    // Read body size
+    // Read the on-disk body for informational reporting, but budget the same
+    // invocation string the runtime injector emits.
     let bodyBytes: number | null = null;
     let wrappedBytes = 0;
     try {
       const content = readFileSync(skillPath, "utf-8");
-      const wrapped = `<!-- skill:${skill} -->\n${content}\n<!-- /skill:${skill} -->`;
-      wrappedBytes = Buffer.byteLength(wrapped, "utf-8");
-      bodyBytes = wrappedBytes;
+      bodyBytes = Buffer.byteLength(content, "utf-8");
+      wrappedBytes = Buffer.byteLength(explainSkillInvocationMessage(skill), "utf-8");
     } catch {
       // SKILL.md not found — would be skipped at runtime too
       result.set(skill, { mode: "droppedByCap", bodyBytes: null, capReason: "SKILL.md not found" });
@@ -325,8 +370,7 @@ function simulateInjection(
       // Try summary fallback
       const summary = skillMap[skill]?.summary;
       if (summary) {
-        const summaryWrapped = `<!-- skill:${skill} mode:summary -->\n${summary}\n<!-- /skill:${skill} -->`;
-        const summaryBytes = Buffer.byteLength(summaryWrapped, "utf-8");
+        const summaryBytes = Buffer.byteLength(explainSkillInvocationMessage(skill), "utf-8");
         if (usedBytes + summaryBytes <= budgetBytes) {
           result.set(skill, { mode: "summary", bodyBytes, capReason: `full body (${wrappedBytes}B) exceeds budget (${usedBytes}+${wrappedBytes} > ${budgetBytes}B); using summary (${summaryBytes}B)` });
           loadedCount++;
@@ -383,14 +427,27 @@ export function formatExplainResult(result: ExplainResult): string {
     else if (m.injectionMode === "droppedByBudget") status = "BUDGET";
     else status = "CAPPED";
 
-    const priStr = m.effectivePriority !== m.priority
-      ? `${m.effectivePriority} (base ${m.priority})`
-      : `${m.priority}`;
+    const policyDelta = m.policyBoost ?? 0;
+    const nonPolicyBase = m.effectivePriority - policyDelta;
+    let priStr: string;
+    if (policyDelta !== 0 && nonPolicyBase !== m.priority) {
+      // Both profiler/vercel.json and policy boosts active
+      priStr = `${m.effectivePriority} (base ${m.priority}, policy ${policyDelta > 0 ? "+" : ""}${policyDelta})`;
+    } else if (policyDelta !== 0) {
+      priStr = `${m.effectivePriority} (base ${m.priority}, policy ${policyDelta > 0 ? "+" : ""}${policyDelta})`;
+    } else if (m.effectivePriority !== m.priority) {
+      priStr = `${m.effectivePriority} (base ${m.priority})`;
+    } else {
+      priStr = `${m.priority}`;
+    }
     const bytesStr = m.bodyBytes != null ? ` (${m.bodyBytes} bytes)` : "";
     lines.push(`  [${status}] ${m.skill}${bytesStr}`);
     lines.push(`          priority: ${priStr}`);
     lines.push(`          pattern:  ${m.matchedPattern} (${m.matchType})`);
     lines.push(`          reason:   ${m.capReason}`);
+    if (m.policyReason) {
+      lines.push(`          policy:   ${m.policyReason}`);
+    }
   }
 
   if (result.collisions.length > 0) {

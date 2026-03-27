@@ -7,10 +7,11 @@
  *   vercel-plugin explain --help
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { explain, formatExplainResult } from "./explain.ts";
 import { doctor, formatDoctorResult } from "../commands/doctor.ts";
+import { createEmptyRoutingPolicy, type RoutingPolicyFile } from "../../hooks/src/routing-policy.mts";
 
 function validateProjectRoot(projectRoot: string): void {
   const skillsDir = join(projectRoot, "skills");
@@ -35,6 +36,7 @@ Options for explain:
   --project <path>    Project root (default: current plugin directory)
   --likely-skills s1,s2  Simulate session-start profiler boost (+5 priority)
   --budget <bytes>    Override injection byte budget (default: 12000)
+  --policy-file <path>  Load routing policy from a JSON file (default: project tmpdir)
   --help, -h          Show this help message
 
 Examples:
@@ -67,6 +69,7 @@ function runExplain(explainArgs: string[]) {
   let projectRoot = resolve(import.meta.dir, "../..");
   let likelySkills: string | undefined;
   let budgetBytes: number | undefined;
+  let policyFilePath: string | undefined;
 
   for (let i = 0; i < explainArgs.length; i++) {
     const arg = explainArgs[i];
@@ -97,6 +100,13 @@ function runExplain(explainArgs: string[]) {
         console.error("Error: --budget must be a positive integer");
         process.exit(1);
       }
+    } else if (arg === "--policy-file") {
+      i++;
+      if (i >= explainArgs.length) {
+        console.error("Error: --policy-file requires a file path");
+        process.exit(1);
+      }
+      policyFilePath = resolve(explainArgs[i]);
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -117,8 +127,19 @@ function runExplain(explainArgs: string[]) {
   // Validate project path has skills/
   validateProjectRoot(projectRoot);
 
+  // Load policy file if provided
+  let policyFile: RoutingPolicyFile | undefined;
+  if (policyFilePath) {
+    try {
+      policyFile = JSON.parse(readFileSync(policyFilePath, "utf-8"));
+    } catch {
+      console.error(`Error: could not read routing policy file at ${policyFilePath}`);
+      process.exit(2);
+    }
+  }
+
   try {
-    const result = explain(target, projectRoot, { likelySkills, budgetBytes });
+    const result = explain(target, projectRoot, { likelySkills, budgetBytes, policyFile });
 
     if (jsonOutput) {
       console.log(JSON.stringify(result, null, 2));

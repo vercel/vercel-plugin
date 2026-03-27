@@ -36,6 +36,12 @@ import {
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { loadCachedPlanResult } from "./verification-plan.mjs";
+import { applyPolicyBoosts } from "./routing-policy.mjs";
+import {
+  appendSkillExposure,
+  loadProjectRoutingPolicy
+} from "./routing-policy-ledger.mjs";
 var MAX_SKILLS = 3;
 var DEFAULT_INJECTION_BUDGET_BYTES = 18e3;
 var SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
@@ -471,7 +477,7 @@ function matchSkills(toolName, toolInput, compiledSkills, logger) {
   l.debug("matches-found", { matched: [...matched], reasons: matchReasons });
   return { matchedEntries, matchReasons, matched };
 }
-function deduplicateSkills({ matchedEntries, matched, toolName, toolInput, injectedSkills, dedupOff, maxSkills, likelySkills, compiledSkills, setupMode }, logger) {
+function deduplicateSkills({ matchedEntries, matched, toolName, toolInput, injectedSkills, dedupOff, maxSkills, likelySkills, compiledSkills, setupMode, cwd, sessionId }, logger) {
   const l = logger || log;
   const cap = maxSkills ?? MAX_SKILLS;
   const likely = likelySkills || /* @__PURE__ */ new Set();
@@ -552,23 +558,62 @@ function deduplicateSkills({ matchedEntries, matched, toolName, toolInput, injec
       });
     }
   }
+  const policyBoosted = [];
+  if (cwd) {
+    const plan = sessionId ? loadCachedPlanResult(sessionId, l) : null;
+    const policyScenario = {
+      hook: "PreToolUse",
+      storyKind: plan?.stories[0]?.kind ?? null,
+      targetBoundary: plan?.primaryNextAction?.targetBoundary ?? null,
+      toolName
+    };
+    const policy = loadProjectRoutingPolicy(cwd);
+    const boosted = applyPolicyBoosts(
+      newEntries.map((e) => ({
+        ...e,
+        skill: e.skill,
+        priority: e.priority,
+        effectivePriority: typeof e.effectivePriority === "number" ? e.effectivePriority : e.priority
+      })),
+      policy,
+      policyScenario
+    );
+    for (let i = 0; i < newEntries.length; i++) {
+      const b = boosted[i];
+      newEntries[i].effectivePriority = b.effectivePriority;
+      if (b.policyBoost !== 0) {
+        policyBoosted.push({
+          skill: b.skill,
+          boost: b.policyBoost,
+          reason: b.policyReason
+        });
+      }
+    }
+    if (policyBoosted.length > 0) {
+      l.debug("policy-boosted", {
+        scenario: `${policyScenario.hook}|${policyScenario.storyKind ?? "none"}|${policyScenario.targetBoundary ?? "none"}|${policyScenario.toolName}`,
+        boostedSkills: policyBoosted
+      });
+    }
+  }
   newEntries = rankEntries(newEntries);
   const rankedSkills = newEntries.map((e) => e.skill);
   for (const entry of newEntries) {
     const eff = typeof entry.effectivePriority === "number" ? entry.effectivePriority : entry.priority;
+    const reason = policyBoosted.some((p) => p.skill === entry.skill) ? "policy_boosted" : profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match";
     logDecision(l, {
       hook: "PreToolUse",
       event: "skill_ranked",
       skill: entry.skill,
       score: eff,
-      reason: profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match"
+      reason
     });
   }
   l.debug("dedup-filtered", {
     rankedSkills,
     previouslyInjected: [...injectedSkills]
   });
-  return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting };
+  return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting, policyBoosted };
 }
 function skillInvocationMessage(skill, platform) {
   return platform === "cursor" ? `Load the /${skill} skill.` : `You must run the Skill(${skill}) tool.`;
@@ -851,9 +896,11 @@ function run() {
     dedupOff,
     likelySkills,
     compiledSkills,
-    setupMode
+    setupMode,
+    cwd,
+    sessionId
   }, log);
-  const { newEntries, rankedSkills, profilerBoosted } = dedupResult;
+  const { newEntries, rankedSkills, profilerBoosted, policyBoosted } = dedupResult;
   let tsxReviewInjected = false;
   if (tsxReview.triggered && !rankedSkills.includes(TSX_REVIEW_SKILL)) {
     const reviewTemplate = compiledSkills.find((e) => e.skill === TSX_REVIEW_SKILL);
@@ -997,7 +1044,8 @@ function run() {
       devServerVerifyTriggered: devServerVerify.triggered,
       matchedSkills: [...matched],
       injectedSkills: [],
-      boostsApplied: profilerBoosted
+      boostsApplied: profilerBoosted,
+      policyBoosted
     }, log.active ? timing : null);
     const envUpdates2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
     return formatPlatformOutput(platform, void 0, envUpdates2);
@@ -1015,6 +1063,32 @@ function run() {
     platform
   });
   if (log.active) timing.skill_read = Math.round(log.now() - tSkillRead);
+  if (loaded.length > 0 && sessionId) {
+    const plan = loadCachedPlanResult(sessionId, log);
+    const story = plan?.stories[0] ?? null;
+    for (const skill of loaded) {
+      appendSkillExposure({
+        id: `${sessionId}:${skill}:${Date.now()}`,
+        sessionId,
+        projectRoot: cwd,
+        storyId: story?.id ?? null,
+        storyKind: story?.kind ?? null,
+        route: story?.route ?? null,
+        hook: "PreToolUse",
+        toolName,
+        skill,
+        targetBoundary: plan?.primaryNextAction?.targetBoundary ?? null,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        resolvedAt: null,
+        outcome: "pending"
+      });
+    }
+    log.summary("routing-policy-exposures-recorded", {
+      hook: "PreToolUse",
+      skills: loaded,
+      storyKind: story?.kind ?? null
+    });
+  }
   if (tsxReviewInjected && loaded.includes(TSX_REVIEW_SKILL)) {
     parts.push(REVIEW_MARKER);
     const prevCount = getTsxEditCount(sessionId);
@@ -1049,7 +1123,8 @@ function run() {
       injectedSkills: [],
       droppedByCap,
       droppedByBudget,
-      boostsApplied: profilerBoosted
+      boostsApplied: profilerBoosted,
+      policyBoosted
     }, log.active ? timing : null);
     const envUpdates2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
     return formatPlatformOutput(platform, void 0, envUpdates2);

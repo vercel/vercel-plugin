@@ -60,6 +60,13 @@ import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { loadCachedPlanResult } from "./verification-plan.mjs";
+import { applyPolicyBoosts } from "./routing-policy.mjs";
+import type { RoutingHookName, RoutingToolName } from "./routing-policy.mjs";
+import {
+  appendSkillExposure,
+  loadProjectRoutingPolicy,
+} from "./routing-policy-ledger.mjs";
 
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 18_000;
@@ -775,6 +782,10 @@ export interface DeduplicateParams {
   likelySkills?: Set<string>;
   compiledSkills?: CompiledSkillEntry[];
   setupMode?: boolean;
+  /** Project root for loading routing policy. */
+  cwd?: string;
+  /** Session ID for loading cached verification plan. */
+  sessionId?: string | null;
 }
 
 export interface SetupModeRouting {
@@ -789,13 +800,14 @@ export interface DeduplicateResult {
   vercelJsonRouting: VercelJsonRouting | null;
   profilerBoosted: string[];
   setupModeRouting: SetupModeRouting | null;
+  policyBoosted: Array<{ skill: string; boost: number; reason: string | null }>;
 }
 
 /**
  * Filter already-seen skills, apply vercel.json key-aware routing and profiler boost, rank, and cap.
  */
 export function deduplicateSkills(
-  { matchedEntries, matched, toolName, toolInput, injectedSkills, dedupOff, maxSkills, likelySkills, compiledSkills, setupMode }: DeduplicateParams,
+  { matchedEntries, matched, toolName, toolInput, injectedSkills, dedupOff, maxSkills, likelySkills, compiledSkills, setupMode, cwd, sessionId }: DeduplicateParams,
   logger?: Logger,
 ): DeduplicateResult {
   const l = logger || log;
@@ -901,6 +913,53 @@ export function deduplicateSkills(
     }
   }
 
+  // Policy boost: apply learned routing-policy boosts from verification outcomes
+  const policyBoosted: Array<{ skill: string; boost: number; reason: string | null }> = [];
+  if (cwd) {
+    const plan = sessionId ? loadCachedPlanResult(sessionId, l) : null;
+    const policyScenario = {
+      hook: "PreToolUse" as RoutingHookName,
+      storyKind: plan?.stories[0]?.kind ?? null,
+      targetBoundary: (plan?.primaryNextAction?.targetBoundary as
+        | "uiRender"
+        | "clientRequest"
+        | "serverHandler"
+        | "environment"
+        | null) ?? null,
+      toolName: toolName as RoutingToolName,
+    };
+    const policy = loadProjectRoutingPolicy(cwd);
+    const boosted = applyPolicyBoosts(
+      newEntries.map((e) => ({
+        ...e,
+        skill: e.skill,
+        priority: e.priority,
+        effectivePriority: typeof e.effectivePriority === "number" ? e.effectivePriority : e.priority,
+      })),
+      policy,
+      policyScenario,
+    );
+
+    for (let i = 0; i < newEntries.length; i++) {
+      const b = boosted[i];
+      newEntries[i].effectivePriority = b.effectivePriority;
+      if (b.policyBoost !== 0) {
+        policyBoosted.push({
+          skill: b.skill,
+          boost: b.policyBoost,
+          reason: b.policyReason,
+        });
+      }
+    }
+
+    if (policyBoosted.length > 0) {
+      l.debug("policy-boosted", {
+        scenario: `${policyScenario.hook}|${policyScenario.storyKind ?? "none"}|${policyScenario.targetBoundary ?? "none"}|${policyScenario.toolName}`,
+        boostedSkills: policyBoosted,
+      });
+    }
+  }
+
   // Sort by effectivePriority (if set) or priority DESC, then skill name ASC
   newEntries = rankEntries(newEntries);
 
@@ -909,12 +968,15 @@ export function deduplicateSkills(
   // Emit skill_ranked for each candidate in priority order
   for (const entry of newEntries) {
     const eff = typeof entry.effectivePriority === "number" ? entry.effectivePriority : entry.priority;
+    const reason = policyBoosted.some((p) => p.skill === entry.skill)
+      ? "policy_boosted"
+      : profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match";
     logDecision(l, {
       hook: "PreToolUse",
       event: "skill_ranked",
       skill: entry.skill,
       score: eff,
-      reason: profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match",
+      reason,
     });
   }
 
@@ -923,7 +985,7 @@ export function deduplicateSkills(
     previouslyInjected: [...injectedSkills],
   });
 
-  return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting };
+  return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting, policyBoosted };
 }
 
 // ---------------------------------------------------------------------------
@@ -1356,9 +1418,11 @@ function run(): string {
     likelySkills,
     compiledSkills,
     setupMode,
+    cwd,
+    sessionId,
   }, log);
 
-  const { newEntries, rankedSkills, profilerBoosted } = dedupResult;
+  const { newEntries, rankedSkills, profilerBoosted, policyBoosted } = dedupResult;
 
   // Stage 4.5: Synthetically inject react-best-practices if TSX review triggered
   let tsxReviewInjected = false;
@@ -1534,6 +1598,7 @@ function run(): string {
       matchedSkills: [...matched],
       injectedSkills: [],
       boostsApplied: profilerBoosted,
+      policyBoosted,
     }, log.active ? timing : null);
     const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
     return formatPlatformOutput(platform, undefined, envUpdates);
@@ -1553,6 +1618,39 @@ function run(): string {
     platform,
   });
   if (log.active) timing.skill_read = Math.round(log.now() - tSkillRead);
+
+  // Record routing-policy exposures for actually injected skills
+  if (loaded.length > 0 && sessionId) {
+    const plan = loadCachedPlanResult(sessionId, log);
+    const story = plan?.stories[0] ?? null;
+    for (const skill of loaded) {
+      appendSkillExposure({
+        id: `${sessionId}:${skill}:${Date.now()}`,
+        sessionId,
+        projectRoot: cwd,
+        storyId: story?.id ?? null,
+        storyKind: story?.kind ?? null,
+        route: story?.route ?? null,
+        hook: "PreToolUse",
+        toolName: toolName as RoutingToolName,
+        skill,
+        targetBoundary: (plan?.primaryNextAction?.targetBoundary as
+          | "uiRender"
+          | "clientRequest"
+          | "serverHandler"
+          | "environment"
+          | null) ?? null,
+        createdAt: new Date().toISOString(),
+        resolvedAt: null,
+        outcome: "pending",
+      });
+    }
+    log.summary("routing-policy-exposures-recorded", {
+      hook: "PreToolUse",
+      skills: loaded,
+      storyKind: story?.kind ?? null,
+    });
+  }
 
   // Append review marker if tsx review was triggered and skill was loaded
   if (tsxReviewInjected && loaded.includes(TSX_REVIEW_SKILL)) {
@@ -1596,6 +1694,7 @@ function run(): string {
       droppedByCap,
       droppedByBudget,
       boostsApplied: profilerBoosted,
+      policyBoosted,
     }, log.active ? timing : null);
     const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
     return formatPlatformOutput(platform, undefined, envUpdates);

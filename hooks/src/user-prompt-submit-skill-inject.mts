@@ -48,6 +48,13 @@ import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { loadCachedPlanResult } from "./verification-plan.mjs";
+import { applyPolicyBoosts } from "./routing-policy.mjs";
+import type { RoutingHookName, RoutingToolName } from "./routing-policy.mjs";
+import {
+  appendSkillExposure,
+  loadProjectRoutingPolicy,
+} from "./routing-policy-ledger.mjs";
 
 const MAX_SKILLS = 2;
 const DEFAULT_INJECTION_BUDGET_BYTES = 8_000;
@@ -1074,6 +1081,51 @@ export function run(): string {
     return formatEmptyOutput(platform, finalizePromptEnvUpdates(platform, promptEnvBefore));
   }
 
+  // Stage 3c: Apply routing-policy boosts to selected skills
+  const promptPolicyBoosted: Array<{ skill: string; boost: number; reason: string | null }> = [];
+  if (cwd && report.selectedSkills.length > 0) {
+    const promptPolicyScenario = {
+      hook: "UserPromptSubmit" as RoutingHookName,
+      storyKind: intentResult.intent ?? null,
+      targetBoundary: null as "uiRender" | "clientRequest" | "serverHandler" | "environment" | null,
+      toolName: "Prompt" as RoutingToolName,
+    };
+    const promptPolicy = loadProjectRoutingPolicy(cwd);
+    const rankable = report.selectedSkills.map((skill) => {
+      const r = report.perSkillResults[skill];
+      return {
+        skill,
+        priority: r?.score ?? 0,
+        effectivePriority: r?.score ?? 0,
+      };
+    });
+    const boosted = applyPolicyBoosts(rankable, promptPolicy, promptPolicyScenario);
+
+    // Re-sort selected skills by boosted effective priority (desc), then skill name (asc) for determinism
+    boosted.sort((a, b) =>
+      b.effectivePriority - a.effectivePriority || a.skill.localeCompare(b.skill),
+    );
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...boosted.map((b) => b.skill));
+
+    for (const b of boosted) {
+      if (b.policyBoost !== 0) {
+        promptPolicyBoosted.push({
+          skill: b.skill,
+          boost: b.policyBoost,
+          reason: b.policyReason,
+        });
+      }
+    }
+
+    if (promptPolicyBoosted.length > 0) {
+      log.debug("prompt-policy-boosted", {
+        scenario: `${promptPolicyScenario.hook}|${promptPolicyScenario.storyKind ?? "none"}|none|Prompt`,
+        boostedSkills: promptPolicyBoosted,
+      });
+    }
+  }
+
   // Stage 4: inject selected skills (file I/O for SKILL.md bodies)
   const tInject = log.active ? log.now() : 0;
   const injectedSkills = dedupOff ? new Set<string>() : parseSeenSkills(seenState);
@@ -1099,6 +1151,35 @@ export function run(): string {
   const droppedByCap = [...injectResult.droppedByCap, ...report.droppedByCap];
   const droppedByBudget = [...injectResult.droppedByBudget, ...report.droppedByBudget];
   const matchedSkills = allMatched;
+
+  // Record routing-policy exposures for actually injected skills
+  if (loaded.length > 0 && sessionId) {
+    const plan = loadCachedPlanResult(sessionId, log);
+    const story = plan?.stories[0] ?? null;
+    for (const skill of loaded) {
+      appendSkillExposure({
+        id: `${sessionId}:prompt:${skill}:${Date.now()}`,
+        sessionId,
+        projectRoot: cwd,
+        storyId: story?.id ?? null,
+        storyKind: story?.kind ?? null,
+        route: story?.route ?? null,
+        hook: "UserPromptSubmit",
+        toolName: "Prompt",
+        skill,
+        targetBoundary: null,
+        createdAt: new Date().toISOString(),
+        resolvedAt: null,
+        outcome: "pending",
+      });
+    }
+    log.summary("routing-policy-exposures-recorded", {
+      hook: "UserPromptSubmit",
+      skills: loaded,
+      storyKind: story?.kind ?? null,
+      policyBoosted: promptPolicyBoosted,
+    });
+  }
 
   if (parts.length === 0) {
     log.complete("all_deduped", {

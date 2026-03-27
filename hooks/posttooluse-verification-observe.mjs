@@ -10,6 +10,7 @@ import { redactCommand } from "./pretooluse-skill-inject.mjs";
 import {
   recordObservation
 } from "./verification-ledger.mjs";
+import { resolveBoundaryOutcome } from "./routing-policy-ledger.mjs";
 function isVerificationReport(value) {
   if (typeof value !== "object" || value === null) return false;
   const obj = value;
@@ -173,6 +174,22 @@ function run(rawInput) {
       primaryNextAction: plan.primaryNextAction,
       blockedReasons: [...plan.blockedReasons]
     });
+    if (boundaryEvent.boundary !== "unknown") {
+      const resolved = resolveBoundaryOutcome({
+        sessionId,
+        boundary: boundaryEvent.boundary,
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+        now: boundaryEvent.timestamp
+      });
+      if (resolved.length > 0) {
+        log.summary("verification.routing-policy-resolved", {
+          verificationId,
+          boundary: boundaryEvent.boundary,
+          resolvedCount: resolved.length,
+          skills: resolved.map((e) => e.skill)
+        });
+      }
+    }
   }
   log.complete("verification-observe-done", {
     matchedCount: 1,
