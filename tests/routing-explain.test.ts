@@ -164,6 +164,7 @@ describe("routing-explain text mode", () => {
     const output = runRoutingExplain(TEST_SESSION, false);
 
     expect(output).toContain("No routing decision traces found.");
+    expect(output).toContain("session-explain --json");
   });
 
   test("prints skipped reasons for story-less routing", () => {

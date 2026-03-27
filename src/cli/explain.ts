@@ -22,6 +22,7 @@ import {
   rankEntries,
 } from "../../hooks/patterns.mjs";
 import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
+import { filterExcludedSkillMap } from "../shared/skill-exclusion-policy.ts";
 import {
   resolveVercelJsonSkills,
   isVercelJsonPath,
@@ -151,7 +152,10 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
       throw new Error(`Skill map validation failed: ${validation.errors.join(", ")}`);
     }
     buildWarnings = buildDiagnostics;
-    skillMap = skills;
+    // Apply the same exclusion policy as the manifest build so excluded
+    // test-only skills never surface as live runtime candidates.
+    const { included } = filterExcludedSkillMap(skills);
+    skillMap = included;
   }
 
   const targetType = detectTargetType(target, opts.toolName);

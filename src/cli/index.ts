@@ -12,6 +12,7 @@ import { resolve, join } from "node:path";
 import { explain, formatExplainResult } from "./explain.ts";
 import { doctor, formatDoctorResult } from "../commands/doctor.ts";
 import { runRoutingExplain } from "../commands/routing-explain.ts";
+import { runSessionExplain } from "../commands/session-explain.ts";
 import { createEmptyRoutingPolicy, type RoutingPolicyFile } from "../../hooks/src/routing-policy.mts";
 
 function validateProjectRoot(projectRoot: string): void {
@@ -31,6 +32,7 @@ function printUsage() {
 Commands:
   explain <target>    Show which skills match a file path or bash command
   routing-explain     Show the latest routing decision trace
+  session-explain     Show manifest, routing, verification, and exposure state together
   doctor              Run self-diagnosis checks on the plugin setup
 
 Options for explain:
@@ -44,6 +46,12 @@ Options for explain:
 Options for routing-explain:
   --json              Output machine-readable JSON
   --session <id>      Session ID (reads traces from session trace dir)
+  --help, -h          Show this help message
+
+Options for session-explain:
+  --json              Output machine-readable JSON
+  --session <id>      Session ID
+  --project <path>    Project root (default: current plugin directory)
   --help, -h          Show this help message
 
 Examples:
@@ -64,6 +72,8 @@ if (command === "explain") {
   runExplain(args.slice(1));
 } else if (command === "routing-explain") {
   runRoutingExplainCmd(args.slice(1));
+} else if (command === "session-explain") {
+  runSessionExplainCmd(args.slice(1));
 } else if (command === "doctor") {
   runDoctor(args.slice(1));
 } else {
@@ -232,6 +242,48 @@ function runRoutingExplainCmd(cmdArgs: string[]) {
 
   try {
     const output = runRoutingExplain(sessionId, jsonOutput);
+    console.log(output);
+    process.exit(0);
+  } catch (err: any) {
+    console.error(`Error: ${err.message}`);
+    process.exit(2);
+  }
+}
+
+function runSessionExplainCmd(cmdArgs: string[]) {
+  let jsonOutput = false;
+  let sessionId: string | null = null;
+  let projectRoot = resolve(import.meta.dir, "../..");
+
+  for (let i = 0; i < cmdArgs.length; i++) {
+    const arg = cmdArgs[i];
+    if (arg === "--json") {
+      jsonOutput = true;
+    } else if (arg === "--session") {
+      i++;
+      if (i >= cmdArgs.length) {
+        console.error("Error: --session requires a session ID argument");
+        process.exit(1);
+      }
+      sessionId = cmdArgs[i];
+    } else if (arg === "--project") {
+      i++;
+      if (i >= cmdArgs.length) {
+        console.error("Error: --project requires a path argument");
+        process.exit(1);
+      }
+      projectRoot = resolve(cmdArgs[i]);
+    } else if (arg === "--help" || arg === "-h") {
+      printUsage();
+      process.exit(0);
+    } else {
+      console.error(`Error: unexpected argument "${arg}"`);
+      process.exit(1);
+    }
+  }
+
+  try {
+    const output = runSessionExplain(sessionId, projectRoot, jsonOutput);
     console.log(output);
     process.exit(0);
   } catch (err: any) {

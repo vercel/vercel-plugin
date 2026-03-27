@@ -16,6 +16,11 @@ import { globToRegex, importPatternToRegex } from "../hooks/patterns.mjs";
 import type { SkillEntry, ManifestSkill } from "../hooks/patterns.mjs";
 import type { ChainToRule, ValidationRule } from "../hooks/skill-map-frontmatter.mjs";
 import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
+import {
+  EXCLUDED_SKILL_PATTERN,
+  filterExcludedSkillMap,
+  type SkillExclusion,
+} from "../src/shared/skill-exclusion-policy.ts";
 
 export { buildManifest, writeManifestFile, synthesizeChainToFromValidate, EXCLUDED_SKILL_PATTERN };
 
@@ -24,13 +29,6 @@ const SKILLS_DIR = join(ROOT, "skills");
 const OUT_DIR = join(ROOT, "generated");
 const OUT_FILE = join(OUT_DIR, "skill-manifest.json");
 
-/**
- * Skills matching this pattern are test-only fixtures and must not appear
- * in the runtime manifest. The pattern matches slugs prefixed with "fake-"
- * or suffixed with "-test-skill".
- */
-const EXCLUDED_SKILL_PATTERN = /^fake-|-test-skill$/;
-
 interface ManifestSkillWithBody extends ManifestSkill {
   bodyPath: string;
 }
@@ -38,6 +36,7 @@ interface ManifestSkillWithBody extends ManifestSkill {
 interface Manifest {
   generatedAt: string;
   version: 2;
+  excludedSkills: SkillExclusion[];
   skills: Record<string, ManifestSkillWithBody>;
 }
 
@@ -162,16 +161,18 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
   }
 
   // Filter out test-only / fake skills before building the runtime manifest
-  const normalizedSkills = validation.normalizedSkillMap.skills as Record<string, SkillEntry>;
-  const excludedSlugs: string[] = [];
-  for (const slug of Object.keys(normalizedSkills)) {
-    if (EXCLUDED_SKILL_PATTERN.test(slug)) {
-      delete normalizedSkills[slug];
-      excludedSlugs.push(slug);
-    }
-  }
-  if (excludedSlugs.length > 0) {
-    console.error(`  ⤳ Excluded ${excludedSlugs.length} test-only skill(s): ${excludedSlugs.join(", ")}`);
+  const allSkills = validation.normalizedSkillMap.skills as Record<string, SkillEntry>;
+  const { included: normalizedSkills, excluded: excludedSkillEntries } =
+    filterExcludedSkillMap(allSkills);
+  if (excludedSkillEntries.length > 0) {
+    console.error(
+      JSON.stringify({
+        event: "skill_manifest_exclusions",
+        count: excludedSkillEntries.length,
+        skills: excludedSkillEntries.map((e) => e.slug),
+        reason: "test-only-pattern",
+      }),
+    );
   }
 
   // Auto-synthesize chainTo from upgradeToSkill validate rules
@@ -208,6 +209,7 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
   const manifest: Manifest = {
     generatedAt: new Date().toISOString(),
     version: 2,
+    excludedSkills: excludedSkillEntries,
     skills,
   };
 

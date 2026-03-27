@@ -56,7 +56,7 @@ function formatRoutingExplainText(
   latest: RoutingDecisionTrace | null,
 ): string {
   if (!latest) {
-    return "No routing decision traces found.\n";
+    return "No routing decision traces found. Use `vercel-plugin session-explain --json` for cross-surface state.\n";
   }
 
   const lines: string[] = [
