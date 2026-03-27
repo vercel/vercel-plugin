@@ -7,6 +7,9 @@ import { fileURLToPath } from "url";
 import { generateVerificationId } from "./hook-env.mjs";
 import { createLogger } from "./logger.mjs";
 import { redactCommand } from "./pretooluse-skill-inject.mjs";
+import {
+  recordObservation
+} from "./verification-ledger.mjs";
 function isVerificationReport(value) {
   if (typeof value !== "object" || value === null) return false;
   const obj = value;
@@ -59,6 +62,22 @@ function buildBoundaryEvent(input) {
     suggestedBoundary,
     suggestedAction,
     matchedSuggestedAction: suggestedBoundary !== null && suggestedBoundary === input.boundary || suggestedAction !== null && suggestedAction === redactedCommand
+  };
+}
+function buildLedgerObservation(event) {
+  return {
+    id: event.verificationId,
+    timestamp: event.timestamp,
+    source: "bash",
+    boundary: event.boundary === "unknown" ? null : event.boundary,
+    route: event.inferredRoute,
+    summary: event.command,
+    meta: {
+      matchedPattern: event.matchedPattern,
+      suggestedBoundary: event.suggestedBoundary,
+      suggestedAction: event.suggestedAction,
+      matchedSuggestedAction: event.matchedSuggestedAction
+    }
   };
 }
 var ROUTE_REGEX = /\b(?:app|pages|src\/pages|src\/app)\/([\w[\].-]+(?:\/[\w[\].-]+)*)/;
@@ -136,6 +155,25 @@ function run(rawInput) {
     verificationId
   });
   log.summary("verification.boundary_observed", boundaryEvent);
+  if (sessionId) {
+    const plan = recordObservation(
+      sessionId,
+      buildLedgerObservation(boundaryEvent),
+      {
+        agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+        lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null
+      },
+      log
+    );
+    log.summary("verification.plan_feedback", {
+      verificationId,
+      matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+      satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
+      missingBoundaries: [...plan.missingBoundaries],
+      primaryNextAction: plan.primaryNextAction,
+      blockedReasons: [...plan.blockedReasons]
+    });
+  }
   log.complete("verification-observe-done", {
     matchedCount: 1,
     injectedCount: 0
@@ -168,6 +206,7 @@ if (isMainModule()) {
 }
 export {
   buildBoundaryEvent,
+  buildLedgerObservation,
   classifyBoundary,
   inferRoute,
   isVerificationReport,

@@ -71,6 +71,28 @@ function loadCachedPlanResult(sessionId, logger) {
     blockedReasons: state.blockedReasons
   };
 }
+function planToLoopSnapshot(plan) {
+  const result = planToResult(plan);
+  const last = plan.observations[plan.observations.length - 1] ?? null;
+  if (!last) {
+    return {
+      ...result,
+      lastObservation: null
+    };
+  }
+  const meta = last.meta ?? {};
+  return {
+    ...result,
+    lastObservation: {
+      id: last.id,
+      boundary: last.boundary,
+      route: last.route,
+      matchedSuggestedAction: typeof meta.matchedSuggestedAction === "boolean" ? meta.matchedSuggestedAction : null,
+      suggestedBoundary: typeof meta.suggestedBoundary === "string" ? meta.suggestedBoundary : null,
+      suggestedAction: typeof meta.suggestedAction === "string" ? meta.suggestedAction : null
+    }
+  };
+}
 function formatVerificationBanner(result) {
   if (!result.hasStories) return null;
   if (!result.primaryNextAction && result.missingBoundaries.length === 0) return null;
@@ -139,6 +161,7 @@ export {
   formatPlanHuman,
   formatVerificationBanner,
   loadCachedPlanResult,
+  planToLoopSnapshot,
   planToResult,
   selectPrimaryStory
 };

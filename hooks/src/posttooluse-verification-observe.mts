@@ -22,6 +22,10 @@ import { pluginRoot as resolvePluginRoot, generateVerificationId } from "./hook-
 import { createLogger } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { redactCommand } from "./pretooluse-skill-inject.mjs";
+import {
+  recordObservation,
+  type VerificationObservation,
+} from "./verification-ledger.mjs";
 
 export { redactCommand };
 
@@ -166,6 +170,32 @@ export function buildBoundaryEvent(input: {
 }
 
 // ---------------------------------------------------------------------------
+// Ledger observation builder (pure, testable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a boundary event into a VerificationObservation for ledger persistence.
+ */
+export function buildLedgerObservation(
+  event: VerificationBoundaryEvent,
+): VerificationObservation {
+  return {
+    id: event.verificationId,
+    timestamp: event.timestamp,
+    source: "bash",
+    boundary: event.boundary === "unknown" ? null : event.boundary,
+    route: event.inferredRoute,
+    summary: event.command,
+    meta: {
+      matchedPattern: event.matchedPattern,
+      suggestedBoundary: event.suggestedBoundary,
+      suggestedAction: event.suggestedAction,
+      matchedSuggestedAction: event.matchedSuggestedAction,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Story inference
 // ---------------------------------------------------------------------------
 
@@ -291,6 +321,29 @@ export function run(rawInput?: string): string {
   });
 
   log.summary("verification.boundary_observed", boundaryEvent as unknown as Record<string, unknown>);
+
+  if (sessionId) {
+    const plan = recordObservation(
+      sessionId,
+      buildLedgerObservation(boundaryEvent),
+      {
+        agentBrowserAvailable:
+          process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+        lastAttemptedAction:
+          process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null,
+      },
+      log,
+    );
+
+    log.summary("verification.plan_feedback", {
+      verificationId,
+      matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+      satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
+      missingBoundaries: [...plan.missingBoundaries],
+      primaryNextAction: plan.primaryNextAction,
+      blockedReasons: [...plan.blockedReasons],
+    });
+  }
 
   log.complete("verification-observe-done", {
     matchedCount: 1,

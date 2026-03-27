@@ -172,6 +172,62 @@ export function loadCachedPlanResult(
 }
 
 // ---------------------------------------------------------------------------
+// Loop snapshot (extends plan result with last-observation adherence)
+// ---------------------------------------------------------------------------
+
+export interface VerificationLoopSnapshot extends VerificationPlanResult {
+  lastObservation: {
+    id: string;
+    boundary: string | null;
+    route: string | null;
+    matchedSuggestedAction: boolean | null;
+    suggestedBoundary: string | null;
+    suggestedAction: string | null;
+  } | null;
+}
+
+/**
+ * Extend a VerificationPlan into a VerificationLoopSnapshot by extracting
+ * the most recent observation's adherence metadata.
+ */
+export function planToLoopSnapshot(
+  plan: VerificationPlan,
+): VerificationLoopSnapshot {
+  const result = planToResult(plan);
+  const last = plan.observations[plan.observations.length - 1] ?? null;
+
+  if (!last) {
+    return {
+      ...result,
+      lastObservation: null,
+    };
+  }
+
+  const meta = (last.meta ?? {}) as Record<string, unknown>;
+
+  return {
+    ...result,
+    lastObservation: {
+      id: last.id,
+      boundary: last.boundary,
+      route: last.route,
+      matchedSuggestedAction:
+        typeof meta.matchedSuggestedAction === "boolean"
+          ? meta.matchedSuggestedAction
+          : null,
+      suggestedBoundary:
+        typeof meta.suggestedBoundary === "string"
+          ? meta.suggestedBoundary
+          : null,
+      suggestedAction:
+        typeof meta.suggestedAction === "string"
+          ? meta.suggestedAction
+          : null,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // PreToolUse banner generation
 // ---------------------------------------------------------------------------
 

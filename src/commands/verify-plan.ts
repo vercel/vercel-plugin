@@ -13,9 +13,16 @@ import { readdirSync, statSync } from "node:fs";
 import {
   computePlan,
   formatPlanHuman,
+  planToLoopSnapshot,
   type VerificationPlanResult,
+  type VerificationLoopSnapshot,
   type ComputePlanOptions,
 } from "../../hooks/src/verification-plan.mts";
+import {
+  derivePlan,
+  loadObservations,
+  loadStories,
+} from "../../hooks/src/verification-ledger.mts";
 
 export interface VerifyPlanOptions {
   sessionId?: string;
@@ -93,6 +100,50 @@ export function verifyPlan(options: VerifyPlanOptions = {}): VerificationPlanRes
   }
 
   return computePlan(sessionId, planOptions);
+}
+
+/**
+ * Return a VerificationLoopSnapshot including last-observation adherence metadata.
+ * Machine-readable API for downstream tooling and subagents.
+ */
+export function verifyPlanSnapshot(
+  options: VerifyPlanOptions = {},
+): VerificationLoopSnapshot {
+  const sessionId =
+    options.sessionId ||
+    process.env.CLAUDE_SESSION_ID ||
+    detectSessionId();
+
+  if (!sessionId) {
+    return {
+      hasStories: false,
+      stories: [],
+      observationCount: 0,
+      satisfiedBoundaries: [],
+      missingBoundaries: [],
+      recentRoutes: [],
+      primaryNextAction: null,
+      blockedReasons: ["No active session found"],
+      lastObservation: null,
+    };
+  }
+
+  const planOptions: ComputePlanOptions = {};
+  if (options.agentBrowserAvailable !== undefined) {
+    planOptions.agentBrowserAvailable = options.agentBrowserAvailable;
+  }
+  if (options.devServerLoopGuardHit !== undefined) {
+    planOptions.devServerLoopGuardHit = options.devServerLoopGuardHit;
+  }
+  if (options.lastAttemptedAction !== undefined) {
+    planOptions.lastAttemptedAction = options.lastAttemptedAction;
+  }
+
+  const observations = loadObservations(sessionId);
+  const stories = loadStories(sessionId);
+  const plan = derivePlan(observations, stories, planOptions);
+
+  return planToLoopSnapshot(plan);
 }
 
 export { formatPlanHuman };
