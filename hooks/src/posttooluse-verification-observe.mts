@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 /**
- * PostToolUse hook: verification observer for Bash tool calls.
+ * PostToolUse hook: verification observer for tool calls.
  *
- * Maps bash commands to verification boundaries (uiRender, clientRequest,
+ * Maps tool calls to verification boundaries (uiRender, clientRequest,
  * serverHandler, environment) and emits structured log events for the
  * verification pipeline.
+ *
+ * Supports Bash, Read, Edit, Write, Glob, Grep, and WebFetch tools.
+ * Non-Bash tools produce "soft" evidence that records observations but
+ * does not resolve long-term routing policy outcomes. Only "strong" signals
+ * (Bash HTTP/browser commands, WebFetch) resolve routing policy.
  *
  * Story inference derives the target route from recent file edits stored
  * in VERCEL_PLUGIN_RECENT_EDITS env var (set by PreToolUse), falling back
@@ -18,7 +23,7 @@ import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pluginRoot as resolvePluginRoot, generateVerificationId } from "./hook-env.mjs";
+import { generateVerificationId } from "./hook-env.mjs";
 import { createLogger } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { redactCommand } from "./pretooluse-skill-inject.mjs";
@@ -32,8 +37,12 @@ import {
   appendRoutingDecisionTrace,
   createDecisionId,
 } from "./routing-decision-trace.mjs";
+import {
+  classifyVerificationSignal,
+} from "./verification-signal.mjs";
 
 export { redactCommand };
+export { classifyVerificationSignal };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,6 +53,17 @@ export type BoundaryType =
   | "clientRequest"
   | "serverHandler"
   | "environment"
+  | "unknown";
+
+export type VerificationSignalStrength = "strong" | "soft";
+
+export type VerificationEvidenceSource =
+  | "bash"
+  | "browser"
+  | "http"
+  | "log-read"
+  | "env-read"
+  | "file-read"
   | "unknown";
 
 export interface VerificationBoundaryEvent {
@@ -57,6 +77,9 @@ export interface VerificationBoundaryEvent {
   suggestedBoundary: string | null;
   suggestedAction: string | null;
   matchedSuggestedAction: boolean;
+  signalStrength: VerificationSignalStrength;
+  evidenceSource: VerificationEvidenceSource;
+  toolName: string;
 }
 
 export interface VerificationReport {
@@ -89,7 +112,21 @@ export function isVerificationReport(value: unknown): value is VerificationRepor
 }
 
 // ---------------------------------------------------------------------------
-// Boundary pattern mapping
+// Signal strength gating
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine whether a verification event should resolve long-term routing
+ * policy outcomes. Only strong signals on known boundaries qualify.
+ */
+export function shouldResolveRoutingOutcome(
+  event: Pick<VerificationBoundaryEvent, "boundary" | "signalStrength">,
+): boolean {
+  return event.boundary !== "unknown" && event.signalStrength === "strong";
+}
+
+// ---------------------------------------------------------------------------
+// Boundary pattern mapping (Bash)
 // ---------------------------------------------------------------------------
 
 interface BoundaryPattern {
@@ -136,6 +173,139 @@ export function classifyBoundary(command: string): { boundary: BoundaryType; mat
 }
 
 // ---------------------------------------------------------------------------
+// Non-Bash tool classification
+// ---------------------------------------------------------------------------
+
+/**
+ * Classify a non-Bash tool call into a verification boundary and evidence metadata.
+ */
+export function classifyToolSignal(toolName: string, toolInput: Record<string, unknown>): {
+  boundary: BoundaryType;
+  matchedPattern: string;
+  signalStrength: VerificationSignalStrength;
+  evidenceSource: VerificationEvidenceSource;
+  summary: string;
+} | null {
+  if (toolName === "Read") {
+    const filePath = String(toolInput.file_path || "");
+    if (!filePath) return null;
+
+    // .env files → environment + soft
+    if (/\.env(\.\w+)?$/.test(filePath)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-file-read",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: filePath,
+      };
+    }
+
+    // vercel.json, .vercel/project.json → environment + soft
+    if (/vercel\.json$/.test(filePath) || /\.vercel\/project\.json$/.test(filePath)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "vercel-config-read",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: filePath,
+      };
+    }
+
+    // Log files → serverHandler + soft
+    if (/\.(log|out|err)$/.test(filePath) || /vercel-logs/.test(filePath) || /\.next\/.*server.*\.log/.test(filePath)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-file-read",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: filePath,
+      };
+    }
+
+    // Generic file read — not useful for verification
+    return null;
+  }
+
+  if (toolName === "WebFetch") {
+    const url = String(toolInput.url || "");
+    if (!url) return null;
+
+    return {
+      boundary: "clientRequest",
+      matchedPattern: "web-fetch",
+      signalStrength: "strong",
+      evidenceSource: "http",
+      summary: url.slice(0, 200),
+    };
+  }
+
+  if (toolName === "Grep") {
+    const path = String(toolInput.path || "");
+
+    // Grep in log files → serverHandler + soft
+    if (/\.(log|out|err)$/.test(path) || /logs?\//.test(path)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-grep",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: `grep ${toolInput.pattern || ""} in ${path}`.slice(0, 200),
+      };
+    }
+
+    // Grep in .env files → environment + soft
+    if (/\.env/.test(path)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-grep",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: `grep ${toolInput.pattern || ""} in ${path}`.slice(0, 200),
+      };
+    }
+
+    return null;
+  }
+
+  if (toolName === "Glob") {
+    const pattern = String(toolInput.pattern || "");
+
+    // Glob for log files → serverHandler + soft
+    if (/\*\.(log|out|err)/.test(pattern) || /logs?\//.test(pattern)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-glob",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: `glob ${pattern}`.slice(0, 200),
+      };
+    }
+
+    // Glob for env files → environment + soft
+    if (/\.env/.test(pattern)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-glob",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: `glob ${pattern}`.slice(0, 200),
+      };
+    }
+
+    return null;
+  }
+
+  // Edit and Write on route files could infer route but aren't verification evidence
+  // They don't observe system behavior, they modify it
+  if (toolName === "Edit" || toolName === "Write") {
+    return null;
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Boundary event builder (pure, testable)
 // ---------------------------------------------------------------------------
 
@@ -151,6 +321,9 @@ export function buildBoundaryEvent(input: {
   verificationId: string;
   timestamp?: string;
   env?: NodeJS.ProcessEnv;
+  signalStrength?: VerificationSignalStrength;
+  evidenceSource?: VerificationEvidenceSource;
+  toolName?: string;
 }): VerificationBoundaryEvent {
   const env = input.env ?? process.env;
   const redactedCommand = redactCommand(input.command).slice(0, 200);
@@ -172,6 +345,9 @@ export function buildBoundaryEvent(input: {
     matchedSuggestedAction:
       (suggestedBoundary !== null && suggestedBoundary === input.boundary) ||
       (suggestedAction !== null && suggestedAction === redactedCommand),
+    signalStrength: input.signalStrength ?? "strong",
+    evidenceSource: input.evidenceSource ?? "bash",
+    toolName: input.toolName ?? "Bash",
   };
 }
 
@@ -187,10 +363,22 @@ export function buildLedgerObservation(
   env: NodeJS.ProcessEnv = process.env,
 ): VerificationObservation {
   const storyIdValue = env.VERCEL_PLUGIN_VERIFICATION_STORY_ID;
+
+  // Map evidenceSource to ledger source type
+  const sourceMap: Record<VerificationEvidenceSource, VerificationObservation["source"]> = {
+    "bash": "bash",
+    "browser": "bash",
+    "http": "bash",
+    "log-read": "edit",
+    "env-read": "edit",
+    "file-read": "edit",
+    "unknown": "bash",
+  };
+
   return {
     id: event.verificationId,
     timestamp: event.timestamp,
-    source: "bash",
+    source: sourceMap[event.evidenceSource] ?? "bash",
     boundary: event.boundary === "unknown" ? null : event.boundary,
     route: event.inferredRoute,
     storyId: typeof storyIdValue === "string" && storyIdValue.trim() !== ""
@@ -202,6 +390,9 @@ export function buildLedgerObservation(
       suggestedBoundary: event.suggestedBoundary,
       suggestedAction: event.suggestedAction,
       matchedSuggestedAction: event.matchedSuggestedAction,
+      toolName: event.toolName,
+      signalStrength: event.signalStrength,
+      evidenceSource: event.evidenceSource,
     },
   };
 }
@@ -276,16 +467,48 @@ export function inferRoute(command: string, recentEdits?: string): string | null
 }
 
 // ---------------------------------------------------------------------------
+// Route inference for file-path-based tools
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer route from a file path (used for Read, Edit, Write, Glob, Grep).
+ */
+function inferRouteFromFilePath(filePath: string): string | null {
+  const match = ROUTE_REGEX.exec(filePath);
+  if (match) {
+    const route = "/" + match[1]
+      .replace(/\/page\.\w+$/, "")
+      .replace(/\/route\.\w+$/, "")
+      .replace(/\/layout\.\w+$/, "")
+      .replace(/\/loading\.\w+$/, "")
+      .replace(/\/error\.\w+$/, "")
+      .replace(/\[([^\]]+)\]/g, ":$1");
+    return route === "/" ? "/" : route.replace(/\/$/, "");
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Input parsing
 // ---------------------------------------------------------------------------
 
-export interface ParsedBashInput {
-  command: string;
+export interface ParsedToolInput {
+  toolName: string;
+  toolInput: Record<string, unknown>;
   sessionId: string | null;
   cwd: string | null;
 }
 
-export function parseInput(raw: string, logger?: Logger): ParsedBashInput | null {
+/** @deprecated Use ParsedToolInput instead */
+export type ParsedBashInput = {
+  command: string;
+  sessionId: string | null;
+  cwd: string | null;
+};
+
+const SUPPORTED_TOOLS = new Set(["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebFetch"]);
+
+export function parseInput(raw: string, logger?: Logger): ParsedToolInput | null {
   const trimmed = (raw || "").trim();
   if (!trimmed) return null;
 
@@ -297,17 +520,21 @@ export function parseInput(raw: string, logger?: Logger): ParsedBashInput | null
   }
 
   const toolName = (input.tool_name as string) || "";
-  if (toolName !== "Bash") return null;
+  if (!SUPPORTED_TOOLS.has(toolName)) return null;
 
   const toolInput = (input.tool_input as Record<string, unknown>) || {};
-  const command = (toolInput.command as string) || "";
-  if (!command) return null;
+
+  // Bash requires a non-empty command
+  if (toolName === "Bash") {
+    const command = (toolInput.command as string) || "";
+    if (!command) return null;
+  }
 
   const sessionId = (input.session_id as string) || null;
   const cwdCandidate = input.cwd ?? input.working_directory;
   const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : null;
 
-  return { command, sessionId, cwd };
+  return { toolName, toolInput, sessionId, cwd };
 }
 
 // ---------------------------------------------------------------------------
@@ -330,32 +557,58 @@ export function run(rawInput?: string): string {
 
   const parsed = parseInput(raw, log);
   if (!parsed) {
-    log.debug("verification-observe-skip", { reason: "no_bash_input" });
+    log.debug("verification-observe-skip", { reason: "no_supported_input" });
     return "{}";
   }
 
-  const { command, sessionId } = parsed;
-  const { boundary, matchedPattern } = classifyBoundary(command);
+  const { toolName, toolInput, sessionId } = parsed;
+  const env = process.env;
 
-  if (boundary === "unknown") {
+  // Unified multi-tool classification via verification-signal module
+  const signal = classifyVerificationSignal({ toolName, toolInput, env });
+  if (!signal) {
     log.trace("verification-observe-skip", {
       reason: "no_boundary_match",
-      command: redactCommand(command).slice(0, 120),
+      toolName,
     });
     return "{}";
   }
 
-  const env = process.env;
+  if (signal.boundary === "unknown") {
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      toolName,
+      summary: signal.summary.slice(0, 120),
+    });
+    return "{}";
+  }
+
+  const { boundary, matchedPattern, signalStrength, evidenceSource, summary } = signal;
+
   const verificationId = generateVerificationId();
   const recentEdits = env.VERCEL_PLUGIN_RECENT_EDITS || "";
-  const inferredRoute = resolveObservedRoute(inferRoute(command, recentEdits), env);
+
+  // Infer route: for Bash use command + recent edits, for file tools use file path
+  let inferredRoute: string | null;
+  if (toolName === "Bash") {
+    inferredRoute = resolveObservedRoute(inferRoute(summary, recentEdits), env);
+  } else {
+    const filePath = String(toolInput.file_path || toolInput.path || toolInput.url || "");
+    inferredRoute = resolveObservedRoute(
+      inferRouteFromFilePath(filePath) ?? inferRoute(summary, recentEdits),
+      env,
+    );
+  }
 
   const boundaryEvent = buildBoundaryEvent({
-    command,
+    command: summary,
     boundary,
     matchedPattern,
     inferredRoute,
     verificationId,
+    signalStrength,
+    evidenceSource,
+    toolName,
   });
 
   log.summary("verification.boundary_observed", boundaryEvent as unknown as Record<string, unknown>);
@@ -375,6 +628,9 @@ export function run(rawInput?: string): string {
 
     log.summary("verification.plan_feedback", {
       verificationId,
+      toolName,
+      signalStrength,
+      evidenceSource,
       matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
       satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
       missingBoundaries: [...plan.missingBoundaries],
@@ -382,8 +638,7 @@ export function run(rawInput?: string): string {
       blockedReasons: [...plan.blockedReasons],
     });
 
-    // Resolve routing policy exposures for this boundary, scoped to story + route.
-    // Fall back to directive env for story and route when plan inference is unavailable.
+    // Resolve routing policy only for strong signals on known boundaries
     const primaryStory = plan.stories.length > 0
       ? selectActiveStory(plan)
       : null;
@@ -391,7 +646,7 @@ export function run(rawInput?: string): string {
     const resolvedStoryId =
       primaryStory?.id ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_STORY_ID") ?? null;
 
-    if (boundaryEvent.boundary !== "unknown") {
+    if (shouldResolveRoutingOutcome(boundaryEvent)) {
       const resolved = resolveBoundaryOutcome({
         sessionId,
         boundary: boundaryEvent.boundary as "uiRender" | "clientRequest" | "serverHandler" | "environment",
@@ -413,14 +668,24 @@ export function run(rawInput?: string): string {
           skills: resolved.map((e) => e.skill),
         });
       }
+    } else {
+      log.debug("verification.routing-policy-skipped", {
+        verificationId,
+        reason: "soft_signal_or_unknown_boundary",
+        signalStrength,
+        boundary,
+        toolName,
+      });
     }
 
     // Emit routing decision trace for this PostToolUse boundary observation
-    const redactedTarget = redactCommand(command).slice(0, 200);
+    const redactedTarget = toolName === "Bash"
+      ? redactCommand(summary).slice(0, 200)
+      : summary.slice(0, 200);
     const decisionId = createDecisionId({
       hook: "PostToolUse",
       sessionId,
-      toolName: "Bash",
+      toolName,
       toolTarget: redactedTarget,
       timestamp: boundaryEvent.timestamp,
     });
@@ -430,7 +695,7 @@ export function run(rawInput?: string): string {
       decisionId,
       sessionId,
       hook: "PostToolUse",
-      toolName: "Bash",
+      toolName,
       toolTarget: redactedTarget,
       timestamp: boundaryEvent.timestamp,
       primaryStory: {
@@ -441,7 +706,7 @@ export function run(rawInput?: string): string {
       },
       observedRoute: inferredRoute,
       policyScenario: resolvedStoryId
-        ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|Bash`
+        ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|${toolName}`
         : null,
       matchedSkills: [],
       injectedSkills: [],
@@ -459,6 +724,8 @@ export function run(rawInput?: string): string {
       hook: "PostToolUse",
       verificationId,
       boundary: boundaryEvent.boundary,
+      toolName,
+      signalStrength,
     });
   }
 

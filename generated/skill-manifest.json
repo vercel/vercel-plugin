@@ -1,13 +1,9 @@
 {
-  "generatedAt": "2026-03-28T09:15:26.999Z",
+  "generatedAt": "2026-03-28T10:33:55.579Z",
   "version": 2,
   "excludedSkills": [
     {
       "slug": "fake-banned-test-skill",
-      "reason": "test-only-pattern"
-    },
-    {
-      "slug": "fake-orphan-test-skill",
       "reason": "test-only-pattern"
     }
   ],

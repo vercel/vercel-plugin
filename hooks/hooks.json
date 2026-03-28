@@ -90,6 +90,16 @@
         ]
       },
       {
+        "matcher": "Read|Edit|Write|Glob|Grep|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-verification-observe.mjs\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           {

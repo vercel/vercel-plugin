@@ -39,6 +39,24 @@ export type VerificationStoryKind =
   | "stuck-investigation"
   | "browser-only";
 
+export interface VerificationObservationMeta {
+  matchedPattern?: string;
+  suggestedBoundary?: string | null;
+  suggestedAction?: string | null;
+  matchedSuggestedAction?: boolean;
+  toolName?: string;
+  signalStrength?: "strong" | "soft";
+  evidenceSource?:
+    | "bash"
+    | "browser"
+    | "http"
+    | "log-read"
+    | "env-read"
+    | "file-read"
+    | "unknown";
+  [key: string]: unknown;
+}
+
 export interface VerificationObservation {
   /** Unique observation id — used for dedup on append. */
   id: string;
@@ -54,8 +72,8 @@ export interface VerificationObservation {
   storyId: string | null;
   /** Redacted/truncated command or prompt excerpt. */
   summary: string;
-  /** Arbitrary structured metadata. */
-  meta?: Record<string, unknown>;
+  /** Structured observation metadata from the verification signal classifier. */
+  meta?: VerificationObservationMeta;
 }
 
 export interface VerificationStory {

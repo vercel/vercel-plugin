@@ -16,12 +16,18 @@ import {
   appendRoutingDecisionTrace,
   createDecisionId
 } from "./routing-decision-trace.mjs";
+import {
+  classifyVerificationSignal
+} from "./verification-signal.mjs";
 function isVerificationReport(value) {
   if (typeof value !== "object" || value === null) return false;
   const obj = value;
   return obj.type === "verification.report/v1" && typeof obj.verificationId === "string" && Array.isArray(obj.boundaries) && obj.boundaries.every(
     (b) => typeof b === "object" && b !== null && b.event === "verification.boundary_observed"
   );
+}
+function shouldResolveRoutingOutcome(event) {
+  return event.boundary !== "unknown" && event.signalStrength === "strong";
 }
 var BOUNDARY_PATTERNS = [
   // uiRender: browser/screenshot/playwright/puppeteer commands
@@ -52,6 +58,99 @@ function classifyBoundary(command) {
   }
   return { boundary: "unknown", matchedPattern: "none" };
 }
+function classifyToolSignal(toolName, toolInput) {
+  if (toolName === "Read") {
+    const filePath = String(toolInput.file_path || "");
+    if (!filePath) return null;
+    if (/\.env(\.\w+)?$/.test(filePath)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-file-read",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: filePath
+      };
+    }
+    if (/vercel\.json$/.test(filePath) || /\.vercel\/project\.json$/.test(filePath)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "vercel-config-read",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: filePath
+      };
+    }
+    if (/\.(log|out|err)$/.test(filePath) || /vercel-logs/.test(filePath) || /\.next\/.*server.*\.log/.test(filePath)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-file-read",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: filePath
+      };
+    }
+    return null;
+  }
+  if (toolName === "WebFetch") {
+    const url = String(toolInput.url || "");
+    if (!url) return null;
+    return {
+      boundary: "clientRequest",
+      matchedPattern: "web-fetch",
+      signalStrength: "strong",
+      evidenceSource: "http",
+      summary: url.slice(0, 200)
+    };
+  }
+  if (toolName === "Grep") {
+    const path = String(toolInput.path || "");
+    if (/\.(log|out|err)$/.test(path) || /logs?\//.test(path)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-grep",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: `grep ${toolInput.pattern || ""} in ${path}`.slice(0, 200)
+      };
+    }
+    if (/\.env/.test(path)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-grep",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: `grep ${toolInput.pattern || ""} in ${path}`.slice(0, 200)
+      };
+    }
+    return null;
+  }
+  if (toolName === "Glob") {
+    const pattern = String(toolInput.pattern || "");
+    if (/\*\.(log|out|err)/.test(pattern) || /logs?\//.test(pattern)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-glob",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: `glob ${pattern}`.slice(0, 200)
+      };
+    }
+    if (/\.env/.test(pattern)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-glob",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: `glob ${pattern}`.slice(0, 200)
+      };
+    }
+    return null;
+  }
+  if (toolName === "Edit" || toolName === "Write") {
+    return null;
+  }
+  return null;
+}
 function buildBoundaryEvent(input) {
   const env = input.env ?? process.env;
   const redactedCommand = redactCommand(input.command).slice(0, 200);
@@ -67,15 +166,27 @@ function buildBoundaryEvent(input) {
     timestamp: input.timestamp ?? (/* @__PURE__ */ new Date()).toISOString(),
     suggestedBoundary,
     suggestedAction,
-    matchedSuggestedAction: suggestedBoundary !== null && suggestedBoundary === input.boundary || suggestedAction !== null && suggestedAction === redactedCommand
+    matchedSuggestedAction: suggestedBoundary !== null && suggestedBoundary === input.boundary || suggestedAction !== null && suggestedAction === redactedCommand,
+    signalStrength: input.signalStrength ?? "strong",
+    evidenceSource: input.evidenceSource ?? "bash",
+    toolName: input.toolName ?? "Bash"
   };
 }
 function buildLedgerObservation(event, env = process.env) {
   const storyIdValue = env.VERCEL_PLUGIN_VERIFICATION_STORY_ID;
+  const sourceMap = {
+    "bash": "bash",
+    "browser": "bash",
+    "http": "bash",
+    "log-read": "edit",
+    "env-read": "edit",
+    "file-read": "edit",
+    "unknown": "bash"
+  };
   return {
     id: event.verificationId,
     timestamp: event.timestamp,
-    source: "bash",
+    source: sourceMap[event.evidenceSource] ?? "bash",
     boundary: event.boundary === "unknown" ? null : event.boundary,
     route: event.inferredRoute,
     storyId: typeof storyIdValue === "string" && storyIdValue.trim() !== "" ? storyIdValue.trim() : null,
@@ -84,7 +195,10 @@ function buildLedgerObservation(event, env = process.env) {
       matchedPattern: event.matchedPattern,
       suggestedBoundary: event.suggestedBoundary,
       suggestedAction: event.suggestedAction,
-      matchedSuggestedAction: event.matchedSuggestedAction
+      matchedSuggestedAction: event.matchedSuggestedAction,
+      toolName: event.toolName,
+      signalStrength: event.signalStrength,
+      evidenceSource: event.evidenceSource
     }
   };
 }
@@ -114,6 +228,15 @@ function inferRoute(command, recentEdits) {
   }
   return null;
 }
+function inferRouteFromFilePath(filePath) {
+  const match = ROUTE_REGEX.exec(filePath);
+  if (match) {
+    const route = "/" + match[1].replace(/\/page\.\w+$/, "").replace(/\/route\.\w+$/, "").replace(/\/layout\.\w+$/, "").replace(/\/loading\.\w+$/, "").replace(/\/error\.\w+$/, "").replace(/\[([^\]]+)\]/g, ":$1");
+    return route === "/" ? "/" : route.replace(/\/$/, "");
+  }
+  return null;
+}
+var SUPPORTED_TOOLS = /* @__PURE__ */ new Set(["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebFetch"]);
 function parseInput(raw, logger) {
   const trimmed = (raw || "").trim();
   if (!trimmed) return null;
@@ -124,14 +247,16 @@ function parseInput(raw, logger) {
     return null;
   }
   const toolName = input.tool_name || "";
-  if (toolName !== "Bash") return null;
+  if (!SUPPORTED_TOOLS.has(toolName)) return null;
   const toolInput = input.tool_input || {};
-  const command = toolInput.command || "";
-  if (!command) return null;
+  if (toolName === "Bash") {
+    const command = toolInput.command || "";
+    if (!command) return null;
+  }
   const sessionId = input.session_id || null;
   const cwdCandidate = input.cwd ?? input.working_directory;
   const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : null;
-  return { command, sessionId, cwd };
+  return { toolName, toolInput, sessionId, cwd };
 }
 function run(rawInput) {
   const log = createLogger();
@@ -147,28 +272,49 @@ function run(rawInput) {
   }
   const parsed = parseInput(raw, log);
   if (!parsed) {
-    log.debug("verification-observe-skip", { reason: "no_bash_input" });
+    log.debug("verification-observe-skip", { reason: "no_supported_input" });
     return "{}";
   }
-  const { command, sessionId } = parsed;
-  const { boundary, matchedPattern } = classifyBoundary(command);
-  if (boundary === "unknown") {
+  const { toolName, toolInput, sessionId } = parsed;
+  const env = process.env;
+  const signal = classifyVerificationSignal({ toolName, toolInput, env });
+  if (!signal) {
     log.trace("verification-observe-skip", {
       reason: "no_boundary_match",
-      command: redactCommand(command).slice(0, 120)
+      toolName
     });
     return "{}";
   }
-  const env = process.env;
+  if (signal.boundary === "unknown") {
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      toolName,
+      summary: signal.summary.slice(0, 120)
+    });
+    return "{}";
+  }
+  const { boundary, matchedPattern, signalStrength, evidenceSource, summary } = signal;
   const verificationId = generateVerificationId();
   const recentEdits = env.VERCEL_PLUGIN_RECENT_EDITS || "";
-  const inferredRoute = resolveObservedRoute(inferRoute(command, recentEdits), env);
+  let inferredRoute;
+  if (toolName === "Bash") {
+    inferredRoute = resolveObservedRoute(inferRoute(summary, recentEdits), env);
+  } else {
+    const filePath = String(toolInput.file_path || toolInput.path || toolInput.url || "");
+    inferredRoute = resolveObservedRoute(
+      inferRouteFromFilePath(filePath) ?? inferRoute(summary, recentEdits),
+      env
+    );
+  }
   const boundaryEvent = buildBoundaryEvent({
-    command,
+    command: summary,
     boundary,
     matchedPattern,
     inferredRoute,
-    verificationId
+    verificationId,
+    signalStrength,
+    evidenceSource,
+    toolName
   });
   log.summary("verification.boundary_observed", boundaryEvent);
   if (sessionId) {
@@ -183,6 +329,9 @@ function run(rawInput) {
     );
     log.summary("verification.plan_feedback", {
       verificationId,
+      toolName,
+      signalStrength,
+      evidenceSource,
       matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
       satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
       missingBoundaries: [...plan.missingBoundaries],
@@ -191,7 +340,7 @@ function run(rawInput) {
     });
     const primaryStory = plan.stories.length > 0 ? selectActiveStory(plan) : null;
     const resolvedStoryId = primaryStory?.id ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_STORY_ID") ?? null;
-    if (boundaryEvent.boundary !== "unknown") {
+    if (shouldResolveRoutingOutcome(boundaryEvent)) {
       const resolved = resolveBoundaryOutcome({
         sessionId,
         boundary: boundaryEvent.boundary,
@@ -212,12 +361,20 @@ function run(rawInput) {
           skills: resolved.map((e) => e.skill)
         });
       }
+    } else {
+      log.debug("verification.routing-policy-skipped", {
+        verificationId,
+        reason: "soft_signal_or_unknown_boundary",
+        signalStrength,
+        boundary,
+        toolName
+      });
     }
-    const redactedTarget = redactCommand(command).slice(0, 200);
+    const redactedTarget = toolName === "Bash" ? redactCommand(summary).slice(0, 200) : summary.slice(0, 200);
     const decisionId = createDecisionId({
       hook: "PostToolUse",
       sessionId,
-      toolName: "Bash",
+      toolName,
       toolTarget: redactedTarget,
       timestamp: boundaryEvent.timestamp
     });
@@ -226,7 +383,7 @@ function run(rawInput) {
       decisionId,
       sessionId,
       hook: "PostToolUse",
-      toolName: "Bash",
+      toolName,
       toolTarget: redactedTarget,
       timestamp: boundaryEvent.timestamp,
       primaryStory: {
@@ -236,7 +393,7 @@ function run(rawInput) {
         targetBoundary: boundaryEvent.boundary === "unknown" ? null : boundaryEvent.boundary
       },
       observedRoute: inferredRoute,
-      policyScenario: resolvedStoryId ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|Bash` : null,
+      policyScenario: resolvedStoryId ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|${toolName}` : null,
       matchedSkills: [],
       injectedSkills: [],
       skippedReasons: resolvedStoryId ? [] : ["no_active_verification_story"],
@@ -251,7 +408,9 @@ function run(rawInput) {
       decisionId,
       hook: "PostToolUse",
       verificationId,
-      boundary: boundaryEvent.boundary
+      boundary: boundaryEvent.boundary,
+      toolName,
+      signalStrength
     });
   }
   log.complete("verification-observe-done", {
@@ -288,11 +447,14 @@ export {
   buildBoundaryEvent,
   buildLedgerObservation,
   classifyBoundary,
+  classifyToolSignal,
+  classifyVerificationSignal,
   envString,
   inferRoute,
   isVerificationReport,
   parseInput,
   redactCommand,
   resolveObservedRoute,
-  run
+  run,
+  shouldResolveRoutingOutcome
 };

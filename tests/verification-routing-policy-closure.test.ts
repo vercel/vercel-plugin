@@ -10,6 +10,7 @@ import {
   finalizeStaleExposures,
   type SkillExposure,
 } from "../hooks/src/routing-policy-ledger.mts";
+import { storyId as computeStoryId } from "../hooks/src/verification-ledger.mts";
 import {
   applyPolicyBoosts,
   derivePolicyBoost,
@@ -551,6 +552,170 @@ describe("verification → routing-policy closure", () => {
     });
   });
 
+  describe("soft signal gating: plan state updated, routing policy untouched", () => {
+    const SOFT_SESSION = "soft-signal-closure-" + Date.now();
+
+    afterEach(() => {
+      try { unlinkSync(projectPolicyPath(PROJECT_ROOT)); } catch {}
+      try { unlinkSync(sessionExposurePath(SOFT_SESSION)); } catch {}
+    });
+
+    test("Read .env.local records observation but does not resolve routing-policy wins", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(SOFT_SESSION, "flow-verification", "/settings", "env check", []);
+
+        // Add a pending exposure so we can verify it stays pending
+        appendSkillExposure(exposure("soft-e1", {
+          sessionId: SOFT_SESSION,
+          targetBoundary: "environment",
+          route: "/settings",
+          createdAt: T0,
+        }));
+
+        const input = JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.env.local" },
+          session_id: SOFT_SESSION,
+        });
+
+        run(input);
+
+        // Observation was recorded in the ledger (plan state updated)
+        const observations = loadObservations(SOFT_SESSION);
+        expect(observations.length).toBeGreaterThanOrEqual(1);
+        const envObs = observations.find((o) => o.meta?.evidenceSource === "env-read");
+        expect(envObs).toBeDefined();
+        expect(envObs!.boundary).toBe("environment");
+        expect(envObs!.meta?.signalStrength).toBe("soft");
+        expect(envObs!.meta?.toolName).toBe("Read");
+
+        // Routing policy was NOT updated — exposure remains pending
+        const exposures = loadSessionExposures(SOFT_SESSION);
+        const pending = exposures.filter((e) => e.outcome === "pending");
+        expect(pending).toHaveLength(1);
+        expect(pending[0].id).toBe("soft-e1");
+
+        // Project policy has no wins
+        const policy = loadProjectRoutingPolicy(PROJECT_ROOT);
+        const scenarioKey = "PreToolUse|flow-verification|environment|Bash|/settings";
+        const stats = policy.scenarios[scenarioKey]?.["agent-browser-verify"];
+        // stats may exist from exposure recording, but wins should be 0
+        if (stats) {
+          expect(stats.wins).toBe(0);
+          expect(stats.directiveWins).toBe(0);
+        }
+      } finally {
+        removeLedgerArtifacts(SOFT_SESSION);
+      }
+    });
+
+    test("Read server.log records observation but does not resolve routing-policy wins", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(SOFT_SESSION, "flow-verification", "/dashboard", "log check", []);
+
+        appendSkillExposure(exposure("soft-log-e1", {
+          sessionId: SOFT_SESSION,
+          targetBoundary: "serverHandler",
+          route: "/dashboard",
+          createdAt: T0,
+        }));
+
+        const input = JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.next/server/app.log" },
+          session_id: SOFT_SESSION,
+        });
+
+        run(input);
+
+        // Observation recorded
+        const observations = loadObservations(SOFT_SESSION);
+        const logObs = observations.find((o) => o.meta?.evidenceSource === "log-read");
+        expect(logObs).toBeDefined();
+        expect(logObs!.boundary).toBe("serverHandler");
+        expect(logObs!.meta?.signalStrength).toBe("soft");
+
+        // Exposure stays pending — soft signal did not resolve policy
+        const exposures = loadSessionExposures(SOFT_SESSION);
+        expect(exposures.filter((e) => e.outcome === "pending")).toHaveLength(1);
+      } finally {
+        removeLedgerArtifacts(SOFT_SESSION);
+      }
+    });
+
+    test("Bash curl (strong) DOES resolve routing-policy wins — contrast with soft", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(SOFT_SESSION, "flow-verification", "/dashboard", "api check", []);
+
+        // Use the real computed story ID so it matches what the observer resolves
+        const realStoryId = computeStoryId("flow-verification", "/dashboard");
+
+        appendSkillExposure(exposure("strong-bash-e1", {
+          sessionId: SOFT_SESSION,
+          targetBoundary: "clientRequest",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T0,
+        }));
+
+        const input = JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "curl http://localhost:3000/dashboard" },
+          session_id: SOFT_SESSION,
+        });
+
+        run(input);
+
+        // Bash curl is strong → exposure should be resolved
+        const exposures = loadSessionExposures(SOFT_SESSION);
+        const resolved = exposures.filter((e) => e.outcome === "win" || e.outcome === "directive-win");
+        expect(resolved.length).toBeGreaterThanOrEqual(1);
+      } finally {
+        removeLedgerArtifacts(SOFT_SESSION);
+      }
+    });
+
+    test("finalizeStaleExposures converts unresolved soft-signal exposures to stale-miss", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(SOFT_SESSION, "flow-verification", "/settings", "stale check", []);
+
+        appendSkillExposure(exposure("stale-soft-e1", {
+          sessionId: SOFT_SESSION,
+          targetBoundary: "environment",
+          route: "/settings",
+          createdAt: T0,
+        }));
+
+        // Soft signal — does NOT resolve policy
+        run(JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.env.local" },
+          session_id: SOFT_SESSION,
+        }));
+
+        // Session end: pending exposure becomes stale-miss
+        const stale = finalizeStaleExposures(SOFT_SESSION, T_END);
+        expect(stale).toHaveLength(1);
+        expect(stale[0].id).toBe("stale-soft-e1");
+        expect(stale[0].outcome).toBe("stale-miss");
+      } finally {
+        removeLedgerArtifacts(SOFT_SESSION);
+      }
+    });
+  });
+
   describe("PostToolUse closure traces", () => {
     const TRACE_SESSION = "closure-trace-test-" + Date.now();
 
@@ -659,6 +824,361 @@ describe("verification → routing-policy closure", () => {
       } finally {
         removeLedgerArtifacts(noStorySession);
         try { rmSync(traceDir(noStorySession), { recursive: true, force: true }); } catch {}
+      }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // E2E signal fusion: multi-tool, strong/soft gating, route-scoped resolution
+  // ---------------------------------------------------------------------------
+
+  describe("signal fusion E2E: multi-tool verification closure", () => {
+    const FUSION_SESSION = "signal-fusion-e2e-" + Date.now();
+
+    afterEach(() => {
+      try { unlinkSync(projectPolicyPath(PROJECT_ROOT)); } catch {}
+      try { unlinkSync(sessionExposurePath(FUSION_SESSION)); } catch {}
+      try { rmSync(traceDir(FUSION_SESSION), { recursive: true, force: true }); } catch {}
+    });
+
+    test("Bash curl records clientRequest strong and resolves the correct pending exposure", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+      const { storyId: computeStoryId } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(FUSION_SESSION, "flow-verification", "/dashboard", "dashboard verify", []);
+        const realStoryId = computeStoryId("flow-verification", "/dashboard");
+
+        appendSkillExposure(exposure("fusion-curl-e1", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "clientRequest",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T0,
+        }));
+
+        run(JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "curl http://localhost:3000/dashboard" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // Observation was recorded
+        const observations = loadObservations(FUSION_SESSION);
+        const curlObs = observations.find((o) => o.meta?.matchedPattern === "http-client");
+        expect(curlObs).toBeDefined();
+        expect(curlObs!.boundary).toBe("clientRequest");
+        expect(curlObs!.meta?.signalStrength).toBe("strong");
+        expect(curlObs!.meta?.evidenceSource).toBe("bash");
+
+        // Strong signal → exposure resolved
+        const exposures = loadSessionExposures(FUSION_SESSION);
+        const resolved = exposures.filter((e) => e.outcome === "win" || e.outcome === "directive-win");
+        expect(resolved.length).toBeGreaterThanOrEqual(1);
+        expect(resolved[0].id).toBe("fusion-curl-e1");
+      } finally {
+        removeLedgerArtifacts(FUSION_SESSION);
+      }
+    });
+
+    test(".env.local read records environment soft, affects plan state, does NOT resolve routing-policy", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(FUSION_SESSION, "flow-verification", "/settings", "env check", []);
+
+        // Seed a pending exposure for environment boundary
+        appendSkillExposure(exposure("fusion-env-e1", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "environment",
+          route: "/settings",
+          createdAt: T0,
+        }));
+
+        run(JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.env.local" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // Observation recorded in ledger (plan state affected)
+        const observations = loadObservations(FUSION_SESSION);
+        const envObs = observations.find((o) => o.meta?.evidenceSource === "env-read");
+        expect(envObs).toBeDefined();
+        expect(envObs!.boundary).toBe("environment");
+        expect(envObs!.meta?.signalStrength).toBe("soft");
+        expect(envObs!.meta?.toolName).toBe("Read");
+
+        // Routing policy NOT updated — exposure stays pending
+        const exposures = loadSessionExposures(FUSION_SESSION);
+        expect(exposures.filter((e) => e.outcome === "pending")).toHaveLength(1);
+        expect(exposures[0].id).toBe("fusion-env-e1");
+
+        // Project policy has zero wins
+        const policy = loadProjectRoutingPolicy(PROJECT_ROOT);
+        const scenarioKey = "PreToolUse|flow-verification|environment|Bash|/settings";
+        const stats = policy.scenarios[scenarioKey]?.["agent-browser-verify"];
+        if (stats) {
+          expect(stats.wins).toBe(0);
+          expect(stats.directiveWins).toBe(0);
+        }
+      } finally {
+        removeLedgerArtifacts(FUSION_SESSION);
+      }
+    });
+
+    test("server log read records serverHandler soft, affects plan state only, does NOT resolve routing-policy", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(FUSION_SESSION, "flow-verification", "/dashboard", "log inspect", []);
+
+        appendSkillExposure(exposure("fusion-log-e1", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "serverHandler",
+          route: "/dashboard",
+          createdAt: T0,
+        }));
+
+        run(JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.next/server/app.log" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // Observation recorded (plan state affected)
+        const observations = loadObservations(FUSION_SESSION);
+        const logObs = observations.find((o) => o.meta?.evidenceSource === "log-read");
+        expect(logObs).toBeDefined();
+        expect(logObs!.boundary).toBe("serverHandler");
+        expect(logObs!.meta?.signalStrength).toBe("soft");
+
+        // Routing policy NOT updated — exposure stays pending
+        const exposures = loadSessionExposures(FUSION_SESSION);
+        expect(exposures.filter((e) => e.outcome === "pending")).toHaveLength(1);
+        expect(exposures[0].id).toBe("fusion-log-e1");
+      } finally {
+        removeLedgerArtifacts(FUSION_SESSION);
+      }
+    });
+
+    test("Bash browser command records uiRender strong and resolves only matching story/route", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+      const { storyId: computeStoryId } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(FUSION_SESSION, "flow-verification", "/dashboard", "browser verify", []);
+        const realStoryId = computeStoryId("flow-verification", "/dashboard");
+
+        // Exposure on /dashboard (uiRender)
+        appendSkillExposure(exposure("fusion-browser-dash", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "uiRender",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T0,
+        }));
+
+        // Exposure on /settings (uiRender) — different route, should NOT be resolved
+        appendSkillExposure(exposure("fusion-browser-settings", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "uiRender",
+          storyId: realStoryId,
+          route: "/settings",
+          createdAt: T1,
+        }));
+
+        run(JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "open http://localhost:3000/dashboard" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // Observation is uiRender + strong
+        const observations = loadObservations(FUSION_SESSION);
+        const browserObs = observations.find((o) => o.boundary === "uiRender");
+        expect(browserObs).toBeDefined();
+        expect(browserObs!.meta?.signalStrength).toBe("strong");
+        expect(browserObs!.meta?.evidenceSource).toBe("browser");
+
+        // Only /dashboard exposure resolved; /settings stays pending
+        const exposures = loadSessionExposures(FUSION_SESSION);
+        const dashExposure = exposures.find((e) => e.id === "fusion-browser-dash");
+        const settingsExposure = exposures.find((e) => e.id === "fusion-browser-settings");
+        expect(dashExposure!.outcome).toBe("win");
+        expect(settingsExposure!.outcome).toBe("pending");
+      } finally {
+        removeLedgerArtifacts(FUSION_SESSION);
+      }
+    });
+
+    test("route mismatch resolves nothing; finalizeStaleExposures converts unresolved to stale-miss", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts } = await import("../hooks/src/verification-ledger.mts");
+      const { storyId: computeStoryId } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(FUSION_SESSION, "flow-verification", "/settings", "route mismatch", []);
+        const realStoryId = computeStoryId("flow-verification", "/settings");
+
+        // Exposure targeting /settings clientRequest
+        appendSkillExposure(exposure("fusion-mismatch-e1", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "clientRequest",
+          storyId: realStoryId,
+          route: "/settings",
+          createdAt: T0,
+        }));
+
+        // Observer sees curl /dashboard — route mismatch with /settings exposure
+        run(JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "curl http://localhost:3000/dashboard" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // Exposure still pending (route mismatch: /dashboard observation vs /settings exposure)
+        const exposures = loadSessionExposures(FUSION_SESSION);
+        expect(exposures).toHaveLength(1);
+        expect(exposures[0].outcome).toBe("pending");
+
+        // Session end: finalize converts to stale-miss
+        const stale = finalizeStaleExposures(FUSION_SESSION, T_END);
+        expect(stale).toHaveLength(1);
+        expect(stale[0].id).toBe("fusion-mismatch-e1");
+        expect(stale[0].outcome).toBe("stale-miss");
+        expect(stale[0].resolvedAt).toBe(T_END);
+
+        // Project policy reflects stale-miss, not a win
+        const policy = loadProjectRoutingPolicy(PROJECT_ROOT);
+        const key = "PreToolUse|flow-verification|clientRequest|Bash|/settings";
+        const stats = policy.scenarios[key]?.["agent-browser-verify"];
+        expect(stats).toBeDefined();
+        expect(stats!.staleMisses).toBe(1);
+        expect(stats!.wins).toBe(0);
+      } finally {
+        removeLedgerArtifacts(FUSION_SESSION);
+      }
+    });
+
+    test("full signal fusion: mixed strong/soft tools in one session, only strong resolves policy", async () => {
+      const { run } = await import("../hooks/src/posttooluse-verification-observe.mts");
+      const { recordStory, removeLedgerArtifacts, loadObservations } = await import("../hooks/src/verification-ledger.mts");
+      const { storyId: computeStoryId } = await import("../hooks/src/verification-ledger.mts");
+
+      try {
+        recordStory(FUSION_SESSION, "flow-verification", "/dashboard", "fusion test", []);
+        const realStoryId = computeStoryId("flow-verification", "/dashboard");
+
+        // Four exposures: one per boundary
+        appendSkillExposure(exposure("fusion-all-cr", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "clientRequest",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T0,
+        }));
+        appendSkillExposure(exposure("fusion-all-env", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "environment",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T1,
+        }));
+        appendSkillExposure(exposure("fusion-all-sh", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "serverHandler",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T2,
+        }));
+        appendSkillExposure(exposure("fusion-all-ui", {
+          sessionId: FUSION_SESSION,
+          targetBoundary: "uiRender",
+          storyId: realStoryId,
+          route: "/dashboard",
+          createdAt: T3,
+        }));
+
+        // Step 1: Soft env read — records observation, does NOT resolve policy
+        run(JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.env.local" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // Step 2: Soft log read — records observation, does NOT resolve policy
+        run(JSON.stringify({
+          tool_name: "Read",
+          tool_input: { file_path: "/repo/.next/server/app.log" },
+          session_id: FUSION_SESSION,
+        }));
+
+        // After soft signals: all 4 exposures still pending
+        let exposures = loadSessionExposures(FUSION_SESSION);
+        expect(exposures.filter((e) => e.outcome === "pending")).toHaveLength(4);
+
+        // Step 3: Strong curl — resolves clientRequest exposure only
+        run(JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "curl http://localhost:3000/dashboard" },
+          session_id: FUSION_SESSION,
+        }));
+
+        exposures = loadSessionExposures(FUSION_SESSION);
+        expect(exposures.find((e) => e.id === "fusion-all-cr")!.outcome).toBe("win");
+        expect(exposures.find((e) => e.id === "fusion-all-env")!.outcome).toBe("pending");
+        expect(exposures.find((e) => e.id === "fusion-all-sh")!.outcome).toBe("pending");
+        expect(exposures.find((e) => e.id === "fusion-all-ui")!.outcome).toBe("pending");
+
+        // Step 4: Strong browser — resolves uiRender exposure only
+        run(JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "open http://localhost:3000/dashboard" },
+          session_id: FUSION_SESSION,
+        }));
+
+        exposures = loadSessionExposures(FUSION_SESSION);
+        expect(exposures.find((e) => e.id === "fusion-all-ui")!.outcome).toBe("win");
+
+        // env and serverHandler exposures still pending (soft signals didn't resolve them)
+        expect(exposures.find((e) => e.id === "fusion-all-env")!.outcome).toBe("pending");
+        expect(exposures.find((e) => e.id === "fusion-all-sh")!.outcome).toBe("pending");
+
+        // Verify observations were all recorded
+        const observations = loadObservations(FUSION_SESSION);
+        expect(observations.length).toBeGreaterThanOrEqual(4);
+
+        // Boundaries observed: env, serverHandler, clientRequest, uiRender
+        const boundaries = new Set(observations.map((o) => o.boundary));
+        expect(boundaries.has("environment")).toBe(true);
+        expect(boundaries.has("serverHandler")).toBe(true);
+        expect(boundaries.has("clientRequest")).toBe(true);
+        expect(boundaries.has("uiRender")).toBe(true);
+
+        // Finalize: remaining 2 soft-only exposures become stale-miss
+        const stale = finalizeStaleExposures(FUSION_SESSION, T_END);
+        expect(stale).toHaveLength(2);
+        expect(stale.every((e) => e.outcome === "stale-miss")).toBe(true);
+        const staleIds = stale.map((e) => e.id).sort();
+        expect(staleIds).toEqual(["fusion-all-env", "fusion-all-sh"]);
+
+        // Final policy state: clientRequest and uiRender have wins, others have stale-misses
+        const policy = loadProjectRoutingPolicy(PROJECT_ROOT);
+        const crKey = "PreToolUse|flow-verification|clientRequest|Bash|/dashboard";
+        expect(policy.scenarios[crKey]?.["agent-browser-verify"]?.wins).toBe(1);
+        const uiKey = "PreToolUse|flow-verification|uiRender|Bash|/dashboard";
+        expect(policy.scenarios[uiKey]?.["agent-browser-verify"]?.wins).toBe(1);
+        const envKey = "PreToolUse|flow-verification|environment|Bash|/dashboard";
+        expect(policy.scenarios[envKey]?.["agent-browser-verify"]?.staleMisses).toBe(1);
+        const shKey = "PreToolUse|flow-verification|serverHandler|Bash|/dashboard";
+        expect(policy.scenarios[shKey]?.["agent-browser-verify"]?.staleMisses).toBe(1);
+      } finally {
+        removeLedgerArtifacts(FUSION_SESSION);
       }
     });
   });

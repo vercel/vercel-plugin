@@ -206,14 +206,25 @@ describe("parseInput", () => {
   test("parses valid Bash tool input", () => {
     const result = parseInput(makeStdinPayload("curl http://localhost:3000"));
     expect(result).not.toBeNull();
-    expect(result!.command).toBe("curl http://localhost:3000");
+    expect(result!.toolName).toBe("Bash");
+    expect(result!.toolInput.command).toBe("curl http://localhost:3000");
     expect(result!.sessionId).toBe(testSessionId);
   });
 
-  test("returns null for non-Bash tools", () => {
+  test("accepts Read tool (multi-tool support)", () => {
     const payload = JSON.stringify({
       tool_name: "Read",
       tool_input: { file_path: "/foo" },
+    });
+    const result = parseInput(payload);
+    expect(result).not.toBeNull();
+    expect(result!.toolName).toBe("Read");
+  });
+
+  test("rejects unsupported tool names", () => {
+    const payload = JSON.stringify({
+      tool_name: "Agent",
+      tool_input: {},
     });
     expect(parseInput(payload)).toBeNull();
   });

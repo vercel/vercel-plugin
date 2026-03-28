@@ -41,6 +41,73 @@ describe("hooks.json SubagentStart", () => {
   });
 });
 
+describe("hooks.json PostToolUse verification observer coverage", () => {
+  const postToolUseGroups = hooksJson.hooks.PostToolUse;
+
+  test("verification observer is registered for Bash", () => {
+    const bashGroup = postToolUseGroups.find((g) => g.matcher === "Bash");
+    expect(bashGroup).toBeDefined();
+    const observerHook = bashGroup!.hooks.find((h) =>
+      h.command.includes("posttooluse-verification-observe"),
+    );
+    expect(observerHook).toBeDefined();
+    expect(observerHook!.timeout).toBe(5);
+  });
+
+  test("verification observer is registered for non-Bash tools", () => {
+    const nonBashGroup = postToolUseGroups.find(
+      (g) => g.matcher.includes("Read") && g.matcher.includes("WebFetch"),
+    );
+    expect(nonBashGroup).toBeDefined();
+    expect(nonBashGroup!.matcher).toBe("Read|Edit|Write|Glob|Grep|WebFetch");
+
+    const observerHook = nonBashGroup!.hooks.find((h) =>
+      h.command.includes("posttooluse-verification-observe"),
+    );
+    expect(observerHook).toBeDefined();
+    expect(observerHook!.timeout).toBe(5);
+  });
+
+  test("non-Bash observer group does NOT include shadcn-font-fix or bash-chain", () => {
+    const nonBashGroup = postToolUseGroups.find(
+      (g) => g.matcher.includes("Read") && g.matcher.includes("WebFetch"),
+    );
+    expect(nonBashGroup).toBeDefined();
+    const hasUnrelated = nonBashGroup!.hooks.some(
+      (h) => h.command.includes("shadcn-font-fix") || h.command.includes("bash-chain"),
+    );
+    expect(hasUnrelated).toBe(false);
+  });
+
+  test("Bash-only hooks remain scoped to Bash matcher only", () => {
+    const bashGroup = postToolUseGroups.find((g) => g.matcher === "Bash");
+    expect(bashGroup).toBeDefined();
+    const hasShadcn = bashGroup!.hooks.some((h) => h.command.includes("shadcn-font-fix"));
+    const hasBashChain = bashGroup!.hooks.some((h) => h.command.includes("bash-chain"));
+    expect(hasShadcn).toBe(true);
+    expect(hasBashChain).toBe(true);
+  });
+
+  test("fixture matrix: every registered tool name reaches observer", () => {
+    // Build a map of tool_name -> whether observer is reachable
+    const toolNames = ["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebFetch"];
+    const matrix: Record<string, boolean> = {};
+    for (const tool of toolNames) {
+      const reachable = postToolUseGroups.some((g) => {
+        const matcherRegex = new RegExp(`^(${g.matcher})$`);
+        return matcherRegex.test(tool) && g.hooks.some((h) =>
+          h.command.includes("posttooluse-verification-observe"),
+        );
+      });
+      matrix[tool] = reachable;
+    }
+    // All tools must reach the observer
+    for (const tool of toolNames) {
+      expect(matrix[tool]).toBe(true);
+    }
+  });
+});
+
 describe("hooks.json SubagentStop", () => {
   const groups = hooksJson.hooks.SubagentStop;
 
