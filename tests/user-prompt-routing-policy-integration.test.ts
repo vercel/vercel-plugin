@@ -47,6 +47,7 @@ function writeMockPlanState(sessionId: string, story?: {
   id?: string;
   kind?: string;
   route?: string | null;
+  targetBoundary?: string | null;
 }): void {
   const sp = verificationStatePath(sessionId);
   mkdirSync(join(sp, ".."), { recursive: true });
@@ -59,6 +60,7 @@ function writeMockPlanState(sessionId: string, story?: {
     updatedAt: T1,
     requestedSkills: [],
   };
+  const tb = story?.targetBoundary ?? null;
   writeFileSync(sp, JSON.stringify({
     version: 1,
     stories: [s],
@@ -66,7 +68,9 @@ function writeMockPlanState(sessionId: string, story?: {
     satisfiedBoundaries: [],
     missingBoundaries: [],
     recentRoutes: [],
-    primaryNextAction: null,
+    primaryNextAction: tb
+      ? { action: "verify boundary", targetBoundary: tb, reason: "test" }
+      : null,
     blockedReasons: [],
   }));
 }
@@ -455,6 +459,7 @@ describe("user-prompt-submit routing decision trace", () => {
       id: "prompt-trace-story",
       kind: "feature-investigation",
       route: "/settings",
+      targetBoundary: "serverHandler",
     });
 
     const { code } = await runPromptHook(
@@ -468,7 +473,7 @@ describe("user-prompt-submit routing decision trace", () => {
     expect(traces).toHaveLength(1);
     expect(traces[0].primaryStory.id).toBe("prompt-trace-story");
     expect(traces[0].primaryStory.kind).toBe("feature-investigation");
-    expect(traces[0].policyScenario).toBe("UserPromptSubmit|feature-investigation|none|Prompt");
+    expect(traces[0].policyScenario).toBe("UserPromptSubmit|feature-investigation|serverHandler|Prompt");
     expect(traces[0].skippedReasons).not.toContain("no_active_verification_story");
   });
 

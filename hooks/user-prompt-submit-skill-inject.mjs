@@ -26,7 +26,8 @@ import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
-import { loadCachedPlanResult, selectActiveStory } from "./verification-plan.mjs";
+import { loadCachedPlanResult } from "./verification-plan.mjs";
+import { resolvePromptVerificationBinding } from "./prompt-verification-binding.mjs";
 import { applyPolicyBoosts } from "./routing-policy.mjs";
 import {
   appendSkillExposure,
@@ -717,50 +718,57 @@ function run() {
     }, log.active ? timing : null);
     return formatEmptyOutput(platform, finalizePromptEnvUpdates(platform, promptEnvBefore));
   }
+  const promptPlan = sessionId ? loadCachedPlanResult(sessionId, log) : null;
+  const promptBinding = resolvePromptVerificationBinding({ plan: promptPlan });
+  log.debug("prompt-verification-binding", {
+    source: promptBinding.source,
+    storyId: promptBinding.storyId,
+    targetBoundary: promptBinding.targetBoundary,
+    confidence: promptBinding.confidence,
+    reason: promptBinding.reason
+  });
   const promptPolicyBoosted = [];
-  if (cwd && report.selectedSkills.length > 0) {
-    const plan = sessionId ? loadCachedPlanResult(sessionId, log) : null;
-    const primaryStory = plan ? selectActiveStory(plan) : null;
-    if (primaryStory) {
-      const promptPolicyScenario = {
-        hook: "UserPromptSubmit",
-        storyKind: primaryStory.kind ?? null,
-        targetBoundary: null,
-        toolName: "Prompt"
+  if (cwd && report.selectedSkills.length > 0 && promptBinding.storyId && promptBinding.targetBoundary) {
+    const promptPolicyScenario = {
+      hook: "UserPromptSubmit",
+      storyKind: promptBinding.storyKind,
+      targetBoundary: promptBinding.targetBoundary,
+      toolName: "Prompt"
+    };
+    const promptPolicy = loadProjectRoutingPolicy(cwd);
+    const rankable = report.selectedSkills.map((skill) => {
+      const r = report.perSkillResults[skill];
+      return {
+        skill,
+        priority: r?.score ?? 0,
+        effectivePriority: r?.score ?? 0
       };
-      const promptPolicy = loadProjectRoutingPolicy(cwd);
-      const rankable = report.selectedSkills.map((skill) => {
-        const r = report.perSkillResults[skill];
-        return {
-          skill,
-          priority: r?.score ?? 0,
-          effectivePriority: r?.score ?? 0
-        };
-      });
-      const boosted = applyPolicyBoosts(rankable, promptPolicy, promptPolicyScenario);
-      boosted.sort(
-        (a, b) => b.effectivePriority - a.effectivePriority || a.skill.localeCompare(b.skill)
-      );
-      report.selectedSkills.length = 0;
-      report.selectedSkills.push(...boosted.map((b) => b.skill));
-      for (const b of boosted) {
-        if (b.policyBoost !== 0) {
-          promptPolicyBoosted.push({
-            skill: b.skill,
-            boost: b.policyBoost,
-            reason: b.policyReason
-          });
-        }
-      }
-      if (promptPolicyBoosted.length > 0) {
-        log.debug("prompt-policy-boosted", {
-          scenario: `${promptPolicyScenario.hook}|${promptPolicyScenario.storyKind ?? "none"}|none|Prompt`,
-          boostedSkills: promptPolicyBoosted
+    });
+    const boosted = applyPolicyBoosts(rankable, promptPolicy, promptPolicyScenario);
+    boosted.sort(
+      (a, b) => b.effectivePriority - a.effectivePriority || a.skill.localeCompare(b.skill)
+    );
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...boosted.map((b) => b.skill));
+    for (const b of boosted) {
+      if (b.policyBoost !== 0) {
+        promptPolicyBoosted.push({
+          skill: b.skill,
+          boost: b.policyBoost,
+          reason: b.policyReason
         });
       }
-    } else {
-      log.debug("prompt-policy-boost-skipped", { reason: "no active verification story" });
     }
+    if (promptPolicyBoosted.length > 0) {
+      log.debug("prompt-policy-boosted", {
+        scenario: `${promptPolicyScenario.hook}|${promptPolicyScenario.storyKind ?? "none"}|${promptPolicyScenario.targetBoundary}|Prompt`,
+        boostedSkills: promptPolicyBoosted
+      });
+    }
+  } else if (cwd && report.selectedSkills.length > 0) {
+    log.debug("prompt-policy-boost-skipped", {
+      reason: !promptBinding.storyId ? "no_active_verification_story" : "no_target_boundary"
+    });
   }
   const tInject = log.active ? log.now() : 0;
   const injectedSkills = dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState);
@@ -785,54 +793,50 @@ function run() {
   const droppedByBudget = [...injectResult.droppedByBudget, ...report.droppedByBudget];
   const matchedSkills = allMatched;
   let promptAttribution = null;
-  if (loaded.length > 0 && sessionId) {
-    const exposurePlan = loadCachedPlanResult(sessionId, log);
-    const exposureStory = exposurePlan ? selectActiveStory(exposurePlan) : null;
-    if (exposureStory) {
-      promptAttribution = buildAttributionDecision({
+  if (loaded.length > 0 && sessionId && promptBinding.storyId && promptBinding.targetBoundary) {
+    promptAttribution = buildAttributionDecision({
+      sessionId,
+      hook: "UserPromptSubmit",
+      storyId: promptBinding.storyId,
+      route: promptBinding.route,
+      targetBoundary: promptBinding.targetBoundary,
+      loadedSkills: loaded
+    });
+    for (const skill of loaded) {
+      appendSkillExposure({
+        id: `${sessionId}:prompt:${skill}:${Date.now()}`,
         sessionId,
+        projectRoot: cwd,
+        storyId: promptBinding.storyId,
+        storyKind: promptBinding.storyKind,
+        route: promptBinding.route,
         hook: "UserPromptSubmit",
-        storyId: exposureStory.id ?? null,
-        route: exposureStory.route ?? null,
-        targetBoundary: null,
-        loadedSkills: loaded
-      });
-      for (const skill of loaded) {
-        appendSkillExposure({
-          id: `${sessionId}:prompt:${skill}:${Date.now()}`,
-          sessionId,
-          projectRoot: cwd,
-          storyId: exposureStory.id ?? null,
-          storyKind: exposureStory.kind ?? null,
-          route: exposureStory.route ?? null,
-          hook: "UserPromptSubmit",
-          toolName: "Prompt",
-          skill,
-          targetBoundary: null,
-          exposureGroupId: promptAttribution.exposureGroupId,
-          attributionRole: skill === promptAttribution.candidateSkill ? "candidate" : "context",
-          candidateSkill: promptAttribution.candidateSkill,
-          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-          resolvedAt: null,
-          outcome: "pending"
-        });
-      }
-      log.summary("routing-policy-exposures-recorded", {
-        hook: "UserPromptSubmit",
-        skills: loaded,
-        storyId: exposureStory.id,
-        storyKind: exposureStory.kind ?? null,
-        policyBoosted: promptPolicyBoosted,
+        toolName: "Prompt",
+        skill,
+        targetBoundary: promptBinding.targetBoundary,
+        exposureGroupId: promptAttribution.exposureGroupId,
+        attributionRole: skill === promptAttribution.candidateSkill ? "candidate" : "context",
         candidateSkill: promptAttribution.candidateSkill,
-        exposureGroupId: promptAttribution.exposureGroupId
-      });
-    } else {
-      log.debug("routing-policy-exposures-skipped", {
-        hook: "UserPromptSubmit",
-        reason: "no active verification story",
-        skills: loaded
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        resolvedAt: null,
+        outcome: "pending"
       });
     }
+    log.summary("routing-policy-exposures-recorded", {
+      hook: "UserPromptSubmit",
+      skills: loaded,
+      storyId: promptBinding.storyId,
+      storyKind: promptBinding.storyKind,
+      targetBoundary: promptBinding.targetBoundary,
+      candidateSkill: promptAttribution.candidateSkill,
+      exposureGroupId: promptAttribution.exposureGroupId
+    });
+  } else if (loaded.length > 0 && sessionId) {
+    log.debug("routing-policy-exposures-skipped", {
+      hook: "UserPromptSubmit",
+      reason: !promptBinding.storyId ? "no active verification story" : "no target boundary",
+      skills: loaded
+    });
   }
   if (parts.length === 0) {
     log.complete("all_deduped", {
@@ -882,8 +886,6 @@ function run() {
     outputEnv = finalizePromptEnvUpdates(platform, promptEnvBefore);
   }
   {
-    const tracePlan = sessionId ? loadCachedPlanResult(sessionId, log) : null;
-    const traceStory = tracePlan ? selectActiveStory(tracePlan) : null;
     const traceTimestamp = (/* @__PURE__ */ new Date()).toISOString();
     const decisionId = createDecisionId({
       hook: "UserPromptSubmit",
@@ -901,18 +903,19 @@ function run() {
       toolTarget: normalizedPrompt,
       timestamp: traceTimestamp,
       primaryStory: {
-        id: traceStory?.id ?? null,
-        kind: traceStory?.kind ?? null,
-        storyRoute: traceStory?.route ?? null,
-        targetBoundary: null
+        id: promptBinding.storyId,
+        kind: promptBinding.storyKind,
+        storyRoute: promptBinding.route,
+        targetBoundary: promptBinding.targetBoundary
       },
       observedRoute: null,
       // UserPromptSubmit fires before execution; no observed route
-      policyScenario: traceStory ? `UserPromptSubmit|${traceStory.kind ?? "none"}|none|Prompt` : null,
+      policyScenario: promptBinding.storyId && promptBinding.targetBoundary ? `UserPromptSubmit|${promptBinding.storyKind ?? "none"}|${promptBinding.targetBoundary}|Prompt` : null,
       matchedSkills,
       injectedSkills: loaded,
       skippedReasons: [
-        ...traceStory ? [] : ["no_active_verification_story"],
+        ...promptBinding.storyId ? [] : ["no_active_verification_story"],
+        ...promptBinding.storyId && !promptBinding.targetBoundary ? ["no_target_boundary"] : [],
         ...droppedByCap.map((skill) => `cap_exceeded:${skill}`),
         ...droppedByBudget.map((skill) => `budget_exhausted:${skill}`)
       ],
