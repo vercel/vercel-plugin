@@ -16,6 +16,10 @@ const TEMP_HOOK_RUNTIME_MODULES = [
   "hook-env.mjs",
   "compat.mjs",
   "telemetry.mjs",
+  "routing-policy.mjs",
+  "routing-policy-ledger.mjs",
+  "verification-plan.mjs",
+  "verification-ledger.mjs",
 ] as const;
 
 function copyTempHookRuntime(

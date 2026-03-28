@@ -6,6 +6,7 @@ import { readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "fs
 import { homedir, tmpdir } from "os";
 import { join, resolve } from "path";
 import { fileURLToPath } from "url";
+import { finalizeStaleExposures } from "./routing-policy-ledger.mjs";
 var SAFE_SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
 function tempSessionIdSegment(sessionId) {
   if (SAFE_SESSION_ID_RE.test(sessionId)) {
@@ -56,6 +57,10 @@ function main() {
   }
   const tempRoot = tmpdir();
   const prefix = `vercel-plugin-${tempSessionIdSegment(sessionId)}-`;
+  try {
+    finalizeStaleExposures(sessionId, (/* @__PURE__ */ new Date()).toISOString());
+  } catch {
+  }
   let entries = [];
   try {
     entries = readdirSync(tempRoot).filter((name) => name.startsWith(prefix));

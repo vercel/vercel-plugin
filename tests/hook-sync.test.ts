@@ -140,6 +140,69 @@ describe("vercel-config .mts/.mjs sync", () => {
 });
 
 // ---------------------------------------------------------------------------
+// policy-recall module
+// ---------------------------------------------------------------------------
+describe("policy-recall .mts/.mjs sync", () => {
+  test("exported function names match", async () => {
+    const src = await load("hooks/src/policy-recall.mts");
+    const compiled = await load("hooks/policy-recall.mjs");
+
+    const srcFns = Object.keys(src).filter((k) => typeof src[k] === "function").sort();
+    const compiledFns = Object.keys(compiled).filter((k) => typeof compiled[k] === "function").sort();
+
+    expect(compiledFns).toEqual(srcFns);
+  });
+
+  test("selectPolicyRecallCandidates produces identical output", async () => {
+    const src = await load("hooks/src/policy-recall.mts");
+    const compiled = await load("hooks/policy-recall.mjs");
+
+    const policy = {
+      version: 1,
+      scenarios: {
+        "Read|tsx|react-best-practices|/app": {
+          "react-best-practices": {
+            exposures: 5,
+            wins: 4,
+            directiveWins: 1,
+            staleMisses: 0,
+          },
+          "nextjs": {
+            exposures: 2,
+            wins: 1,
+            directiveWins: 0,
+            staleMisses: 0,
+          },
+        },
+      },
+    };
+    const scenario = {
+      toolName: "Read",
+      fileType: "tsx",
+      skill: "react-best-practices",
+      routeScope: "/app",
+    };
+
+    const srcResult = src.selectPolicyRecallCandidates(policy, scenario);
+    const compiledResult = compiled.selectPolicyRecallCandidates(policy, scenario);
+
+    expect(compiledResult).toEqual(srcResult);
+  });
+
+  test("empty policy returns empty candidates from both", async () => {
+    const src = await load("hooks/src/policy-recall.mts");
+    const compiled = await load("hooks/policy-recall.mjs");
+
+    const empty = { version: 1, scenarios: {} };
+    const scenario = { toolName: "Read", fileType: "ts", skill: "nextjs", routeScope: "/" };
+
+    expect(compiled.selectPolicyRecallCandidates(empty, scenario)).toEqual(
+      src.selectPolicyRecallCandidates(empty, scenario),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // logger module
 // ---------------------------------------------------------------------------
 describe("logger .mts/.mjs sync", () => {

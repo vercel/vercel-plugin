@@ -6,6 +6,16 @@ import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { generateVerificationId } from "./hook-env.mjs";
 import { createLogger } from "./logger.mjs";
+import { redactCommand } from "./pretooluse-skill-inject.mjs";
+import {
+  recordObservation
+} from "./verification-ledger.mjs";
+import { resolveBoundaryOutcome } from "./routing-policy-ledger.mjs";
+import { selectActiveStory } from "./verification-plan.mjs";
+import {
+  appendRoutingDecisionTrace,
+  createDecisionId
+} from "./routing-decision-trace.mjs";
 function isVerificationReport(value) {
   if (typeof value !== "object" || value === null) return false;
   const obj = value;
@@ -41,6 +51,49 @@ function classifyBoundary(command) {
     }
   }
   return { boundary: "unknown", matchedPattern: "none" };
+}
+function buildBoundaryEvent(input) {
+  const env = input.env ?? process.env;
+  const redactedCommand = redactCommand(input.command).slice(0, 200);
+  const suggestedBoundary = env.VERCEL_PLUGIN_VERIFICATION_BOUNDARY || null;
+  const suggestedAction = env.VERCEL_PLUGIN_VERIFICATION_ACTION ? redactCommand(env.VERCEL_PLUGIN_VERIFICATION_ACTION).slice(0, 200) : null;
+  return {
+    event: "verification.boundary_observed",
+    boundary: input.boundary,
+    verificationId: input.verificationId,
+    command: redactedCommand,
+    matchedPattern: input.matchedPattern,
+    inferredRoute: input.inferredRoute,
+    timestamp: input.timestamp ?? (/* @__PURE__ */ new Date()).toISOString(),
+    suggestedBoundary,
+    suggestedAction,
+    matchedSuggestedAction: suggestedBoundary !== null && suggestedBoundary === input.boundary || suggestedAction !== null && suggestedAction === redactedCommand
+  };
+}
+function buildLedgerObservation(event, env = process.env) {
+  const storyIdValue = env.VERCEL_PLUGIN_VERIFICATION_STORY_ID;
+  return {
+    id: event.verificationId,
+    timestamp: event.timestamp,
+    source: "bash",
+    boundary: event.boundary === "unknown" ? null : event.boundary,
+    route: event.inferredRoute,
+    storyId: typeof storyIdValue === "string" && storyIdValue.trim() !== "" ? storyIdValue.trim() : null,
+    summary: event.command,
+    meta: {
+      matchedPattern: event.matchedPattern,
+      suggestedBoundary: event.suggestedBoundary,
+      suggestedAction: event.suggestedAction,
+      matchedSuggestedAction: event.matchedSuggestedAction
+    }
+  };
+}
+function envString(env, key) {
+  const value = env[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+function resolveObservedRoute(inferredRoute, env = process.env) {
+  return inferredRoute ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_ROUTE");
 }
 var ROUTE_REGEX = /\b(?:app|pages|src\/pages|src\/app)\/([\w[\].-]+(?:\/[\w[\].-]+)*)/;
 var URL_ROUTE_REGEX = /https?:\/\/[^/\s]+(\/([\w-]+(?:\/[\w-]+)*))/;
@@ -100,22 +153,107 @@ function run(rawInput) {
   const { command, sessionId } = parsed;
   const { boundary, matchedPattern } = classifyBoundary(command);
   if (boundary === "unknown") {
-    log.trace("verification-observe-skip", { reason: "no_boundary_match", command: command.slice(0, 120) });
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      command: redactCommand(command).slice(0, 120)
+    });
     return "{}";
   }
+  const env = process.env;
   const verificationId = generateVerificationId();
-  const recentEdits = process.env.VERCEL_PLUGIN_RECENT_EDITS || "";
-  const inferredRoute = inferRoute(command, recentEdits);
-  const boundaryEvent = {
-    event: "verification.boundary_observed",
+  const recentEdits = env.VERCEL_PLUGIN_RECENT_EDITS || "";
+  const inferredRoute = resolveObservedRoute(inferRoute(command, recentEdits), env);
+  const boundaryEvent = buildBoundaryEvent({
+    command,
     boundary,
-    verificationId,
-    command: command.slice(0, 200),
     matchedPattern,
     inferredRoute,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString()
-  };
+    verificationId
+  });
   log.summary("verification.boundary_observed", boundaryEvent);
+  if (sessionId) {
+    const plan = recordObservation(
+      sessionId,
+      buildLedgerObservation(boundaryEvent),
+      {
+        agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+        lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null
+      },
+      log
+    );
+    log.summary("verification.plan_feedback", {
+      verificationId,
+      matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+      satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
+      missingBoundaries: [...plan.missingBoundaries],
+      primaryNextAction: plan.primaryNextAction,
+      blockedReasons: [...plan.blockedReasons]
+    });
+    const primaryStory = plan.stories.length > 0 ? selectActiveStory(plan) : null;
+    const resolvedStoryId = primaryStory?.id ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_STORY_ID") ?? null;
+    if (boundaryEvent.boundary !== "unknown") {
+      const resolved = resolveBoundaryOutcome({
+        sessionId,
+        boundary: boundaryEvent.boundary,
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+        storyId: resolvedStoryId,
+        route: inferredRoute,
+        now: boundaryEvent.timestamp
+      });
+      if (resolved.length > 0) {
+        const outcomeKind = boundaryEvent.matchedSuggestedAction ? "directive-win" : "win";
+        log.summary("verification.routing-policy-resolved", {
+          verificationId,
+          boundary: boundaryEvent.boundary,
+          storyId: resolvedStoryId,
+          route: inferredRoute,
+          resolvedCount: resolved.length,
+          outcomeKind,
+          skills: resolved.map((e) => e.skill)
+        });
+      }
+    }
+    const redactedTarget = redactCommand(command).slice(0, 200);
+    const decisionId = createDecisionId({
+      hook: "PostToolUse",
+      sessionId,
+      toolName: "Bash",
+      toolTarget: redactedTarget,
+      timestamp: boundaryEvent.timestamp
+    });
+    appendRoutingDecisionTrace({
+      version: 2,
+      decisionId,
+      sessionId,
+      hook: "PostToolUse",
+      toolName: "Bash",
+      toolTarget: redactedTarget,
+      timestamp: boundaryEvent.timestamp,
+      primaryStory: {
+        id: resolvedStoryId,
+        kind: primaryStory?.kind ?? null,
+        storyRoute: primaryStory?.route ?? inferredRoute,
+        targetBoundary: boundaryEvent.boundary === "unknown" ? null : boundaryEvent.boundary
+      },
+      observedRoute: inferredRoute,
+      policyScenario: resolvedStoryId ? `PostToolUse|${primaryStory?.kind ?? "none"}|${boundaryEvent.boundary}|Bash` : null,
+      matchedSkills: [],
+      injectedSkills: [],
+      skippedReasons: resolvedStoryId ? [] : ["no_active_verification_story"],
+      ranked: [],
+      verification: {
+        verificationId,
+        observedBoundary: boundaryEvent.boundary,
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction
+      }
+    });
+    log.summary("routing.decision_trace_written", {
+      decisionId,
+      hook: "PostToolUse",
+      verificationId,
+      boundary: boundaryEvent.boundary
+    });
+  }
   log.complete("verification-observe-done", {
     matchedCount: 1,
     injectedCount: 0
@@ -147,9 +285,14 @@ if (isMainModule()) {
   }
 }
 export {
+  buildBoundaryEvent,
+  buildLedgerObservation,
   classifyBoundary,
+  envString,
   inferRoute,
   isVerificationReport,
   parseInput,
+  redactCommand,
+  resolveObservedRoute,
   run
 };

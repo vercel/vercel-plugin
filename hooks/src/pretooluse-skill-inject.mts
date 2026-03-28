@@ -60,6 +60,20 @@ import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { loadCachedPlanResult, selectActiveStory } from "./verification-plan.mjs";
+import { resolveVerificationRuntimeState, buildVerificationEnv } from "./verification-directive.mjs";
+import { applyPolicyBoosts } from "./routing-policy.mjs";
+import type { RoutingHookName, RoutingToolName } from "./routing-policy.mjs";
+import {
+  appendSkillExposure,
+  loadProjectRoutingPolicy,
+} from "./routing-policy-ledger.mjs";
+import { buildAttributionDecision } from "./routing-attribution.mjs";
+import { explainPolicyRecall } from "./routing-diagnosis.mjs";
+import {
+  appendRoutingDecisionTrace,
+  createDecisionId,
+} from "./routing-decision-trace.mjs";
 
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 18_000;
@@ -775,6 +789,10 @@ export interface DeduplicateParams {
   likelySkills?: Set<string>;
   compiledSkills?: CompiledSkillEntry[];
   setupMode?: boolean;
+  /** Project root for loading routing policy. */
+  cwd?: string;
+  /** Session ID for loading cached verification plan. */
+  sessionId?: string | null;
 }
 
 export interface SetupModeRouting {
@@ -789,13 +807,14 @@ export interface DeduplicateResult {
   vercelJsonRouting: VercelJsonRouting | null;
   profilerBoosted: string[];
   setupModeRouting: SetupModeRouting | null;
+  policyBoosted: Array<{ skill: string; boost: number; reason: string | null }>;
 }
 
 /**
  * Filter already-seen skills, apply vercel.json key-aware routing and profiler boost, rank, and cap.
  */
 export function deduplicateSkills(
-  { matchedEntries, matched, toolName, toolInput, injectedSkills, dedupOff, maxSkills, likelySkills, compiledSkills, setupMode }: DeduplicateParams,
+  { matchedEntries, matched, toolName, toolInput, injectedSkills, dedupOff, maxSkills, likelySkills, compiledSkills, setupMode, cwd, sessionId }: DeduplicateParams,
   logger?: Logger,
 ): DeduplicateResult {
   const l = logger || log;
@@ -901,6 +920,60 @@ export function deduplicateSkills(
     }
   }
 
+  // Policy boost: apply learned routing-policy boosts from verification outcomes
+  // Only apply when an active verification story exists to avoid training on junk none|none buckets
+  const policyBoosted: Array<{ skill: string; boost: number; reason: string | null }> = [];
+  if (cwd) {
+    const plan = sessionId ? loadCachedPlanResult(sessionId, l) : null;
+    const primaryStory = plan ? selectActiveStory(plan) : null;
+
+    if (primaryStory) {
+      const policyScenario = {
+        hook: "PreToolUse" as RoutingHookName,
+        storyKind: primaryStory.kind ?? null,
+        targetBoundary: (plan?.primaryNextAction?.targetBoundary as
+          | "uiRender"
+          | "clientRequest"
+          | "serverHandler"
+          | "environment"
+          | null) ?? null,
+        toolName: toolName as RoutingToolName,
+      };
+      const policy = loadProjectRoutingPolicy(cwd);
+      const boosted = applyPolicyBoosts(
+        newEntries.map((e) => ({
+          ...e,
+          skill: e.skill,
+          priority: e.priority,
+          effectivePriority: typeof e.effectivePriority === "number" ? e.effectivePriority : e.priority,
+        })),
+        policy,
+        policyScenario,
+      );
+
+      for (let i = 0; i < newEntries.length; i++) {
+        const b = boosted[i];
+        newEntries[i].effectivePriority = b.effectivePriority;
+        if (b.policyBoost !== 0) {
+          policyBoosted.push({
+            skill: b.skill,
+            boost: b.policyBoost,
+            reason: b.policyReason,
+          });
+        }
+      }
+
+      if (policyBoosted.length > 0) {
+        l.debug("policy-boosted", {
+          scenario: `${policyScenario.hook}|${policyScenario.storyKind ?? "none"}|${policyScenario.targetBoundary ?? "none"}|${policyScenario.toolName}`,
+          boostedSkills: policyBoosted,
+        });
+      }
+    } else {
+      l.debug("policy-boost-skipped", { reason: "no active verification story" });
+    }
+  }
+
   // Sort by effectivePriority (if set) or priority DESC, then skill name ASC
   newEntries = rankEntries(newEntries);
 
@@ -909,12 +982,15 @@ export function deduplicateSkills(
   // Emit skill_ranked for each candidate in priority order
   for (const entry of newEntries) {
     const eff = typeof entry.effectivePriority === "number" ? entry.effectivePriority : entry.priority;
+    const reason = policyBoosted.some((p) => p.skill === entry.skill)
+      ? "policy_boosted"
+      : profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match";
     logDecision(l, {
       hook: "PreToolUse",
       event: "skill_ranked",
       skill: entry.skill,
       score: eff,
-      reason: profilerBoosted.includes(entry.skill) ? "profiler_boosted" : "pattern_match",
+      reason,
     });
   }
 
@@ -923,7 +999,7 @@ export function deduplicateSkills(
     previouslyInjected: [...injectedSkills],
   });
 
-  return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting };
+  return { newEntries, rankedSkills, vercelJsonRouting, profilerBoosted, setupModeRouting, policyBoosted };
 }
 
 // ---------------------------------------------------------------------------
@@ -1108,13 +1184,13 @@ export interface FormatOutputParams {
   verificationId?: string;
   skillMap?: Record<string, { docs?: string[]; sitemap?: string }>;
   platform?: HookPlatform;
-  env?: RuntimeEnvUpdates;
+  env?: Record<string, string>;
 }
 
 function formatPlatformOutput(
   platform: HookPlatform,
   additionalContext?: string,
-  env?: RuntimeEnvUpdates,
+  env?: Record<string, string>,
 ): string {
   if (platform === "cursor") {
     const output: Record<string, unknown> = {};
@@ -1356,9 +1432,11 @@ function run(): string {
     likelySkills,
     compiledSkills,
     setupMode,
+    cwd,
+    sessionId,
   }, log);
 
-  const { newEntries, rankedSkills, profilerBoosted } = dedupResult;
+  const { newEntries, rankedSkills, profilerBoosted, policyBoosted } = dedupResult;
 
   // Stage 4.5: Synthetically inject react-best-practices if TSX review triggered
   let tsxReviewInjected = false;
@@ -1504,6 +1582,82 @@ function run(): string {
     }
   }
 
+  // Stage 4.95: Route-scoped policy recall — inject historically verified winners
+  // that pattern matching missed. Only fires when an active verification story
+  // and target boundary exist. Phase 1: max 1 recalled skill.
+  const policyRecallSynthetic = new Set<string>();
+  if (cwd && sessionId) {
+    const recallPlan = loadCachedPlanResult(sessionId, log);
+    const recallStory = recallPlan ? selectActiveStory(recallPlan) : null;
+    const recallBoundary = (recallPlan?.primaryNextAction?.targetBoundary as
+      | "uiRender"
+      | "clientRequest"
+      | "serverHandler"
+      | "environment"
+      | null) ?? null;
+
+    if (recallStory && recallBoundary) {
+      const recallScenario = {
+        hook: "PreToolUse" as RoutingHookName,
+        storyKind: recallStory.kind ?? null,
+        targetBoundary: recallBoundary,
+        toolName: toolName as RoutingToolName,
+        routeScope: recallStory.route ?? null,
+      };
+
+      const policy = loadProjectRoutingPolicy(cwd);
+      const excludeSkills = new Set([...rankedSkills, ...injectedSkills]);
+
+      const recallDiagnosis = explainPolicyRecall(policy, recallScenario, {
+        maxCandidates: 1,
+        excludeSkills,
+      });
+
+      log.debug("policy-recall-lookup", {
+        requestedScenario:
+          `${recallScenario.hook}|${recallScenario.storyKind ?? "none"}|` +
+          `${recallScenario.targetBoundary ?? "none"}|${recallScenario.toolName}|` +
+          `${recallScenario.routeScope ?? "*"}`,
+        checkedScenarios: recallDiagnosis.checkedScenarios,
+        selectedBucket: recallDiagnosis.selectedBucket,
+        selectedSkills: recallDiagnosis.selected.map((candidate) => candidate.skill),
+        rejected: recallDiagnosis.rejected.map((candidate) => ({
+          skill: candidate.skill,
+          scenario: candidate.scenario,
+          exposures: candidate.exposures,
+          successRate: candidate.successRate,
+          policyBoost: candidate.policyBoost,
+          excluded: candidate.excluded,
+          rejectedReason: candidate.rejectedReason,
+        })),
+        hintCodes: recallDiagnosis.hints.map((hint) => hint.code),
+      });
+
+      for (const candidate of recallDiagnosis.selected) {
+        if (rankedSkills.includes(candidate.skill)) continue;
+        const insertIdx = rankedSkills.length > 0 ? 1 : 0;
+        rankedSkills.splice(insertIdx, 0, candidate.skill);
+        matched.add(candidate.skill);
+        policyRecallSynthetic.add(candidate.skill);
+        log.debug("policy-recall-injected", {
+          skill: candidate.skill,
+          scenario: candidate.scenario,
+          insertionIndex: insertIdx,
+          exposures: candidate.exposures,
+          wins: candidate.wins,
+          directiveWins: candidate.directiveWins,
+          successRate: candidate.successRate,
+          policyBoost: candidate.policyBoost,
+          recallScore: candidate.recallScore,
+        });
+      }
+    } else {
+      log.debug("policy-recall-skipped", {
+        reason: !recallStory ? "no_active_verification_story" : "no_target_boundary",
+      });
+    }
+  }
+
   let vercelEnvHelpInjected = false;
   if (vercelEnvHelp.triggered) {
     let helpClaimed = true;
@@ -1534,9 +1688,11 @@ function run(): string {
       matchedSkills: [...matched],
       injectedSkills: [],
       boostsApplied: profilerBoosted,
+      policyBoosted,
     }, log.active ? timing : null);
-    const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
-    return formatPlatformOutput(platform, undefined, envUpdates);
+    const earlyEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+    const clearingEnv: Record<string, string> = { ...(earlyEnv ?? {}), ...buildVerificationEnv(null) };
+    return formatPlatformOutput(platform, undefined, clearingEnv);
   }
 
   // Stage 5: injectSkills (enforces byte budget + MAX_SKILLS ceiling)
@@ -1553,6 +1709,66 @@ function run(): string {
     platform,
   });
   if (log.active) timing.skill_read = Math.round(log.now() - tSkillRead);
+
+  // Record routing-policy exposures for actually injected skills
+  // Only record when an active verification story exists to prevent none|none scenario pollution
+  if (loaded.length > 0 && sessionId) {
+    const plan = loadCachedPlanResult(sessionId, log);
+    const story = plan ? selectActiveStory(plan) : null;
+    if (story) {
+      const targetBoundary = (plan?.primaryNextAction?.targetBoundary as
+        | "uiRender"
+        | "clientRequest"
+        | "serverHandler"
+        | "environment"
+        | null) ?? null;
+
+      const attribution = buildAttributionDecision({
+        sessionId,
+        hook: "PreToolUse",
+        storyId: story.id ?? null,
+        route: story.route ?? null,
+        targetBoundary,
+        loadedSkills: loaded,
+        preferredSkills: policyRecallSynthetic,
+      });
+
+      for (const skill of loaded) {
+        appendSkillExposure({
+          id: `${sessionId}:${skill}:${Date.now()}`,
+          sessionId,
+          projectRoot: cwd,
+          storyId: story.id ?? null,
+          storyKind: story.kind ?? null,
+          route: story.route ?? null,
+          hook: "PreToolUse",
+          toolName: toolName as RoutingToolName,
+          skill,
+          targetBoundary,
+          exposureGroupId: attribution.exposureGroupId,
+          attributionRole: skill === attribution.candidateSkill ? "candidate" : "context",
+          candidateSkill: attribution.candidateSkill,
+          createdAt: new Date().toISOString(),
+          resolvedAt: null,
+          outcome: "pending",
+        });
+      }
+      log.summary("routing-policy-exposures-recorded", {
+        hook: "PreToolUse",
+        skills: loaded,
+        storyId: story.id,
+        storyKind: story.kind ?? null,
+        candidateSkill: attribution.candidateSkill,
+        exposureGroupId: attribution.exposureGroupId,
+      });
+    } else {
+      log.debug("routing-policy-exposures-skipped", {
+        hook: "PreToolUse",
+        reason: "no active verification story",
+        skills: loaded,
+      });
+    }
+  }
 
   // Append review marker if tsx review was triggered and skill was loaded
   if (tsxReviewInjected && loaded.includes(TSX_REVIEW_SKILL)) {
@@ -1596,9 +1812,11 @@ function run(): string {
       droppedByCap,
       droppedByBudget,
       boostsApplied: profilerBoosted,
+      policyBoosted,
     }, log.active ? timing : null);
-    const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
-    return formatPlatformOutput(platform, undefined, envUpdates);
+    const earlyEnv2 = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+    const clearingEnv2: Record<string, string> = { ...(earlyEnv2 ?? {}), ...buildVerificationEnv(null) };
+    return formatPlatformOutput(platform, undefined, clearingEnv2);
   }
 
   if (log.active) timing.total = log.elapsed();
@@ -1653,6 +1871,13 @@ function run(): string {
       }
     }
   }
+  // Add policy-recall reasons
+  for (const skill of policyRecallSynthetic) {
+    reasons[skill] = {
+      trigger: "policy-recall",
+      reasonCode: "route-scoped-verified-policy-recall",
+    };
+  }
   // Add pattern-match reasons for remaining skills
   for (const skill of loaded) {
     if (!reasons[skill] && matchReasons?.[skill]) {
@@ -1663,8 +1888,28 @@ function run(): string {
     }
   }
 
-  // Stage 6: formatOutput
-  const envUpdates = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+  // Stage 6: resolve verification directive and formatOutput
+  const verificationRuntime = resolveVerificationRuntimeState(sessionId, {
+    agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+    lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null,
+  }, log);
+
+  if (verificationRuntime.banner) {
+    parts.unshift(verificationRuntime.banner);
+    log.summary("pretooluse.verification-banner-injected", {
+      sessionId,
+      storyId: verificationRuntime.directive?.storyId ?? null,
+      route: verificationRuntime.directive?.route ?? null,
+      source: verificationRuntime.plan ? "cache-or-compute" : "none",
+    });
+  }
+
+  const runtimeEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);
+  const envUpdates: Record<string, string> = {
+    ...(runtimeEnv ?? {}),
+    ...verificationRuntime.env,
+  };
+
   const result = formatOutput({
     parts,
     matched,
@@ -1679,7 +1924,7 @@ function run(): string {
     verificationId,
     skillMap: skills.skillMap,
     platform,
-    env: envUpdates,
+    env: Object.keys(envUpdates).length > 0 ? envUpdates : undefined,
   });
 
   if (loaded.length > 0) {
@@ -1709,6 +1954,171 @@ function run(): string {
       }
       trackBaseEvents(sessionId, telemetryEntries).catch(() => {});
     }
+  }
+
+  // Stage 7: Emit routing decision trace (v2)
+  {
+    const tracePlan = sessionId ? loadCachedPlanResult(sessionId, log) : null;
+    const traceStory = tracePlan ? selectActiveStory(tracePlan) : null;
+    const traceTimestamp = new Date().toISOString();
+    const traceToolTarget = toolName === "Bash" ? redactCommand(toolTarget) : toolTarget;
+    const decisionId = createDecisionId({
+      hook: "PreToolUse",
+      sessionId,
+      toolName,
+      toolTarget: traceToolTarget,
+      timestamp: traceTimestamp,
+    });
+
+    // Build synthetic skill set for accurate trace marking
+    const syntheticSkills = new Set<string>();
+    if (tsxReviewInjected && tsxReview.triggered) syntheticSkills.add(TSX_REVIEW_SKILL);
+    if (devServerVerifyInjected && devServerVerify.triggered) syntheticSkills.add(DEV_SERVER_VERIFY_SKILL);
+    if (devServerVerify.triggered && !devServerVerify.unavailable) {
+      for (const companion of DEV_SERVER_COMPANION_SKILLS) {
+        if (rankedSkills.includes(companion) && !newEntries.some((e) => e.skill === companion)) {
+          syntheticSkills.add(companion);
+        }
+      }
+    }
+    if (devServerVerify.loopGuardHit && !devServerVerify.unavailable) {
+      for (const companion of DEV_SERVER_COMPANION_SKILLS) {
+        if (rankedSkills.includes(companion)) syntheticSkills.add(companion);
+      }
+    }
+    if (aiSdkCompanionInjected) {
+      for (const companion of AI_SDK_COMPANION_SKILLS) {
+        if (rankedSkills.includes(companion) && !newEntries.some((e) => e.skill === companion)) {
+          syntheticSkills.add(companion);
+        }
+      }
+    }
+    for (const skill of policyRecallSynthetic) {
+      syntheticSkills.add(skill);
+    }
+
+    // Build ranked entries: pattern-matched entries + synthetic injections + deduped candidates
+    const traceRanked: Array<{
+      skill: string;
+      basePriority: number;
+      effectivePriority: number;
+      pattern: { type: string; value: string } | null;
+      profilerBoost: number;
+      policyBoost: number;
+      policyReason: string | null;
+      summaryOnly: boolean;
+      synthetic: boolean;
+      droppedReason: "deduped" | "cap_exceeded" | "budget_exhausted" | "concurrent_claim" | null;
+    }> = [];
+    const trackedSkills = new Set<string>();
+
+    // 1. Pattern-matched entries (from newEntries, post-dedup)
+    for (const entry of newEntries) {
+      const match = matchReasons?.[entry.skill];
+      const policy = policyBoosted.find((p) => p.skill === entry.skill);
+      trackedSkills.add(entry.skill);
+      traceRanked.push({
+        skill: entry.skill,
+        basePriority: entry.priority,
+        effectivePriority: typeof entry.effectivePriority === "number"
+          ? entry.effectivePriority
+          : entry.priority,
+        pattern: match ? { type: match.matchType, value: match.pattern } : null,
+        profilerBoost: profilerBoosted.includes(entry.skill) ? 5 : 0,
+        policyBoost: policy?.boost ?? 0,
+        policyReason: policy?.reason ?? null,
+        summaryOnly: summaryOnly.includes(entry.skill),
+        synthetic: syntheticSkills.has(entry.skill),
+        droppedReason: droppedByCap.includes(entry.skill)
+          ? "cap_exceeded"
+          : droppedByBudget.includes(entry.skill)
+            ? "budget_exhausted"
+            : null,
+      });
+    }
+
+    // 2. Synthetic injections not already in newEntries
+    for (const skill of syntheticSkills) {
+      if (trackedSkills.has(skill)) continue;
+      trackedSkills.add(skill);
+      const reason = reasons[skill];
+      traceRanked.push({
+        skill,
+        basePriority: 0,
+        effectivePriority: 0,
+        pattern: reason ? { type: reason.trigger, value: reason.reasonCode } : null,
+        profilerBoost: 0,
+        policyBoost: 0,
+        policyReason: null,
+        summaryOnly: summaryOnly.includes(skill),
+        synthetic: true,
+        droppedReason: droppedByCap.includes(skill)
+          ? "cap_exceeded"
+          : droppedByBudget.includes(skill)
+            ? "budget_exhausted"
+            : null,
+      });
+    }
+
+    // 3. Deduped candidates (matched but filtered by seen-skills)
+    for (const entry of matchedEntries) {
+      if (trackedSkills.has(entry.skill)) continue;
+      if (!injectedSkills.has(entry.skill)) continue; // only mark actually-deduped ones
+      trackedSkills.add(entry.skill);
+      const match = matchReasons?.[entry.skill];
+      traceRanked.push({
+        skill: entry.skill,
+        basePriority: entry.priority,
+        effectivePriority: typeof entry.effectivePriority === "number"
+          ? entry.effectivePriority
+          : entry.priority,
+        pattern: match ? { type: match.matchType, value: match.pattern } : null,
+        profilerBoost: profilerBoosted.includes(entry.skill) ? 5 : 0,
+        policyBoost: 0,
+        policyReason: null,
+        summaryOnly: false,
+        synthetic: false,
+        droppedReason: "deduped",
+      });
+    }
+
+    appendRoutingDecisionTrace({
+      version: 2,
+      decisionId,
+      sessionId,
+      hook: "PreToolUse",
+      toolName,
+      toolTarget: traceToolTarget,
+      timestamp: traceTimestamp,
+      primaryStory: {
+        id: traceStory?.id ?? null,
+        kind: traceStory?.kind ?? null,
+        storyRoute: traceStory?.route ?? null,
+        targetBoundary: tracePlan?.primaryNextAction?.targetBoundary ?? null,
+      },
+      observedRoute: null, // PreToolUse fires before execution; no observed route yet
+      policyScenario: traceStory
+        ? `PreToolUse|${traceStory.kind ?? "none"}|${tracePlan?.primaryNextAction?.targetBoundary ?? "none"}|${toolName}`
+        : null,
+      matchedSkills: [...matched],
+      injectedSkills: loaded,
+      skippedReasons: [
+        ...(traceStory ? [] : ["no_active_verification_story"]),
+        ...droppedByCap.map((skill) => `cap_exceeded:${skill}`),
+        ...droppedByBudget.map((skill) => `budget_exhausted:${skill}`),
+      ],
+      ranked: traceRanked,
+      verification: verificationId
+        ? { verificationId, observedBoundary: null, matchedSuggestedAction: null }
+        : null,
+    });
+    log.summary("routing.decision_trace_written", {
+      decisionId,
+      hook: "PreToolUse",
+      toolName,
+      matchedSkills: [...matched],
+      injectedSkills: loaded,
+    });
   }
 
   return result;

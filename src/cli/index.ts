@@ -7,10 +7,14 @@
  *   vercel-plugin explain --help
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { explain, formatExplainResult } from "./explain.ts";
 import { doctor, formatDoctorResult } from "../commands/doctor.ts";
+import { runRoutingExplain } from "../commands/routing-explain.ts";
+import { runSessionExplain } from "../commands/session-explain.ts";
+import { runDecisionCat } from "../commands/decision-cat.ts";
+import { createEmptyRoutingPolicy, type RoutingPolicyFile } from "../../hooks/src/routing-policy.mts";
 
 function validateProjectRoot(projectRoot: string): void {
   const skillsDir = join(projectRoot, "skills");
@@ -28,6 +32,9 @@ function printUsage() {
 
 Commands:
   explain <target>    Show which skills match a file path or bash command
+  routing-explain     Show the latest routing decision trace
+  session-explain     Show manifest, routing, verification, and exposure state together
+  decision-cat <path> Read and display a decision capsule artifact
   doctor              Run self-diagnosis checks on the plugin setup
 
 Options for explain:
@@ -35,6 +42,22 @@ Options for explain:
   --project <path>    Project root (default: current plugin directory)
   --likely-skills s1,s2  Simulate session-start profiler boost (+5 priority)
   --budget <bytes>    Override injection byte budget (default: 12000)
+  --policy-file <path>  Load routing policy from a JSON file (default: project tmpdir)
+  --help, -h          Show this help message
+
+Options for routing-explain:
+  --json              Output machine-readable JSON
+  --session <id>      Session ID (reads traces from session trace dir)
+  --help, -h          Show this help message
+
+Options for decision-cat:
+  --json              Output machine-readable JSON
+  --help, -h          Show this help message
+
+Options for session-explain:
+  --json              Output machine-readable JSON
+  --session <id>      Session ID
+  --project <path>    Project root (default: current plugin directory)
   --help, -h          Show this help message
 
 Examples:
@@ -53,6 +76,12 @@ const command = args[0];
 
 if (command === "explain") {
   runExplain(args.slice(1));
+} else if (command === "routing-explain") {
+  runRoutingExplainCmd(args.slice(1));
+} else if (command === "session-explain") {
+  runSessionExplainCmd(args.slice(1));
+} else if (command === "decision-cat") {
+  runDecisionCatCmd(args.slice(1));
 } else if (command === "doctor") {
   runDoctor(args.slice(1));
 } else {
@@ -67,6 +96,7 @@ function runExplain(explainArgs: string[]) {
   let projectRoot = resolve(import.meta.dir, "../..");
   let likelySkills: string | undefined;
   let budgetBytes: number | undefined;
+  let policyFilePath: string | undefined;
 
   for (let i = 0; i < explainArgs.length; i++) {
     const arg = explainArgs[i];
@@ -97,6 +127,13 @@ function runExplain(explainArgs: string[]) {
         console.error("Error: --budget must be a positive integer");
         process.exit(1);
       }
+    } else if (arg === "--policy-file") {
+      i++;
+      if (i >= explainArgs.length) {
+        console.error("Error: --policy-file requires a file path");
+        process.exit(1);
+      }
+      policyFilePath = resolve(explainArgs[i]);
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -117,8 +154,19 @@ function runExplain(explainArgs: string[]) {
   // Validate project path has skills/
   validateProjectRoot(projectRoot);
 
+  // Load policy file if provided
+  let policyFile: RoutingPolicyFile | undefined;
+  if (policyFilePath) {
+    try {
+      policyFile = JSON.parse(readFileSync(policyFilePath, "utf-8"));
+    } catch {
+      console.error(`Error: could not read routing policy file at ${policyFilePath}`);
+      process.exit(2);
+    }
+  }
+
   try {
-    const result = explain(target, projectRoot, { likelySkills, budgetBytes });
+    const result = explain(target, projectRoot, { likelySkills, budgetBytes, policyFile });
 
     if (jsonOutput) {
       console.log(JSON.stringify(result, null, 2));
@@ -172,6 +220,125 @@ function runDoctor(doctorArgs: string[]) {
     process.exit(hasErrors ? 1 : 0);
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
+    process.exit(2);
+  }
+}
+
+function runRoutingExplainCmd(cmdArgs: string[]) {
+  let jsonOutput = false;
+  let sessionId: string | null = null;
+
+  for (let i = 0; i < cmdArgs.length; i++) {
+    const arg = cmdArgs[i];
+    if (arg === "--json") {
+      jsonOutput = true;
+    } else if (arg === "--session") {
+      i++;
+      if (i >= cmdArgs.length) {
+        console.error("Error: --session requires a session ID argument");
+        process.exit(1);
+      }
+      sessionId = cmdArgs[i];
+    } else if (arg === "--help" || arg === "-h") {
+      printUsage();
+      process.exit(0);
+    } else {
+      console.error(`Error: unexpected argument "${arg}"`);
+      process.exit(1);
+    }
+  }
+
+  try {
+    const output = runRoutingExplain(sessionId, jsonOutput);
+    console.log(output);
+    process.exit(0);
+  } catch (err: any) {
+    console.error(`Error: ${err.message}`);
+    process.exit(2);
+  }
+}
+
+function runSessionExplainCmd(cmdArgs: string[]) {
+  let jsonOutput = false;
+  let sessionId: string | null = null;
+  let projectRoot = resolve(import.meta.dir, "../..");
+
+  for (let i = 0; i < cmdArgs.length; i++) {
+    const arg = cmdArgs[i];
+    if (arg === "--json") {
+      jsonOutput = true;
+    } else if (arg === "--session") {
+      i++;
+      if (i >= cmdArgs.length) {
+        console.error("Error: --session requires a session ID argument");
+        process.exit(1);
+      }
+      sessionId = cmdArgs[i];
+    } else if (arg === "--project") {
+      i++;
+      if (i >= cmdArgs.length) {
+        console.error("Error: --project requires a path argument");
+        process.exit(1);
+      }
+      projectRoot = resolve(cmdArgs[i]);
+    } else if (arg === "--help" || arg === "-h") {
+      printUsage();
+      process.exit(0);
+    } else {
+      console.error(`Error: unexpected argument "${arg}"`);
+      process.exit(1);
+    }
+  }
+
+  try {
+    const output = runSessionExplain(sessionId, projectRoot, jsonOutput);
+    console.log(output);
+    process.exit(0);
+  } catch (err: any) {
+    console.error(`Error: ${err.message}`);
+    process.exit(2);
+  }
+}
+
+function runDecisionCatCmd(cmdArgs: string[]) {
+  let jsonOutput = false;
+  let artifactPath = "";
+
+  for (let i = 0; i < cmdArgs.length; i++) {
+    const arg = cmdArgs[i];
+    if (arg === "--json") {
+      jsonOutput = true;
+    } else if (arg === "--help" || arg === "-h") {
+      printUsage();
+      process.exit(0);
+    } else if (arg!.startsWith("-")) {
+      console.error(`Error: unexpected option "${arg}"`);
+      process.exit(1);
+    } else if (!artifactPath) {
+      artifactPath = resolve(arg!);
+    } else {
+      console.error(`Error: unexpected argument "${arg}"`);
+      process.exit(1);
+    }
+  }
+
+  if (!artifactPath) {
+    console.error("Error: decision-cat requires an <artifact-path> argument");
+    process.exit(1);
+  }
+
+  const { output, ok } = runDecisionCat(artifactPath, jsonOutput);
+
+  if (ok) {
+    console.log(output);
+    process.exit(0);
+  } else {
+    // For JSON mode, output goes to stdout (structured failure); for text, stderr
+    if (jsonOutput) {
+      console.log(output);
+    } else {
+      console.error(output);
+    }
     process.exit(2);
   }
 }

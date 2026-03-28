@@ -39,6 +39,7 @@ interface CompleteCounts {
   droppedByCap?: string[];
   droppedByBudget?: string[];
   boostsApplied?: string[];
+  policyBoosted?: Array<{ skill: string; boost: number; reason: string | null }>;
 }
 
 interface SharedLoggerContext {

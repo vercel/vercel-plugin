@@ -81,10 +81,14 @@ describe("build-manifest.ts", () => {
     expect(Number.isNaN(Date.parse(manifest.generatedAt))).toBe(false);
   });
 
-  test("manifest skill count matches skills/ directory", () => {
+  test("manifest skill count matches skills/ directory minus excluded test-only skills", () => {
+    const { EXCLUDED_SKILL_PATTERN } = require("../scripts/build-manifest.ts");
     const manifest = readManifest();
-    const expected = countSkillDirs();
-    expect(Object.keys(manifest.skills).length).toBe(expected);
+    const allDirs = readdirSync(SKILLS_DIR).filter((d) => {
+      try { return existsSync(join(SKILLS_DIR, d, "SKILL.md")); } catch { return false; }
+    });
+    const productionDirs = allDirs.filter((d) => !EXCLUDED_SKILL_PATTERN.test(d));
+    expect(Object.keys(manifest.skills).length).toBe(productionDirs.length);
   });
 
   test("each manifest skill has required fields", () => {
@@ -133,6 +137,48 @@ describe("build-manifest.ts", () => {
     const patterns = nextjs.pathPatterns;
     // Should match next.config files
     expect(patterns.some((p: string) => p.includes("next.config"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Manifest hygiene — test-only skills must not appear in runtime manifest
+// ---------------------------------------------------------------------------
+
+describe("manifest hygiene: no test-only skills in runtime manifest", () => {
+  test("runtime manifest excludes skills matching EXCLUDED_SKILL_PATTERN", async () => {
+    const { EXCLUDED_SKILL_PATTERN } = await import("../scripts/build-manifest.ts");
+
+    // Rebuild to ensure fresh state
+    const { code } = await runBuild();
+    expect(code).toBe(0);
+
+    const manifest = readManifest();
+    const manifestSlugs = Object.keys(manifest.skills);
+    const excluded = manifestSlugs.filter((s) => EXCLUDED_SKILL_PATTERN.test(s));
+
+    expect(excluded).toEqual([]);
+  });
+
+  test("fake-banned-test-skill is absent from runtime manifest", () => {
+    const manifest = readManifest();
+    expect(manifest.skills).not.toHaveProperty("fake-banned-test-skill");
+  });
+
+  test("fake-banned-test-skill still exists in skills/ directory (test fixture)", () => {
+    expect(existsSync(join(SKILLS_DIR, "fake-banned-test-skill", "SKILL.md"))).toBe(true);
+  });
+
+  test("EXCLUDED_SKILL_PATTERN matches expected slugs and rejects production slugs", async () => {
+    const { EXCLUDED_SKILL_PATTERN } = await import("../scripts/build-manifest.ts");
+
+    // Should match test-only patterns
+    expect(EXCLUDED_SKILL_PATTERN.test("fake-banned-test-skill")).toBe(true);
+    expect(EXCLUDED_SKILL_PATTERN.test("fake-something")).toBe(true);
+
+    // Should NOT match production skills
+    expect(EXCLUDED_SKILL_PATTERN.test("nextjs")).toBe(false);
+    expect(EXCLUDED_SKILL_PATTERN.test("vercel-cli")).toBe(false);
+    expect(EXCLUDED_SKILL_PATTERN.test("ai-sdk")).toBe(false);
   });
 });
 
@@ -201,7 +247,9 @@ describe("loadSkills pipeline stage", () => {
     expect(result).not.toBeNull();
     expect(result.usedManifest).toBe(true);
     expect(Array.isArray(result.compiledSkills)).toBe(true);
-    expect(result.compiledSkills.length).toBe(countSkillDirs());
+    // Manifest excludes test-only skills, so count should match manifest keys
+    const manifest = readManifest();
+    expect(result.compiledSkills.length).toBe(Object.keys(manifest.skills).length);
 
     // Each compiled skill should have paired pattern+regex arrays
     for (const entry of result.compiledSkills) {

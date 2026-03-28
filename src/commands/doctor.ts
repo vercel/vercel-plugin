@@ -11,6 +11,7 @@
 import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
+import { filterExcludedSkillMap } from "../shared/skill-exclusion-policy.ts";
 
 /** Maximum allowed timeout (seconds) for subagent hooks. */
 const SUBAGENT_HOOK_TIMEOUT_MAX = 5;
@@ -82,10 +83,13 @@ export function doctor(projectRoot: string): DoctorResult {
     }
   }
 
+  // Apply the same exclusion policy as the manifest build so test-only
+  // skills do not produce false manifest-parity errors.
+  const { included: filteredSkills } = filterExcludedSkillMap(loadedSkills);
   const liveSkills: Record<
     string,
     { priority: number; pathPatterns: string[]; bashPatterns: string[] }
-  > = loadedSkills;
+  > = filteredSkills;
 
   const liveSkillCount = Object.keys(liveSkills).length;
 

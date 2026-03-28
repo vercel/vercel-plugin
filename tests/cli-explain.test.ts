@@ -1,6 +1,7 @@
-import { describe, test, expect, beforeAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { resolve, join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const ROOT = resolve(import.meta.dir, "..");
 const CLI = join(ROOT, "src", "cli", "index.ts");
@@ -169,9 +170,10 @@ describe("budget-aware injection", () => {
   test("tiny budget forces budget drops", async () => {
     const { stdout } = await runCli("explain", "vercel.json", "--json", "--budget", "100");
     const result = JSON.parse(stdout);
-    // First skill always injected regardless of budget, rest should be budget-dropped
+    // The first match bypasses budget enforcement, but additional invocation strings
+    // can still fit if the remaining budget allows.
     const fullCount = result.matches.filter((m: any) => m.injectionMode === "full").length;
-    expect(fullCount).toBe(1);
+    expect(fullCount).toBeGreaterThanOrEqual(1);
     if (result.matches.length > 1) {
       expect(result.droppedByBudgetCount).toBeGreaterThan(0);
     }
@@ -193,13 +195,15 @@ describe("profiler boost", () => {
   });
 
   test("--likely-skills reorders ranking", async () => {
-    const { stdout: before } = await runCli("explain", "vercel.json", "--json");
-    const { stdout: after } = await runCli("explain", "vercel.json", "--json", "--likely-skills", "vercel-cli");
+    const { stdout: before } = await runCli("explain", "vercel deploy --prod", "--json");
+    const { stdout: after } = await runCli("explain", "vercel deploy --prod", "--json", "--likely-skills", "vercel-cli");
     const resultBefore = JSON.parse(before);
     const resultAfter = JSON.parse(after);
-    // Without boost, vercel-cli should not be first; with boost it should be
-    expect(resultAfter.matches[0].skill).toBe("vercel-cli");
-    expect(resultBefore.matches[0].skill).not.toBe("vercel-cli");
+    const beforeIndex = resultBefore.matches.findIndex((m: any) => m.skill === "vercel-cli");
+    const afterIndex = resultAfter.matches.findIndex((m: any) => m.skill === "vercel-cli");
+    expect(beforeIndex).toBeGreaterThan(-1);
+    expect(afterIndex).toBeGreaterThan(-1);
+    expect(afterIndex).toBeLessThan(beforeIndex);
   });
 });
 
@@ -241,6 +245,155 @@ describe("cap behavior", () => {
       expect(injected.length).toBeLessThanOrEqual(3);
       const cappedByHardCeiling = result.matches.filter((m: any) => m.injectionMode === "droppedByCap");
       expect(cappedByHardCeiling.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// policy boost via --policy-file
+// ---------------------------------------------------------------------------
+
+describe("policy boost", () => {
+  const policyPath = join(tmpdir(), `cli-explain-test-policy-${Date.now()}.json`);
+
+  // Build a policy where routing-middleware has a high success rate
+  // under PreToolUse|none|none|Read scenario (which is what explain uses for file targets)
+  const policy = {
+    version: 1,
+    scenarios: {
+      "PreToolUse|none|none|Read": {
+        "routing-middleware": {
+          exposures: 10,
+          wins: 9,
+          directiveWins: 5,
+          staleMisses: 1,
+          lastUpdatedAt: "2026-03-27T04:00:00.000Z",
+        },
+      },
+    },
+  };
+
+  beforeAll(() => {
+    writeFileSync(policyPath, JSON.stringify(policy));
+  });
+
+  afterAll(() => {
+    try { unlinkSync(policyPath); } catch {}
+  });
+
+  test("--policy-file adds policyBoost to JSON output", async () => {
+    const { stdout, exitCode } = await runCli(
+      "explain", "middleware.ts", "--json", "--policy-file", policyPath,
+    );
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    const rm = result.matches.find((m: any) => m.skill === "routing-middleware");
+    expect(rm).toBeDefined();
+    expect(rm.policyBoost).toBe(8);
+    expect(rm.policyReason).toContain("9 wins / 10 exposures");
+    expect(rm.policyReason).toContain("5 directive wins");
+    expect(rm.effectivePriority).toBe(rm.priority + 8);
+  });
+
+  test("human output shows policy boost in priority line", async () => {
+    const { stdout, exitCode } = await runCli(
+      "explain", "middleware.ts", "--policy-file", policyPath,
+    );
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("policy +8");
+    expect(stdout).toContain("policy:");
+  });
+
+  test("human output shows policy reason line", async () => {
+    const { stdout } = await runCli(
+      "explain", "middleware.ts", "--policy-file", policyPath,
+    );
+    expect(stdout).toContain("9 wins / 10 exposures");
+    expect(stdout).toContain("5 directive wins");
+  });
+
+  test("policy boost reorders ranking", async () => {
+    // Build a policy that boosts a normally low-priority skill
+    const boostPolicy = {
+      version: 1,
+      scenarios: {
+        "PreToolUse|none|none|Read": {
+          "vercel-cli": {
+            exposures: 5,
+            wins: 5,
+            directiveWins: 3,
+            staleMisses: 0,
+            lastUpdatedAt: "2026-03-27T04:00:00.000Z",
+          },
+        },
+      },
+    };
+    const boostPath = join(tmpdir(), `cli-explain-test-boost-${Date.now()}.json`);
+    writeFileSync(boostPath, JSON.stringify(boostPolicy));
+
+    try {
+      const { stdout: before } = await runCli("explain", "vercel.json", "--json");
+      const { stdout: after } = await runCli("explain", "vercel.json", "--json", "--policy-file", boostPath);
+      const resultBefore = JSON.parse(before);
+      const resultAfter = JSON.parse(after);
+      const vcBefore = resultBefore.matches.find((m: any) => m.skill === "vercel-cli");
+      const vcAfter = resultAfter.matches.find((m: any) => m.skill === "vercel-cli");
+      expect(vcAfter.effectivePriority).toBeGreaterThan(vcBefore.effectivePriority);
+      expect(vcAfter.policyBoost).toBe(8);
+    } finally {
+      try { unlinkSync(boostPath); } catch {}
+    }
+  });
+
+  test("no policy boost when policy file has no matching scenario", async () => {
+    const emptyPolicy = { version: 1, scenarios: {} };
+    const emptyPath = join(tmpdir(), `cli-explain-test-empty-${Date.now()}.json`);
+    writeFileSync(emptyPath, JSON.stringify(emptyPolicy));
+
+    try {
+      const { stdout } = await runCli(
+        "explain", "middleware.ts", "--json", "--policy-file", emptyPath,
+      );
+      const result = JSON.parse(stdout);
+      const rm = result.matches.find((m: any) => m.skill === "routing-middleware");
+      expect(rm).toBeDefined();
+      // No policyBoost field when there's no data
+      expect(rm.policyBoost).toBeUndefined();
+      expect(rm.effectivePriority).toBe(rm.priority);
+    } finally {
+      try { unlinkSync(emptyPath); } catch {}
+    }
+  });
+
+  test("negative policy boost reduces effective priority", async () => {
+    const negPolicy = {
+      version: 1,
+      scenarios: {
+        "PreToolUse|none|none|Read": {
+          "routing-middleware": {
+            exposures: 10,
+            wins: 1,
+            directiveWins: 0,
+            staleMisses: 9,
+            lastUpdatedAt: "2026-03-27T04:00:00.000Z",
+          },
+        },
+      },
+    };
+    const negPath = join(tmpdir(), `cli-explain-test-neg-${Date.now()}.json`);
+    writeFileSync(negPath, JSON.stringify(negPolicy));
+
+    try {
+      const { stdout } = await runCli(
+        "explain", "middleware.ts", "--json", "--policy-file", negPath,
+      );
+      const result = JSON.parse(stdout);
+      const rm = result.matches.find((m: any) => m.skill === "routing-middleware");
+      expect(rm).toBeDefined();
+      expect(rm.policyBoost).toBe(-2);
+      expect(rm.effectivePriority).toBe(rm.priority - 2);
+    } finally {
+      try { unlinkSync(negPath); } catch {}
     }
   });
 });

@@ -30,6 +30,7 @@ This document explains how vercel-plugin decides **which skills to inject**, **w
    - [Vercel.json Key-Aware Routing](#verceljson-key-aware-routing)
    - [Profiler Boost](#profiler-boost)
    - [Setup Mode Routing](#setup-mode-routing)
+   - [Route-Scoped Verified Policy Recall](#route-scoped-verified-policy-recall)
    - [Unified Ranker](#unified-ranker)
 7. [Dedup State Machine](#dedup-state-machine)
    - [Three State Sources](#three-state-sources)
@@ -480,6 +481,61 @@ effectivePriority = base + vercelJsonAdjustment + profilerBoost
 ### Setup Mode Routing
 
 When the project is greenfield (`VERCEL_PLUGIN_GREENFIELD=true`), the `bootstrap` skill gets a massive priority boost of **+50**, ensuring it's always injected first. If `bootstrap` didn't naturally match the tool call, it's synthetically added to the match set.
+
+### Route-Scoped Verified Policy Recall
+
+**Source**: `hooks/src/policy-recall.mts` → `selectPolicyRecallCandidates()`, integrated in `pretooluse-skill-inject.mts` at Stage 4.95
+
+After all pattern-matched skills are ranked and before injection, the hook checks whether an **active verification story** with a non-null `targetBoundary` exists. If so, it queries the project's routing policy for historically winning skills that pattern matching missed.
+
+**Preconditions** (all must be true):
+1. `cwd` and `sessionId` are available
+2. An active verification story exists (via `loadCachedPlanResult` → `selectPrimaryStory`)
+3. `primaryNextAction.targetBoundary` is non-null
+
+**Lookup precedence** (first qualifying bucket wins — no cross-bucket merging):
+1. **Exact route** — e.g. `PreToolUse|flow-verification|clientRequest|Bash|/settings`
+2. **Wildcard route** — e.g. `PreToolUse|flow-verification|clientRequest|Bash|*`
+3. **Legacy 4-part key** — e.g. `PreToolUse|flow-verification|clientRequest|Bash`
+
+**Qualification thresholds** (same conservatism as `derivePolicyBoost`):
+- Minimum 3 exposures
+- Minimum 65% success rate (weighted: `directiveWins` count at 0.25×)
+- Minimum +2 policy boost
+
+**Tie-breaking** is deterministic: `recallScore` DESC → `exposures` DESC → skill name ASC (lexicographic).
+
+**Insertion behavior** — recalled skills are **bounded second-order candidates**, not slot-1 overrides:
+- When direct pattern matches exist: recalled skill inserts at index 1 (behind the top direct match)
+- When no direct matches exist: recalled skill takes index 0
+- At most 1 recalled skill per PreToolUse invocation (`maxCandidates: 1`)
+- Skills already in `rankedSkills` or `injectedSkills` (dedup) are excluded
+
+**How recall differs from ordinary policy boosts**:
+- Policy boosts adjust `effectivePriority` of already-matched skills — they only amplify what pattern matching found
+- Policy recall **injects a skill that pattern matching missed entirely**, based on historical verification evidence
+- Recalled skills are marked `synthetic: true` in the routing decision trace
+- Recalled skills use `trigger: "policy-recall"` and `reasonCode: "route-scoped-verified-policy-recall"` in injection metadata
+- Recalled skills are NOT forced to summary-only mode (the summary and full payloads are identical via `skillInvocationMessage`)
+
+**Trace output**: Recalled candidates appear in `ranked[]` with:
+```json
+{
+  "skill": "verification",
+  "synthetic": true,
+  "pattern": {
+    "type": "policy-recall",
+    "value": "route-scoped-verified-policy-recall"
+  }
+}
+```
+
+**When recall is skipped**, a `policy-recall-skipped` log line is emitted with reason `no_active_verification_story` or `no_target_boundary`.
+
+**Observability**:
+- `policy-recall-lookup` is emitted before any recalled skill is inserted
+- It includes `requestedScenario`, `checkedScenarios[]`, `selectedBucket`, `selectedSkills[]`, `rejected[]`, and `hintCodes[]`
+- This is the canonical machine-readable explanation for why route-scoped recall did or did not fire
 
 ### Unified Ranker
 
