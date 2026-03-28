@@ -22,8 +22,15 @@ import {
   companionRulebookPath,
   saveCompanionRulebook,
 } from "../../hooks/src/learned-companion-rulebook.mts";
+import { distillPlaybooks } from "../../hooks/src/playbook-distillation.mts";
+import {
+  createEmptyPlaybookRulebook,
+  playbookRulebookPath,
+  savePlaybookRulebook,
+} from "../../hooks/src/learned-playbook-rulebook.mts";
 import type { LearnedRoutingRulesFile } from "../../hooks/src/rule-distillation.mts";
 import type { LearnedCompanionRulebook } from "../../hooks/src/learned-companion-rulebook.mts";
+import type { LearnedPlaybookRulebook } from "../../hooks/src/learned-playbook-rulebook.mts";
 import type { RoutingDecisionTrace } from "../../hooks/src/routing-decision-trace.mts";
 import type { SkillExposure } from "../../hooks/src/routing-policy-ledger.mts";
 
@@ -45,6 +52,8 @@ export interface LearnCommandOutput {
   rules: LearnedRoutingRulesFile;
   companions: LearnedCompanionRulebook;
   companionPath: string;
+  playbooks: LearnedPlaybookRulebook;
+  playbookPath: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -170,10 +179,13 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
       traces: [],
       exposures: [],
     });
+    const emptyPlaybooks = createEmptyPlaybookRulebook(projectRoot);
     const output: LearnCommandOutput = {
       rules: result,
       companions: emptyCompanions,
       companionPath: companionRulebookPath(projectRoot),
+      playbooks: emptyPlaybooks,
+      playbookPath: playbookRulebookPath(projectRoot),
     };
     if (jsonOutput) {
       console.log(JSON.stringify(output, null, 2));
@@ -197,6 +209,9 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
         "",
         "Companion rules: 0",
         "  promoted: 0",
+        "",
+        "Playbooks: 0",
+        "  promoted: 0",
       ].join("\n"));
     }
     if (writeOutput) {
@@ -205,6 +220,8 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
       console.error(JSON.stringify({ event: "learn_written", path: outPath }));
       saveCompanionRulebook(projectRoot, emptyCompanions);
       console.error(JSON.stringify({ event: "learn_companion_written", path: companionRulebookPath(projectRoot) }));
+      savePlaybookRulebook(projectRoot, emptyPlaybooks);
+      console.error(JSON.stringify({ event: "learn_playbooks_written", path: playbookRulebookPath(projectRoot) }));
     }
     return 0;
   }
@@ -230,11 +247,22 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
     minLift: options.minLift ?? 1.25,
   });
 
+  // Distill playbook rules
+  const playbookRulebook = distillPlaybooks({
+    projectRoot,
+    exposures,
+    minSupport: options.minSupport ?? 3,
+    minPrecision: options.minPrecision ?? 0.75,
+    minLift: options.minLift ?? 1.25,
+    maxSkills: 3,
+  });
+
   const promoted = result.rules.filter((r) => r.confidence === "promote").length;
   const candidates = result.rules.filter((r) => r.confidence === "candidate").length;
   const holdoutFail = result.rules.filter((r) => r.confidence === "holdout-fail").length;
   const companionPromoted = companionRulebook.rules.filter((r) => r.confidence === "promote").length;
   const companionHoldoutFail = companionRulebook.rules.filter((r) => r.confidence === "holdout-fail").length;
+  const playbookPromoted = playbookRulebook.rules.filter((r) => r.confidence === "promote").length;
 
   console.error(JSON.stringify({
     event: "learn_distill_complete",
@@ -247,12 +275,16 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
     companionRuleCount: companionRulebook.rules.length,
     companionPromoted,
     companionHoldoutFail,
+    playbookRuleCount: playbookRulebook.rules.length,
+    playbookPromoted,
   }));
 
   const output: LearnCommandOutput = {
     rules: result,
     companions: companionRulebook,
     companionPath: companionRulebookPath(projectRoot),
+    playbooks: playbookRulebook,
+    playbookPath: playbookRulebookPath(projectRoot),
   };
 
   // Output
@@ -315,6 +347,20 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
       }
     }
 
+    // Playbook rules summary
+    lines.push("");
+    lines.push(`Playbooks: ${playbookRulebook.rules.length}`);
+    lines.push(`  promoted: ${playbookPromoted}`);
+
+    if (playbookPromoted > 0) {
+      lines.push("");
+      lines.push("Promoted playbooks:");
+      for (const rule of playbookRulebook.rules) {
+        if (rule.confidence !== "promote") continue;
+        lines.push(`  ${rule.orderedSkills.join(" → ")} (precision=${rule.precision}, lift=${rule.liftVsAnchorBaseline}, support=${rule.support})`);
+      }
+    }
+
     console.log(lines.join("\n"));
   }
 
@@ -327,6 +373,9 @@ export async function runLearnCommand(options: LearnCommandOptions): Promise<num
 
     saveCompanionRulebook(projectRoot, companionRulebook);
     console.error(JSON.stringify({ event: "learn_companion_written", path: companionRulebookPath(projectRoot) }));
+
+    savePlaybookRulebook(projectRoot, playbookRulebook);
+    console.error(JSON.stringify({ event: "learn_playbooks_written", path: playbookRulebookPath(projectRoot) }));
   }
 
   // Non-zero exit if regressions detected

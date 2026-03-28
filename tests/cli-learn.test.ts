@@ -154,10 +154,10 @@ describe("runLearnCommand", () => {
 
     const stdout = logs.join("\n");
     const parsed = JSON.parse(stdout);
-    expect(parsed.version).toBe(1);
-    expect(parsed.rules).toEqual([]);
-    expect(parsed.replay).toBeDefined();
-    expect(parsed.replay.regressions).toEqual([]);
+    expect(parsed.rules.version).toBe(1);
+    expect(parsed.rules.rules).toEqual([]);
+    expect(parsed.rules.replay).toBeDefined();
+    expect(parsed.rules.replay.regressions).toEqual([]);
   });
 
   test("--write creates generated/learned-routing-rules.json", async () => {
@@ -213,8 +213,8 @@ describe("runLearnCommand", () => {
 
     const stdout = logs.join("\n");
     const parsed = JSON.parse(stdout);
-    expect(parsed.rules.length).toBeGreaterThanOrEqual(1);
-    expect(parsed.replay).toBeDefined();
+    expect(parsed.rules.rules.length).toBeGreaterThanOrEqual(1);
+    expect(parsed.rules.replay).toBeDefined();
   });
 
   test("--write exits non-zero when replay reports regressions", async () => {
@@ -329,7 +329,7 @@ describe("runLearnCommand", () => {
     const stdout = logs.join("\n");
     const parsed = JSON.parse(stdout);
     // With relaxed thresholds and 3 traces, should produce at least 1 rule
-    expect(parsed.rules.length).toBeGreaterThanOrEqual(1);
+    expect(parsed.rules.rules.length).toBeGreaterThanOrEqual(1);
   });
 
   test("auto-discovery excludes sessions from other projects", async () => {
@@ -401,8 +401,8 @@ describe("runLearnCommand", () => {
     }
 
     const parsed = JSON.parse(logs.join("\n"));
-    expect(parsed.rules).toHaveLength(1);
-    expect(parsed.rules[0]?.skill).toBe("next-config");
+    expect(parsed.rules.rules).toHaveLength(1);
+    expect(parsed.rules.rules[0]?.skill).toBe("next-config");
   });
 
   // ---------------------------------------------------------------------------
@@ -505,7 +505,9 @@ describe("runLearnCommand", () => {
         console.log = origLog;
       }
       const parsed = JSON.parse(logs.join("\n"));
-      delete parsed.generatedAt;
+      delete parsed.rules?.generatedAt;
+      delete parsed.companions?.generatedAt;
+      delete parsed.playbooks?.generatedAt;
       return JSON.stringify(parsed);
     };
 

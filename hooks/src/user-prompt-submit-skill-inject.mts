@@ -59,6 +59,7 @@ import {
 import { loadRulebook, rulebookPath } from "./learned-routing-rulebook.mjs";
 import { applyPromptPolicyRecall } from "./prompt-policy-recall.mjs";
 import { recallVerifiedCompanions } from "./companion-recall.mjs";
+import { recallVerifiedPlaybook } from "./playbook-recall.mjs";
 import { buildAttributionDecision } from "./routing-attribution.mjs";
 import {
   appendRoutingDecisionTrace,
@@ -1344,6 +1345,54 @@ export function run(): string {
     });
   }
 
+  // Stage 3g: Verified playbook recall — insert learned ordered multi-skill
+  // sequences after the anchor skill. Symmetric with PreToolUse Stage 4.97.
+  const promptPlaybookRecallReasons: Record<string, { trigger: string; reasonCode: string }> = {};
+  let promptPlaybookBanner: string | null = null;
+  const availablePlaybookSlots = Math.max(0, MAX_SKILLS - report.selectedSkills.length);
+  if (cwd && promptBinding.storyId && promptBinding.targetBoundary && availablePlaybookSlots > 0) {
+    const playbookRecall = recallVerifiedPlaybook({
+      projectRoot: cwd,
+      scenario: {
+        hook: "UserPromptSubmit" as RoutingHookName,
+        storyKind: promptBinding.storyKind,
+        targetBoundary: promptBinding.targetBoundary,
+        toolName: "Prompt" as RoutingToolName,
+        routeScope: promptBinding.route ?? null,
+      },
+      candidateSkills: [...report.selectedSkills],
+      excludeSkills: new Set([
+        ...report.selectedSkills,
+        ...(dedupOff ? [] : parseSeenSkills(seenState)),
+      ]),
+      maxInsertedSkills: availablePlaybookSlots,
+    });
+
+    if (playbookRecall.selected) {
+      promptPlaybookBanner = playbookRecall.banner;
+      const anchorIdx = report.selectedSkills.indexOf(playbookRecall.selected.anchorSkill);
+      let insertOffset = 1;
+      for (const skill of playbookRecall.selected.insertedSkills) {
+        report.selectedSkills.splice(anchorIdx + insertOffset, 0, skill);
+        matchedSkills.push(skill);
+        const seenSkills = dedupOff ? new Set<string>() : parseSeenSkills(seenState);
+        if (!dedupOff && seenSkills.has(skill)) {
+          promptForceSummarySkills.add(skill);
+        }
+        promptPlaybookRecallReasons[skill] = {
+          trigger: "verified-playbook",
+          reasonCode: "scenario-playbook-rulebook",
+        };
+        insertOffset += 1;
+      }
+      log.debug("prompt-playbook-recall-injected", {
+        ruleId: playbookRecall.selected.ruleId,
+        anchorSkill: playbookRecall.selected.anchorSkill,
+        insertedSkills: playbookRecall.selected.insertedSkills,
+      });
+    }
+  }
+
   // Stage 4: inject selected skills (file I/O for SKILL.md bodies)
   const tInject = log.active ? log.now() : 0;
   const injectedSkills = dedupOff ? new Set<string>() : parseSeenSkills(seenState);
@@ -1515,14 +1564,17 @@ export function run(): string {
         const policy = promptPolicyBoosted.find((p) => p.skill === skill);
         const rb = promptRulebookBoosted.find((r) => r.skill === skill);
         const companionReason = promptCompanionRecallReasons[skill];
-        const synthetic = promptPolicyRecallSynthetic.has(skill) || Boolean(companionReason);
+        const playbookReason = promptPlaybookRecallReasons[skill];
+        const synthetic = promptPolicyRecallSynthetic.has(skill) || Boolean(companionReason) || Boolean(playbookReason);
         const baseScore = result?.score ?? 0;
         const effectiveBoost = rb ? rb.ruleBoost : (policy?.boost ?? 0);
         return {
           skill,
           basePriority: baseScore,
           effectivePriority: baseScore + effectiveBoost,
-          pattern: companionReason
+          pattern: playbookReason
+            ? { type: playbookReason.trigger, value: playbookReason.reasonCode }
+            : companionReason
             ? { type: companionReason.trigger, value: companionReason.reasonCode }
             : promptPolicyRecallSynthetic.has(skill)
             ? { type: "policy-recall", value: promptPolicyRecallReasons[skill] }
@@ -1595,6 +1647,9 @@ export function run(): string {
     if (r?.reason) {
       promptMatchReasons[skill] = r.reason;
     }
+  }
+  if (promptPlaybookBanner) {
+    parts.unshift(promptPlaybookBanner);
   }
   return formatOutput(
     parts,

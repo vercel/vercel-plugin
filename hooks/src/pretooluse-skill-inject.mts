@@ -82,6 +82,7 @@ import {
 } from "./routing-decision-causality.mjs";
 import type { RoutingDecisionCausality } from "./routing-decision-causality.mjs";
 import { recallVerifiedCompanions } from "./companion-recall.mjs";
+import { recallVerifiedPlaybook } from "./playbook-recall.mjs";
 
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 18_000;
@@ -1895,6 +1896,89 @@ function run(): string {
     }
   }
 
+  // Stage 4.97: Verified playbook recall — insert learned ordered multi-skill
+  // sequences after the anchor skill. Upgrades injection from isolated winners
+  // to proven procedural strategies.
+  const playbookRecallReasons: Record<string, { trigger: string; reasonCode: string }> = {};
+  let playbookBanner: string | null = null;
+  if (cwd && sessionId) {
+    const playbookPlan = loadCachedPlanResult(sessionId, log);
+    const playbookStory = playbookPlan ? selectActiveStory(playbookPlan) : null;
+    const playbookBoundary = (playbookPlan?.primaryNextAction?.targetBoundary as
+      | "uiRender"
+      | "clientRequest"
+      | "serverHandler"
+      | "environment"
+      | null) ?? null;
+
+    if (playbookStory && playbookBoundary) {
+      const playbookRecall = recallVerifiedPlaybook({
+        projectRoot: cwd,
+        scenario: {
+          hook: "PreToolUse" as RoutingHookName,
+          storyKind: playbookStory.kind ?? null,
+          targetBoundary: playbookBoundary,
+          toolName: toolName as RoutingToolName,
+          routeScope: playbookStory.route ?? null,
+        },
+        candidateSkills: [...rankedSkills],
+        excludeSkills: new Set([...rankedSkills, ...injectedSkills]),
+        maxInsertedSkills: 2,
+      });
+
+      if (playbookRecall.selected) {
+        playbookBanner = playbookRecall.banner;
+        const anchorIdx = rankedSkills.indexOf(playbookRecall.selected.anchorSkill);
+        let insertOffset = 1;
+        for (const skill of playbookRecall.selected.insertedSkills) {
+          rankedSkills.splice(anchorIdx + insertOffset, 0, skill);
+          matched.add(skill);
+          if (!dedupOff && injectedSkills.has(skill)) {
+            forceSummarySkills.add(skill);
+          }
+          playbookRecallReasons[skill] = {
+            trigger: "verified-playbook",
+            reasonCode: "scenario-playbook-rulebook",
+          };
+          addCause(causality, {
+            code: "verified-playbook",
+            stage: "rank",
+            skill,
+            synthetic: true,
+            scoreDelta: 0,
+            message: `Inserted verified playbook step after ${playbookRecall.selected.anchorSkill}`,
+            detail: {
+              ruleId: playbookRecall.selected.ruleId,
+              orderedSkills: playbookRecall.selected.orderedSkills,
+              support: playbookRecall.selected.support,
+              precision: playbookRecall.selected.precision,
+              lift: playbookRecall.selected.lift,
+            },
+          });
+          addEdge(causality, {
+            fromSkill: playbookRecall.selected.anchorSkill,
+            toSkill: skill,
+            relation: "playbook-step",
+            code: "verified-playbook",
+            detail: {
+              ruleId: playbookRecall.selected.ruleId,
+            },
+          });
+          insertOffset += 1;
+        }
+        log.debug("playbook-recall-injected", {
+          ruleId: playbookRecall.selected.ruleId,
+          anchorSkill: playbookRecall.selected.anchorSkill,
+          insertedSkills: playbookRecall.selected.insertedSkills,
+        });
+      }
+    } else {
+      log.debug("playbook-recall-skipped", {
+        reason: !playbookStory ? "no_active_verification_story" : "no_target_boundary",
+      });
+    }
+  }
+
   let vercelEnvHelpInjected = false;
   if (vercelEnvHelp.triggered) {
     let helpClaimed = true;
@@ -2142,6 +2226,9 @@ function run(): string {
   for (const [skill, reason] of Object.entries(companionRecallReasons)) {
     reasons[skill] = reason;
   }
+  for (const [skill, reason] of Object.entries(playbookRecallReasons)) {
+    reasons[skill] = reason;
+  }
   // Add pattern-match reasons for remaining skills
   for (const skill of loaded) {
     if (!reasons[skill] && matchReasons?.[skill]) {
@@ -2166,6 +2253,10 @@ function run(): string {
       route: verificationRuntime.directive?.route ?? null,
       source: verificationRuntime.plan ? "cache-or-compute" : "none",
     });
+  }
+
+  if (playbookBanner) {
+    parts.unshift(playbookBanner);
   }
 
   const runtimeEnv = finalizeRuntimeEnvUpdates(platform, runtimeEnvBefore);

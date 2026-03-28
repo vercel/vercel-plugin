@@ -36,6 +36,7 @@ import {
 import { loadRulebook, rulebookPath } from "./learned-routing-rulebook.mjs";
 import { applyPromptPolicyRecall } from "./prompt-policy-recall.mjs";
 import { recallVerifiedCompanions } from "./companion-recall.mjs";
+import { recallVerifiedPlaybook } from "./playbook-recall.mjs";
 import { buildAttributionDecision } from "./routing-attribution.mjs";
 import {
   appendRoutingDecisionTrace,
@@ -935,6 +936,50 @@ function run() {
       reason: !promptBinding.storyId ? "no_active_verification_story" : "no_target_boundary"
     });
   }
+  const promptPlaybookRecallReasons = {};
+  let promptPlaybookBanner = null;
+  const availablePlaybookSlots = Math.max(0, MAX_SKILLS - report.selectedSkills.length);
+  if (cwd && promptBinding.storyId && promptBinding.targetBoundary && availablePlaybookSlots > 0) {
+    const playbookRecall = recallVerifiedPlaybook({
+      projectRoot: cwd,
+      scenario: {
+        hook: "UserPromptSubmit",
+        storyKind: promptBinding.storyKind,
+        targetBoundary: promptBinding.targetBoundary,
+        toolName: "Prompt",
+        routeScope: promptBinding.route ?? null
+      },
+      candidateSkills: [...report.selectedSkills],
+      excludeSkills: /* @__PURE__ */ new Set([
+        ...report.selectedSkills,
+        ...dedupOff ? [] : parseSeenSkills(seenState)
+      ]),
+      maxInsertedSkills: availablePlaybookSlots
+    });
+    if (playbookRecall.selected) {
+      promptPlaybookBanner = playbookRecall.banner;
+      const anchorIdx = report.selectedSkills.indexOf(playbookRecall.selected.anchorSkill);
+      let insertOffset = 1;
+      for (const skill of playbookRecall.selected.insertedSkills) {
+        report.selectedSkills.splice(anchorIdx + insertOffset, 0, skill);
+        matchedSkills.push(skill);
+        const seenSkills2 = dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState);
+        if (!dedupOff && seenSkills2.has(skill)) {
+          promptForceSummarySkills.add(skill);
+        }
+        promptPlaybookRecallReasons[skill] = {
+          trigger: "verified-playbook",
+          reasonCode: "scenario-playbook-rulebook"
+        };
+        insertOffset += 1;
+      }
+      log.debug("prompt-playbook-recall-injected", {
+        ruleId: playbookRecall.selected.ruleId,
+        anchorSkill: playbookRecall.selected.anchorSkill,
+        insertedSkills: playbookRecall.selected.insertedSkills
+      });
+    }
+  }
   const tInject = log.active ? log.now() : 0;
   const injectedSkills = dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState);
   const injectResult = injectSkills(report.selectedSkills, {
@@ -1090,14 +1135,15 @@ function run() {
         const policy = promptPolicyBoosted.find((p) => p.skill === skill);
         const rb = promptRulebookBoosted.find((r) => r.skill === skill);
         const companionReason = promptCompanionRecallReasons[skill];
-        const synthetic = promptPolicyRecallSynthetic.has(skill) || Boolean(companionReason);
+        const playbookReason = promptPlaybookRecallReasons[skill];
+        const synthetic = promptPolicyRecallSynthetic.has(skill) || Boolean(companionReason) || Boolean(playbookReason);
         const baseScore = result?.score ?? 0;
         const effectiveBoost = rb ? rb.ruleBoost : policy?.boost ?? 0;
         return {
           skill,
           basePriority: baseScore,
           effectivePriority: baseScore + effectiveBoost,
-          pattern: companionReason ? { type: companionReason.trigger, value: companionReason.reasonCode } : promptPolicyRecallSynthetic.has(skill) ? { type: "policy-recall", value: promptPolicyRecallReasons[skill] } : result?.reason ? { type: "prompt-signal", value: result.reason } : null,
+          pattern: playbookReason ? { type: playbookReason.trigger, value: playbookReason.reasonCode } : companionReason ? { type: companionReason.trigger, value: companionReason.reasonCode } : promptPolicyRecallSynthetic.has(skill) ? { type: "policy-recall", value: promptPolicyRecallReasons[skill] } : result?.reason ? { type: "prompt-signal", value: result.reason } : null,
           profilerBoost: 0,
           policyBoost: policy?.boost ?? 0,
           policyReason: policy?.reason ?? null,
@@ -1153,6 +1199,9 @@ function run() {
     if (r?.reason) {
       promptMatchReasons[skill] = r.reason;
     }
+  }
+  if (promptPlaybookBanner) {
+    parts.unshift(promptPlaybookBanner);
   }
   return formatOutput(
     parts,
