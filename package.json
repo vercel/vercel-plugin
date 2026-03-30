@@ -18,6 +18,7 @@
     "typecheck": "tsc -p hooks/tsconfig.json --noEmit",
     "test": "bun run typecheck && bun test",
     "test:update-snapshots": "UPDATE_SNAPSHOTS=1 bun test tests/snapshot-runner.test.ts",
+    "learn": "bun run src/cli/index.ts learn",
     "playground:generate": "bun run .playground/generate-all.ts"
   },
   "devDependencies": {

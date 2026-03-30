@@ -28,6 +28,7 @@ This document covers implementation details that go beyond the pipeline overview
    - [Profiler Boost (+5)](#profiler-boost-5)
    - [Vercel.json Key Routing (±10)](#verceljson-key-routing-10)
    - [Special-Case Boosts](#special-case-boosts)
+   - [Route-Scoped Verified Policy Recall](#route-scoped-verified-policy-recall)
    - [Ranking Function](#ranking-function)
    - [Budget Enforcement](#budget-enforcement)
    - [Prompt Signal Scoring](#prompt-signal-scoring)
@@ -507,6 +508,7 @@ Every matched skill receives an **effective priority** computed from its base pr
 | Setup-mode bootstrap | **+50** | `bootstrap` skill | Greenfield or ≥3 bootstrap hints |
 | TSX review trigger | **+40** | `react-best-practices` | After N `.tsx` edits (default 3) |
 | Dev-server verify | **+45** | `agent-browser-verify` | Dev server command detected |
+| Policy recall | *splice at idx 1* | Any verified skill | Active story + target boundary + policy evidence |
 
 ### Base Priority Range (4–8)
 
@@ -555,6 +557,79 @@ If the skill's associated key **exists** in `vercel.json` → +10. If the skill 
 - **TSX review trigger (+40)**: After `VERCEL_PLUGIN_REVIEW_THRESHOLD` (default 3) `.tsx` edits, injects `react-best-practices` with a +40 boost. Counter resets after injection.
 - **Dev-server verify (+45)**: On `npm run dev`, `next dev`, `vercel dev`, etc., injects `agent-browser-verify` + `verification` companion. Capped at 2 injections per session (loop guard).
 - **Vercel env help**: One-time injection when `vercel env add/update/pull` commands are detected.
+
+### Route-Scoped Verified Policy Recall
+
+**Source**: `hooks/src/policy-recall.mts` → `selectPolicyRecallCandidates()`
+
+Policy recall is a **post-ranking injection stage** (Stage 4.95) that fires between ranking and skill body loading. It is fundamentally different from policy boosts:
+
+| Aspect | Policy Boost | Policy Recall |
+|--------|-------------|---------------|
+| Input | Skill already matched by patterns | Skill **not** matched by patterns |
+| Effect | Adjusts `effectivePriority` | Splices skill into `rankedSkills` array |
+| Trace field | `policyBoost` (number) | `synthetic: true`, `pattern.type: "policy-recall"` |
+| Reason code | `"policy-boost"` | `"route-scoped-verified-policy-recall"` |
+| Trigger | Always (when policy data exists) | Only when active verification story + target boundary exist |
+
+**Selector algorithm** (`selectPolicyRecallCandidates`):
+
+1. Generate scenario key candidates via `scenarioKeyCandidates()` — exact route, wildcard (`*`), legacy 4-part key
+2. For each candidate key (in precedence order), look up the policy bucket
+3. Filter entries: `exposures >= 3`, `successRate >= 0.65`, `policyBoost >= 2`, not in `excludeSkills`
+4. Sort: `recallScore` DESC → `exposures` DESC → `skill` ASC
+5. Return first qualifying bucket's top `maxCandidates` entries (default 1) — no cross-bucket merging
+
+**Recall score formula**:
+```
+recallScore = derivePolicyBoost(stats) × 1000
+            + round(successRate × 100) × 10
+            + directiveWins × 5
+            + wins
+            − staleMisses
+```
+
+Where `successRate = (wins + directiveWins × 0.25) / max(exposures, 1)`.
+
+**Insertion semantics**: The recalled skill is spliced at `index = rankedSkills.length > 0 ? 1 : 0`, ensuring it never preempts the strongest direct match. It then flows through normal budget enforcement and cap logic.
+
+**Synthetic trace marking**: All recalled skills are added to the `syntheticSkills` set and appear in the routing decision trace with:
+```json
+{
+  "skill": "<name>",
+  "synthetic": true,
+  "pattern": { "type": "policy-recall", "value": "route-scoped-verified-policy-recall" },
+  "summaryOnly": false
+}
+```
+
+**Log events**:
+- `policy-recall-injected` (debug): Emitted per recalled skill with `skill`, `scenario`, `insertionIndex`, `exposures`, `wins`, `directiveWins`, `successRate`, `policyBoost`, `recallScore`
+- `policy-recall-skipped` (debug): Emitted when preconditions fail, with `reason`: `"no_active_verification_story"` or `"no_target_boundary"`
+- `policy-recall-lookup` (debug): Emitted before any recalled skill is inserted, with `requestedScenario`, `checkedScenarios[]`, `selectedBucket`, `selectedSkills[]`, `rejected[]`, and `hintCodes[]`
+
+### Routing Doctor (`session-explain --json`)
+
+`session-explain` includes an additive `doctor` object that explains the latest routing decision without changing routing behavior.
+
+```json
+{
+  "doctor": {
+    "latestDecisionId": "abc123",
+    "latestScenario": "PreToolUse|flow-verification|clientRequest|Bash|/settings",
+    "latestRanked": [],
+    "policyRecall": {
+      "selectedBucket": "PreToolUse|flow-verification|clientRequest|Bash|/settings",
+      "selected": [],
+      "rejected": [],
+      "hints": []
+    },
+    "hints": []
+  }
+}
+```
+
+The contract is additive-only and intended for downstream agents, CI diagnostics, and local operator debugging.
 
 ### Ranking Function
 

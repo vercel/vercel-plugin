@@ -48,6 +48,29 @@ import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { loadCachedPlanResult } from "./verification-plan.mjs";
+import { resolvePromptVerificationBinding } from "./prompt-verification-binding.mjs";
+import { applyPolicyBoosts, applyRulebookBoosts } from "./routing-policy.mjs";
+import type { RoutingHookName, RoutingToolName, RulebookBoostExplanation } from "./routing-policy.mjs";
+import {
+  appendSkillExposure,
+  loadProjectRoutingPolicy,
+} from "./routing-policy-ledger.mjs";
+import { loadRulebook, rulebookPath } from "./learned-routing-rulebook.mjs";
+import { applyPromptPolicyRecall } from "./prompt-policy-recall.mjs";
+import { recallVerifiedCompanions } from "./companion-recall.mjs";
+import { recallVerifiedPlaybook } from "./playbook-recall.mjs";
+import { buildAttributionDecision } from "./routing-attribution.mjs";
+import {
+  appendRoutingDecisionTrace,
+  createDecisionId,
+} from "./routing-decision-trace.mjs";
+import type { RoutingDecisionTrace } from "./routing-decision-trace.mjs";
+import {
+  buildDecisionCapsule,
+  buildDecisionCapsuleEnv,
+  persistDecisionCapsule,
+} from "./routing-decision-capsule.mjs";
 
 const MAX_SKILLS = 2;
 const DEFAULT_INJECTION_BUDGET_BYTES = 8_000;
@@ -1042,12 +1065,89 @@ export function run(): string {
     });
   }
 
-  // No matches at all
-  const allMatched = Object.entries(report.perSkillResults)
+  // Stage 3c: Resolve prompt verification binding before early returns
+  // so policy recall can rescue zero-match scenarios
+  const promptPlan = sessionId ? loadCachedPlanResult(sessionId, log) : null;
+  const promptBinding = resolvePromptVerificationBinding({ plan: promptPlan });
+  log.debug("prompt-verification-binding", {
+    source: promptBinding.source,
+    storyId: promptBinding.storyId,
+    targetBoundary: promptBinding.targetBoundary,
+    confidence: promptBinding.confidence,
+    reason: promptBinding.reason,
+  });
+
+  let matchedSkills = Object.entries(report.perSkillResults)
     .filter(([, r]) => r.matched)
     .map(([skill]) => skill);
 
-  if (allMatched.length === 0) {
+  const promptPolicy = cwd ? loadProjectRoutingPolicy(cwd) : null;
+  const promptPolicyRecallSynthetic = new Set<string>();
+  const promptPolicyRecallReasons: Record<string, string> = {};
+
+  if (promptPolicy && promptBinding.storyId && promptBinding.targetBoundary) {
+    const recall = applyPromptPolicyRecall({
+      selectedSkills: report.selectedSkills,
+      matchedSkills,
+      seenSkills: dedupOff ? [] : parseSeenSkills(seenState),
+      maxSkills: MAX_SKILLS,
+      binding: {
+        storyId: promptBinding.storyId,
+        storyKind: promptBinding.storyKind,
+        route: promptBinding.route,
+        targetBoundary: promptBinding.targetBoundary,
+      },
+      policy: promptPolicy,
+    });
+
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...recall.selectedSkills);
+    matchedSkills = recall.matchedSkills;
+    for (const skill of recall.syntheticSkills) {
+      promptPolicyRecallSynthetic.add(skill);
+    }
+    Object.assign(promptPolicyRecallReasons, recall.reasons);
+
+    if (recall.diagnosis) {
+      log.debug("prompt-policy-recall-lookup", {
+        requestedScenario: `UserPromptSubmit|${promptBinding.storyKind ?? "none"}|` +
+          `${promptBinding.targetBoundary ?? "none"}|Prompt|${promptBinding.route ?? "*"}`,
+        checkedScenarios: recall.diagnosis.checkedScenarios,
+        selectedBucket: recall.diagnosis.selectedBucket,
+        selectedSkills: recall.diagnosis.selected.map((c) => c.skill),
+        rejected: recall.diagnosis.rejected.map((c) => ({
+          skill: c.skill,
+          scenario: c.scenario,
+          exposures: c.exposures,
+          successRate: c.successRate,
+          policyBoost: c.policyBoost,
+          excluded: c.excluded,
+          rejectedReason: c.rejectedReason,
+        })),
+        hintCodes: recall.diagnosis.hints.map((h) => h.code),
+      });
+      for (const candidate of recall.diagnosis.selected) {
+        log.debug("prompt-policy-recall-injected", {
+          skill: candidate.skill,
+          scenario: candidate.scenario,
+          exposures: candidate.exposures,
+          wins: candidate.wins,
+          directiveWins: candidate.directiveWins,
+          successRate: candidate.successRate,
+          policyBoost: candidate.policyBoost,
+          recallScore: candidate.recallScore,
+        });
+      }
+    }
+  } else if (cwd) {
+    log.debug("prompt-policy-recall-skipped", {
+      reason: !promptBinding.storyId
+        ? "no_active_verification_story"
+        : "no_target_boundary",
+    });
+  }
+
+  if (matchedSkills.length === 0) {
     log.debug("prompt-analysis-issue", {
       issue: "no_prompt_matches",
       evaluatedSkills: Object.keys(report.perSkillResults),
@@ -1059,19 +1159,238 @@ export function run(): string {
     return formatEmptyOutput(platform, finalizePromptEnvUpdates(platform, promptEnvBefore));
   }
 
-  // All matched but filtered by dedup
   if (report.selectedSkills.length === 0) {
     log.debug("prompt-analysis-issue", {
       issue: "all_deduped",
-      matchedSkills: allMatched,
+      matchedSkills,
       seenSkills: report.dedupState.seenSkills,
       dedupStrategy: report.dedupState.strategy,
     });
     log.complete("all_deduped", {
-      matchedCount: allMatched.length,
-      dedupedCount: allMatched.length,
+      matchedCount: matchedSkills.length,
+      dedupedCount: matchedSkills.length,
     }, log.active ? timing : null);
     return formatEmptyOutput(platform, finalizePromptEnvUpdates(platform, promptEnvBefore));
+  }
+
+  // Stage 3d: Apply routing-policy boosts to reorder selected skills
+  const promptPolicyBoosted: Array<{ skill: string; boost: number; reason: string | null }> = [];
+  if (promptPolicy && report.selectedSkills.length > 0 && promptBinding.storyId && promptBinding.targetBoundary) {
+    const promptPolicyScenario = {
+      hook: "UserPromptSubmit" as RoutingHookName,
+      storyKind: promptBinding.storyKind,
+      targetBoundary: promptBinding.targetBoundary,
+      toolName: "Prompt" as RoutingToolName,
+    };
+    const rankable = report.selectedSkills.map((skill) => {
+      const r = report.perSkillResults[skill];
+      return {
+        skill,
+        priority: r?.score ?? 0,
+        effectivePriority: r?.score ?? 0,
+      };
+    });
+    const boosted = applyPolicyBoosts(rankable, promptPolicy, promptPolicyScenario);
+
+    // Re-sort selected skills by boosted effective priority (desc), then skill name (asc) for determinism
+    boosted.sort((a, b) =>
+      b.effectivePriority - a.effectivePriority || a.skill.localeCompare(b.skill),
+    );
+    report.selectedSkills.length = 0;
+    report.selectedSkills.push(...boosted.map((b) => b.skill));
+
+    for (const b of boosted) {
+      if (b.policyBoost !== 0) {
+        promptPolicyBoosted.push({
+          skill: b.skill,
+          boost: b.policyBoost,
+          reason: b.policyReason,
+        });
+      }
+    }
+
+    if (promptPolicyBoosted.length > 0) {
+      log.debug("prompt-policy-boosted", {
+        scenario: `${promptPolicyScenario.hook}|${promptPolicyScenario.storyKind ?? "none"}|${promptPolicyScenario.targetBoundary}|Prompt`,
+        boostedSkills: promptPolicyBoosted,
+      });
+    }
+  } else if (cwd && report.selectedSkills.length > 0) {
+    log.debug("prompt-policy-boost-skipped", {
+      reason: !promptBinding.storyId
+        ? "no_active_verification_story"
+        : "no_target_boundary",
+    });
+  }
+
+  // Stage 3e: Apply learned-rulebook boosts with precedence over stats-policy
+  const promptRulebookBoosted: RulebookBoostExplanation[] = [];
+  if (cwd && report.selectedSkills.length > 0 && promptBinding.storyId && promptBinding.targetBoundary) {
+    const rbResult = loadRulebook(cwd);
+    if (rbResult.ok && rbResult.rulebook.rules.length > 0) {
+      const rbScenario = {
+        hook: "UserPromptSubmit" as RoutingHookName,
+        storyKind: promptBinding.storyKind,
+        targetBoundary: promptBinding.targetBoundary,
+        toolName: "Prompt" as RoutingToolName,
+      };
+      const rbPath = rulebookPath(cwd);
+      const rankable = report.selectedSkills.map((skill) => {
+        const r = report.perSkillResults[skill];
+        const pb = promptPolicyBoosted.find((p) => p.skill === skill);
+        return {
+          skill,
+          priority: r?.score ?? 0,
+          effectivePriority: (r?.score ?? 0) + (pb?.boost ?? 0),
+          policyBoost: pb?.boost ?? 0,
+          policyReason: pb?.reason ?? null,
+        };
+      });
+      const withRulebook = applyRulebookBoosts(rankable, rbResult.rulebook, rbScenario, rbPath);
+
+      // Re-sort by effective priority after rulebook application
+      withRulebook.sort((a, b) =>
+        b.effectivePriority - a.effectivePriority || a.skill.localeCompare(b.skill),
+      );
+      report.selectedSkills.length = 0;
+      report.selectedSkills.push(...withRulebook.map((r) => r.skill));
+
+      for (const rb of withRulebook) {
+        if (rb.matchedRuleId) {
+          promptRulebookBoosted.push({
+            skill: rb.skill,
+            matchedRuleId: rb.matchedRuleId,
+            ruleBoost: rb.ruleBoost,
+            ruleReason: rb.ruleReason ?? "",
+            rulebookPath: rb.rulebookPath ?? "",
+          });
+          // Suppress stats-policy boost for skills where rulebook takes precedence
+          const pIdx = promptPolicyBoosted.findIndex((p) => p.skill === rb.skill);
+          if (pIdx !== -1) {
+            promptPolicyBoosted.splice(pIdx, 1);
+          }
+        }
+      }
+
+      if (promptRulebookBoosted.length > 0) {
+        log.debug("prompt-rulebook-boosted", {
+          scenario: `${rbScenario.hook}|${rbScenario.storyKind ?? "none"}|${rbScenario.targetBoundary}|Prompt`,
+          boostedSkills: promptRulebookBoosted,
+        });
+      }
+    } else if (!rbResult.ok) {
+      log.debug("prompt-rulebook-load-error", { code: rbResult.error.code, message: rbResult.error.message });
+    }
+  }
+
+  // Stage 3f: Verified companion recall — insert learned companion skills
+  // immediately after their candidate in the selected list. Symmetric with
+  // PreToolUse Stage 4.96.
+  const promptCompanionRecallReasons: Record<string, { trigger: string; reasonCode: string }> = {};
+  const promptForceSummarySkills = new Set<string>();
+  if (cwd && promptBinding.storyId && promptBinding.targetBoundary) {
+    const companionRecall = recallVerifiedCompanions({
+      projectRoot: cwd,
+      scenario: {
+        hook: "UserPromptSubmit" as RoutingHookName,
+        storyKind: promptBinding.storyKind,
+        targetBoundary: promptBinding.targetBoundary,
+        toolName: "Prompt" as RoutingToolName,
+        routeScope: promptBinding.route ?? null,
+      },
+      candidateSkills: [...report.selectedSkills],
+      excludeSkills: new Set([
+        ...report.selectedSkills,
+        ...(dedupOff ? [] : parseSeenSkills(seenState)),
+      ]),
+      maxCompanions: 1,
+    });
+
+    for (const recall of companionRecall.selected) {
+      const candidateIdx = report.selectedSkills.indexOf(recall.candidateSkill);
+      if (candidateIdx === -1) continue;
+      report.selectedSkills.splice(candidateIdx + 1, 0, recall.companionSkill);
+      matchedSkills.push(recall.companionSkill);
+
+      const seenSkills = dedupOff ? new Set<string>() : parseSeenSkills(seenState);
+      const alreadySeen = !dedupOff && seenSkills.has(recall.companionSkill);
+      if (alreadySeen) {
+        promptForceSummarySkills.add(recall.companionSkill);
+      }
+
+      promptCompanionRecallReasons[recall.companionSkill] = {
+        trigger: "verified-companion",
+        reasonCode: "scenario-companion-rulebook",
+      };
+
+      log.debug("prompt-companion-recall-injected", {
+        candidateSkill: recall.candidateSkill,
+        companionSkill: recall.companionSkill,
+        scenario: recall.scenario,
+        lift: recall.confidence,
+        summaryOnly: alreadySeen,
+      });
+    }
+
+    if (companionRecall.rejected.length > 0) {
+      log.debug("prompt-companion-recall-rejected", {
+        rejected: companionRecall.rejected,
+      });
+    }
+  } else if (cwd) {
+    log.debug("prompt-companion-recall-skipped", {
+      reason: !promptBinding.storyId
+        ? "no_active_verification_story"
+        : "no_target_boundary",
+    });
+  }
+
+  // Stage 3g: Verified playbook recall — insert learned ordered multi-skill
+  // sequences after the anchor skill. Symmetric with PreToolUse Stage 4.97.
+  const promptPlaybookRecallReasons: Record<string, { trigger: string; reasonCode: string }> = {};
+  let promptPlaybookBanner: string | null = null;
+  const availablePlaybookSlots = Math.max(0, MAX_SKILLS - report.selectedSkills.length);
+  if (cwd && promptBinding.storyId && promptBinding.targetBoundary && availablePlaybookSlots > 0) {
+    const playbookRecall = recallVerifiedPlaybook({
+      projectRoot: cwd,
+      scenario: {
+        hook: "UserPromptSubmit" as RoutingHookName,
+        storyKind: promptBinding.storyKind,
+        targetBoundary: promptBinding.targetBoundary,
+        toolName: "Prompt" as RoutingToolName,
+        routeScope: promptBinding.route ?? null,
+      },
+      candidateSkills: [...report.selectedSkills],
+      excludeSkills: new Set([
+        ...report.selectedSkills,
+        ...(dedupOff ? [] : parseSeenSkills(seenState)),
+      ]),
+      maxInsertedSkills: availablePlaybookSlots,
+    });
+
+    if (playbookRecall.selected) {
+      promptPlaybookBanner = playbookRecall.banner;
+      const anchorIdx = report.selectedSkills.indexOf(playbookRecall.selected.anchorSkill);
+      let insertOffset = 1;
+      for (const skill of playbookRecall.selected.insertedSkills) {
+        report.selectedSkills.splice(anchorIdx + insertOffset, 0, skill);
+        matchedSkills.push(skill);
+        const seenSkills = dedupOff ? new Set<string>() : parseSeenSkills(seenState);
+        if (!dedupOff && seenSkills.has(skill)) {
+          promptForceSummarySkills.add(skill);
+        }
+        promptPlaybookRecallReasons[skill] = {
+          trigger: "verified-playbook",
+          reasonCode: "scenario-playbook-rulebook",
+        };
+        insertOffset += 1;
+      }
+      log.debug("prompt-playbook-recall-injected", {
+        ruleId: playbookRecall.selected.ruleId,
+        anchorSkill: playbookRecall.selected.anchorSkill,
+        insertedSkills: playbookRecall.selected.insertedSkills,
+      });
+    }
   }
 
   // Stage 4: inject selected skills (file I/O for SKILL.md bodies)
@@ -1087,6 +1406,7 @@ export function run(): string {
     maxSkills: MAX_SKILLS,
     skillMap: skills.skillMap,
     logger: log,
+    forceSummarySkills: promptForceSummarySkills.size > 0 ? promptForceSummarySkills : undefined,
     platform: platform as "claude-code" | "cursor",
   });
   if (log.active) timing.inject = Math.round(log.now() - tInject);
@@ -1098,7 +1418,58 @@ export function run(): string {
   }
   const droppedByCap = [...injectResult.droppedByCap, ...report.droppedByCap];
   const droppedByBudget = [...injectResult.droppedByBudget, ...report.droppedByBudget];
-  const matchedSkills = allMatched;
+  // Record routing-policy exposures for actually injected skills
+  // Only record when binding has both storyId and targetBoundary — prevents unresolvable exposures
+  let promptAttribution: ReturnType<typeof buildAttributionDecision> | null = null;
+  if (loaded.length > 0 && sessionId && promptBinding.storyId && promptBinding.targetBoundary) {
+    promptAttribution = buildAttributionDecision({
+      sessionId,
+      hook: "UserPromptSubmit",
+      storyId: promptBinding.storyId,
+      route: promptBinding.route,
+      targetBoundary: promptBinding.targetBoundary,
+      loadedSkills: loaded,
+      preferredSkills: promptPolicyRecallSynthetic,
+    });
+
+    for (const skill of loaded) {
+      appendSkillExposure({
+        id: `${sessionId}:prompt:${skill}:${Date.now()}`,
+        sessionId,
+        projectRoot: cwd,
+        storyId: promptBinding.storyId,
+        storyKind: promptBinding.storyKind,
+        route: promptBinding.route,
+        hook: "UserPromptSubmit",
+        toolName: "Prompt",
+        skill,
+        targetBoundary: promptBinding.targetBoundary,
+        exposureGroupId: promptAttribution!.exposureGroupId,
+        attributionRole: skill === promptAttribution!.candidateSkill ? "candidate" : "context",
+        candidateSkill: promptAttribution!.candidateSkill,
+        createdAt: new Date().toISOString(),
+        resolvedAt: null,
+        outcome: "pending",
+      });
+    }
+    log.summary("routing-policy-exposures-recorded", {
+      hook: "UserPromptSubmit",
+      skills: loaded,
+      storyId: promptBinding.storyId,
+      storyKind: promptBinding.storyKind,
+      targetBoundary: promptBinding.targetBoundary,
+      candidateSkill: promptAttribution!.candidateSkill,
+      exposureGroupId: promptAttribution!.exposureGroupId,
+    });
+  } else if (loaded.length > 0 && sessionId) {
+    log.debug("routing-policy-exposures-skipped", {
+      hook: "UserPromptSubmit",
+      reason: !promptBinding.storyId
+        ? "no active verification story"
+        : "no target boundary",
+      skills: loaded,
+    });
+  }
 
   if (parts.length === 0) {
     log.complete("all_deduped", {
@@ -1152,14 +1523,133 @@ export function run(): string {
     }
     outputEnv = finalizePromptEnvUpdates(platform, promptEnvBefore);
   }
-  // Stage 5: formatOutput
+  // Stage 5a: Emit routing decision trace + decision capsule
+  {
+    const traceTimestamp = new Date().toISOString();
+    const decisionId = createDecisionId({
+      hook: "UserPromptSubmit",
+      sessionId,
+      toolName: "Prompt",
+      toolTarget: normalizedPrompt,
+      timestamp: traceTimestamp,
+    });
+    const promptTrace: RoutingDecisionTrace = {
+      version: 2,
+      decisionId,
+      sessionId,
+      hook: "UserPromptSubmit",
+      toolName: "Prompt",
+      toolTarget: normalizedPrompt,
+      timestamp: traceTimestamp,
+      primaryStory: {
+        id: promptBinding.storyId,
+        kind: promptBinding.storyKind,
+        storyRoute: promptBinding.route,
+        targetBoundary: promptBinding.targetBoundary,
+      },
+      observedRoute: null, // UserPromptSubmit fires before execution; no observed route
+      policyScenario: promptBinding.storyId && promptBinding.targetBoundary
+        ? `UserPromptSubmit|${promptBinding.storyKind ?? "none"}|${promptBinding.targetBoundary}|Prompt`
+        : null,
+      matchedSkills,
+      injectedSkills: loaded,
+      skippedReasons: [
+        ...(promptBinding.storyId ? [] : ["no_active_verification_story"]),
+        ...(promptBinding.storyId && !promptBinding.targetBoundary ? ["no_target_boundary"] : []),
+        ...droppedByCap.map((skill) => `cap_exceeded:${skill}`),
+        ...droppedByBudget.map((skill) => `budget_exhausted:${skill}`),
+      ],
+      ranked: report.selectedSkills.map((skill) => {
+        const result = report.perSkillResults[skill];
+        const policy = promptPolicyBoosted.find((p) => p.skill === skill);
+        const rb = promptRulebookBoosted.find((r) => r.skill === skill);
+        const companionReason = promptCompanionRecallReasons[skill];
+        const playbookReason = promptPlaybookRecallReasons[skill];
+        const synthetic = promptPolicyRecallSynthetic.has(skill) || Boolean(companionReason) || Boolean(playbookReason);
+        const baseScore = result?.score ?? 0;
+        const effectiveBoost = rb ? rb.ruleBoost : (policy?.boost ?? 0);
+        return {
+          skill,
+          basePriority: baseScore,
+          effectivePriority: baseScore + effectiveBoost,
+          pattern: playbookReason
+            ? { type: playbookReason.trigger, value: playbookReason.reasonCode }
+            : companionReason
+            ? { type: companionReason.trigger, value: companionReason.reasonCode }
+            : promptPolicyRecallSynthetic.has(skill)
+            ? { type: "policy-recall", value: promptPolicyRecallReasons[skill] }
+            : result?.reason
+              ? { type: "prompt-signal", value: result.reason }
+              : null,
+          profilerBoost: 0,
+          policyBoost: policy?.boost ?? 0,
+          policyReason: policy?.reason ?? null,
+          matchedRuleId: rb?.matchedRuleId ?? null,
+          ruleBoost: rb?.ruleBoost ?? 0,
+          ruleReason: rb?.ruleReason ?? null,
+          rulebookPath: rb?.rulebookPath ?? null,
+          summaryOnly: summaryOnly.includes(skill),
+          synthetic,
+          droppedReason: droppedByCap.includes(skill)
+            ? "cap_exceeded"
+            : droppedByBudget.includes(skill)
+              ? "budget_exhausted"
+              : null,
+        };
+      }),
+      verification: null,
+      causes: [],
+      edges: [],
+    };
+    appendRoutingDecisionTrace(promptTrace);
+
+    // Build and persist decision capsule
+    const promptCapsule = buildDecisionCapsule({
+      sessionId,
+      hook: "UserPromptSubmit",
+      createdAt: traceTimestamp,
+      toolName: "Prompt",
+      toolTarget: normalizedPrompt,
+      platform,
+      trace: promptTrace,
+      directive: null, // UserPromptSubmit has no verification directive
+      attribution: promptAttribution
+        ? {
+            exposureGroupId: promptAttribution.exposureGroupId,
+            candidateSkill: promptAttribution.candidateSkill,
+            loadedSkills: promptAttribution.loadedSkills,
+          }
+        : null,
+      env: outputEnv,
+    });
+    const promptCapsulePath = persistDecisionCapsule(promptCapsule, log);
+    const capsuleEnv = buildDecisionCapsuleEnv(promptCapsule, promptCapsulePath);
+    outputEnv = { ...(outputEnv ?? {}), ...capsuleEnv };
+
+    log.summary("routing.decision_trace_written", {
+      decisionId,
+      hook: "UserPromptSubmit",
+      matchedSkills,
+      injectedSkills: loaded,
+      capsulePath: promptCapsulePath,
+    });
+  }
+
+  // Stage 5b: formatOutput
   // Build prompt match reasons for the banner
   const promptMatchReasons: Record<string, string> = {};
   for (const skill of loaded) {
+    if (promptPolicyRecallReasons[skill]) {
+      promptMatchReasons[skill] = promptPolicyRecallReasons[skill];
+      continue;
+    }
     const r = report.perSkillResults[skill];
     if (r?.reason) {
       promptMatchReasons[skill] = r.reason;
     }
+  }
+  if (promptPlaybookBanner) {
+    parts.unshift(promptPlaybookBanner);
   }
   return formatOutput(
     parts,

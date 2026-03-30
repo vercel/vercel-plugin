@@ -16,8 +16,13 @@ import { globToRegex, importPatternToRegex } from "../hooks/patterns.mjs";
 import type { SkillEntry, ManifestSkill } from "../hooks/patterns.mjs";
 import type { ChainToRule, ValidationRule } from "../hooks/skill-map-frontmatter.mjs";
 import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
+import {
+  EXCLUDED_SKILL_PATTERN,
+  filterExcludedSkillMap,
+  type SkillExclusion,
+} from "../src/shared/skill-exclusion-policy.ts";
 
-export { buildManifest, writeManifestFile, synthesizeChainToFromValidate };
+export { buildManifest, writeManifestFile, synthesizeChainToFromValidate, EXCLUDED_SKILL_PATTERN };
 
 const ROOT = resolve(import.meta.dir, "..");
 const SKILLS_DIR = join(ROOT, "skills");
@@ -31,6 +36,7 @@ interface ManifestSkillWithBody extends ManifestSkill {
 interface Manifest {
   generatedAt: string;
   version: 2;
+  excludedSkills: SkillExclusion[];
   skills: Record<string, ManifestSkillWithBody>;
 }
 
@@ -154,8 +160,22 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
     allWarnings.push(...validation.warnings);
   }
 
+  // Filter out test-only / fake skills before building the runtime manifest
+  const allSkills = validation.normalizedSkillMap.skills as Record<string, SkillEntry>;
+  const { included: normalizedSkills, excluded: excludedSkillEntries } =
+    filterExcludedSkillMap(allSkills);
+  if (excludedSkillEntries.length > 0) {
+    console.error(
+      JSON.stringify({
+        event: "skill_manifest_exclusions",
+        count: excludedSkillEntries.length,
+        skills: excludedSkillEntries.map((e) => e.slug),
+        reason: "test-only-pattern",
+      }),
+    );
+  }
+
   // Auto-synthesize chainTo from upgradeToSkill validate rules
-  const normalizedSkills = validation.normalizedSkillMap.skills as Record<string, SkillEntry>;
   const allSlugs = new Set(Object.keys(normalizedSkills));
   const { count: synthCount, warnings: synthWarnings } =
     synthesizeChainToFromValidate(normalizedSkills, allSlugs);
@@ -189,6 +209,7 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
   const manifest: Manifest = {
     generatedAt: new Date().toISOString(),
     version: 2,
+    excludedSkills: excludedSkillEntries,
     skills,
   };
 

@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 /**
- * PostToolUse hook: verification observer for Bash tool calls.
+ * PostToolUse hook: verification observer for tool calls.
  *
- * Maps bash commands to verification boundaries (uiRender, clientRequest,
+ * Maps tool calls to verification boundaries (uiRender, clientRequest,
  * serverHandler, environment) and emits structured log events for the
  * verification pipeline.
+ *
+ * Supports Bash, Read, Edit, Write, Glob, Grep, and WebFetch tools.
+ * Non-Bash tools produce "soft" evidence that records observations but
+ * does not resolve long-term routing policy outcomes. Only "strong" signals
+ * (Bash HTTP/browser commands, WebFetch) resolve routing policy.
  *
  * Story inference derives the target route from recent file edits stored
  * in VERCEL_PLUGIN_RECENT_EDITS env var (set by PreToolUse), falling back
@@ -18,9 +23,34 @@ import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pluginRoot as resolvePluginRoot, generateVerificationId } from "./hook-env.mjs";
+import { generateVerificationId } from "./hook-env.mjs";
 import { createLogger } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
+import { redactCommand } from "./pretooluse-skill-inject.mjs";
+import {
+  recordObservation,
+  type VerificationObservation,
+} from "./verification-ledger.mjs";
+import { resolveBoundaryOutcome, type SkillExposure } from "./routing-policy-ledger.mjs";
+import { selectActiveStory } from "./verification-plan.mjs";
+import {
+  appendRoutingDecisionTrace,
+  createDecisionId,
+} from "./routing-decision-trace.mjs";
+import {
+  classifyVerificationSignal,
+} from "./verification-signal.mjs";
+import {
+  evaluateResolutionGate,
+  diagnosePendingExposureMatch,
+} from "./verification-closure-diagnosis.mjs";
+import {
+  buildVerificationClosureCapsule,
+  persistVerificationClosureCapsule,
+} from "./verification-closure-capsule.mjs";
+
+export { redactCommand };
+export { classifyVerificationSignal };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +63,17 @@ export type BoundaryType =
   | "environment"
   | "unknown";
 
+export type VerificationSignalStrength = "strong" | "soft";
+
+export type VerificationEvidenceSource =
+  | "bash"
+  | "browser"
+  | "http"
+  | "log-read"
+  | "env-read"
+  | "file-read"
+  | "unknown";
+
 export interface VerificationBoundaryEvent {
   event: "verification.boundary_observed";
   boundary: BoundaryType;
@@ -41,6 +82,12 @@ export interface VerificationBoundaryEvent {
   matchedPattern: string;
   inferredRoute: string | null;
   timestamp: string;
+  suggestedBoundary: string | null;
+  suggestedAction: string | null;
+  matchedSuggestedAction: boolean;
+  signalStrength: VerificationSignalStrength;
+  evidenceSource: VerificationEvidenceSource;
+  toolName: string;
 }
 
 export interface VerificationReport {
@@ -73,7 +120,123 @@ export function isVerificationReport(value: unknown): value is VerificationRepor
 }
 
 // ---------------------------------------------------------------------------
-// Boundary pattern mapping
+// Local verification URL gating
+// ---------------------------------------------------------------------------
+
+const LOCAL_DEV_HOSTS = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+  "[::1]",
+]);
+
+/**
+ * Returns true when rawUrl targets a local development server.
+ * Recognizes well-known loopback hosts and the user-configured
+ * VERCEL_PLUGIN_LOCAL_DEV_ORIGIN.
+ */
+export function isLocalVerificationUrl(
+  rawUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    const hostname = url.hostname.toLowerCase();
+    if (LOCAL_DEV_HOSTS.has(hostname)) return true;
+    const configuredOrigin = envString(env, "VERCEL_PLUGIN_LOCAL_DEV_ORIGIN");
+    if (!configuredOrigin) return false;
+    const configured = new URL(configuredOrigin);
+    return configured.host.toLowerCase() === url.host.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Story-ID resolution from observed route
+// ---------------------------------------------------------------------------
+
+export interface ObservedStoryResolution {
+  storyId: string | null;
+  method: "explicit-env" | "exact-route" | "active-story" | "none";
+}
+
+/**
+ * Resolve the story ID that owns the observed route, with method tracking.
+ *
+ * Priority:
+ * 1. Explicit env override (VERCEL_PLUGIN_VERIFICATION_STORY_ID)
+ * 2. Unique exact-match story whose route === observedRoute
+ * 3. Fallback to plan.activeStoryId
+ */
+export function resolveObservedStory(
+  plan: {
+    stories: Array<{ id: string; route: string | null }>;
+    activeStoryId: string | null;
+  },
+  observedRoute: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): ObservedStoryResolution {
+  const explicit = envString(env, "VERCEL_PLUGIN_VERIFICATION_STORY_ID");
+  if (explicit) return { storyId: explicit, method: "explicit-env" };
+
+  if (observedRoute) {
+    const exact = plan.stories.filter((story) => story.route === observedRoute);
+    if (exact.length === 1) {
+      return { storyId: exact[0]!.id, method: "exact-route" };
+    }
+  }
+
+  if (plan.activeStoryId) {
+    return { storyId: plan.activeStoryId, method: "active-story" };
+  }
+
+  return { storyId: null, method: "none" };
+}
+
+/**
+ * @deprecated Use resolveObservedStory instead.
+ */
+export function resolveObservedStoryId(
+  plan: {
+    stories: Array<{ id: string; route: string | null }>;
+    activeStoryId: string | null;
+  },
+  observedRoute: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  return resolveObservedStory(plan, observedRoute, env).storyId;
+}
+
+// ---------------------------------------------------------------------------
+// Signal strength gating
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine whether a verification event should resolve long-term routing
+ * policy outcomes. Only strong signals on known boundaries qualify.
+ * WebFetch is additionally gated to local-dev-origin URLs to prevent
+ * external fetches from poisoning routing policy.
+ */
+export function shouldResolveRoutingOutcome(
+  event: Pick<VerificationBoundaryEvent, "boundary" | "signalStrength" | "toolName" | "command">,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (event.boundary === "unknown") return false;
+  if (event.signalStrength !== "strong") return false;
+
+  // WebFetch should only train policy when it targets local verification.
+  if (event.toolName === "WebFetch") {
+    return isLocalVerificationUrl(event.command, env);
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Boundary pattern mapping (Bash)
 // ---------------------------------------------------------------------------
 
 interface BoundaryPattern {
@@ -120,6 +283,257 @@ export function classifyBoundary(command: string): { boundary: BoundaryType; mat
 }
 
 // ---------------------------------------------------------------------------
+// Non-Bash tool classification
+// ---------------------------------------------------------------------------
+
+/**
+ * Classify a non-Bash tool call into a verification boundary and evidence metadata.
+ */
+export function classifyToolSignal(toolName: string, toolInput: Record<string, unknown>): {
+  boundary: BoundaryType;
+  matchedPattern: string;
+  signalStrength: VerificationSignalStrength;
+  evidenceSource: VerificationEvidenceSource;
+  summary: string;
+} | null {
+  if (toolName === "Read") {
+    const filePath = String(toolInput.file_path || "");
+    if (!filePath) return null;
+
+    // .env files → environment + soft
+    if (/\.env(\.\w+)?$/.test(filePath)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-file-read",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: filePath,
+      };
+    }
+
+    // vercel.json, .vercel/project.json → environment + soft
+    if (/vercel\.json$/.test(filePath) || /\.vercel\/project\.json$/.test(filePath)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "vercel-config-read",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: filePath,
+      };
+    }
+
+    // Log files → serverHandler + soft
+    if (/\.(log|out|err)$/.test(filePath) || /vercel-logs/.test(filePath) || /\.next\/.*server.*\.log/.test(filePath)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-file-read",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: filePath,
+      };
+    }
+
+    // Generic file read — not useful for verification
+    return null;
+  }
+
+  if (toolName === "WebFetch") {
+    const url = String(toolInput.url || "");
+    if (!url) return null;
+
+    return {
+      boundary: "clientRequest",
+      matchedPattern: "web-fetch",
+      signalStrength: "strong",
+      evidenceSource: "http",
+      summary: url.slice(0, 200),
+    };
+  }
+
+  if (toolName === "Grep") {
+    const path = String(toolInput.path || "");
+
+    // Grep in log files → serverHandler + soft
+    if (/\.(log|out|err)$/.test(path) || /logs?\//.test(path)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-grep",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: `grep ${toolInput.pattern || ""} in ${path}`.slice(0, 200),
+      };
+    }
+
+    // Grep in .env files → environment + soft
+    if (/\.env/.test(path)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-grep",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: `grep ${toolInput.pattern || ""} in ${path}`.slice(0, 200),
+      };
+    }
+
+    return null;
+  }
+
+  if (toolName === "Glob") {
+    const pattern = String(toolInput.pattern || "");
+
+    // Glob for log files → serverHandler + soft
+    if (/\*\.(log|out|err)/.test(pattern) || /logs?\//.test(pattern)) {
+      return {
+        boundary: "serverHandler",
+        matchedPattern: "log-glob",
+        signalStrength: "soft",
+        evidenceSource: "log-read",
+        summary: `glob ${pattern}`.slice(0, 200),
+      };
+    }
+
+    // Glob for env files → environment + soft
+    if (/\.env/.test(pattern)) {
+      return {
+        boundary: "environment",
+        matchedPattern: "env-glob",
+        signalStrength: "soft",
+        evidenceSource: "env-read",
+        summary: `glob ${pattern}`.slice(0, 200),
+      };
+    }
+
+    return null;
+  }
+
+  // Edit and Write on route files could infer route but aren't verification evidence
+  // They don't observe system behavior, they modify it
+  if (toolName === "Edit" || toolName === "Write") {
+    return null;
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Boundary event builder (pure, testable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a structured boundary event with redacted commands and directive matching.
+ * Compares the observed boundary/action against the suggested directive from env vars.
+ */
+export function buildBoundaryEvent(input: {
+  command: string;
+  boundary: BoundaryType;
+  matchedPattern: string;
+  inferredRoute: string | null;
+  verificationId: string;
+  timestamp?: string;
+  env?: NodeJS.ProcessEnv;
+  signalStrength?: VerificationSignalStrength;
+  evidenceSource?: VerificationEvidenceSource;
+  toolName?: string;
+}): VerificationBoundaryEvent {
+  const env = input.env ?? process.env;
+  const redactedCommand = redactCommand(input.command).slice(0, 200);
+  const suggestedBoundary = env.VERCEL_PLUGIN_VERIFICATION_BOUNDARY || null;
+  const suggestedAction = env.VERCEL_PLUGIN_VERIFICATION_ACTION
+    ? redactCommand(env.VERCEL_PLUGIN_VERIFICATION_ACTION).slice(0, 200)
+    : null;
+
+  return {
+    event: "verification.boundary_observed",
+    boundary: input.boundary,
+    verificationId: input.verificationId,
+    command: redactedCommand,
+    matchedPattern: input.matchedPattern,
+    inferredRoute: input.inferredRoute,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    suggestedBoundary,
+    suggestedAction,
+    matchedSuggestedAction:
+      (suggestedBoundary !== null && suggestedBoundary === input.boundary) ||
+      (suggestedAction !== null && suggestedAction === redactedCommand),
+    signalStrength: input.signalStrength ?? "strong",
+    evidenceSource: input.evidenceSource ?? "bash",
+    toolName: input.toolName ?? "Bash",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Ledger observation builder (pure, testable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a boundary event into a VerificationObservation for ledger persistence.
+ */
+export function buildLedgerObservation(
+  event: VerificationBoundaryEvent,
+  env: NodeJS.ProcessEnv = process.env,
+): VerificationObservation {
+  const storyIdValue = env.VERCEL_PLUGIN_VERIFICATION_STORY_ID;
+
+  // Map evidenceSource to ledger source type
+  const sourceMap: Record<VerificationEvidenceSource, VerificationObservation["source"]> = {
+    "bash": "bash",
+    "browser": "bash",
+    "http": "bash",
+    "log-read": "edit",
+    "env-read": "edit",
+    "file-read": "edit",
+    "unknown": "bash",
+  };
+
+  return {
+    id: event.verificationId,
+    timestamp: event.timestamp,
+    source: sourceMap[event.evidenceSource] ?? "bash",
+    boundary: event.boundary === "unknown" ? null : event.boundary,
+    route: event.inferredRoute,
+    storyId: typeof storyIdValue === "string" && storyIdValue.trim() !== ""
+      ? storyIdValue.trim()
+      : null,
+    summary: event.command,
+    meta: {
+      matchedPattern: event.matchedPattern,
+      suggestedBoundary: event.suggestedBoundary,
+      suggestedAction: event.suggestedAction,
+      matchedSuggestedAction: event.matchedSuggestedAction,
+      toolName: event.toolName,
+      signalStrength: event.signalStrength,
+      evidenceSource: event.evidenceSource,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Directive env helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a trimmed non-empty string from the environment, or null.
+ */
+export function envString(
+  env: NodeJS.ProcessEnv,
+  key: string,
+): string | null {
+  const value = env[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+/**
+ * Resolve the observed route: prefer command/edit inference, fall back to
+ * VERCEL_PLUGIN_VERIFICATION_ROUTE from the directive env.
+ */
+export function resolveObservedRoute(
+  inferredRoute: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  return inferredRoute ?? envString(env, "VERCEL_PLUGIN_VERIFICATION_ROUTE");
+}
+
+// ---------------------------------------------------------------------------
 // Story inference
 // ---------------------------------------------------------------------------
 
@@ -163,16 +577,48 @@ export function inferRoute(command: string, recentEdits?: string): string | null
 }
 
 // ---------------------------------------------------------------------------
+// Route inference for file-path-based tools
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer route from a file path (used for Read, Edit, Write, Glob, Grep).
+ */
+function inferRouteFromFilePath(filePath: string): string | null {
+  const match = ROUTE_REGEX.exec(filePath);
+  if (match) {
+    const route = "/" + match[1]
+      .replace(/\/page\.\w+$/, "")
+      .replace(/\/route\.\w+$/, "")
+      .replace(/\/layout\.\w+$/, "")
+      .replace(/\/loading\.\w+$/, "")
+      .replace(/\/error\.\w+$/, "")
+      .replace(/\[([^\]]+)\]/g, ":$1");
+    return route === "/" ? "/" : route.replace(/\/$/, "");
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Input parsing
 // ---------------------------------------------------------------------------
 
-export interface ParsedBashInput {
-  command: string;
+export interface ParsedToolInput {
+  toolName: string;
+  toolInput: Record<string, unknown>;
   sessionId: string | null;
   cwd: string | null;
 }
 
-export function parseInput(raw: string, logger?: Logger): ParsedBashInput | null {
+/** @deprecated Use ParsedToolInput instead */
+export type ParsedBashInput = {
+  command: string;
+  sessionId: string | null;
+  cwd: string | null;
+};
+
+const SUPPORTED_TOOLS = new Set(["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebFetch"]);
+
+export function parseInput(raw: string, logger?: Logger): ParsedToolInput | null {
   const trimmed = (raw || "").trim();
   if (!trimmed) return null;
 
@@ -184,17 +630,21 @@ export function parseInput(raw: string, logger?: Logger): ParsedBashInput | null
   }
 
   const toolName = (input.tool_name as string) || "";
-  if (toolName !== "Bash") return null;
+  if (!SUPPORTED_TOOLS.has(toolName)) return null;
 
   const toolInput = (input.tool_input as Record<string, unknown>) || {};
-  const command = (toolInput.command as string) || "";
-  if (!command) return null;
+
+  // Bash requires a non-empty command
+  if (toolName === "Bash") {
+    const command = (toolInput.command as string) || "";
+    if (!command) return null;
+  }
 
   const sessionId = (input.session_id as string) || null;
   const cwdCandidate = input.cwd ?? input.working_directory;
   const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : null;
 
-  return { command, sessionId, cwd };
+  return { toolName, toolInput, sessionId, cwd };
 }
 
 // ---------------------------------------------------------------------------
@@ -217,33 +667,301 @@ export function run(rawInput?: string): string {
 
   const parsed = parseInput(raw, log);
   if (!parsed) {
-    log.debug("verification-observe-skip", { reason: "no_bash_input" });
+    log.debug("verification-observe-skip", { reason: "no_supported_input" });
     return "{}";
   }
 
-  const { command, sessionId } = parsed;
-  const { boundary, matchedPattern } = classifyBoundary(command);
+  const { toolName, toolInput, sessionId } = parsed;
+  const env = process.env;
 
-  if (boundary === "unknown") {
-    log.trace("verification-observe-skip", { reason: "no_boundary_match", command: command.slice(0, 120) });
+  // Unified multi-tool classification via verification-signal module
+  const signal = classifyVerificationSignal({ toolName, toolInput, env });
+  if (!signal) {
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      toolName,
+    });
     return "{}";
   }
+
+  if (signal.boundary === "unknown") {
+    log.trace("verification-observe-skip", {
+      reason: "no_boundary_match",
+      toolName,
+      summary: signal.summary.slice(0, 120),
+    });
+    return "{}";
+  }
+
+  const { boundary, matchedPattern, signalStrength, evidenceSource, summary } = signal;
 
   const verificationId = generateVerificationId();
-  const recentEdits = process.env.VERCEL_PLUGIN_RECENT_EDITS || "";
-  const inferredRoute = inferRoute(command, recentEdits);
+  const recentEdits = env.VERCEL_PLUGIN_RECENT_EDITS || "";
 
-  const boundaryEvent: VerificationBoundaryEvent = {
-    event: "verification.boundary_observed",
+  // Infer route: for Bash use command + recent edits, for file tools use file path
+  let inferredRoute: string | null;
+  if (toolName === "Bash") {
+    inferredRoute = resolveObservedRoute(inferRoute(summary, recentEdits), env);
+  } else {
+    const filePath = String(toolInput.file_path || toolInput.path || toolInput.url || "");
+    inferredRoute = resolveObservedRoute(
+      inferRouteFromFilePath(filePath) ?? inferRoute(summary, recentEdits),
+      env,
+    );
+  }
+
+  const boundaryEvent = buildBoundaryEvent({
+    command: summary,
     boundary,
-    verificationId,
-    command: command.slice(0, 200),
     matchedPattern,
     inferredRoute,
-    timestamp: new Date().toISOString(),
-  };
+    verificationId,
+    signalStrength,
+    evidenceSource,
+    toolName,
+  });
 
   log.summary("verification.boundary_observed", boundaryEvent as unknown as Record<string, unknown>);
+
+  if (sessionId) {
+    const plan = recordObservation(
+      sessionId,
+      buildLedgerObservation(boundaryEvent),
+      {
+        agentBrowserAvailable:
+          process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+        lastAttemptedAction:
+          process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null,
+      },
+      log,
+    );
+
+    log.summary("verification.plan_feedback", {
+      verificationId,
+      toolName,
+      signalStrength,
+      evidenceSource,
+      matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+      satisfiedBoundaries: Array.from(plan.satisfiedBoundaries).sort(),
+      missingBoundaries: [...plan.missingBoundaries],
+      primaryNextAction: plan.primaryNextAction,
+      blockedReasons: [...plan.blockedReasons],
+    });
+
+    // Resolve story from observed route, preferring exact match over active story
+    const activeStory = plan.stories.length > 0
+      ? selectActiveStory(plan)
+      : null;
+
+    const storyResolution = resolveObservedStory(
+      {
+        stories: plan.stories.map((s) => ({ id: s.id, route: s.route })),
+        activeStoryId: activeStory?.id ?? null,
+      },
+      inferredRoute,
+      env,
+    );
+
+    // Structured gate evaluation with explicit blocking reason codes
+    const gate = evaluateResolutionGate(
+      {
+        boundary: boundaryEvent.boundary,
+        signalStrength,
+        toolName,
+        command: boundaryEvent.command,
+      },
+      env,
+    );
+
+    // Diagnose pending exposure matches (skip for unknown boundaries)
+    const exposureDiagnosis =
+      boundaryEvent.boundary === "unknown"
+        ? null
+        : diagnosePendingExposureMatch({
+            sessionId,
+            boundary: boundaryEvent.boundary as
+              | "uiRender"
+              | "clientRequest"
+              | "serverHandler"
+              | "environment",
+            storyId: storyResolution.storyId,
+            route: inferredRoute,
+          });
+
+    // Resolve routing policy only when the gate passes
+    let resolved: SkillExposure[] = [];
+    if (gate.eligible && boundaryEvent.boundary !== "unknown") {
+      resolved = resolveBoundaryOutcome({
+        sessionId,
+        boundary: boundaryEvent.boundary as
+          | "uiRender"
+          | "clientRequest"
+          | "serverHandler"
+          | "environment",
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+        storyId: storyResolution.storyId,
+        route: inferredRoute,
+        now: boundaryEvent.timestamp,
+      });
+    } else {
+      log.debug("verification.routing-policy-skipped", {
+        verificationId,
+        boundary: boundaryEvent.boundary,
+        toolName,
+        blockingReasonCodes: gate.blockingReasonCodes,
+        signalStrength,
+      });
+    }
+
+    if (gate.eligible && resolved.length === 0) {
+      log.debug("verification.routing-policy-unresolved", {
+        verificationId,
+        boundary: boundaryEvent.boundary,
+        toolName,
+        storyId: storyResolution.storyId,
+        route: inferredRoute,
+        unresolvedReasonCodes:
+          exposureDiagnosis?.unresolvedReasonCodes ?? [
+            "no_exact_pending_match",
+          ],
+        pendingBoundaryCount:
+          exposureDiagnosis?.pendingBoundaryCount ?? 0,
+      });
+    }
+
+    // Build and persist the closure capsule
+    const closureCapsule = buildVerificationClosureCapsule({
+      sessionId,
+      verificationId,
+      toolName,
+      createdAt: boundaryEvent.timestamp,
+      observation: {
+        boundary: boundaryEvent.boundary,
+        signalStrength,
+        evidenceSource,
+        matchedPattern,
+        command: boundaryEvent.command,
+        inferredRoute,
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+      },
+      storyResolution: {
+        resolvedStoryId: storyResolution.storyId,
+        method: storyResolution.method,
+        activeStoryId: activeStory?.id ?? null,
+        activeStoryKind: activeStory?.kind ?? null,
+        activeStoryRoute: activeStory?.route ?? null,
+      },
+      gate,
+      exposureDiagnosis,
+      resolvedExposures: resolved,
+      plan: {
+        activeStoryId: plan.activeStoryId ?? null,
+        satisfiedBoundaries: plan.satisfiedBoundaries,
+        missingBoundaries: [...plan.missingBoundaries],
+        blockedReasons: [...plan.blockedReasons],
+        primaryNextAction: plan.primaryNextAction
+          ? {
+              action: plan.primaryNextAction.action,
+              targetBoundary: plan.primaryNextAction.targetBoundary,
+              reason: plan.primaryNextAction.reason,
+            }
+          : null,
+      },
+    });
+
+    const capsulePath = persistVerificationClosureCapsule(
+      closureCapsule,
+      log,
+    );
+
+    log.summary("verification.routing-policy-resolution-gate", {
+      verificationId,
+      toolName,
+      boundary: boundaryEvent.boundary,
+      inferredRoute,
+      resolvedStoryId: storyResolution.storyId,
+      storyResolutionMethod: storyResolution.method,
+      resolutionEligible: gate.eligible,
+      blockingReasonCodes: gate.blockingReasonCodes,
+      exactPendingMatchCount: exposureDiagnosis?.exactMatchCount ?? 0,
+      capsulePath,
+    });
+
+    if (resolved.length > 0) {
+      const outcomeKind = boundaryEvent.matchedSuggestedAction
+        ? "directive-win"
+        : "win";
+      log.summary("verification.routing-policy-resolved", {
+        verificationId,
+        boundary: boundaryEvent.boundary,
+        storyId: storyResolution.storyId,
+        route: inferredRoute,
+        resolvedCount: resolved.length,
+        outcomeKind,
+        skills: resolved.map((e) => e.skill),
+      });
+    }
+
+    // Emit routing decision trace with diagnostic skipped reasons
+    const redactedTarget = toolName === "Bash"
+      ? redactCommand(summary).slice(0, 200)
+      : summary.slice(0, 200);
+    const decisionId = createDecisionId({
+      hook: "PostToolUse",
+      sessionId,
+      toolName,
+      toolTarget: redactedTarget,
+      timestamp: boundaryEvent.timestamp,
+    });
+
+    appendRoutingDecisionTrace({
+      version: 2,
+      decisionId,
+      sessionId,
+      hook: "PostToolUse",
+      toolName,
+      toolTarget: redactedTarget,
+      timestamp: boundaryEvent.timestamp,
+      primaryStory: {
+        id: storyResolution.storyId,
+        kind: activeStory?.kind ?? null,
+        storyRoute: activeStory?.route ?? inferredRoute,
+        targetBoundary: boundaryEvent.boundary === "unknown" ? null : boundaryEvent.boundary,
+      },
+      observedRoute: inferredRoute,
+      policyScenario: storyResolution.storyId
+        ? `PostToolUse|${activeStory?.kind ?? "none"}|${boundaryEvent.boundary}|${toolName}`
+        : null,
+      matchedSkills: [],
+      injectedSkills: [],
+      skippedReasons: [
+        ...(storyResolution.storyId ? [] : ["no_active_verification_story"]),
+        ...gate.blockingReasonCodes.map((code) => `gate:${code}`),
+        ...(gate.eligible && resolved.length === 0
+          ? (exposureDiagnosis?.unresolvedReasonCodes ?? ["no_exact_pending_match"]).map(
+              (code) => `resolution:${code}`,
+            )
+          : []),
+      ],
+      ranked: [],
+      verification: {
+        verificationId,
+        observedBoundary: boundaryEvent.boundary,
+        matchedSuggestedAction: boundaryEvent.matchedSuggestedAction,
+      },
+      causes: [],
+      edges: [],
+    });
+
+    log.summary("routing.decision_trace_written", {
+      decisionId,
+      hook: "PostToolUse",
+      verificationId,
+      boundary: boundaryEvent.boundary,
+      toolName,
+      signalStrength,
+    });
+  }
 
   log.complete("verification-observe-done", {
     matchedCount: 1,

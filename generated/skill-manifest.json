@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-03-23T18:09:21.758Z",
+  "generatedAt": "2026-03-28T19:42:43.059Z",
   "version": 2,
+  "excludedSkills": [
+    {
+      "slug": "fake-banned-test-skill",
+      "reason": "test-only-pattern"
+    }
+  ],
   "skills": {
     "vercel-agent": {
       "priority": 4,

@@ -764,3 +764,64 @@ This catches `cookies()` calls without `await`, but skips client components (whi
 | `VERCEL_PLUGIN_LOG_LEVEL` | `off` | — | `off` / `summary` / `debug` / `trace` |
 | `VERCEL_PLUGIN_HOOK_DEDUP` | — | — | `off` to disable dedup entirely |
 | `VERCEL_PLUGIN_AUDIT_LOG_FILE` | — | — | Audit log path or `off` |
+
+---
+
+## Learned Routing Rulebook & Capsule Provenance
+
+When the routing-policy compiler promotes verified rules into a **Learned Routing Rulebook**, the ranking pipeline can apply per-rule boosts at injection time. Every decision capsule records which rule (if any) fired via the `rulebookProvenance` field, so downstream consumers never need to re-derive ranking state.
+
+### Canonical Rulebook JSON
+
+```json
+{
+  "version": 1,
+  "createdAt": "2026-03-28T08:15:00.000Z",
+  "sessionId": "sess_123",
+  "rules": [
+    {
+      "id": "PreToolUse|flow-verification|uiRender|Bash|agent-browser-verify",
+      "scenario": "PreToolUse|flow-verification|uiRender|Bash",
+      "skill": "agent-browser-verify",
+      "action": "promote",
+      "boost": 8,
+      "confidence": 0.93,
+      "reason": "replay verified: no regressions, learned routing matched winning skill",
+      "sourceSessionId": "sess_123",
+      "promotedAt": "2026-03-28T08:15:00.000Z",
+      "evidence": {
+        "baselineWins": 4,
+        "baselineDirectiveWins": 2,
+        "learnedWins": 4,
+        "learnedDirectiveWins": 2,
+        "regressionCount": 0
+      }
+    }
+  ]
+}
+```
+
+### Decision Capsule Provenance
+
+When a rulebook rule fires, the capsule includes:
+
+```json
+{
+  "rulebookProvenance": {
+    "matchedRuleId": "PreToolUse|flow-verification|uiRender|Bash|agent-browser-verify",
+    "ruleBoost": 8,
+    "ruleReason": "replay verified: no regressions, learned routing matched winning skill",
+    "rulebookPath": "/tmp/vercel-plugin-routing-policy-<hash>-rulebook.json"
+  }
+}
+```
+
+When no rule fires, the field is `null`:
+
+```json
+{
+  "rulebookProvenance": null
+}
+```
+
+Each ranked entry in the capsule's `ranked` array also carries the per-skill fields `matchedRuleId`, `ruleBoost`, `ruleReason`, and `rulebookPath` for full traceability.

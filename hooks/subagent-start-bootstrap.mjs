@@ -10,6 +10,15 @@ import { compilePromptSignals, matchPromptWithReason, normalizePromptText } from
 import { loadSkills } from "./pretooluse-skill-inject.mjs";
 import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 import { claimPendingLaunch } from "./subagent-state.mjs";
+import {
+  computePlan,
+  loadCachedPlanResult,
+  selectActiveStory
+} from "./verification-plan.mjs";
+import {
+  buildVerificationDirective,
+  buildVerificationEnv
+} from "./verification-directive.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var MINIMAL_BUDGET_BYTES = 1024;
 var LIGHT_BUDGET_BYTES = 3072;
@@ -125,17 +134,116 @@ function resolveLikelySkillsFromPendingLaunch(sessionId, agentType, likelySkills
     return likelySkills;
   }
 }
+function resolveVerificationPlan(sessionId) {
+  if (!sessionId) return null;
+  try {
+    const cached = loadCachedPlanResult(sessionId);
+    if (cached?.hasStories) {
+      log.debug("subagent-start-bootstrap:verification-plan-cached", { sessionId });
+      return cached;
+    }
+    log.debug("subagent-start-bootstrap:verification-plan-cache-miss", { sessionId });
+  } catch (error) {
+    logCaughtError(log, "subagent-start-bootstrap:verification-plan-cache-failed", error, {
+      sessionId
+    });
+  }
+  try {
+    const fresh = computePlan(sessionId, {
+      agentBrowserAvailable: process.env.VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE !== "0",
+      lastAttemptedAction: process.env.VERCEL_PLUGIN_VERIFICATION_ACTION || null
+    });
+    if (fresh.hasStories) {
+      log.debug("subagent-start-bootstrap:verification-plan-fresh", { sessionId });
+      return fresh;
+    }
+    log.debug("subagent-start-bootstrap:verification-plan-empty", { sessionId });
+  } catch (error) {
+    logCaughtError(log, "subagent-start-bootstrap:verification-plan-fresh-failed", error, {
+      sessionId
+    });
+  }
+  return null;
+}
+function buildVerificationContextFromPlan(plan, category) {
+  if (!plan.hasStories || plan.stories.length === 0) return null;
+  const story = selectActiveStory(plan);
+  if (!story) return null;
+  const routePart = story.route ? ` (${story.route})` : "";
+  switch (category) {
+    case "minimal": {
+      return [
+        `<!-- verification-context scope="minimal" -->`,
+        `Verification story: ${story.kind}${routePart}`,
+        `<!-- /verification-context -->`
+      ].join("\n");
+    }
+    case "light": {
+      const lines = [
+        `<!-- verification-context scope="light" -->`,
+        `Verification story: ${story.kind}${routePart} \u2014 "${story.promptExcerpt}"`
+      ];
+      if (plan.missingBoundaries.length > 0) {
+        lines.push(`Missing boundaries: ${plan.missingBoundaries.join(", ")}`);
+      }
+      if (plan.primaryNextAction) {
+        lines.push(`Candidate action: ${plan.primaryNextAction.action}`);
+      }
+      if (plan.blockedReasons.length > 0) {
+        lines.push(`Blocked: ${plan.blockedReasons[0]}`);
+      }
+      lines.push(`<!-- /verification-context -->`);
+      return lines.join("\n");
+    }
+    case "standard": {
+      const lines = [
+        `<!-- verification-context scope="standard" -->`,
+        `Verification story: ${story.kind}${routePart} \u2014 "${story.promptExcerpt}"`,
+        `Evidence: ${plan.satisfiedBoundaries.length}/4 boundaries [${plan.satisfiedBoundaries.join(", ") || "none"}]`
+      ];
+      if (plan.missingBoundaries.length > 0) {
+        lines.push(`Missing: ${plan.missingBoundaries.join(", ")}`);
+      }
+      if (plan.primaryNextAction) {
+        lines.push(`Primary action: \`${plan.primaryNextAction.action}\``);
+        lines.push(`Reason: ${plan.primaryNextAction.reason}`);
+      }
+      if (plan.blockedReasons.length > 0) {
+        for (const reason of plan.blockedReasons) {
+          lines.push(`Blocked: ${reason}`);
+        }
+      }
+      if (plan.recentRoutes.length > 0) {
+        lines.push(`Recent routes: ${plan.recentRoutes.join(", ")}`);
+      }
+      lines.push(`<!-- /verification-context -->`);
+      return lines.join("\n");
+    }
+  }
+}
+function buildVerificationContext(sessionId, category) {
+  const plan = resolveVerificationPlan(sessionId);
+  return plan ? buildVerificationContextFromPlan(plan, category) : null;
+}
 function profileLine(agentType, likelySkills) {
   return "Vercel plugin active. Project likely uses: " + (likelySkills.length > 0 ? likelySkills.join(", ") : "unknown stack") + ".";
 }
-function buildMinimalContext(agentType, likelySkills) {
+function buildMinimalContext(agentType, likelySkills, sessionId) {
   const parts = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="minimal" -->`);
   parts.push(profileLine(agentType, likelySkills));
+  const verificationCtx = buildVerificationContext(sessionId, "minimal");
+  if (verificationCtx) {
+    const verBytes = Buffer.byteLength(verificationCtx, "utf8");
+    const currentBytes = Buffer.byteLength(parts.join("\n"), "utf8");
+    if (currentBytes + verBytes + 50 <= MINIMAL_BUDGET_BYTES) {
+      parts.push(verificationCtx);
+    }
+  }
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
   return parts.join("\n");
 }
-function buildLightContext(agentType, likelySkills, budgetBytes) {
+function buildLightContext(agentType, likelySkills, budgetBytes, sessionId) {
   const parts = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="light" -->`);
   parts.push(profileLine(agentType, likelySkills));
@@ -164,10 +272,18 @@ function buildLightContext(agentType, likelySkills, budgetBytes) {
     parts.push(constraint);
     usedBytes += lineBytes + 1;
   }
+  const verificationCtx = buildVerificationContext(sessionId, "light");
+  if (verificationCtx) {
+    const verBytes = Buffer.byteLength(verificationCtx, "utf8");
+    if (usedBytes + verBytes + 1 <= budgetBytes) {
+      parts.push(verificationCtx);
+      usedBytes += verBytes + 1;
+    }
+  }
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
   return parts.join("\n");
 }
-function buildStandardContext(agentType, likelySkills, budgetBytes) {
+function buildStandardContext(agentType, likelySkills, budgetBytes, sessionId) {
   const parts = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="standard" -->`);
   parts.push(profileLine(agentType, likelySkills));
@@ -201,6 +317,14 @@ ${summary}
       }
     }
   }
+  const verificationCtx = buildVerificationContext(sessionId, "standard");
+  if (verificationCtx) {
+    const verBytes = Buffer.byteLength(verificationCtx, "utf8");
+    if (usedBytes + verBytes + 1 <= budgetBytes) {
+      parts.push(verificationCtx);
+      usedBytes += verBytes + 1;
+    }
+  }
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
   return parts.join("\n");
 }
@@ -224,13 +348,13 @@ function main() {
   let context;
   switch (category) {
     case "minimal":
-      context = buildMinimalContext(agentType, likelySkills);
+      context = buildMinimalContext(agentType, likelySkills, sessionId);
       break;
     case "light":
-      context = buildLightContext(agentType, likelySkills, maxBytes);
+      context = buildLightContext(agentType, likelySkills, maxBytes, sessionId);
       break;
     case "standard":
-      context = buildStandardContext(agentType, likelySkills, maxBytes);
+      context = buildStandardContext(agentType, likelySkills, maxBytes, sessionId);
       break;
   }
   if (Buffer.byteLength(context, "utf8") > maxBytes) {
@@ -250,6 +374,9 @@ function main() {
   }
   const budgetUsed = Buffer.byteLength(context, "utf8");
   const pendingLaunchMatched = likelySkills.length !== profilerLikelySkills.length || likelySkills.some((s) => !profilerLikelySkills.includes(s));
+  const verificationPlan = resolveVerificationPlan(sessionId);
+  const verificationDirective = buildVerificationDirective(verificationPlan);
+  const verificationEnv = buildVerificationEnv(verificationDirective);
   log.summary("subagent-start-bootstrap:complete", {
     agent_id: agentId,
     agent_type: agentType,
@@ -257,13 +384,16 @@ function main() {
     budget_used: budgetUsed,
     budget_max: maxBytes,
     budget_category: category,
-    pending_launch_matched: pendingLaunchMatched
+    pending_launch_matched: pendingLaunchMatched,
+    verification_directive: verificationDirective !== null,
+    verification_env_keys: Object.keys(verificationEnv)
   });
   const output = {
     hookSpecificOutput: {
       hookEventName: "SubagentStart",
       additionalContext: context
-    }
+    },
+    ...Object.keys(verificationEnv).length > 0 ? { env: verificationEnv } : {}
   };
   process.stdout.write(JSON.stringify(output));
   process.exit(0);
@@ -280,7 +410,13 @@ export {
   buildLightContext,
   buildMinimalContext,
   buildStandardContext,
+  buildVerificationContext,
+  buildVerificationContextFromPlan,
+  buildVerificationDirective,
+  buildVerificationEnv,
   getLikelySkills,
   main,
-  parseInput
+  parseInput,
+  resolveBudgetCategory,
+  resolveVerificationPlan
 };

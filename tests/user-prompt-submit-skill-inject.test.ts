@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { decisionCapsuleDir } from "../hooks/src/routing-decision-capsule.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "user-prompt-submit-skill-inject.mjs");
@@ -131,5 +132,34 @@ describe("lexical prompt matching (VERCEL_PLUGIN_LEXICAL_PROMPT)", () => {
       // matchedSkills may exceed 2 but injected is capped
       expect(meta.matchedSkills.length).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Decision capsule rulebookProvenance integration tests
+// ---------------------------------------------------------------------------
+
+describe("decision capsule rulebookProvenance", () => {
+  test("persisted capsule has rulebookProvenance: null when no rulebook exists", async () => {
+    const { code, stdout } = await runHook(
+      "I want to deploy my app to production",
+      { VERCEL_PLUGIN_LEXICAL_PROMPT: "1", VERCEL_PLUGIN_SEEN_SKILLS: "" },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    // Hook must have matched and injected at least one skill
+    if (!result.hookSpecificOutput) return;
+    const meta = extractSkillInjection(result.hookSpecificOutput);
+    if (!meta || meta.injectedSkills.length === 0) return;
+
+    // Find the persisted capsule for this session
+    const capsuleDir = decisionCapsuleDir(testSession);
+    if (!existsSync(capsuleDir)) return;
+    const capsuleFiles = readdirSync(capsuleDir).filter((f) => f.endsWith(".json"));
+    expect(capsuleFiles.length).toBeGreaterThanOrEqual(1);
+
+    const capsule = JSON.parse(readFileSync(join(capsuleDir, capsuleFiles[0]), "utf-8"));
+    expect(capsule).toHaveProperty("rulebookProvenance");
+    expect(capsule.rulebookProvenance).toBeNull();
   });
 });

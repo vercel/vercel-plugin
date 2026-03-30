@@ -14,10 +14,6 @@
     "vercel-functions"
   ],
   "summaryOnly": [],
-  "droppedByCap": [
-    "deployments-cicd",
-    "routing-middleware"
-  ],
   "droppedByBudget": [],
   "reasons": {
     "cron-jobs": {

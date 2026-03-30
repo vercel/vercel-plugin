@@ -14,10 +14,6 @@
     "deployments-cicd"
   ],
   "summaryOnly": [],
-  "droppedByCap": [
-    "routing-middleware",
-    "vercel-cli"
-  ],
   "droppedByBudget": [],
   "reasons": {
     "vercel-functions": {
