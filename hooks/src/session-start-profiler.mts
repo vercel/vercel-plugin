@@ -48,7 +48,7 @@ import {
   createRegistryClient,
   type InstallSkillsResult,
 } from "./registry-client.mjs";
-import { writeProjectSkillManifest } from "./project-skill-manifest.mjs";
+import { readProjectSkillState } from "./project-skill-manifest.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -749,22 +749,32 @@ export function formatSessionStartProfilerCursorOutput(
 export async function autoInstallDetectedSkills(args: {
   projectRoot: string;
   missingSkills: string[];
+  skillsSource?: string;
   logger?: Logger;
 }): Promise<InstallSkillsResult> {
+  const emptyResult: InstallSkillsResult = {
+    installed: [],
+    reused: [],
+    missing: [...args.missingSkills],
+    command: null,
+  };
+
   if (
     args.missingSkills.length === 0 ||
     process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL !== "1"
   ) {
-    return { installed: [], reused: [], missing: [...args.missingSkills] };
+    return emptyResult;
   }
 
-  const client = createRegistryClient();
+  const client = createRegistryClient({
+    source: args.skillsSource,
+  });
   let result: InstallSkillsResult;
   try {
-    result = await client.installSkills(
-      args.missingSkills,
-      join(args.projectRoot, ".skills"),
-    );
+    result = await client.installSkills({
+      projectRoot: args.projectRoot,
+      skillNames: args.missingSkills,
+    });
   } catch (error) {
     logCaughtError(
       args.logger ?? log,
@@ -775,7 +785,7 @@ export async function autoInstallDetectedSkills(args: {
         missingSkillCount: args.missingSkills.length,
       },
     );
-    return { installed: [], reused: [], missing: [...args.missingSkills] };
+    return emptyResult;
   }
 
   args.logger?.debug("session-start-profiler-auto-install", {
@@ -892,18 +902,13 @@ async function main(): Promise<void> {
     });
   }
 
-  // Write per-project skill manifest when skills are installed
-  let projectSkillManifestPath: string | null = null;
-  if (installedSkills.length > 0) {
-    try {
-      projectSkillManifestPath = writeProjectSkillManifest(join(projectRoot, ".skills"));
-    } catch (error) {
-      logCaughtError(log, "session-start-profiler:write-project-skill-manifest-failed", error, {
-        projectRoot,
-        installedSkillCount: installedSkills.length,
-      });
-    }
-  }
+  // Read CLI-produced project skill state instead of writing our own manifest
+  const projectSkillState = readProjectSkillState(projectRoot);
+  const projectSkillManifestPath = projectSkillState.projectSkillStatePath;
+
+  // Detect Vercel project state for CLI delegation actions
+  const vercelLinked = existsSync(join(projectRoot, ".vercel"));
+  const hasEnvLocal = existsSync(join(projectRoot, ".env.local"));
 
   // Build and persist the machine-readable install plan
   const installPlan = buildSkillInstallPlan({
@@ -913,6 +918,8 @@ async function main(): Promise<void> {
     bundledFallbackEnabled,
     zeroBundleReady: skillCacheStatus.zeroBundleReady,
     projectSkillManifestPath,
+    vercelLinked,
+    hasEnvLocal,
   });
 
   try {

@@ -730,6 +730,90 @@ metadata:
     const cache = JSON.parse(readFileSync(cachePath, "utf-8"));
     expect(cache.installedSkills).toEqual([]);
   });
+
+  test("install plan includes vercel-link action when .vercel dir is absent", async () => {
+    const projectDir = join(tempDir, "no-vercel-link");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    const planPath = join(projectDir, ".skills", "install-plan.json");
+    expect(existsSync(planPath)).toBe(true);
+    const plan = JSON.parse(readFileSync(planPath, "utf-8"));
+    expect(plan.vercelLinked).toBe(false);
+    const linkAction = plan.actions.find((a: { id: string }) => a.id === "vercel-link");
+    expect(linkAction).toBeDefined();
+    expect(linkAction.command).toBe("vercel link --yes");
+  });
+
+  test("install plan omits vercel-link action when .vercel dir exists", async () => {
+    const projectDir = join(tempDir, "vercel-linked");
+    mkdirSync(projectDir);
+    mkdirSync(join(projectDir, ".vercel"));
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    const planPath = join(projectDir, ".skills", "install-plan.json");
+    expect(existsSync(planPath)).toBe(true);
+    const plan = JSON.parse(readFileSync(planPath, "utf-8"));
+    expect(plan.vercelLinked).toBe(true);
+    const linkAction = plan.actions.find((a: { id: string }) => a.id === "vercel-link");
+    expect(linkAction).toBeUndefined();
+  });
+
+  test("install plan shows env-pull command when linked and no .env.local", async () => {
+    const projectDir = join(tempDir, "needs-env-pull");
+    mkdirSync(projectDir);
+    mkdirSync(join(projectDir, ".vercel"));
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    const planPath = join(projectDir, ".skills", "install-plan.json");
+    const plan = JSON.parse(readFileSync(planPath, "utf-8"));
+    expect(plan.hasEnvLocal).toBe(false);
+    const envPullAction = plan.actions.find((a: { id: string }) => a.id === "vercel-env-pull");
+    expect(envPullAction).toBeDefined();
+    expect(envPullAction.command).toBe("vercel env pull --yes");
+  });
+
+  test("install plan omits env-pull action when .env.local exists", async () => {
+    const projectDir = join(tempDir, "has-env-local");
+    mkdirSync(projectDir);
+    mkdirSync(join(projectDir, ".vercel"));
+    writeFileSync(join(projectDir, ".env.local"), "SECRET=foo");
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    const planPath = join(projectDir, ".skills", "install-plan.json");
+    const plan = JSON.parse(readFileSync(planPath, "utf-8"));
+    expect(plan.hasEnvLocal).toBe(true);
+    const envPullAction = plan.actions.find((a: { id: string }) => a.id === "vercel-env-pull");
+    expect(envPullAction).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------

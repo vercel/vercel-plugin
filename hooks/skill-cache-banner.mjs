@@ -1,5 +1,6 @@
 // hooks/src/skill-cache-banner.mts
 import { join } from "path";
+import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 function uniqueSorted(values) {
   return [
     ...new Set(
@@ -9,9 +10,13 @@ function uniqueSorted(values) {
     )
   ].sort();
 }
-function buildProjectSkillInstallCommand(missingSkills) {
-  const missing = uniqueSorted(missingSkills);
-  return missing.length === 0 ? null : `npx skills install ${missing.join(" ")} --dir .skills`;
+function buildProjectSkillInstallCommand(args) {
+  const missing = uniqueSorted(args.missingSkills);
+  return missing.length === 0 ? null : buildSkillsAddCommand(
+    args.skillsSource,
+    missing,
+    args.agent ?? "claude-code"
+  )?.printable ?? null;
 }
 function buildProjectSkillInstallQuestion(missingSkills) {
   const missing = uniqueSorted(missingSkills);
@@ -54,7 +59,9 @@ function buildSkillCacheBanner(input) {
   const installQuestion = buildProjectSkillInstallQuestion(
     input.missingSkills
   );
-  const installCmd = buildProjectSkillInstallCommand(input.missingSkills);
+  const installCmd = buildProjectSkillInstallCommand({
+    missingSkills: input.missingSkills
+  });
   const statusLine = input.bundledFallbackEnabled ? "Status: incomplete cache \u2014 bundled fallback can cover the gap during migration" : "Status: incomplete cache \u2014 missing skills will not inject until installed";
   return [
     "### Vercel skill cache",

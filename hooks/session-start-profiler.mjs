@@ -31,7 +31,7 @@ import {
 import {
   createRegistryClient
 } from "./registry-client.mjs";
-import { writeProjectSkillManifest } from "./project-skill-manifest.mjs";
+import { readProjectSkillState } from "./project-skill-manifest.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -503,16 +503,24 @@ function formatSessionStartProfilerCursorOutput(envVars, userMessages) {
   }));
 }
 async function autoInstallDetectedSkills(args) {
+  const emptyResult = {
+    installed: [],
+    reused: [],
+    missing: [...args.missingSkills],
+    command: null
+  };
   if (args.missingSkills.length === 0 || process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL !== "1") {
-    return { installed: [], reused: [], missing: [...args.missingSkills] };
+    return emptyResult;
   }
-  const client = createRegistryClient();
+  const client = createRegistryClient({
+    source: args.skillsSource
+  });
   let result;
   try {
-    result = await client.installSkills(
-      args.missingSkills,
-      join(args.projectRoot, ".skills")
-    );
+    result = await client.installSkills({
+      projectRoot: args.projectRoot,
+      skillNames: args.missingSkills
+    });
   } catch (error) {
     logCaughtError(
       args.logger ?? log,
@@ -523,7 +531,7 @@ async function autoInstallDetectedSkills(args) {
         missingSkillCount: args.missingSkills.length
       }
     );
-    return { installed: [], reused: [], missing: [...args.missingSkills] };
+    return emptyResult;
   }
   args.logger?.debug("session-start-profiler-auto-install", {
     installed: result.installed,
@@ -609,24 +617,19 @@ async function main() {
       bundledFallbackEnabled
     });
   }
-  let projectSkillManifestPath = null;
-  if (installedSkills.length > 0) {
-    try {
-      projectSkillManifestPath = writeProjectSkillManifest(join(projectRoot, ".skills"));
-    } catch (error) {
-      logCaughtError(log, "session-start-profiler:write-project-skill-manifest-failed", error, {
-        projectRoot,
-        installedSkillCount: installedSkills.length
-      });
-    }
-  }
+  const projectSkillState = readProjectSkillState(projectRoot);
+  const projectSkillManifestPath = projectSkillState.projectSkillStatePath;
+  const vercelLinked = existsSync(join(projectRoot, ".vercel"));
+  const hasEnvLocal = existsSync(join(projectRoot, ".env.local"));
   const installPlan = buildSkillInstallPlan({
     projectRoot,
     detections,
     installedSkills,
     bundledFallbackEnabled,
     zeroBundleReady: skillCacheStatus.zeroBundleReady,
-    projectSkillManifestPath
+    projectSkillManifestPath,
+    vercelLinked,
+    hasEnvLocal
   });
   try {
     writeInstallPlanFile(projectRoot, installPlan);

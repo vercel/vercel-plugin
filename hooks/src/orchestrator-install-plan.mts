@@ -7,6 +7,12 @@
  * palette in SessionStart output.
  */
 
+import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
+import {
+  buildVercelCliCommand,
+  type VercelSubcommand,
+} from "./vercel-cli-command.mjs";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -30,7 +36,7 @@ export interface SkillDetection {
 }
 
 export interface SkillInstallAction {
-  id: "install-missing" | "explain" | "activate-cache-only";
+  id: "install-missing" | "explain" | "activate-cache-only" | "vercel-link" | "vercel-env-pull" | "vercel-deploy";
   label: string;
   description: string;
   command: string | null;
@@ -47,6 +53,8 @@ export interface SkillInstallPlan {
   bundledFallbackEnabled: boolean;
   zeroBundleReady: boolean;
   projectSkillManifestPath: string | null;
+  vercelLinked: boolean;
+  hasEnvLocal: boolean;
   detections: SkillDetection[];
   actions: SkillInstallAction[];
 }
@@ -54,6 +62,8 @@ export interface SkillInstallPlan {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+export { buildVercelCliCommand, vercelSubcommands } from "./vercel-cli-command.mjs";
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values.filter((value) => value.trim() !== ""))].sort();
@@ -76,6 +86,10 @@ export function buildSkillInstallPlan(args: {
   bundledFallbackEnabled: boolean;
   zeroBundleReady: boolean;
   projectSkillManifestPath?: string | null;
+  skillsSource?: string;
+  skillsAgent?: string;
+  vercelLinked?: boolean;
+  hasEnvLocal?: boolean;
   now?: () => Date;
 }): SkillInstallPlan {
   const likelySkills = uniqueSorted(
@@ -88,9 +102,79 @@ export function buildSkillInstallPlan(args: {
   );
 
   const installCommand =
-    missingSkills.length === 0
-      ? null
-      : `npx skills install ${missingSkills.join(" ")} --dir .skills`;
+    buildSkillsAddCommand(
+      args.skillsSource,
+      missingSkills,
+      args.skillsAgent ?? "claude-code",
+    )?.printable ?? null;
+
+  const vercelLinked = args.vercelLinked ?? false;
+  const hasEnvLocal = args.hasEnvLocal ?? false;
+
+  const actions: SkillInstallAction[] = [
+    {
+      id: "install-missing",
+      label: "Install detected skills",
+      description:
+        missingSkills.length === 0
+          ? "All detected skills are already cached."
+          : `Install ${missingSkills.length} missing skill${missingSkills.length === 1 ? "" : "s"} into .skills/.`,
+      command: installCommand,
+      default: !args.zeroBundleReady,
+    },
+    {
+      id: "activate-cache-only",
+      label: "Use cache-only mode",
+      description: args.zeroBundleReady
+        ? "All detected skills are cached. This session can disable bundled fallback."
+        : "Cache-only mode is blocked until the missing skills are installed.",
+      command: args.zeroBundleReady
+        ? "export VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK=1"
+        : null,
+      default: args.zeroBundleReady,
+    },
+    {
+      id: "explain",
+      label: "Explain detections",
+      description:
+        "Open the persisted install plan with full detection reasons.",
+      command: "cat .skills/install-plan.json",
+    },
+  ];
+
+  // Vercel CLI delegation actions — surfaced when the project needs them.
+  if (!vercelLinked) {
+    actions.push({
+      id: "vercel-link",
+      label: "Link Vercel project",
+      description: "No .vercel/ directory found. Link this project to a Vercel project.",
+      command: buildVercelCliCommand("link").printable,
+    });
+  }
+
+  if (!hasEnvLocal) {
+    actions.push({
+      id: "vercel-env-pull",
+      label: "Pull environment variables",
+      description: vercelLinked
+        ? "Pull .env.local from the linked Vercel project."
+        : "Link the project first, then pull .env.local.",
+      command: vercelLinked
+        ? buildVercelCliCommand("env-pull").printable
+        : null,
+    });
+  }
+
+  actions.push({
+    id: "vercel-deploy",
+    label: "Deploy to Vercel",
+    description: vercelLinked
+      ? "Deploy the current project to Vercel."
+      : "Link the project first, then deploy.",
+    command: vercelLinked
+      ? buildVercelCliCommand("deploy").printable
+      : null,
+  });
 
   return {
     schemaVersion: 1,
@@ -102,39 +186,12 @@ export function buildSkillInstallPlan(args: {
     bundledFallbackEnabled: args.bundledFallbackEnabled,
     zeroBundleReady: args.zeroBundleReady,
     projectSkillManifestPath: args.projectSkillManifestPath ?? null,
+    vercelLinked,
+    hasEnvLocal,
     detections: [...args.detections].sort((a, b) =>
       a.skill.localeCompare(b.skill),
     ),
-    actions: [
-      {
-        id: "install-missing",
-        label: "Install detected skills",
-        description:
-          missingSkills.length === 0
-            ? "All detected skills are already cached."
-            : `Install ${missingSkills.length} missing skill${missingSkills.length === 1 ? "" : "s"} into .skills/.`,
-        command: installCommand,
-        default: !args.zeroBundleReady,
-      },
-      {
-        id: "activate-cache-only",
-        label: "Use cache-only mode",
-        description: args.zeroBundleReady
-          ? "All detected skills are cached. This session can disable bundled fallback."
-          : "Cache-only mode is blocked until the missing skills are installed.",
-        command: args.zeroBundleReady
-          ? "export VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK=1"
-          : null,
-        default: args.zeroBundleReady,
-      },
-      {
-        id: "explain",
-        label: "Explain detections",
-        description:
-          "Open the persisted install plan with full detection reasons.",
-        command: "cat .skills/install-plan.json",
-      },
-    ],
+    actions,
   };
 }
 
@@ -179,6 +236,27 @@ export function formatSkillInstallPalette(
   }
 
   lines.push("- [3] Explain: cat .skills/install-plan.json");
+
+  const vercelLinkAction = plan.actions.find(
+    (action) => action.id === "vercel-link",
+  );
+  if (vercelLinkAction?.command) {
+    lines.push(`- [4] Link project: ${vercelLinkAction.command}`);
+  }
+
+  const envPullAction = plan.actions.find(
+    (action) => action.id === "vercel-env-pull",
+  );
+  if (envPullAction?.command) {
+    lines.push(`- [5] Pull env: ${envPullAction.command}`);
+  }
+
+  const deployAction = plan.actions.find(
+    (action) => action.id === "vercel-deploy",
+  );
+  if (deployAction?.command) {
+    lines.push(`- [6] Deploy: ${deployAction.command}`);
+  }
 
   if (plan.detections.length > 0) {
     lines.push("", "Detection reasons:");

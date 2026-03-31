@@ -171,6 +171,135 @@ describe("buildSkillInstallPlan", () => {
 
     expect(plan.schemaVersion).toBe(1);
   });
+
+  test("vercel-link action appears when project is not linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: false,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-link");
+    expect(action).toBeDefined();
+    expect(action!.command).toBe("vercel link --yes");
+    expect(plan.vercelLinked).toBe(false);
+  });
+
+  test("vercel-link action absent when project is linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: true,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-link");
+    expect(action).toBeUndefined();
+    expect(plan.vercelLinked).toBe(true);
+  });
+
+  test("vercel-env-pull action with command when linked and no .env.local", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: true,
+      hasEnvLocal: false,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-env-pull");
+    expect(action).toBeDefined();
+    expect(action!.command).toBe("vercel env pull --yes");
+  });
+
+  test("vercel-env-pull action has null command when not linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: false,
+      hasEnvLocal: false,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-env-pull");
+    expect(action).toBeDefined();
+    expect(action!.command).toBeNull();
+  });
+
+  test("vercel-env-pull action absent when .env.local exists", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: true,
+      hasEnvLocal: true,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-env-pull");
+    expect(action).toBeUndefined();
+  });
+
+  test("vercel-deploy action with command when linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: true,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-deploy");
+    expect(action).toBeDefined();
+    expect(action!.command).toBe("vercel deploy");
+  });
+
+  test("vercel-deploy action has null command when not linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: false,
+      now: FIXED_NOW,
+    });
+
+    const action = plan.actions.find((a) => a.id === "vercel-deploy");
+    expect(action).toBeDefined();
+    expect(action!.command).toBeNull();
+  });
+
+  test("vercelLinked and hasEnvLocal default to false when omitted", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [],
+      installedSkills: [],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: false,
+      now: FIXED_NOW,
+    });
+
+    expect(plan.vercelLinked).toBe(false);
+    expect(plan.hasEnvLocal).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -289,7 +418,7 @@ describe("formatSkillInstallPalette", () => {
     });
 
     const palette = formatSkillInstallPalette(plan)!;
-    expect(palette).toContain("[1] Install now: npx skills install ai-sdk --dir .skills");
+    expect(palette).toContain("[1] Install now: npx skills add vercel/vercel-skills --skill ai-sdk --agent claude-code -y --copy");
   });
 
   test("omits install line when all skills cached", () => {
@@ -346,5 +475,73 @@ describe("formatSkillInstallPalette", () => {
     const palette = formatSkillInstallPalette(plan)!;
     expect(palette).toContain("Detection reasons:");
     expect(palette).toContain("nextjs: dependency:nextjs");
+  });
+
+  test("shows vercel link command when not linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: false,
+      now: FIXED_NOW,
+    });
+
+    const palette = formatSkillInstallPalette(plan)!;
+    expect(palette).toContain("[4] Link project: vercel link --yes");
+  });
+
+  test("shows env pull command when linked but no .env.local", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: true,
+      hasEnvLocal: false,
+      now: FIXED_NOW,
+    });
+
+    const palette = formatSkillInstallPalette(plan)!;
+    expect(palette).toContain("[5] Pull env: vercel env pull --yes");
+    // Should not show link since already linked
+    expect(palette).not.toContain("[4] Link project");
+  });
+
+  test("shows deploy command when linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: true,
+      now: FIXED_NOW,
+    });
+
+    const palette = formatSkillInstallPalette(plan)!;
+    expect(palette).toContain("[6] Deploy: vercel deploy");
+  });
+
+  test("omits deploy and env-pull commands when not linked", () => {
+    const plan = buildSkillInstallPlan({
+      projectRoot: "/repo",
+      detections: [makeDetection("nextjs")],
+      installedSkills: ["nextjs"],
+      bundledFallbackEnabled: true,
+      zeroBundleReady: true,
+      vercelLinked: false,
+      hasEnvLocal: false,
+      now: FIXED_NOW,
+    });
+
+    const palette = formatSkillInstallPalette(plan)!;
+    // Link should be shown
+    expect(palette).toContain("[4] Link project: vercel link --yes");
+    // Env pull / deploy have null commands so should not appear
+    expect(palette).not.toContain("[5] Pull env");
+    expect(palette).not.toContain("[6] Deploy");
   });
 });

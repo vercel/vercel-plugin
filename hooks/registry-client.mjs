@@ -1,108 +1,69 @@
 // hooks/src/registry-client.mts
-import { mkdirSync, readFileSync, writeFileSync } from "fs";
-import { homedir } from "os";
-import { join, resolve, sep } from "path";
-var DEFAULT_CACHE_TTL_MS = 15 * 60 * 1e3;
-function safeReadJson(path) {
+import { existsSync, readdirSync } from "fs";
+import { execFile } from "child_process";
+import { join } from "path";
+import { promisify } from "util";
+import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
+var execFileAsync = promisify(execFile);
+function listProjectCachedSkills(projectRoot) {
+  const skillsRoot = join(projectRoot, ".skills");
   try {
-    return JSON.parse(readFileSync(path, "utf-8"));
+    return readdirSync(skillsRoot, { withFileTypes: true }).filter(
+      (entry) => entry.isDirectory() && existsSync(join(skillsRoot, entry.name, "SKILL.md"))
+    ).map((entry) => entry.name).sort();
   } catch {
-    return null;
+    return [];
   }
-}
-function safeReadText(path) {
-  try {
-    return readFileSync(path, "utf-8");
-  } catch {
-    return null;
-  }
-}
-function isSafeSkillDestination(destinationRoot, skillName) {
-  if (!skillName || skillName === "." || skillName === "..") {
-    return false;
-  }
-  if (skillName.includes("\0")) {
-    return false;
-  }
-  const root = resolve(destinationRoot);
-  const target = resolve(root, skillName);
-  return target.startsWith(`${root}${sep}`);
 }
 function createRegistryClient(options = {}) {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const manifestUrl = options.registryManifestUrl ?? process.env.VERCEL_PLUGIN_SKILL_REGISTRY_URL ?? "";
-  const cacheDir = resolve(
-    options.cacheDir ?? join(homedir(), ".vercel-plugin", "registry")
-  );
-  const manifestPath = join(cacheDir, "manifest.json");
-  const ttlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-  const now = options.now ?? (() => Date.now());
-  async function loadManifest(mode = "prefer-cache") {
-    const cached = safeReadJson(manifestPath);
-    const cachedAt = cached ? Date.parse(cached.generatedAt) : Number.NaN;
-    const cachedFresh = !!cached && Number.isFinite(cachedAt) && now() - cachedAt <= ttlMs;
-    if (mode !== "refresh" && cachedFresh) {
-      return cached;
-    }
-    if (!manifestUrl) {
-      if (cached) return cached;
-      throw new Error(
-        "Missing VERCEL_PLUGIN_SKILL_REGISTRY_URL and no cached registry manifest is available."
+  const execFileImpl = options.execFileImpl ?? execFileAsync;
+  const timeoutMs = options.timeoutMs ?? 1e4;
+  const agent = options.agent ?? "claude-code";
+  const source = options.source;
+  return {
+    async installSkills(args) {
+      const before = new Set(listProjectCachedSkills(args.projectRoot));
+      const command = buildSkillsAddCommand(
+        source,
+        args.skillNames,
+        agent
       );
+      if (!command) {
+        const requested2 = [
+          ...new Set(args.skillNames.map((s) => s.trim()).filter(Boolean))
+        ].sort();
+        return {
+          installed: [],
+          reused: [],
+          missing: requested2,
+          command: null
+        };
+      }
+      try {
+        await execFileImpl(command.file, command.args, {
+          cwd: args.projectRoot,
+          timeout: timeoutMs,
+          env: { ...process.env, CI: "1" },
+          maxBuffer: 1024 * 1024
+        });
+      } catch {
+      }
+      const after = new Set(listProjectCachedSkills(args.projectRoot));
+      const requested = [
+        ...new Set(args.skillNames.map((s) => s.trim()).filter(Boolean))
+      ].sort();
+      return {
+        installed: requested.filter(
+          (skill) => after.has(skill) && !before.has(skill)
+        ),
+        reused: requested.filter(
+          (skill) => after.has(skill) && before.has(skill)
+        ),
+        missing: requested.filter((skill) => !after.has(skill)),
+        command: command.printable
+      };
     }
-    try {
-      const response = await fetchImpl(manifestUrl);
-      if (!response.ok) {
-        throw new Error(`registry-manifest:${response.status}`);
-      }
-      const manifest = await response.json();
-      mkdirSync(cacheDir, { recursive: true });
-      writeFileSync(
-        manifestPath,
-        JSON.stringify(manifest, null, 2) + "\n",
-        "utf-8"
-      );
-      return manifest;
-    } catch (error) {
-      if (cached) return cached;
-      throw error;
-    }
-  }
-  async function installSkills(skillNames, destinationDir) {
-    const manifest = await loadManifest("prefer-cache");
-    const installed = [];
-    const reused = [];
-    const missing = [];
-    for (const skillName of [...new Set(skillNames)].sort()) {
-      if (!isSafeSkillDestination(destinationDir, skillName)) {
-        missing.push(skillName);
-        continue;
-      }
-      const record = manifest.skills[skillName];
-      if (!record?.downloadUrl) {
-        missing.push(skillName);
-        continue;
-      }
-      const response = await fetchImpl(record.downloadUrl);
-      if (!response.ok) {
-        missing.push(skillName);
-        continue;
-      }
-      const markdown = await response.text();
-      const skillDir = join(destinationDir, skillName);
-      const skillFile = join(skillDir, "SKILL.md");
-      mkdirSync(skillDir, { recursive: true });
-      const existing = safeReadText(skillFile);
-      if (existing === markdown) {
-        reused.push(skillName);
-        continue;
-      }
-      writeFileSync(skillFile, markdown, "utf-8");
-      installed.push(skillName);
-    }
-    return { installed, reused, missing };
-  }
-  return { loadManifest, installSkills };
+  };
 }
 export {
   createRegistryClient

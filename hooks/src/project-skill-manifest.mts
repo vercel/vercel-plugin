@@ -1,188 +1,116 @@
 /**
- * Runtime-safe per-project skill manifest writer.
+ * CLI-produced project skill state reader.
  *
- * Builds a version-2 manifest from `.skills/<slug>/SKILL.md` cache entries
- * using the same `buildSkillMap()` / `validateSkillMap()` pipeline that the
- * build-time manifest uses — without importing build-time scripts.
+ * Instead of building a plugin-owned `.skills/manifest.json` from frontmatter
+ * scanning, this module reads whatever the `npx skills` CLI has written into
+ * the project — `skills-lock.json`, `.skills/manifest.json`, or simply the
+ * set of `.skills/<slug>/SKILL.md` entries on disk.
  *
- * The output is written to `.skills/manifest.json` and consumed by
- * downstream hooks (PreToolUse, UserPromptSubmit) when the session is in
- * cache-only mode.
+ * Downstream consumers (install plan, env vars, profile cache) receive a
+ * stable `projectSkillStatePath` that points to the best available CLI
+ * artifact, and a list of skill slugs the CLI has installed.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import {
-  buildSkillMap,
-  validateSkillMap,
-  type SkillConfig,
-} from "./skill-map-frontmatter.mjs";
-import {
-  globToRegex,
-  importPatternToRegex,
-  type ManifestSkill,
-} from "./patterns.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ProjectManifestSkill extends ManifestSkill {
-  bodyPath: string;
-}
-
-export interface ProjectSkillManifest {
-  version: 2;
-  generatedAt: string;
-  skills: Record<string, ProjectManifestSkill>;
-}
-
-export interface ProjectSkillManifestBuildResult {
-  manifest: ProjectSkillManifest | null;
-  warnings: string[];
-  errors: string[];
+export interface ProjectSkillState {
+  /** Path to the best CLI-produced artifact found, or null if none. */
+  projectSkillStatePath: string | null;
+  /** Which artifact was found: lockfile, manifest, directory scan, or none. */
+  source: "skills-lock.json" | "manifest.json" | "directory" | "none";
+  /** Skill slugs discovered from the project `.skills/` directory. */
+  installedSlugs: string[];
+  /** The `.skills/` directory that was scanned. */
+  skillsDir: string;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function toBodyPath(skillsDir: string, slug: string): string {
-  return resolve(skillsDir, slug, "SKILL.md").replaceAll("\\", "/");
-}
-
-function compileRegexSources(config: SkillConfig): {
-  pathPatterns: string[];
-  pathRegexSources: string[];
-  bashPatterns: string[];
-  bashRegexSources: string[];
-  importPatterns: string[];
-  importRegexSources: Array<{ source: string; flags: string }>;
-} {
-  const pathPatterns: string[] = [];
-  const pathRegexSources: string[] = [];
-  for (const pattern of config.pathPatterns ?? []) {
-    try {
-      pathPatterns.push(pattern);
-      pathRegexSources.push(globToRegex(pattern).source);
-    } catch {
-      // Validation already surfaces bad patterns.
-    }
+/**
+ * List skill slugs present in a `.skills/` directory by looking for
+ * subdirectories that contain a `SKILL.md` file.
+ */
+function listSkillSlugs(skillsDir: string): string[] {
+  try {
+    return readdirSync(skillsDir, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          existsSync(join(skillsDir, entry.name, "SKILL.md")),
+      )
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
   }
-
-  const bashPatterns: string[] = [];
-  const bashRegexSources: string[] = [];
-  for (const pattern of config.bashPatterns ?? []) {
-    try {
-      new RegExp(pattern);
-      bashPatterns.push(pattern);
-      bashRegexSources.push(pattern);
-    } catch {
-      // Validation already surfaces bad patterns.
-    }
-  }
-
-  const importPatterns: string[] = [];
-  const importRegexSources: Array<{ source: string; flags: string }> = [];
-  for (const pattern of config.importPatterns ?? []) {
-    try {
-      const regex = importPatternToRegex(pattern);
-      importPatterns.push(pattern);
-      importRegexSources.push({ source: regex.source, flags: regex.flags });
-    } catch {
-      // Validation already surfaces bad patterns.
-    }
-  }
-
-  return {
-    pathPatterns,
-    pathRegexSources,
-    bashPatterns,
-    bashRegexSources,
-    importPatterns,
-    importRegexSources,
-  };
 }
 
 // ---------------------------------------------------------------------------
-// Build
+// Reader
 // ---------------------------------------------------------------------------
 
-export function buildProjectSkillManifest(
-  skillsDir: string,
-  now: () => Date = () => new Date(),
-): ProjectSkillManifestBuildResult {
-  const built = buildSkillMap(skillsDir);
-  const validation = validateSkillMap(built);
+/**
+ * Read CLI-produced project skill state from the `.skills/` directory.
+ *
+ * Resolution order (first match wins):
+ * 1. `<projectRoot>/skills-lock.json` — written by `npx skills add`
+ * 2. `<projectRoot>/.skills/manifest.json` — may be written by CLI or left
+ *    from a previous plugin version
+ * 3. `<projectRoot>/.skills/` directory scan — always available if skills
+ *    have been installed
+ *
+ * The returned `projectSkillStatePath` can be stored in env vars and passed
+ * to downstream hooks. The `installedSlugs` list is derived from the
+ * directory scan regardless of which artifact was found.
+ */
+export function readProjectSkillState(projectRoot: string): ProjectSkillState {
+  const skillsDir = resolve(projectRoot, ".skills");
+  const installedSlugs = listSkillSlugs(skillsDir);
 
-  const warnings = [
-    ...built.warnings,
-    ...(validation.ok ? (validation.warnings ?? []) : []),
-  ];
-
-  if (!validation.ok) {
+  // 1. skills-lock.json (canonical CLI output)
+  const lockfilePath = join(projectRoot, "skills-lock.json");
+  if (existsSync(lockfilePath)) {
     return {
-      manifest: null,
-      warnings,
-      errors: validation.errors,
+      projectSkillStatePath: lockfilePath,
+      source: "skills-lock.json",
+      installedSlugs,
+      skillsDir,
     };
   }
 
-  const skills: Record<string, ProjectManifestSkill> = {};
-
-  for (const [slug, config] of Object.entries(
-    validation.normalizedSkillMap.skills,
-  )) {
-    const compiled = compileRegexSources(config);
-
-    skills[slug] = {
-      priority: config.priority,
-      summary: config.summary,
-      docs: config.docs,
-      pathPatterns: compiled.pathPatterns,
-      bashPatterns: compiled.bashPatterns,
-      importPatterns: compiled.importPatterns,
-      bodyPath: toBodyPath(skillsDir, slug),
-      pathRegexSources: compiled.pathRegexSources,
-      bashRegexSources: compiled.bashRegexSources,
-      importRegexSources: compiled.importRegexSources,
-      ...(config.sitemap ? { sitemap: config.sitemap } : {}),
-      ...(config.validate?.length ? { validate: config.validate } : {}),
-      ...(config.chainTo?.length ? { chainTo: config.chainTo } : {}),
-      ...(config.promptSignals ? { promptSignals: config.promptSignals } : {}),
-      ...(config.retrieval ? { retrieval: config.retrieval } : {}),
-    };
-  }
-
-  return {
-    manifest: {
-      version: 2,
-      generatedAt: now().toISOString(),
-      skills,
-    },
-    warnings,
-    errors: [],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Write
-// ---------------------------------------------------------------------------
-
-export function writeProjectSkillManifest(
-  skillsDir: string,
-  now: () => Date = () => new Date(),
-): string | null {
-  const result = buildProjectSkillManifest(skillsDir, now);
-  if (!result.manifest) {
-    return null;
-  }
-  mkdirSync(skillsDir, { recursive: true });
+  // 2. .skills/manifest.json (CLI-written or legacy)
   const manifestPath = join(skillsDir, "manifest.json");
-  writeFileSync(
-    manifestPath,
-    JSON.stringify(result.manifest, null, 2) + "\n",
-    "utf-8",
-  );
-  return manifestPath;
+  if (existsSync(manifestPath)) {
+    return {
+      projectSkillStatePath: manifestPath,
+      source: "manifest.json",
+      installedSlugs,
+      skillsDir,
+    };
+  }
+
+  // 3. Directory scan only — skills exist but no artifact file
+  if (installedSlugs.length > 0) {
+    return {
+      projectSkillStatePath: skillsDir,
+      source: "directory",
+      installedSlugs,
+      skillsDir,
+    };
+  }
+
+  // 4. Nothing found
+  return {
+    projectSkillStatePath: null,
+    source: "none",
+    installedSlugs: [],
+    skillsDir,
+  };
 }

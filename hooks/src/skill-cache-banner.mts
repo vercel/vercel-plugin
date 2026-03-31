@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 
 export interface SkillCacheStatus {
   likelySkills: string[];
@@ -24,13 +25,19 @@ function uniqueSorted(values: string[] | undefined): string[] {
   ].sort();
 }
 
-export function buildProjectSkillInstallCommand(
-  missingSkills: string[],
-): string | null {
-  const missing = uniqueSorted(missingSkills);
+export function buildProjectSkillInstallCommand(args: {
+  missingSkills: string[];
+  skillsSource?: string;
+  agent?: string;
+}): string | null {
+  const missing = uniqueSorted(args.missingSkills);
   return missing.length === 0
     ? null
-    : `npx skills install ${missing.join(" ")} --dir .skills`;
+    : buildSkillsAddCommand(
+        args.skillsSource,
+        missing,
+        args.agent ?? "claude-code",
+      )?.printable ?? null;
 }
 
 export function buildProjectSkillInstallQuestion(
@@ -100,7 +107,9 @@ export function buildSkillCacheBanner(
   const installQuestion = buildProjectSkillInstallQuestion(
     input.missingSkills,
   );
-  const installCmd = buildProjectSkillInstallCommand(input.missingSkills);
+  const installCmd = buildProjectSkillInstallCommand({
+    missingSkills: input.missingSkills,
+  });
 
   const statusLine = input.bundledFallbackEnabled
     ? "Status: incomplete cache — bundled fallback can cover the gap during migration"

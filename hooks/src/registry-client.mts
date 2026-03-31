@@ -1,94 +1,77 @@
 /**
- * Registry Client — fetch and cache skill manifests from the skills.sh registry.
+ * Registry Client — delegate skill installation to `npx skills add`.
  *
- * Loads a cached manifest when fresh and falls back to stale cache when
- * refresh fails. installSkills() downloads SKILL.md files into a destination
- * cache directory without adding new runtime dependencies.
+ * Instead of fetching SKILL.md files over HTTP, this module shells out
+ * to the real `npx skills` CLI. Install results are inferred from
+ * filesystem state (`.skills/<slug>/SKILL.md`) before and after execution.
  *
- * No test performs a real network call — registry fetches are injectable
- * and mockable via the `fetchImpl` option.
+ * No test performs a real subprocess call — the execFile implementation
+ * is injectable and mockable via the `execFileImpl` option.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, resolve, sep } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
+
+const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface RegistrySkillRecord {
-  downloadUrl: string;
-  version?: string;
-  summary?: string;
-}
-
-export interface RegistryManifest {
-  schemaVersion: 1;
-  generatedAt: string;
-  skills: Record<string, RegistrySkillRecord>;
+export interface InstallSkillsArgs {
+  projectRoot: string;
+  skillNames: string[];
 }
 
 export interface InstallSkillsResult {
   installed: string[];
   reused: string[];
   missing: string[];
+  command: string | null;
 }
 
 export interface RegistryClientOptions {
-  registryManifestUrl?: string;
-  cacheDir?: string;
-  cacheTtlMs?: number;
-  /** Injectable fetch for testing — no live registry access in tests. */
-  fetchImpl?: typeof fetch;
-  now?: () => number;
+  source?: string;
+  agent?: string;
+  timeoutMs?: number;
+  /** Injectable execFile for testing — no real CLI execution in tests. */
+  execFileImpl?: (
+    file: string,
+    args: string[],
+    options: {
+      cwd?: string;
+      timeout?: number;
+      env?: NodeJS.ProcessEnv;
+      maxBuffer?: number;
+    },
+  ) => Promise<{ stdout: string; stderr: string }>;
 }
 
 export interface RegistryClient {
-  loadManifest(mode?: "prefer-cache" | "refresh"): Promise<RegistryManifest>;
-  installSkills(
-    skillNames: string[],
-    destinationDir: string,
-  ): Promise<InstallSkillsResult>;
+  installSkills(args: InstallSkillsArgs): Promise<InstallSkillsResult>;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DEFAULT_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
-
-function safeReadJson<T>(path: string): T | null {
+function listProjectCachedSkills(projectRoot: string): string[] {
+  const skillsRoot = join(projectRoot, ".skills");
   try {
-    return JSON.parse(readFileSync(path, "utf-8")) as T;
+    return readdirSync(skillsRoot, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          existsSync(join(skillsRoot, entry.name, "SKILL.md")),
+      )
+      .map((entry) => entry.name)
+      .sort();
   } catch {
-    return null;
+    return [];
   }
-}
-
-function safeReadText(path: string): string | null {
-  try {
-    return readFileSync(path, "utf-8");
-  } catch {
-    return null;
-  }
-}
-
-function isSafeSkillDestination(
-  destinationRoot: string,
-  skillName: string,
-): boolean {
-  if (!skillName || skillName === "." || skillName === "..") {
-    return false;
-  }
-
-  if (skillName.includes("\0")) {
-    return false;
-  }
-
-  const root = resolve(destinationRoot);
-  const target = resolve(root, skillName);
-  return target.startsWith(`${root}${sep}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -98,107 +81,60 @@ function isSafeSkillDestination(
 export function createRegistryClient(
   options: RegistryClientOptions = {},
 ): RegistryClient {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const manifestUrl =
-    options.registryManifestUrl ??
-    process.env.VERCEL_PLUGIN_SKILL_REGISTRY_URL ??
-    "";
-  const cacheDir = resolve(
-    options.cacheDir ?? join(homedir(), ".vercel-plugin", "registry"),
-  );
-  const manifestPath = join(cacheDir, "manifest.json");
-  const ttlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-  const now = options.now ?? (() => Date.now());
+  const execFileImpl = options.execFileImpl ?? execFileAsync;
+  const timeoutMs = options.timeoutMs ?? 10_000;
+  const agent = options.agent ?? "claude-code";
+  const source = options.source;
 
-  async function loadManifest(
-    mode: "prefer-cache" | "refresh" = "prefer-cache",
-  ): Promise<RegistryManifest> {
-    const cached = safeReadJson<RegistryManifest>(manifestPath);
-    const cachedAt = cached ? Date.parse(cached.generatedAt) : Number.NaN;
-    const cachedFresh =
-      !!cached &&
-      Number.isFinite(cachedAt) &&
-      now() - cachedAt <= ttlMs;
-
-    if (mode !== "refresh" && cachedFresh) {
-      return cached as RegistryManifest;
-    }
-
-    // No URL configured — return stale cache or error
-    if (!manifestUrl) {
-      if (cached) return cached;
-      throw new Error(
-        "Missing VERCEL_PLUGIN_SKILL_REGISTRY_URL and no cached registry manifest is available.",
-      );
-    }
-
-    try {
-      const response = await fetchImpl(manifestUrl);
-      if (!response.ok) {
-        throw new Error(`registry-manifest:${response.status}`);
-      }
-      const manifest = (await response.json()) as RegistryManifest;
-
-      mkdirSync(cacheDir, { recursive: true });
-      writeFileSync(
-        manifestPath,
-        JSON.stringify(manifest, null, 2) + "\n",
-        "utf-8",
+  return {
+    async installSkills(
+      args: InstallSkillsArgs,
+    ): Promise<InstallSkillsResult> {
+      const before = new Set(listProjectCachedSkills(args.projectRoot));
+      const command = buildSkillsAddCommand(
+        source,
+        args.skillNames,
+        agent,
       );
 
-      return manifest;
-    } catch (error) {
-      // Graceful offline fallback — use stale cache
-      if (cached) return cached;
-      throw error;
-    }
-  }
-
-  async function installSkills(
-    skillNames: string[],
-    destinationDir: string,
-  ): Promise<InstallSkillsResult> {
-    const manifest = await loadManifest("prefer-cache");
-    const installed: string[] = [];
-    const reused: string[] = [];
-    const missing: string[] = [];
-
-    for (const skillName of [...new Set(skillNames)].sort()) {
-      if (!isSafeSkillDestination(destinationDir, skillName)) {
-        missing.push(skillName);
-        continue;
+      if (!command) {
+        const requested = [
+          ...new Set(args.skillNames.map((s) => s.trim()).filter(Boolean)),
+        ].sort();
+        return {
+          installed: [],
+          reused: [],
+          missing: requested,
+          command: null,
+        };
       }
 
-      const record = manifest.skills[skillName];
-      if (!record?.downloadUrl) {
-        missing.push(skillName);
-        continue;
+      try {
+        await execFileImpl(command.file, command.args, {
+          cwd: args.projectRoot,
+          timeout: timeoutMs,
+          env: { ...process.env, CI: "1" },
+          maxBuffer: 1024 * 1024,
+        });
+      } catch {
+        // Infer result from post-run filesystem state instead of parsing CLI text.
       }
 
-      const response = await fetchImpl(record.downloadUrl);
-      if (!response.ok) {
-        missing.push(skillName);
-        continue;
-      }
+      const after = new Set(listProjectCachedSkills(args.projectRoot));
+      const requested = [
+        ...new Set(args.skillNames.map((s) => s.trim()).filter(Boolean)),
+      ].sort();
 
-      const markdown = await response.text();
-      const skillDir = join(destinationDir, skillName);
-      const skillFile = join(skillDir, "SKILL.md");
-
-      mkdirSync(skillDir, { recursive: true });
-
-      const existing = safeReadText(skillFile);
-      if (existing === markdown) {
-        reused.push(skillName);
-        continue;
-      }
-
-      writeFileSync(skillFile, markdown, "utf-8");
-      installed.push(skillName);
-    }
-
-    return { installed, reused, missing };
-  }
-
-  return { loadManifest, installSkills };
+      return {
+        installed: requested.filter(
+          (skill) => after.has(skill) && !before.has(skill),
+        ),
+        reused: requested.filter(
+          (skill) => after.has(skill) && before.has(skill),
+        ),
+        missing: requested.filter((skill) => !after.has(skill)),
+        command: command.printable,
+      };
+    },
+  };
 }

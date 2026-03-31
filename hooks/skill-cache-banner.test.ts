@@ -79,19 +79,25 @@ describe("buildSkillCacheStatus", () => {
 
 describe("buildProjectSkillInstallCommand", () => {
   test("returns null for no missing skills", () => {
-    expect(buildProjectSkillInstallCommand([])).toBeNull();
+    expect(buildProjectSkillInstallCommand({ missingSkills: [] })).toBeNull();
   });
 
-  test("returns sorted install command for missing skills", () => {
-    expect(buildProjectSkillInstallCommand(["shadcn", "ai-sdk"])).toBe(
-      "npx skills install ai-sdk shadcn --dir .skills",
+  test("returns sorted npx skills add command for missing skills", () => {
+    expect(buildProjectSkillInstallCommand({ missingSkills: ["shadcn", "ai-sdk"] })).toBe(
+      "npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy",
     );
   });
 
   test("deduplicates missing skills", () => {
     expect(
-      buildProjectSkillInstallCommand(["ai-sdk", "ai-sdk", "shadcn"]),
-    ).toBe("npx skills install ai-sdk shadcn --dir .skills");
+      buildProjectSkillInstallCommand({ missingSkills: ["ai-sdk", "ai-sdk", "shadcn"] }),
+    ).toBe("npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy");
+  });
+
+  test("uses custom source when provided", () => {
+    expect(
+      buildProjectSkillInstallCommand({ missingSkills: ["ai-sdk"], skillsSource: "my-org/skills" }),
+    ).toBe("npx skills add my-org/skills --skill ai-sdk --agent claude-code -y --copy");
   });
 });
 
@@ -158,7 +164,7 @@ describe("buildSkillCacheBanner", () => {
       'Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into .skills for this project?"',
     );
     expect(banner).toContain(
-      "Install: `npx skills install ai-sdk shadcn --dir .skills`",
+      "Install: `npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy`",
     );
   });
 
@@ -198,7 +204,7 @@ describe("buildSkillCacheBanner", () => {
         "- Missing: ai-sdk, shadcn",
         "- Project cache: /work/app/.skills",
         '- Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into .skills for this project?"',
-        "- Install: `npx skills install ai-sdk shadcn --dir .skills`",
+        "- Install: `npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy`",
       ].join("\n"),
     );
   });

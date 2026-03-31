@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-03-31T14:58:55.722Z",
+  "createdAt": "2026-03-31T17:50:35.723Z",
   "projectRoot": "/Users/johnlindquist/dev/vercel-plugin",
   "likelySkills": [
     "deployments-cicd",
@@ -24,6 +24,8 @@
   "bundledFallbackEnabled": true,
   "zeroBundleReady": false,
   "projectSkillManifestPath": null,
+  "vercelLinked": true,
+  "hasEnvLocal": true,
   "detections": [
     {
       "skill": "deployments-cicd",
@@ -101,7 +103,7 @@
       "id": "install-missing",
       "label": "Install detected skills",
       "description": "Install 7 missing skills into .skills/.",
-      "command": "npx skills install deployments-cicd env-vars observability vercel-api vercel-cli vercel-functions vercel-sandbox --dir .skills",
+      "command": "npx skills add vercel/vercel-skills --skill deployments-cicd --skill env-vars --skill observability --skill vercel-api --skill vercel-cli --skill vercel-functions --skill vercel-sandbox --agent claude-code -y --copy",
       "default": true
     },
     {
@@ -116,6 +118,12 @@
       "label": "Explain detections",
       "description": "Open the persisted install plan with full detection reasons.",
       "command": "cat .skills/install-plan.json"
+    },
+    {
+      "id": "vercel-deploy",
+      "label": "Deploy to Vercel",
+      "description": "Deploy the current project to Vercel.",
+      "command": "vercel deploy"
     }
   ]
 }
