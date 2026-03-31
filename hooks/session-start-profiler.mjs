@@ -20,8 +20,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { buildSkillCacheStatus } from "./skill-cache-banner.mjs";
-import { createSkillStore } from "./skill-store.mjs";
+import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 import {
   buildSkillInstallPlan,
@@ -31,7 +30,6 @@ import {
 import {
   createRegistryClient
 } from "./registry-client.mjs";
-import { readProjectSkillState } from "./project-skill-manifest.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -588,34 +586,32 @@ async function main() {
   const likelySkillsValue = likelySkills.join(",");
   const agentBrowserAvailable = checkAgentBrowser();
   const bundledFallbackEnabled = process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1";
-  let skillStore = createSkillStore({
+  let installedState = loadProjectInstalledSkillState({
     projectRoot,
     pluginRoot: pluginRoot(),
-    bundledFallback: bundledFallbackEnabled
-  });
-  let installedSkills = skillStore.listInstalledSkills(log);
-  let skillCacheStatus = buildSkillCacheStatus({
     likelySkills,
-    installedSkills,
-    bundledFallbackEnabled
+    bundledFallbackEnabled,
+    logger: log
   });
+  let skillStore = installedState.skillStore;
+  let installedSkills = installedState.installedSkills;
+  let skillCacheStatus = installedState.cacheStatus;
   const installResult = await autoInstallDetectedSkills({
     projectRoot,
     missingSkills: skillCacheStatus.missingSkills,
     logger: log
   });
   if (installResult.installed.length > 0 || installResult.reused.length > 0) {
-    skillStore = createSkillStore({
+    installedState = loadProjectInstalledSkillState({
       projectRoot,
       pluginRoot: pluginRoot(),
-      bundledFallback: bundledFallbackEnabled
-    });
-    installedSkills = skillStore.listInstalledSkills(log);
-    skillCacheStatus = buildSkillCacheStatus({
       likelySkills,
-      installedSkills,
-      bundledFallbackEnabled
+      bundledFallbackEnabled,
+      logger: log
     });
+    skillStore = installedState.skillStore;
+    installedSkills = installedState.installedSkills;
+    skillCacheStatus = installedState.cacheStatus;
     const installedOrReusedNow = [
       ...installResult.installed,
       ...installResult.reused
@@ -631,8 +627,7 @@ async function main() {
       );
     }
   }
-  const projectSkillState = readProjectSkillState(projectRoot);
-  const projectSkillManifestPath = projectSkillState.projectSkillStatePath;
+  const projectSkillManifestPath = installedState.projectState.projectSkillStatePath;
   const vercelLinked = existsSync(join(projectRoot, ".vercel"));
   const hasEnvLocal = existsSync(join(projectRoot, ".env.local"));
   const installPlan = buildSkillInstallPlan({

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from "bun:test";
 import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import type { RegistryClient } from "../hooks/src/registry-client.mts";
+import type { RegistryClient, InstallSkillsResult } from "../hooks/src/registry-client.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "posttooluse-bash-chain.mjs");
@@ -459,6 +459,273 @@ describe("PostToolUse CLI delegation", () => {
     if (result.injected.length > 0) {
       expect(result.missing).toEqual([]);
       expect(result.banners).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Install-and-reinject: successful auto-install → same-pass injection
+// ---------------------------------------------------------------------------
+
+describe("PostToolUse install-and-reinject", () => {
+  let runBashChainInjection: typeof import("../hooks/src/posttooluse-bash-chain.mts").runBashChainInjection;
+  let createSkillStore: typeof import("../hooks/src/skill-store.mts").createSkillStore;
+
+  beforeEach(async () => {
+    const mod = await import("../hooks/posttooluse-bash-chain.mjs");
+    runBashChainInjection = mod.runBashChainInjection;
+    const storeMod = await import("../hooks/skill-store.mjs");
+    createSkillStore = storeMod.createSkillStore;
+  });
+
+  function writeSkillMd(dir: string, slug: string, body: string): void {
+    const skillDir = join(dir, ".skills", slug);
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      [
+        "---",
+        `name: ${slug}`,
+        `description: ${slug} skill`,
+        `summary: ${slug}`,
+        "metadata:",
+        "  priority: 6",
+        "---",
+        body,
+      ].join("\n"),
+    );
+  }
+
+  /**
+   * Creates a mock RegistryClient whose installSkills writes the skill to
+   * the project's .skills/ directory (simulating `npx skills add`) and
+   * returns a successful result. No real CLI or network calls.
+   */
+  function makeMockRegistryClient(
+    projectDir: string,
+    skillBodies: Record<string, string>,
+  ): RegistryClient {
+    return {
+      async installSkills(args): Promise<InstallSkillsResult> {
+        const installed: string[] = [];
+        for (const slug of args.skillNames) {
+          const body = skillBodies[slug];
+          if (body) {
+            writeSkillMd(projectDir, slug, body);
+            installed.push(slug);
+          }
+        }
+        return {
+          installed,
+          reused: [],
+          missing: args.skillNames.filter((s) => !installed.includes(s)),
+          command: `npx skills add vercel/vercel-skills --skill ${args.skillNames.join(" --skill ")} --agent claude-code -y`,
+        };
+      },
+    };
+  }
+
+  test("missing skill is installed and injected in same PostToolUse run", async () => {
+    const projectDir = join(tmpdir(), `chain-reinject-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      // Initial store has no skills — express → vercel-functions will be missing
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: projectDir, // wrong on purpose so bundled fallback fails
+        bundledFallback: false,
+      });
+
+      const mockClient = makeMockRegistryClient(projectDir, {
+        "vercel-functions": "# Vercel Functions\nAuto-installed skill content.",
+      });
+
+      const result = await runBashChainInjection(
+        ["express"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "1",
+        } as any,
+        store,
+        mockClient,
+      );
+
+      // Skill should have been installed and injected in the same run
+      expect(result.injected.length).toBe(1);
+      expect(result.injected[0].skill).toBe("vercel-functions");
+      expect(result.injected[0].content).toContain("Auto-installed skill content");
+      expect(result.injected[0].packageName).toBe("express");
+      // missing should be cleared since it was successfully injected
+      expect(result.missing).not.toContain("vercel-functions");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reinject respects chain cap", async () => {
+    const projectDir = join(tmpdir(), `chain-reinject-cap-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: projectDir,
+        bundledFallback: false,
+      });
+
+      // Both skills missing, both will be "installed"
+      const mockClient = makeMockRegistryClient(projectDir, {
+        "vercel-functions": "# Vercel Functions\nFunctions content.",
+        "vercel-storage": "# Vercel Storage\nStorage content.",
+      });
+
+      const result = await runBashChainInjection(
+        ["express", "prisma"], // express → vercel-functions, prisma → vercel-storage
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "1",
+          VERCEL_PLUGIN_CHAIN_CAP: "1", // only allow 1 injection
+        } as any,
+        store,
+        mockClient,
+      );
+
+      // Cap=1 means only one skill should be injected even though both are available
+      expect(result.injected.length).toBe(1);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reinject respects byte budget", async () => {
+    const projectDir = join(tmpdir(), `chain-reinject-budget-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: projectDir,
+        bundledFallback: false,
+      });
+
+      // Create a skill body that exceeds the 18KB budget
+      const hugeBody = "# Huge Skill\n" + "x".repeat(20_000);
+      const mockClient = makeMockRegistryClient(projectDir, {
+        "vercel-functions": hugeBody,
+      });
+
+      const result = await runBashChainInjection(
+        ["express"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "1",
+        } as any,
+        store,
+        mockClient,
+      );
+
+      // Skill was installed but too large to inject — should remain missing
+      expect(result.injected.length).toBe(0);
+      expect(result.missing).toContain("vercel-functions");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reinject respects dedup — no double injection", async () => {
+    const projectDir = join(tmpdir(), `chain-reinject-dedup-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      // Pre-populate the skill so the initial pass finds it
+      writeSkillMd(projectDir, "vercel-functions", "# Vercel Functions\nPre-existing.");
+
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: projectDir,
+        bundledFallback: false,
+      });
+
+      // Both express and fastify map to vercel-functions
+      const result = await runBashChainInjection(
+        ["express", "fastify"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+        } as any,
+        store,
+      );
+
+      // Only one injection for the deduplicated skill
+      expect(result.injected.length).toBe(1);
+      expect(result.injected[0].skill).toBe("vercel-functions");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("no real CLI or network execution in mock path", async () => {
+    const projectDir = join(tmpdir(), `chain-reinject-nonet-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: projectDir,
+        bundledFallback: false,
+      });
+
+      let installCalled = false;
+      const mockClient: RegistryClient = {
+        async installSkills(args): Promise<InstallSkillsResult> {
+          installCalled = true;
+          // Simulate install by writing skill files
+          for (const slug of args.skillNames) {
+            writeSkillMd(projectDir, slug, `# ${slug}\nMock installed.`);
+          }
+          return {
+            installed: args.skillNames,
+            reused: [],
+            missing: [],
+            command: "npx skills add mock",
+          };
+        },
+      };
+
+      await runBashChainInjection(
+        ["express"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "1",
+        } as any,
+        store,
+        mockClient,
+      );
+
+      // Confirm the mock was invoked (not the real CLI)
+      expect(installCalled).toBe(true);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
     }
   });
 });

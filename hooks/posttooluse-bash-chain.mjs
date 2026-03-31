@@ -245,54 +245,58 @@ function parseBashInput(raw, logger, env = process.env) {
 }
 function tryInjectResolvedBashSkill(args) {
   const {
-    candidate,
+    packageName,
+    skill,
+    message,
     resolvedBody,
     sessionId,
     seenSet,
     result,
     logger: l,
-    chainCap
+    chainCap,
+    phase
   } = args;
-  if (result.injected.length >= chainCap) return false;
-  if (seenSet.has(candidate.skill)) return false;
-  if (!resolvedBody) return false;
+  const suffix = phase === "after-install" ? "-after-install" : "";
+  if (result.injected.length >= chainCap) return "cap-reached";
+  if (seenSet.has(skill)) return "skip";
+  if (!resolvedBody) return "skip";
   const bytes = Buffer.byteLength(resolvedBody, "utf-8");
   if (result.totalBytes + bytes > CHAIN_BUDGET_BYTES) {
-    l.debug("posttooluse-bash-chain-budget-exceeded-after-install", {
-      skill: candidate.skill,
+    l.debug(`posttooluse-bash-chain-budget-exceeded${suffix}`, {
+      skill,
       bytes,
       totalBytes: result.totalBytes,
       budget: CHAIN_BUDGET_BYTES
     });
-    return false;
+    return "budget-exceeded";
   }
   if (sessionId) {
-    const claimed = tryClaimSessionKey(sessionId, "seen-skills", candidate.skill);
+    const claimed = tryClaimSessionKey(sessionId, "seen-skills", skill);
     if (!claimed) {
-      l.debug("posttooluse-bash-chain-skip-concurrent-claim-after-install", {
-        skill: candidate.skill
+      l.debug(`posttooluse-bash-chain-skip-concurrent-claim${suffix}`, {
+        skill
       });
-      seenSet.add(candidate.skill);
-      return false;
+      seenSet.add(skill);
+      return "skip";
     }
     syncSessionFileFromClaims(sessionId, "seen-skills");
   }
-  seenSet.add(candidate.skill);
+  seenSet.add(skill);
   result.injected.push({
-    packageName: candidate.packageName,
-    skill: candidate.skill,
-    message: candidate.message,
+    packageName,
+    skill,
+    message,
     content: resolvedBody
   });
   result.totalBytes += bytes;
-  l.debug("posttooluse-bash-chain-injected-after-install", {
-    skill: candidate.skill,
+  l.debug(`posttooluse-bash-chain-injected${suffix}`, {
+    skill,
     bytes,
     totalBytes: result.totalBytes
   });
-  return true;
+  return "injected";
 }
-async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore) {
+async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore, registryClient) {
   const l = logger || log;
   const result = { injected: [], missing: [], banners: [], totalBytes: 0 };
   if (packages.length === 0) return result;
@@ -315,13 +319,6 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     const { skill, message } = mapping;
     if (targetsSeen.has(skill)) continue;
     targetsSeen.add(skill);
-    if (result.injected.length >= chainCap) {
-      l.debug("posttooluse-bash-chain-cap-reached", {
-        cap: chainCap,
-        remaining: packages.length - result.injected.length
-      });
-      break;
-    }
     if (seenSet.has(skill)) {
       l.debug("posttooluse-bash-chain-skip-dedup", { pkg, skill });
       continue;
@@ -337,30 +334,24 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     }
     const trimmedBody = resolved.body.trim();
     if (!trimmedBody) continue;
-    const bytes = Buffer.byteLength(trimmedBody, "utf-8");
-    if (result.totalBytes + bytes > CHAIN_BUDGET_BYTES) {
-      l.debug("posttooluse-bash-chain-budget-exceeded", {
-        pkg,
-        skill,
-        bytes,
-        totalBytes: result.totalBytes,
-        budget: CHAIN_BUDGET_BYTES
-      });
+    const injectResult = tryInjectResolvedBashSkill({
+      packageName: pkg,
+      skill,
+      message,
+      resolvedBody: trimmedBody,
+      sessionId,
+      seenSet,
+      result,
+      logger: l,
+      chainCap,
+      phase: "initial"
+    });
+    if (injectResult === "cap-reached" || injectResult === "budget-exceeded") {
       break;
     }
-    if (sessionId) {
-      const claimed = tryClaimSessionKey(sessionId, "seen-skills", skill);
-      if (!claimed) {
-        l.debug("posttooluse-bash-chain-skip-concurrent-claim", { pkg, skill });
-        seenSet.add(skill);
-        continue;
-      }
-      syncSessionFileFromClaims(sessionId, "seen-skills");
+    if (injectResult === "skip") {
+      continue;
     }
-    seenSet.add(skill);
-    result.injected.push({ packageName: pkg, skill, message, content: trimmedBody });
-    result.totalBytes += bytes;
-    l.debug("posttooluse-bash-chain-injected", { pkg, skill, bytes, totalBytes: result.totalBytes });
   }
   if (result.injected.length > 0) {
     l.summary("posttooluse-bash-chain-result", {
@@ -380,7 +371,8 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
       }),
       projectRoot,
       autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
-      timeoutMs: 4e3
+      timeoutMs: 4e3,
+      registryClient
     });
     if (resolvedBanner.banner) {
       result.banners.push(resolvedBanner.banner);
@@ -396,24 +388,23 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
       for (const skill of uniqueMissing) {
         const candidate = missingCandidates.get(skill);
         const resolved = refreshedStore.resolveSkillBody(skill, l);
-        if (!resolved) {
+        if (!resolved || !candidate) {
           stillMissing.push(skill);
           continue;
         }
-        if (!candidate) {
-          stillMissing.push(skill);
-          continue;
-        }
-        const injected = tryInjectResolvedBashSkill({
-          candidate,
+        const injectResult = tryInjectResolvedBashSkill({
+          packageName: candidate.packageName,
+          skill: candidate.skill,
+          message: candidate.message,
           resolvedBody: resolved.body.trim(),
           sessionId,
           seenSet,
           result,
           logger: l,
-          chainCap
+          chainCap,
+          phase: "after-install"
         });
-        if (!injected) {
+        if (injectResult !== "injected") {
           stillMissing.push(skill);
         }
       }

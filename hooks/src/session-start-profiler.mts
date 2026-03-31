@@ -33,8 +33,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { buildSkillCacheStatus } from "./skill-cache-banner.mjs";
-import { createSkillStore } from "./skill-store.mjs";
+import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 import {
   buildSkillInstallPlan,
@@ -48,7 +47,6 @@ import {
   createRegistryClient,
   type InstallSkillsResult,
 } from "./registry-client.mjs";
-import { readProjectSkillState } from "./project-skill-manifest.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -865,20 +863,18 @@ async function main(): Promise<void> {
   // Check agent-browser CLI availability
   const agentBrowserAvailable: boolean = checkAgentBrowser();
 
-  // Discover installed skills from project and global caches
+  // Discover installed skills from project and global caches via shared loader
   const bundledFallbackEnabled = process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1";
-  let skillStore = createSkillStore({
+  let installedState = loadProjectInstalledSkillState({
     projectRoot,
     pluginRoot: pluginRoot(),
-    bundledFallback: bundledFallbackEnabled,
-  });
-  let installedSkills = skillStore.listInstalledSkills(log);
-
-  let skillCacheStatus = buildSkillCacheStatus({
     likelySkills,
-    installedSkills,
     bundledFallbackEnabled,
+    logger: log,
   });
+  let skillStore = installedState.skillStore;
+  let installedSkills = installedState.installedSkills;
+  let skillCacheStatus = installedState.cacheStatus;
 
   // Auto-install missing skills from registry when opted in
   const installResult = await autoInstallDetectedSkills({
@@ -888,18 +884,17 @@ async function main(): Promise<void> {
   });
 
   if (installResult.installed.length > 0 || installResult.reused.length > 0) {
-    // Refresh store and cache status after installing new skills
-    skillStore = createSkillStore({
+    // Refresh via shared loader after installing new skills
+    installedState = loadProjectInstalledSkillState({
       projectRoot,
       pluginRoot: pluginRoot(),
-      bundledFallback: bundledFallbackEnabled,
-    });
-    installedSkills = skillStore.listInstalledSkills(log);
-    skillCacheStatus = buildSkillCacheStatus({
       likelySkills,
-      installedSkills,
       bundledFallbackEnabled,
+      logger: log,
     });
+    skillStore = installedState.skillStore;
+    installedSkills = installedState.installedSkills;
+    skillCacheStatus = installedState.cacheStatus;
 
     // Surface a visible callout so the user knows auto-install happened
     const installedOrReusedNow = [
@@ -924,9 +919,8 @@ async function main(): Promise<void> {
     }
   }
 
-  // Read CLI-produced project skill state instead of writing our own manifest
-  const projectSkillState = readProjectSkillState(projectRoot);
-  const projectSkillManifestPath = projectSkillState.projectSkillStatePath;
+  // Read CLI-produced project skill state from the shared loader
+  const projectSkillManifestPath = installedState.projectState.projectSkillStatePath;
 
   // Detect Vercel project state for CLI delegation actions
   const vercelLinked = existsSync(join(projectRoot, ".vercel"));

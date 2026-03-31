@@ -25,6 +25,7 @@ import {
 } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
+import type { RegistryClient } from "./registry-client.mjs";
 import { buildSkillCacheStatus, resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
 import { createSkillStore, type SkillStore } from "./skill-store.mjs";
 
@@ -374,69 +375,84 @@ interface MissingInjectionCandidate {
   message: string;
 }
 
+type InjectionPhase = "initial" | "after-install";
+type InjectionAttemptResult =
+  | "injected"
+  | "skip"
+  | "cap-reached"
+  | "budget-exceeded";
+
 function tryInjectResolvedBashSkill(args: {
-  candidate: MissingInjectionCandidate;
+  packageName: string;
+  skill: string;
+  message: string;
   resolvedBody: string;
   sessionId: string | null;
   seenSet: Set<string>;
   result: BashChainResult;
   logger: Logger;
   chainCap: number;
-}): boolean {
+  phase: InjectionPhase;
+}): InjectionAttemptResult {
   const {
-    candidate,
+    packageName,
+    skill,
+    message,
     resolvedBody,
     sessionId,
     seenSet,
     result,
     logger: l,
     chainCap,
+    phase,
   } = args;
 
-  if (result.injected.length >= chainCap) return false;
-  if (seenSet.has(candidate.skill)) return false;
-  if (!resolvedBody) return false;
+  const suffix = phase === "after-install" ? "-after-install" : "";
+
+  if (result.injected.length >= chainCap) return "cap-reached";
+  if (seenSet.has(skill)) return "skip";
+  if (!resolvedBody) return "skip";
 
   const bytes = Buffer.byteLength(resolvedBody, "utf-8");
   if (result.totalBytes + bytes > CHAIN_BUDGET_BYTES) {
-    l.debug("posttooluse-bash-chain-budget-exceeded-after-install", {
-      skill: candidate.skill,
+    l.debug(`posttooluse-bash-chain-budget-exceeded${suffix}`, {
+      skill,
       bytes,
       totalBytes: result.totalBytes,
       budget: CHAIN_BUDGET_BYTES,
     });
-    return false;
+    return "budget-exceeded";
   }
 
   if (sessionId) {
-    const claimed = tryClaimSessionKey(sessionId, "seen-skills", candidate.skill);
+    const claimed = tryClaimSessionKey(sessionId, "seen-skills", skill);
     if (!claimed) {
-      l.debug("posttooluse-bash-chain-skip-concurrent-claim-after-install", {
-        skill: candidate.skill,
+      l.debug(`posttooluse-bash-chain-skip-concurrent-claim${suffix}`, {
+        skill,
       });
-      seenSet.add(candidate.skill);
-      return false;
+      seenSet.add(skill);
+      return "skip";
     }
     syncSessionFileFromClaims(sessionId, "seen-skills");
   }
 
-  seenSet.add(candidate.skill);
+  seenSet.add(skill);
 
   result.injected.push({
-    packageName: candidate.packageName,
-    skill: candidate.skill,
-    message: candidate.message,
+    packageName,
+    skill,
+    message,
     content: resolvedBody,
   });
   result.totalBytes += bytes;
 
-  l.debug("posttooluse-bash-chain-injected-after-install", {
-    skill: candidate.skill,
+  l.debug(`posttooluse-bash-chain-injected${suffix}`, {
+    skill,
     bytes,
     totalBytes: result.totalBytes,
   });
 
-  return true;
+  return "injected";
 }
 
 /**
@@ -451,6 +467,7 @@ export async function runBashChainInjection(
   logger?: Logger,
   env: NodeJS.ProcessEnv = process.env,
   skillStore?: SkillStore,
+  registryClient?: RegistryClient,
 ): Promise<BashChainResult> {
   const l = logger || log;
   const result: BashChainResult = { injected: [], missing: [], banners: [], totalBytes: 0 };
@@ -487,15 +504,6 @@ export async function runBashChainInjection(
     if (targetsSeen.has(skill)) continue;
     targetsSeen.add(skill);
 
-    // Enforce chain cap
-    if (result.injected.length >= chainCap) {
-      l.debug("posttooluse-bash-chain-cap-reached", {
-        cap: chainCap,
-        remaining: packages.length - result.injected.length,
-      });
-      break;
-    }
-
     // Skip if already injected this session
     if (seenSet.has(skill)) {
       l.debug("posttooluse-bash-chain-skip-dedup", { pkg, skill });
@@ -516,36 +524,24 @@ export async function runBashChainInjection(
     const trimmedBody = resolved.body.trim();
     if (!trimmedBody) continue;
 
-    // Check budget
-    const bytes = Buffer.byteLength(trimmedBody, "utf-8");
-    if (result.totalBytes + bytes > CHAIN_BUDGET_BYTES) {
-      l.debug("posttooluse-bash-chain-budget-exceeded", {
-        pkg,
-        skill,
-        bytes,
-        totalBytes: result.totalBytes,
-        budget: CHAIN_BUDGET_BYTES,
-      });
+    const injectResult = tryInjectResolvedBashSkill({
+      packageName: pkg,
+      skill,
+      message,
+      resolvedBody: trimmedBody,
+      sessionId,
+      seenSet,
+      result,
+      logger: l,
+      chainCap,
+      phase: "initial",
+    });
+    if (injectResult === "cap-reached" || injectResult === "budget-exceeded") {
       break;
     }
-
-    // Claim via dedup
-    if (sessionId) {
-      const claimed = tryClaimSessionKey(sessionId, "seen-skills", skill);
-      if (!claimed) {
-        l.debug("posttooluse-bash-chain-skip-concurrent-claim", { pkg, skill });
-        seenSet.add(skill);
-        continue;
-      }
-      syncSessionFileFromClaims(sessionId, "seen-skills");
+    if (injectResult === "skip") {
+      continue;
     }
-
-    seenSet.add(skill);
-
-    result.injected.push({ packageName: pkg, skill, message, content: trimmedBody });
-    result.totalBytes += bytes;
-
-    l.debug("posttooluse-bash-chain-injected", { pkg, skill, bytes, totalBytes: result.totalBytes });
   }
 
   if (result.injected.length > 0) {
@@ -571,6 +567,7 @@ export async function runBashChainInjection(
       projectRoot,
       autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
       timeoutMs: 4_000,
+      registryClient,
     });
     if (resolvedBanner.banner) {
       result.banners.push(resolvedBanner.banner);
@@ -592,24 +589,23 @@ export async function runBashChainInjection(
       for (const skill of uniqueMissing) {
         const candidate = missingCandidates.get(skill);
         const resolved = refreshedStore.resolveSkillBody(skill, l);
-        if (!resolved) {
+        if (!resolved || !candidate) {
           stillMissing.push(skill);
           continue;
         }
-        if (!candidate) {
-          stillMissing.push(skill);
-          continue;
-        }
-        const injected = tryInjectResolvedBashSkill({
-          candidate,
+        const injectResult = tryInjectResolvedBashSkill({
+          packageName: candidate.packageName,
+          skill: candidate.skill,
+          message: candidate.message,
           resolvedBody: resolved.body.trim(),
           sessionId,
           seenSet,
           result,
           logger: l,
           chainCap,
+          phase: "after-install",
         });
-        if (!injected) {
+        if (injectResult !== "injected") {
           stillMissing.push(skill);
         }
       }
