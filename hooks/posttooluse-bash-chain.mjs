@@ -296,6 +296,18 @@ function tryInjectResolvedBashSkill(args) {
   });
   return "injected";
 }
+function applyAfterInstallAttempt(args) {
+  const { injectResult, currentIndex, uniqueMissing, stillMissing } = args;
+  switch (injectResult) {
+    case "injected":
+    case "skip":
+      return "continue";
+    case "cap-reached":
+    case "budget-exceeded":
+      stillMissing.push(...uniqueMissing.slice(currentIndex));
+      return "stop";
+  }
+}
 async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore, registryClient) {
   const l = logger || log;
   const result = { injected: [], missing: [], banners: [], totalBytes: 0 };
@@ -385,7 +397,7 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
         bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
       });
       const stillMissing = [];
-      for (const skill of uniqueMissing) {
+      for (const [currentIndex, skill] of uniqueMissing.entries()) {
         const candidate = missingCandidates.get(skill);
         const resolved = refreshedStore.resolveSkillBody(skill, l);
         if (!resolved || !candidate) {
@@ -404,11 +416,17 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
           chainCap,
           phase: "after-install"
         });
-        if (injectResult !== "injected") {
-          stillMissing.push(skill);
+        const disposition = applyAfterInstallAttempt({
+          injectResult,
+          currentIndex,
+          uniqueMissing,
+          stillMissing
+        });
+        if (disposition === "stop") {
+          break;
         }
       }
-      result.missing = stillMissing;
+      result.missing = [...new Set(stillMissing)];
     }
   }
   return result;

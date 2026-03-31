@@ -455,6 +455,26 @@ function tryInjectResolvedBashSkill(args: {
   return "injected";
 }
 
+type AfterInstallDisposition = "continue" | "stop";
+
+function applyAfterInstallAttempt(args: {
+  injectResult: InjectionAttemptResult;
+  currentIndex: number;
+  uniqueMissing: string[];
+  stillMissing: string[];
+}): AfterInstallDisposition {
+  const { injectResult, currentIndex, uniqueMissing, stillMissing } = args;
+  switch (injectResult) {
+    case "injected":
+    case "skip":
+      return "continue";
+    case "cap-reached":
+    case "budget-exceeded":
+      stillMissing.push(...uniqueMissing.slice(currentIndex));
+      return "stop";
+  }
+}
+
 /**
  * For each installed package that maps to a skill, read the SKILL.md body
  * and prepare it for injection (respecting dedup and budget).
@@ -586,7 +606,7 @@ export async function runBashChainInjection(
       });
 
       const stillMissing: string[] = [];
-      for (const skill of uniqueMissing) {
+      for (const [currentIndex, skill] of uniqueMissing.entries()) {
         const candidate = missingCandidates.get(skill);
         const resolved = refreshedStore.resolveSkillBody(skill, l);
         if (!resolved || !candidate) {
@@ -605,11 +625,17 @@ export async function runBashChainInjection(
           chainCap,
           phase: "after-install",
         });
-        if (injectResult !== "injected") {
-          stillMissing.push(skill);
+        const disposition = applyAfterInstallAttempt({
+          injectResult,
+          currentIndex,
+          uniqueMissing,
+          stillMissing,
+        });
+        if (disposition === "stop") {
+          break;
         }
       }
-      result.missing = stillMissing;
+      result.missing = [...new Set(stillMissing)];
     }
   }
 
