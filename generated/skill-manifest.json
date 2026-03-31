@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-31T11:49:29.510Z",
+  "generatedAt": "2026-03-31T13:20:53.020Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -447,18 +447,6 @@
         ],
         "examples": []
       }
-    },
-    "fake-banned-test-skill": {
-      "priority": 5,
-      "summary": "",
-      "docs": [],
-      "pathPatterns": [],
-      "bashPatterns": [],
-      "importPatterns": [],
-      "bodyPath": "skills/fake-banned-test-skill/SKILL.md",
-      "pathRegexSources": [],
-      "bashRegexSources": [],
-      "importRegexSources": []
     },
     "json-render": {
       "priority": 4,
@@ -5836,6 +5824,22 @@
         ],
         "examples": []
       }
+    },
+    "zzz-test-empty-fp": {
+      "priority": 5,
+      "summary": "",
+      "docs": [],
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\\\bvercel\\\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/zzz-test-empty-fp/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\\\bvercel\\\\b"
+      ],
+      "importRegexSources": []
     },
     "env-vars": {
       "priority": 7,

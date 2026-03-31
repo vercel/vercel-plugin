@@ -3,6 +3,7 @@ import {
   accessSync,
   constants as fsConstants,
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   writeFileSync
@@ -19,9 +20,17 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { buildSkillCacheBanner, buildSkillCacheStatus } from "./skill-cache-banner.mjs";
+import { buildSkillCacheStatus } from "./skill-cache-banner.mjs";
 import { createSkillStore } from "./skill-store.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import {
+  buildSkillInstallPlan,
+  formatSkillInstallPalette,
+  serializeSkillInstallPlan
+} from "./orchestrator-install-plan.mjs";
+import {
+  createRegistryClient
+} from "./registry-client.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -107,11 +116,24 @@ var log = createLogger();
 function readPackageJson(projectRoot) {
   return safeReadJson(join(projectRoot, "package.json"));
 }
-function profileProject(projectRoot) {
-  const skills = /* @__PURE__ */ new Set();
+function upsertSkillDetection(map, skill, reason) {
+  const existing = map.get(skill);
+  if (existing) {
+    existing.reasons.push(reason);
+    return;
+  }
+  map.set(skill, { skill, reasons: [reason] });
+}
+function profileProjectDetections(projectRoot) {
+  const detections = /* @__PURE__ */ new Map();
   for (const marker of FILE_MARKERS) {
-    if (existsSync(join(projectRoot, marker.file))) {
-      for (const s of marker.skills) skills.add(s);
+    if (!existsSync(join(projectRoot, marker.file))) continue;
+    for (const skill of marker.skills) {
+      upsertSkillDetection(detections, skill, {
+        kind: "file",
+        source: marker.file,
+        detail: `matched file marker ${marker.file}`
+      });
     }
   }
   const pkg = readPackageJson(projectRoot);
@@ -120,22 +142,59 @@ function profileProject(projectRoot) {
       ...pkg.dependencies || {},
       ...pkg.devDependencies || {}
     };
-    for (const [dep, skillSlugs] of Object.entries(PACKAGE_MARKERS)) {
-      if (dep in allDeps) {
-        for (const s of skillSlugs) skills.add(s);
+    for (const [dep, skills] of Object.entries(PACKAGE_MARKERS)) {
+      if (!(dep in allDeps)) continue;
+      for (const skill of skills) {
+        upsertSkillDetection(detections, skill, {
+          kind: "dependency",
+          source: dep,
+          detail: `matched dependency ${dep}`
+        });
       }
     }
   }
-  const vercelConfig = safeReadJson(join(projectRoot, "vercel.json"));
+  const vercelConfig = safeReadJson(
+    join(projectRoot, "vercel.json")
+  );
   if (vercelConfig) {
-    if (vercelConfig.crons) skills.add("cron-jobs");
-    if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
-      skills.add("routing-middleware");
+    if (vercelConfig.crons) {
+      upsertSkillDetection(detections, "cron-jobs", {
+        kind: "vercel-json",
+        source: "vercel.json#crons",
+        detail: "detected crons config"
+      });
     }
-    if (vercelConfig.functions) skills.add("vercel-functions");
-    if (vercelConfig.experimentalServices) skills.add("vercel-services");
+    if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
+      upsertSkillDetection(detections, "routing-middleware", {
+        kind: "vercel-json",
+        source: "vercel.json#rewrites|redirects|headers",
+        detail: "detected routing config"
+      });
+    }
+    if (vercelConfig.functions) {
+      upsertSkillDetection(detections, "vercel-functions", {
+        kind: "vercel-json",
+        source: "vercel.json#functions",
+        detail: "detected function config"
+      });
+    }
+    if (vercelConfig.experimentalServices) {
+      upsertSkillDetection(detections, "vercel-services", {
+        kind: "vercel-json",
+        source: "vercel.json#experimentalServices",
+        detail: "detected services config"
+      });
+    }
   }
-  return [...skills].sort();
+  return [...detections.values()].map((detection) => ({
+    skill: detection.skill,
+    reasons: [...detection.reasons].sort(
+      (a, b) => a.source.localeCompare(b.source)
+    )
+  })).sort((a, b) => a.skill.localeCompare(b.skill));
+}
+function profileProject(projectRoot) {
+  return profileProjectDetections(projectRoot).map((detection) => detection.skill);
 }
 function profileBootstrapSignals(projectRoot) {
   const bootstrapHints = /* @__PURE__ */ new Set();
@@ -435,6 +494,45 @@ function formatSessionStartProfilerCursorOutput(envVars, userMessages) {
     env: envVars
   }));
 }
+async function autoInstallDetectedSkills(args) {
+  if (args.missingSkills.length === 0 || process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL !== "1") {
+    return { installed: [], reused: [], missing: [...args.missingSkills] };
+  }
+  const client = createRegistryClient();
+  let result;
+  try {
+    result = await client.installSkills(
+      args.missingSkills,
+      join(args.projectRoot, ".skills")
+    );
+  } catch (error) {
+    logCaughtError(
+      args.logger ?? log,
+      "session-start-profiler:auto-install-failed",
+      error,
+      {
+        projectRoot: args.projectRoot,
+        missingSkillCount: args.missingSkills.length
+      }
+    );
+    return { installed: [], reused: [], missing: [...args.missingSkills] };
+  }
+  args.logger?.debug("session-start-profiler-auto-install", {
+    installed: result.installed,
+    reused: result.reused,
+    missing: result.missing
+  });
+  return result;
+}
+function writeInstallPlanFile(projectRoot, plan) {
+  const skillsDir = join(projectRoot, ".skills");
+  mkdirSync(skillsDir, { recursive: true });
+  writeFileSync(
+    join(skillsDir, "install-plan.json"),
+    JSON.stringify(plan, null, 2) + "\n",
+    "utf-8"
+  );
+}
 async function main() {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
@@ -444,33 +542,81 @@ async function main() {
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
-  const likelySkills = greenfield ? GREENFIELD_DEFAULT_SKILLS : profileProject(projectRoot);
+  const detections = greenfield ? GREENFIELD_DEFAULT_SKILLS.map((skill) => ({
+    skill,
+    reasons: [
+      {
+        kind: "greenfield",
+        source: "project-root",
+        detail: "seeded from greenfield defaults"
+      }
+    ]
+  })) : profileProjectDetections(projectRoot);
+  const likelySkills = detections.map((detection) => detection.skill);
   if (!greenfield && !likelySkills.includes("observability")) {
     likelySkills.push("observability");
-    likelySkills.sort();
+    detections.push({
+      skill: "observability",
+      reasons: [
+        {
+          kind: "profiler-default",
+          source: "profiler-default",
+          detail: "auto-boosted for non-greenfield debugging coverage"
+        }
+      ]
+    });
   }
+  likelySkills.sort();
   const setupSignals = greenfield ? GREENFIELD_SETUP_SIGNALS : profileBootstrapSignals(projectRoot);
   const greenfieldValue = greenfield ? "true" : "";
   const likelySkillsValue = likelySkills.join(",");
   const agentBrowserAvailable = checkAgentBrowser();
   const bundledFallbackEnabled = process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1";
-  const skillStore = createSkillStore({
+  let skillStore = createSkillStore({
     projectRoot,
     pluginRoot: pluginRoot(),
     bundledFallback: bundledFallbackEnabled
   });
-  const installedSkills = skillStore.listInstalledSkills(log);
-  const skillCacheStatus = buildSkillCacheStatus({
+  let installedSkills = skillStore.listInstalledSkills(log);
+  let skillCacheStatus = buildSkillCacheStatus({
     likelySkills,
     installedSkills,
     bundledFallbackEnabled
   });
-  const skillCacheBanner = buildSkillCacheBanner({
-    ...skillCacheStatus,
-    projectRoot
+  const installResult = await autoInstallDetectedSkills({
+    projectRoot,
+    missingSkills: skillCacheStatus.missingSkills,
+    logger: log
   });
-  if (skillCacheBanner) {
-    userMessages.unshift(skillCacheBanner);
+  if (installResult.installed.length > 0 || installResult.reused.length > 0) {
+    skillStore = createSkillStore({
+      projectRoot,
+      pluginRoot: pluginRoot(),
+      bundledFallback: bundledFallbackEnabled
+    });
+    installedSkills = skillStore.listInstalledSkills(log);
+    skillCacheStatus = buildSkillCacheStatus({
+      likelySkills,
+      installedSkills,
+      bundledFallbackEnabled
+    });
+  }
+  const installPlan = buildSkillInstallPlan({
+    projectRoot,
+    detections,
+    installedSkills,
+    bundledFallbackEnabled
+  });
+  try {
+    writeInstallPlanFile(projectRoot, installPlan);
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:write-install-plan-failed", error, {
+      projectRoot
+    });
+  }
+  const installPalette = formatSkillInstallPalette(installPlan);
+  if (installPalette) {
+    userMessages.unshift(installPalette);
   }
   const envVars = buildSessionStartProfilerEnvVars({
     agentBrowserAvailable,
@@ -480,6 +626,7 @@ async function main() {
     missingSkills: skillCacheStatus.missingSkills,
     setupSignals
   });
+  envVars.VERCEL_PLUGIN_INSTALL_PLAN = serializeSkillInstallPlan(installPlan);
   const cursorOutput = platform === "cursor" ? formatSessionStartProfilerCursorOutput(envVars, userMessages) : null;
   if (sessionId) {
     writeSessionFile(sessionId, SESSION_GREENFIELD_KIND, greenfieldValue);
@@ -568,6 +715,7 @@ if (isSessionStartProfilerEntrypoint) {
   main();
 }
 export {
+  autoInstallDetectedSkills,
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   checkAgentBrowser,
@@ -579,5 +727,6 @@ export {
   parseSessionStartInput,
   profileBootstrapSignals,
   profileProject,
+  profileProjectDetections,
   resolveSessionStartProjectRoot
 };

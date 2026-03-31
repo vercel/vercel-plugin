@@ -14,6 +14,7 @@ import {
   accessSync,
   constants as fsConstants,
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   writeFileSync,
@@ -32,9 +33,21 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { buildSkillCacheBanner, buildSkillCacheStatus } from "./skill-cache-banner.mjs";
+import { buildSkillCacheStatus } from "./skill-cache-banner.mjs";
 import { createSkillStore } from "./skill-store.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import {
+  buildSkillInstallPlan,
+  formatSkillInstallPalette,
+  serializeSkillInstallPlan,
+  type DetectionReason,
+  type SkillDetection,
+  type SkillInstallPlan,
+} from "./orchestrator-install-plan.mjs";
+import {
+  createRegistryClient,
+  type InstallSkillsResult,
+} from "./registry-client.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -178,15 +191,34 @@ function readPackageJson(projectRoot: string): PackageJson | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Scan a project root and return a deduplicated, sorted list of likely skill slugs.
+ * Collect skill detections with structured reasons from marker files,
+ * package.json dependencies, and vercel.json config keys.
  */
-export function profileProject(projectRoot: string): string[] {
-  const skills: Set<string> = new Set();
+function upsertSkillDetection(
+  map: Map<string, SkillDetection>,
+  skill: string,
+  reason: DetectionReason,
+): void {
+  const existing = map.get(skill);
+  if (existing) {
+    existing.reasons.push(reason);
+    return;
+  }
+  map.set(skill, { skill, reasons: [reason] });
+}
+
+export function profileProjectDetections(projectRoot: string): SkillDetection[] {
+  const detections = new Map<string, SkillDetection>();
 
   // 1. Check marker files
   for (const marker of FILE_MARKERS) {
-    if (existsSync(join(projectRoot, marker.file))) {
-      for (const s of marker.skills) skills.add(s);
+    if (!existsSync(join(projectRoot, marker.file))) continue;
+    for (const skill of marker.skills) {
+      upsertSkillDetection(detections, skill, {
+        kind: "file",
+        source: marker.file,
+        detail: `matched file marker ${marker.file}`,
+      });
     }
   }
 
@@ -197,25 +229,68 @@ export function profileProject(projectRoot: string): string[] {
       ...(pkg.dependencies || {}),
       ...(pkg.devDependencies || {}),
     };
-    for (const [dep, skillSlugs] of Object.entries(PACKAGE_MARKERS)) {
-      if (dep in allDeps) {
-        for (const s of skillSlugs) skills.add(s);
+    for (const [dep, skills] of Object.entries(PACKAGE_MARKERS)) {
+      if (!(dep in allDeps)) continue;
+      for (const skill of skills) {
+        upsertSkillDetection(detections, skill, {
+          kind: "dependency",
+          source: dep,
+          detail: `matched dependency ${dep}`,
+        });
       }
     }
   }
 
-  // 3. Check vercel.json keys for more specific skills
-  const vercelConfig = safeReadJson<Record<string, unknown>>(join(projectRoot, "vercel.json"));
+  // 3. Check vercel.json keys
+  const vercelConfig = safeReadJson<Record<string, unknown>>(
+    join(projectRoot, "vercel.json"),
+  );
   if (vercelConfig) {
-    if (vercelConfig.crons) skills.add("cron-jobs");
-    if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
-      skills.add("routing-middleware");
+    if (vercelConfig.crons) {
+      upsertSkillDetection(detections, "cron-jobs", {
+        kind: "vercel-json",
+        source: "vercel.json#crons",
+        detail: "detected crons config",
+      });
     }
-    if (vercelConfig.functions) skills.add("vercel-functions");
-    if (vercelConfig.experimentalServices) skills.add("vercel-services");
+    if (vercelConfig.rewrites || vercelConfig.redirects || vercelConfig.headers) {
+      upsertSkillDetection(detections, "routing-middleware", {
+        kind: "vercel-json",
+        source: "vercel.json#rewrites|redirects|headers",
+        detail: "detected routing config",
+      });
+    }
+    if (vercelConfig.functions) {
+      upsertSkillDetection(detections, "vercel-functions", {
+        kind: "vercel-json",
+        source: "vercel.json#functions",
+        detail: "detected function config",
+      });
+    }
+    if (vercelConfig.experimentalServices) {
+      upsertSkillDetection(detections, "vercel-services", {
+        kind: "vercel-json",
+        source: "vercel.json#experimentalServices",
+        detail: "detected services config",
+      });
+    }
   }
 
-  return [...skills].sort();
+  return [...detections.values()]
+    .map((detection) => ({
+      skill: detection.skill,
+      reasons: [...detection.reasons].sort((a, b) =>
+        a.source.localeCompare(b.source),
+      ),
+    }))
+    .sort((a, b) => a.skill.localeCompare(b.skill));
+}
+
+/**
+ * Scan a project root and return a deduplicated, sorted list of likely skill slugs.
+ */
+export function profileProject(projectRoot: string): string[] {
+  return profileProjectDetections(projectRoot).map((detection) => detection.skill);
 }
 
 /**
@@ -657,6 +732,64 @@ export function formatSessionStartProfilerCursorOutput(
   }));
 }
 
+/**
+ * When VERCEL_PLUGIN_SKILL_AUTO_INSTALL=1, install missing detected skills
+ * from the registry into the project's .skills/ cache directory.
+ */
+export async function autoInstallDetectedSkills(args: {
+  projectRoot: string;
+  missingSkills: string[];
+  logger?: Logger;
+}): Promise<InstallSkillsResult> {
+  if (
+    args.missingSkills.length === 0 ||
+    process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL !== "1"
+  ) {
+    return { installed: [], reused: [], missing: [...args.missingSkills] };
+  }
+
+  const client = createRegistryClient();
+  let result: InstallSkillsResult;
+  try {
+    result = await client.installSkills(
+      args.missingSkills,
+      join(args.projectRoot, ".skills"),
+    );
+  } catch (error) {
+    logCaughtError(
+      args.logger ?? log,
+      "session-start-profiler:auto-install-failed",
+      error,
+      {
+        projectRoot: args.projectRoot,
+        missingSkillCount: args.missingSkills.length,
+      },
+    );
+    return { installed: [], reused: [], missing: [...args.missingSkills] };
+  }
+
+  args.logger?.debug("session-start-profiler-auto-install", {
+    installed: result.installed,
+    reused: result.reused,
+    missing: result.missing,
+  });
+
+  return result;
+}
+
+function writeInstallPlanFile(
+  projectRoot: string,
+  plan: SkillInstallPlan,
+): void {
+  const skillsDir = join(projectRoot, ".skills");
+  mkdirSync(skillsDir, { recursive: true });
+  writeFileSync(
+    join(skillsDir, "install-plan.json"),
+    JSON.stringify(plan, null, 2) + "\n",
+    "utf-8",
+  );
+}
+
 async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
@@ -672,16 +805,37 @@ async function main(): Promise<void> {
   const cliStatus: VercelCliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
 
-  const likelySkills: string[] = greenfield
-    ? GREENFIELD_DEFAULT_SKILLS
-    : profileProject(projectRoot);
+  const detections: SkillDetection[] = greenfield
+    ? GREENFIELD_DEFAULT_SKILLS.map((skill) => ({
+        skill,
+        reasons: [
+          {
+            kind: "greenfield" as const,
+            source: "project-root",
+            detail: "seeded from greenfield defaults",
+          },
+        ],
+      }))
+    : profileProjectDetections(projectRoot);
+
+  const likelySkills: string[] = detections.map((detection) => detection.skill);
 
   // Auto-boost observability for all non-greenfield projects so debugging
   // and logging guidance is always available (+5 priority from profiler).
   if (!greenfield && !likelySkills.includes("observability")) {
     likelySkills.push("observability");
-    likelySkills.sort();
+    detections.push({
+      skill: "observability",
+      reasons: [
+        {
+          kind: "profiler-default" as const,
+          source: "profiler-default",
+          detail: "auto-boosted for non-greenfield debugging coverage",
+        },
+      ],
+    });
   }
+  likelySkills.sort();
   const setupSignals: BootstrapSignals = greenfield
     ? GREENFIELD_SETUP_SIGNALS
     : profileBootstrapSignals(projectRoot);
@@ -693,24 +847,60 @@ async function main(): Promise<void> {
 
   // Discover installed skills from project and global caches
   const bundledFallbackEnabled = process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1";
-  const skillStore = createSkillStore({
+  let skillStore = createSkillStore({
     projectRoot,
     pluginRoot: pluginRoot(),
     bundledFallback: bundledFallbackEnabled,
   });
-  const installedSkills = skillStore.listInstalledSkills(log);
+  let installedSkills = skillStore.listInstalledSkills(log);
 
-  const skillCacheStatus = buildSkillCacheStatus({
+  let skillCacheStatus = buildSkillCacheStatus({
     likelySkills,
     installedSkills,
     bundledFallbackEnabled,
   });
-  const skillCacheBanner = buildSkillCacheBanner({
-    ...skillCacheStatus,
+
+  // Auto-install missing skills from registry when opted in
+  const installResult = await autoInstallDetectedSkills({
     projectRoot,
+    missingSkills: skillCacheStatus.missingSkills,
+    logger: log,
   });
-  if (skillCacheBanner) {
-    userMessages.unshift(skillCacheBanner);
+
+  if (installResult.installed.length > 0 || installResult.reused.length > 0) {
+    // Refresh store and cache status after installing new skills
+    skillStore = createSkillStore({
+      projectRoot,
+      pluginRoot: pluginRoot(),
+      bundledFallback: bundledFallbackEnabled,
+    });
+    installedSkills = skillStore.listInstalledSkills(log);
+    skillCacheStatus = buildSkillCacheStatus({
+      likelySkills,
+      installedSkills,
+      bundledFallbackEnabled,
+    });
+  }
+
+  // Build and persist the machine-readable install plan
+  const installPlan = buildSkillInstallPlan({
+    projectRoot,
+    detections,
+    installedSkills,
+    bundledFallbackEnabled,
+  });
+
+  try {
+    writeInstallPlanFile(projectRoot, installPlan);
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:write-install-plan-failed", error, {
+      projectRoot,
+    });
+  }
+
+  const installPalette = formatSkillInstallPalette(installPlan);
+  if (installPalette) {
+    userMessages.unshift(installPalette);
   }
 
   const envVars = buildSessionStartProfilerEnvVars({
@@ -721,6 +911,8 @@ async function main(): Promise<void> {
     missingSkills: skillCacheStatus.missingSkills,
     setupSignals,
   });
+  envVars.VERCEL_PLUGIN_INSTALL_PLAN = serializeSkillInstallPlan(installPlan);
+
   const cursorOutput = platform === "cursor"
     ? formatSessionStartProfilerCursorOutput(envVars, userMessages)
     : null;
