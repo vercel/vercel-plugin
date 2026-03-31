@@ -901,9 +901,9 @@ export function run(): string {
     return formatEmptyOutput(platform);
   }
 
-  // Stage 2: loadSkills (reuse from pretooluse)
+  // Stage 2: loadSkills (reuse from pretooluse, cache-first via skill store)
   const tSkillmap = log.active ? log.now() : 0;
-  const skills = loadSkills(PLUGIN_ROOT, log);
+  const skills = loadSkills(PLUGIN_ROOT, log, cwd);
   if (!skills) return formatEmptyOutput(platform);
   if (log.active) timing.skillmap_load = Math.round(log.now() - tSkillmap);
 

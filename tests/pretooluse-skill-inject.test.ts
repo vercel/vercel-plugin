@@ -10,6 +10,7 @@ const SKILLS_DIR = join(ROOT, "skills");
 const TEMP_HOOK_RUNTIME_MODULES = [
   "pretooluse-skill-inject.mjs",
   "skill-map-frontmatter.mjs",
+  "skill-store.mjs",
   "patterns.mjs",
   "vercel-config.mjs",
   "logger.mjs",

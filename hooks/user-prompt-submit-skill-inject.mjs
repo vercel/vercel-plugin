@@ -564,7 +564,7 @@ function run() {
     return formatEmptyOutput(platform);
   }
   const tSkillmap = log.active ? log.now() : 0;
-  const skills = loadSkills(PLUGIN_ROOT, log);
+  const skills = loadSkills(PLUGIN_ROOT, log, cwd);
   if (!skills) return formatEmptyOutput(platform);
   if (log.active) timing.skillmap_load = Math.round(log.now() - tSkillmap);
   const tAnalyze = log.active ? log.now() : 0;

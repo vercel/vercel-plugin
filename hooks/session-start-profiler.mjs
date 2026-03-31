@@ -19,6 +19,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -384,6 +385,9 @@ function buildSessionStartProfilerEnvVars(args) {
   if (args.likelySkills.length > 0) {
     envVars.VERCEL_PLUGIN_LIKELY_SKILLS = args.likelySkills.join(",");
   }
+  if (args.installedSkills && args.installedSkills.length > 0) {
+    envVars.VERCEL_PLUGIN_INSTALLED_SKILLS = args.installedSkills.join(",");
+  }
   if (args.setupSignals.bootstrapHints.length > 0) {
     envVars.VERCEL_PLUGIN_BOOTSTRAP_HINTS = args.setupSignals.bootstrapHints.join(",");
   }
@@ -445,10 +449,17 @@ async function main() {
   const greenfieldValue = greenfield ? "true" : "";
   const likelySkillsValue = likelySkills.join(",");
   const agentBrowserAvailable = checkAgentBrowser();
+  const skillStore = createSkillStore({
+    projectRoot,
+    pluginRoot: pluginRoot(),
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+  });
+  const installedSkills = skillStore.listInstalledSkills(log);
   const envVars = buildSessionStartProfilerEnvVars({
     agentBrowserAvailable,
     greenfield: greenfield !== null,
     likelySkills,
+    installedSkills,
     setupSignals
   });
   const cursorOutput = platform === "cursor" ? formatSessionStartProfilerCursorOutput(envVars, userMessages) : null;
@@ -459,7 +470,7 @@ async function main() {
   try {
     if (platform === "claude-code") {
       for (const [key, value] of Object.entries(envVars)) {
-        if (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS") {
+        if (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS" || key === "VERCEL_PLUGIN_INSTALLED_SKILLS") {
           continue;
         }
         setSessionEnv(platform, key, value);
@@ -498,6 +509,7 @@ async function main() {
       const cache = {
         projectRoot,
         likelySkills,
+        installedSkills,
         greenfield: greenfield !== null,
         bootstrapHints: setupSignals.bootstrapHints,
         resourceHints: setupSignals.resourceHints,

@@ -32,6 +32,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
@@ -579,6 +580,7 @@ export function buildSessionStartProfilerEnvVars(args: {
   agentBrowserAvailable: boolean;
   greenfield: boolean;
   likelySkills: string[];
+  installedSkills?: string[];
   setupSignals: BootstrapSignals;
 }): Record<string, string> {
   const envVars: Record<string, string> = {
@@ -590,6 +592,9 @@ export function buildSessionStartProfilerEnvVars(args: {
   }
   if (args.likelySkills.length > 0) {
     envVars.VERCEL_PLUGIN_LIKELY_SKILLS = args.likelySkills.join(",");
+  }
+  if (args.installedSkills && args.installedSkills.length > 0) {
+    envVars.VERCEL_PLUGIN_INSTALLED_SKILLS = args.installedSkills.join(",");
   }
   if (args.setupSignals.bootstrapHints.length > 0) {
     envVars.VERCEL_PLUGIN_BOOTSTRAP_HINTS = args.setupSignals.bootstrapHints.join(",");
@@ -680,10 +685,20 @@ async function main(): Promise<void> {
 
   // Check agent-browser CLI availability
   const agentBrowserAvailable: boolean = checkAgentBrowser();
+
+  // Discover installed skills from project and global caches
+  const skillStore = createSkillStore({
+    projectRoot,
+    pluginRoot: pluginRoot(),
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
+  const installedSkills = skillStore.listInstalledSkills(log);
+
   const envVars = buildSessionStartProfilerEnvVars({
     agentBrowserAvailable,
     greenfield: greenfield !== null,
     likelySkills,
+    installedSkills,
     setupSignals,
   });
   const cursorOutput = platform === "cursor"
@@ -698,7 +713,7 @@ async function main(): Promise<void> {
   try {
     if (platform === "claude-code") {
       for (const [key, value] of Object.entries(envVars)) {
-        if (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS") {
+        if (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS" || key === "VERCEL_PLUGIN_INSTALLED_SKILLS") {
           continue;
         }
         setSessionEnv(platform, key, value);
@@ -742,6 +757,7 @@ async function main(): Promise<void> {
       const cache = {
         projectRoot,
         likelySkills,
+        installedSkills,
         greenfield: greenfield !== null,
         bootstrapHints: setupSignals.bootstrapHints,
         resourceHints: setupSignals.resourceHints,

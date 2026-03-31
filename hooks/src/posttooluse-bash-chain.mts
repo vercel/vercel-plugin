@@ -14,19 +14,18 @@
 
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { readFileSync, realpathSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectPlatform, type HookPlatform } from "./compat.mjs";
 import {
   pluginRoot as resolvePluginRoot,
   readSessionFile,
-  safeReadFile,
   tryClaimSessionKey,
   syncSessionFileFromClaims,
 } from "./hook-env.mjs";
-import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
+import { createSkillStore, type SkillStore } from "./skill-store.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
 const CHAIN_BUDGET_BYTES = 18_000;
@@ -366,6 +365,7 @@ export function runBashChainInjection(
   pluginRoot: string,
   logger?: Logger,
   env: NodeJS.ProcessEnv = process.env,
+  skillStore?: SkillStore,
 ): BashChainResult {
   const l = logger || log;
   const result: BashChainResult = { injected: [], totalBytes: 0 };
@@ -409,16 +409,19 @@ export function runBashChainInjection(
       continue;
     }
 
-    // Read target SKILL.md
-    const skillPath = join(pluginRoot, "skills", skill, "SKILL.md");
-    const skillContent = safeReadFile(skillPath);
-    if (!skillContent) {
-      l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill, path: skillPath });
+    // Read target SKILL.md via skill store (cache-first resolution)
+    const store = skillStore ?? createSkillStore({
+      projectRoot: process.cwd(),
+      pluginRoot,
+      bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+    });
+    const resolved = store.resolveSkillBody(skill, l);
+    if (!resolved) {
+      l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill });
       continue;
     }
 
-    const { body } = extractFrontmatter(skillContent);
-    const trimmedBody = body.trim();
+    const trimmedBody = resolved.body.trim();
     if (!trimmedBody) continue;
 
     // Check budget
@@ -540,7 +543,12 @@ export function run(): string {
 
   log.debug("posttooluse-bash-chain-packages", { packages, command });
 
-  const chainResult = runBashChainInjection(packages, sessionId, PLUGIN_ROOT, log);
+  const store = createSkillStore({
+    projectRoot: process.cwd(),
+    pluginRoot: PLUGIN_ROOT,
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
+  const chainResult = runBashChainInjection(packages, sessionId, PLUGIN_ROOT, log, process.env, store);
   const output = formatBashChainOutput(chainResult, platform);
 
   log.complete("posttooluse-bash-chain-done", {

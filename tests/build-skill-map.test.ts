@@ -273,6 +273,7 @@ This is test content.
     const hookFiles = [
       "pretooluse-skill-inject.mjs",
       "skill-map-frontmatter.mjs",
+      "skill-store.mjs",
       "patterns.mjs",
       "vercel-config.mjs",
       "logger.mjs",

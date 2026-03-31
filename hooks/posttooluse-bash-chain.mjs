@@ -2,18 +2,17 @@
 
 // hooks/src/posttooluse-bash-chain.mts
 import { readFileSync, realpathSync } from "fs";
-import { join, resolve } from "path";
+import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { detectPlatform } from "./compat.mjs";
 import {
   pluginRoot as resolvePluginRoot,
   readSessionFile,
-  safeReadFile,
   tryClaimSessionKey,
   syncSessionFileFromClaims
 } from "./hook-env.mjs";
-import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 import { createLogger } from "./logger.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var CHAIN_BUDGET_BYTES = 18e3;
 var DEFAULT_CHAIN_CAP = 2;
@@ -240,7 +239,7 @@ function parseBashInput(raw, logger) {
   const platform = detectPlatform(input);
   return { command, sessionId, platform };
 }
-function runBashChainInjection(packages, sessionId, pluginRoot, logger, env = process.env) {
+function runBashChainInjection(packages, sessionId, pluginRoot, logger, env = process.env, skillStore) {
   const l = logger || log;
   const result = { injected: [], totalBytes: 0 };
   if (packages.length === 0) return result;
@@ -268,14 +267,17 @@ function runBashChainInjection(packages, sessionId, pluginRoot, logger, env = pr
       l.debug("posttooluse-bash-chain-skip-dedup", { pkg, skill });
       continue;
     }
-    const skillPath = join(pluginRoot, "skills", skill, "SKILL.md");
-    const skillContent = safeReadFile(skillPath);
-    if (!skillContent) {
-      l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill, path: skillPath });
+    const store = skillStore ?? createSkillStore({
+      projectRoot: process.cwd(),
+      pluginRoot,
+      bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+    });
+    const resolved = store.resolveSkillBody(skill, l);
+    if (!resolved) {
+      l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill });
       continue;
     }
-    const { body } = extractFrontmatter(skillContent);
-    const trimmedBody = body.trim();
+    const trimmedBody = resolved.body.trim();
     if (!trimmedBody) continue;
     const bytes = Buffer.byteLength(trimmedBody, "utf-8");
     if (result.totalBytes + bytes > CHAIN_BUDGET_BYTES) {
@@ -361,7 +363,12 @@ function run() {
     return "{}";
   }
   log.debug("posttooluse-bash-chain-packages", { packages, command });
-  const chainResult = runBashChainInjection(packages, sessionId, PLUGIN_ROOT, log);
+  const store = createSkillStore({
+    projectRoot: process.cwd(),
+    pluginRoot: PLUGIN_ROOT,
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+  });
+  const chainResult = runBashChainInjection(packages, sessionId, PLUGIN_ROOT, log, process.env, store);
   const output = formatBashChainOutput(chainResult, platform);
   log.complete("posttooluse-bash-chain-done", {
     matchedCount: packages.length,

@@ -2,13 +2,13 @@
 
 // hooks/src/subagent-start-bootstrap.mts
 import { readFileSync } from "fs";
-import { join, resolve } from "path";
+import { resolve } from "path";
 import { fileURLToPath } from "url";
-import { pluginRoot as resolvePluginRoot, profileCachePath, safeReadFile, safeReadJson, tryClaimSessionKey } from "./hook-env.mjs";
+import { pluginRoot as resolvePluginRoot, profileCachePath, safeReadJson, tryClaimSessionKey } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { compilePromptSignals, matchPromptWithReason, normalizePromptText } from "./prompt-patterns.mjs";
 import { loadSkills } from "./pretooluse-skill-inject.mjs";
-import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 import { claimPendingLaunch } from "./subagent-state.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var MINIMAL_BUDGET_BYTES = 1024;
@@ -173,12 +173,15 @@ function buildStandardContext(agentType, likelySkills, budgetBytes) {
   parts.push(profileLine(agentType, likelySkills));
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
   const loaded = loadSkills(PLUGIN_ROOT, log);
+  const store = createSkillStore({
+    projectRoot: process.cwd(),
+    pluginRoot: PLUGIN_ROOT,
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+  });
   for (const skill of likelySkills) {
-    const skillPath = join(PLUGIN_ROOT, "skills", skill, "SKILL.md");
-    const raw = safeReadFile(skillPath);
-    if (raw !== null) {
-      const { body } = extractFrontmatter(raw);
-      const content = body.trimStart();
+    const resolved = store.resolveSkillBody(skill);
+    if (resolved) {
+      const content = resolved.body;
       const wrapped = `<!-- skill:${skill} -->
 ${content}
 <!-- /skill:${skill} -->`;

@@ -17,13 +17,13 @@
 
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pluginRoot as resolvePluginRoot, profileCachePath, safeReadFile, safeReadJson, tryClaimSessionKey } from "./hook-env.mjs";
+import { pluginRoot as resolvePluginRoot, profileCachePath, safeReadJson, tryClaimSessionKey } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { compilePromptSignals, matchPromptWithReason, normalizePromptText } from "./prompt-patterns.mjs";
 import { loadSkills } from "./pretooluse-skill-inject.mjs";
-import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 import { claimPendingLaunch } from "./subagent-state.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
@@ -286,14 +286,17 @@ function buildStandardContext(agentType: string, likelySkills: string[], budgetB
 
   // Load skill map once for summary fallbacks
   const loaded = loadSkills(PLUGIN_ROOT, log);
+  const store = createSkillStore({
+    projectRoot: process.cwd(),
+    pluginRoot: PLUGIN_ROOT,
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
 
   // Inject full skill bodies for likely skills, falling back to summaries
   for (const skill of likelySkills) {
-    const skillPath = join(PLUGIN_ROOT, "skills", skill, "SKILL.md");
-    const raw = safeReadFile(skillPath);
-    if (raw !== null) {
-      const { body } = extractFrontmatter(raw);
-      const content = body.trimStart();
+    const resolved = store.resolveSkillBody(skill);
+    if (resolved) {
+      const content = resolved.body;
       const wrapped = `<!-- skill:${skill} -->\n${content}\n<!-- /skill:${skill} -->`;
       const byteLen = Buffer.byteLength(wrapped, "utf8");
 

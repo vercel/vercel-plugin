@@ -23,7 +23,7 @@
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { createHash } from "node:crypto";
 import { appendFileSync, readFileSync, realpathSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectPlatform, type HookPlatform } from "./compat.mjs";
 import {
@@ -35,10 +35,8 @@ import {
   tryClaimSessionKey,
   syncSessionFileFromClaims,
 } from "./hook-env.mjs";
-import { buildSkillMap, extractFrontmatter } from "./skill-map-frontmatter.mjs";
 import type { ChainToRule, SkillConfig, ValidationRule } from "./skill-map-frontmatter.mjs";
 import {
-  compileSkillPatterns,
   matchPathWithReason,
   matchImportWithReason,
   importPatternToRegex,
@@ -46,6 +44,7 @@ import {
 import type { CompiledSkillEntry, CompiledPattern } from "./patterns.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
+import { createSkillStore, type SkillStore } from "./skill-store.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
 const SUPPORTED_TOOLS = ["Write", "Edit"];
@@ -257,11 +256,26 @@ export interface LoadedValidateData {
 
 /**
  * Load skills that have validate: rules. Returns null if no rules exist.
+ * Uses the skill store for cache-first resolution (project → global → bundled).
  */
-export function loadValidateRules(pluginRoot: string, logger?: Logger): LoadedValidateData | null {
+export function loadValidateRules(
+  pluginRoot: string,
+  logger?: Logger,
+  projectRoot?: string,
+  skillStore?: SkillStore,
+): LoadedValidateData | null {
   const l = logger || log;
-  const skillsDir = join(pluginRoot, "skills");
-  const { skills: skillMap } = buildSkillMap(skillsDir);
+  const store = skillStore ?? createSkillStore({
+    projectRoot: projectRoot ?? process.cwd(),
+    pluginRoot,
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
+  const loaded = store.loadSkillSet(l);
+  if (!loaded) {
+    l.debug("posttooluse-validate-skip", { reason: "no_skills_loaded" });
+    return null;
+  }
+  const skillMap = loaded.skillMap;
 
   // Filter to skills that have validate rules or chainTo rules
   const rulesMap = new Map<string, ValidationRule[]>();
@@ -280,7 +294,7 @@ export function loadValidateRules(pluginRoot: string, logger?: Logger): LoadedVa
     return null;
   }
 
-  const compiledSkills = compileSkillPatterns(skillMap);
+  const compiledSkills = loaded.compiledSkills;
   l.debug("posttooluse-validate-loaded", {
     totalSkills: Object.keys(skillMap).length,
     skillsWithRules: rulesMap.size,
@@ -457,6 +471,7 @@ export function runChainInjection(
   pluginRoot: string,
   logger?: Logger,
   env: NodeJS.ProcessEnv = process.env,
+  skillStore?: SkillStore,
 ): ChainResult {
   const l = logger || log;
   const result: ChainResult = { injected: [], totalBytes: 0 };
@@ -533,21 +548,22 @@ export function runChainInjection(
       continue;
     }
 
-    // Read target SKILL.md
-    const skillPath = join(pluginRoot, "skills", rule.targetSkill, "SKILL.md");
-    const skillContent = safeReadFile(skillPath);
-    if (!skillContent) {
+    // Read target SKILL.md via skill store (cache-first resolution)
+    const store = skillStore ?? createSkillStore({
+      projectRoot: process.cwd(),
+      pluginRoot,
+      bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+    });
+    const resolved = store.resolveSkillBody(rule.targetSkill, l);
+    if (!resolved) {
       l.debug("posttooluse-chain-skip-missing", {
         sourceSkill,
         targetSkill: rule.targetSkill,
-        path: skillPath,
       });
       continue;
     }
 
-    // Extract body (skip frontmatter)
-    const { body } = extractFrontmatter(skillContent);
-    const trimmedBody = body.trim();
+    const trimmedBody = resolved.body.trim();
     if (!trimmedBody) continue;
 
     // Check budget
@@ -864,9 +880,14 @@ export function run(): string {
     return "{}";
   }
 
-  // Stage 2: loadValidateRules
+  // Stage 2: loadValidateRules (via skill store for cache-first resolution)
   const tLoad = log.active ? log.now() : 0;
-  const data = loadValidateRules(PLUGIN_ROOT, log);
+  const store = createSkillStore({
+    projectRoot: cwd,
+    pluginRoot: PLUGIN_ROOT,
+    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
+  const data = loadValidateRules(PLUGIN_ROOT, log, cwd, store);
   if (!data) return "{}";
   if (log.active) timing.load = Math.round(log.now() - tLoad);
 
@@ -892,6 +913,7 @@ export function run(): string {
   const tChain = log.active ? log.now() : 0;
   const chainResult = runChainInjection(
     fileContent, matchedSkills, chainMap, sessionId, PLUGIN_ROOT, log,
+    process.env, store,
   );
   if (log.active) timing.chain = Math.round(log.now() - tChain);
 

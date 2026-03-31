@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { readSessionFile } from "../hooks/src/hook-env.mts";
+import { readSessionFile, profileCachePath } from "../hooks/src/hook-env.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const PROFILER = join(ROOT, "hooks", "session-start-profiler.mjs");
@@ -680,6 +680,55 @@ describe("session-start-profiler", () => {
     expect(result.stderr).toContain('"binaryName":"agent-browser"');
     expect(result.stderr).toContain("session-start-profiler:append-env-export-failed");
     expect(result.stderr).toContain("hook-env:safe-read-file-failed");
+  });
+  test("exports installed skills from project .skills cache", async () => {
+    const projectDir = join(tempDir, "installed-skills-project");
+    mkdirSync(join(projectDir, ".skills", "nextjs"), { recursive: true });
+    writeFileSync(
+      join(projectDir, ".skills", "nextjs", "SKILL.md"),
+      `---
+name: nextjs
+description: Next.js
+summary: Next.js summary
+metadata:
+  priority: 7
+  pathPatterns:
+    - "app/**/*.tsx"
+---
+# Next.js
+`,
+      "utf-8",
+    );
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    // installedSkills should appear in profile cache
+    const cachePath = profileCachePath(testSessionId);
+    const cache = JSON.parse(readFileSync(cachePath, "utf-8"));
+    expect(cache.installedSkills).toEqual(["nextjs"]);
+  });
+
+  test("omits VERCEL_PLUGIN_INSTALLED_SKILLS when no installed skills exist", async () => {
+    const projectDir = join(tempDir, "no-installed-skills");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    // Profile cache should have empty installedSkills
+    const cachePath = profileCachePath(testSessionId);
+    const cache = JSON.parse(readFileSync(cachePath, "utf-8"));
+    expect(cache.installedSkills).toEqual([]);
   });
 });
 
