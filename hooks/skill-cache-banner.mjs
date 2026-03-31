@@ -46,37 +46,35 @@ function buildSkillCacheStatus(args) {
     zeroBundleReady: likelySkills.length > 0 && missingSkills.length === 0
   };
 }
-function buildSkillCacheBanner(input) {
-  if (input.likelySkills.length === 0) return null;
-  const detectedLine = `Detected: ${input.likelySkills.join(", ")}`;
-  const cachedLine = `Cached: ${input.installedSkills.length > 0 ? input.installedSkills.join(", ") : "none"}`;
-  if (input.missingSkills.length === 0) {
-    const extraLine = input.extraInstalledSkills.length > 0 ? `Also cached: ${input.extraInstalledSkills.join(", ")}` : null;
-    return [
-      "### Vercel skill cache",
-      "- Status: ready",
-      `- ${detectedLine}`,
-      `- ${cachedLine}`,
-      extraLine ? `- ${extraLine}` : null
-    ].filter(Boolean).join("\n");
-  }
-  const installQuestion = buildProjectSkillInstallQuestion(
-    input.missingSkills
-  );
-  const installCmd = buildProjectSkillInstallCommand({
-    missingSkills: input.missingSkills
-  });
-  const statusLine = input.bundledFallbackEnabled ? "Status: incomplete cache \u2014 bundled fallback can cover the gap during migration" : "Status: incomplete cache \u2014 missing skills will not inject until installed";
+function buildResolvedSkillCacheBanner(args) {
+  const { projectRoot, status, outcome, installResult } = args;
+  if (status.likelySkills.length === 0) return null;
+  const detectedLine = `Detected: ${status.likelySkills.join(", ")}`;
+  const cachedLine = `Cached: ${status.installedSkills.length > 0 ? status.installedSkills.join(", ") : "none"}`;
+  const statusLine = outcome === "installed" ? "Status: installed now \u2014 project cache is ready" : outcome === "partial" ? "Status: partially installed \u2014 some skills are ready, some still need install" : outcome === "failed" ? status.bundledFallbackEnabled ? "Status: auto-install failed \u2014 bundled fallback can cover the gap during migration" : "Status: auto-install failed \u2014 missing skills will not inject until installed" : status.missingSkills.length === 0 ? "Status: ready" : status.bundledFallbackEnabled ? "Status: incomplete cache \u2014 bundled fallback can cover the gap during migration" : "Status: incomplete cache \u2014 missing skills will not inject until installed";
+  const installQuestion = status.missingSkills.length > 0 ? buildProjectSkillInstallQuestion(status.missingSkills) : null;
+  const installCommand = status.missingSkills.length > 0 ? buildProjectSkillInstallCommand({ missingSkills: status.missingSkills }) : null;
+  const extraLine = status.extraInstalledSkills.length > 0 && status.missingSkills.length === 0 ? `Also cached: ${status.extraInstalledSkills.join(", ")}` : null;
   return [
     "### Vercel skill cache",
     `- ${statusLine}`,
     `- ${detectedLine}`,
     `- ${cachedLine}`,
-    `- Missing: ${input.missingSkills.join(", ")}`,
-    `- Project cache: ${join(input.projectRoot, ".skills")}`,
+    extraLine ? `- ${extraLine}` : null,
+    installResult?.installed.length ? `- Installed now: ${installResult.installed.join(", ")}` : null,
+    installResult?.reused.length ? `- Already cached: ${installResult.reused.join(", ")}` : null,
+    status.missingSkills.length > 0 ? `- Missing: ${status.missingSkills.join(", ")}` : null,
+    status.missingSkills.length > 0 || outcome === "installed" || outcome === "partial" || outcome === "failed" ? `- Project cache: ${join(projectRoot, ".skills")}` : null,
     installQuestion ? `- Ask once: "${installQuestion}"` : null,
-    installCmd ? `- Install: \`${installCmd}\`` : null
+    installCommand ? `- Install: \`${installCommand}\`` : null
   ].filter(Boolean).join("\n");
+}
+function buildSkillCacheBanner(input) {
+  return buildResolvedSkillCacheBanner({
+    projectRoot: input.projectRoot,
+    status: input,
+    outcome: input.missingSkills.length === 0 ? "ready" : "suggest"
+  });
 }
 async function resolveSkillCacheBanner(args) {
   const initialStatus = buildSkillCacheStatus({
@@ -85,13 +83,16 @@ async function resolveSkillCacheBanner(args) {
     bundledFallbackEnabled: args.bundledFallbackEnabled
   });
   if (!args.autoInstall || initialStatus.missingSkills.length === 0) {
+    const outcome2 = initialStatus.missingSkills.length === 0 ? "ready" : "suggest";
     return {
       status: initialStatus,
-      banner: buildSkillCacheBanner({
-        ...initialStatus,
-        projectRoot: args.projectRoot
+      banner: buildResolvedSkillCacheBanner({
+        projectRoot: args.projectRoot,
+        status: initialStatus,
+        outcome: outcome2
       }),
-      installResult: null
+      installResult: null,
+      outcome: outcome2
     };
   }
   const client = args.registryClient ?? createRegistryClient({
@@ -108,11 +109,13 @@ async function resolveSkillCacheBanner(args) {
   } catch {
     return {
       status: initialStatus,
-      banner: buildSkillCacheBanner({
-        ...initialStatus,
-        projectRoot: args.projectRoot
+      banner: buildResolvedSkillCacheBanner({
+        projectRoot: args.projectRoot,
+        status: initialStatus,
+        outcome: "failed"
       }),
-      installResult: null
+      installResult: null,
+      outcome: "failed"
     };
   }
   const projectState = readProjectSkillState(args.projectRoot);
@@ -121,18 +124,23 @@ async function resolveSkillCacheBanner(args) {
     installedSkills: projectState.installedSlugs,
     bundledFallbackEnabled: args.bundledFallbackEnabled
   });
+  const outcome = nextStatus.missingSkills.length === 0 ? "installed" : installResult.installed.length > 0 || installResult.reused.length > 0 ? "partial" : "failed";
   return {
     status: nextStatus,
-    banner: buildSkillCacheBanner({
-      ...nextStatus,
-      projectRoot: args.projectRoot
+    banner: buildResolvedSkillCacheBanner({
+      projectRoot: args.projectRoot,
+      status: nextStatus,
+      outcome,
+      installResult
     }),
-    installResult
+    installResult,
+    outcome
   };
 }
 export {
   buildProjectSkillInstallCommand,
   buildProjectSkillInstallQuestion,
+  buildResolvedSkillCacheBanner,
   buildSkillCacheBanner,
   buildSkillCacheStatus,
   resolveSkillCacheBanner

@@ -616,6 +616,20 @@ async function main() {
       installedSkills,
       bundledFallbackEnabled
     });
+    const installedOrReusedNow = [
+      ...installResult.installed,
+      ...installResult.reused
+    ];
+    if (installedOrReusedNow.length > 0) {
+      userMessages.unshift(
+        [
+          "### Vercel skill cache",
+          installResult.installed.length > 0 ? `- Installed now: ${installResult.installed.join(", ")}` : null,
+          installResult.reused.length > 0 ? `- Already cached: ${installResult.reused.join(", ")}` : null,
+          `- Project cache: ${join(projectRoot, ".skills")}`
+        ].filter(Boolean).join("\n")
+      );
+    }
   }
   const projectSkillState = readProjectSkillState(projectRoot);
   const projectSkillManifestPath = projectSkillState.projectSkillStatePath;

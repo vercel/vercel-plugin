@@ -270,7 +270,8 @@ describe("resolveSkillCacheBanner", () => {
       expect(result.installResult!.installed).toEqual(["ai-sdk", "nextjs"]);
       expect(result.status.missingSkills).toEqual([]);
       expect(result.status.zeroBundleReady).toBe(true);
-      expect(result.banner).toContain("Status: ready");
+      expect(result.banner).toContain("Status: installed now");
+      expect(result.outcome).toBe("installed");
     } finally {
       rmSync(projectDir, { recursive: true, force: true });
     }

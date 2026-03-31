@@ -243,6 +243,55 @@ function parseBashInput(raw, logger, env = process.env) {
   const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : process.cwd();
   return { command, sessionId, platform, cwd };
 }
+function tryInjectResolvedBashSkill(args) {
+  const {
+    candidate,
+    resolvedBody,
+    sessionId,
+    seenSet,
+    result,
+    logger: l,
+    chainCap
+  } = args;
+  if (result.injected.length >= chainCap) return false;
+  if (seenSet.has(candidate.skill)) return false;
+  if (!resolvedBody) return false;
+  const bytes = Buffer.byteLength(resolvedBody, "utf-8");
+  if (result.totalBytes + bytes > CHAIN_BUDGET_BYTES) {
+    l.debug("posttooluse-bash-chain-budget-exceeded-after-install", {
+      skill: candidate.skill,
+      bytes,
+      totalBytes: result.totalBytes,
+      budget: CHAIN_BUDGET_BYTES
+    });
+    return false;
+  }
+  if (sessionId) {
+    const claimed = tryClaimSessionKey(sessionId, "seen-skills", candidate.skill);
+    if (!claimed) {
+      l.debug("posttooluse-bash-chain-skip-concurrent-claim-after-install", {
+        skill: candidate.skill
+      });
+      seenSet.add(candidate.skill);
+      return false;
+    }
+    syncSessionFileFromClaims(sessionId, "seen-skills");
+  }
+  seenSet.add(candidate.skill);
+  result.injected.push({
+    packageName: candidate.packageName,
+    skill: candidate.skill,
+    message: candidate.message,
+    content: resolvedBody
+  });
+  result.totalBytes += bytes;
+  l.debug("posttooluse-bash-chain-injected-after-install", {
+    skill: candidate.skill,
+    bytes,
+    totalBytes: result.totalBytes
+  });
+  return true;
+}
 async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore) {
   const l = logger || log;
   const result = { injected: [], missing: [], banners: [], totalBytes: 0 };
@@ -259,6 +308,7 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
   });
   const targetsSeen = /* @__PURE__ */ new Set();
+  const missingCandidates = /* @__PURE__ */ new Map();
   for (const pkg of packages) {
     const mapping = PACKAGE_SKILL_MAP[pkg];
     if (!mapping) continue;
@@ -279,6 +329,9 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     const resolved = store.resolveSkillBody(skill, l);
     if (!resolved) {
       result.missing.push(skill);
+      if (!missingCandidates.has(skill)) {
+        missingCandidates.set(skill, { packageName: pkg, skill, message });
+      }
       l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill, projectRoot });
       continue;
     }
@@ -331,6 +384,40 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     });
     if (resolvedBanner.banner) {
       result.banners.push(resolvedBanner.banner);
+    }
+    const installedNow = (resolvedBanner.installResult?.installed.length ?? 0) > 0 || (resolvedBanner.installResult?.reused.length ?? 0) > 0;
+    if (installedNow) {
+      const refreshedStore = createSkillStore({
+        projectRoot,
+        pluginRoot: pluginRoot ?? PLUGIN_ROOT,
+        bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+      });
+      const stillMissing = [];
+      for (const skill of uniqueMissing) {
+        const candidate = missingCandidates.get(skill);
+        const resolved = refreshedStore.resolveSkillBody(skill, l);
+        if (!resolved) {
+          stillMissing.push(skill);
+          continue;
+        }
+        if (!candidate) {
+          stillMissing.push(skill);
+          continue;
+        }
+        const injected = tryInjectResolvedBashSkill({
+          candidate,
+          resolvedBody: resolved.body.trim(),
+          sessionId,
+          seenSet,
+          result,
+          logger: l,
+          chainCap
+        });
+        if (!injected) {
+          stillMissing.push(skill);
+        }
+      }
+      result.missing = stillMissing;
     }
   }
   return result;

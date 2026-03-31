@@ -900,6 +900,28 @@ async function main(): Promise<void> {
       installedSkills,
       bundledFallbackEnabled,
     });
+
+    // Surface a visible callout so the user knows auto-install happened
+    const installedOrReusedNow = [
+      ...installResult.installed,
+      ...installResult.reused,
+    ];
+    if (installedOrReusedNow.length > 0) {
+      userMessages.unshift(
+        [
+          "### Vercel skill cache",
+          installResult.installed.length > 0
+            ? `- Installed now: ${installResult.installed.join(", ")}`
+            : null,
+          installResult.reused.length > 0
+            ? `- Already cached: ${installResult.reused.join(", ")}`
+            : null,
+          `- Project cache: ${join(projectRoot, ".skills")}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
   }
 
   // Read CLI-produced project skill state instead of writing our own manifest

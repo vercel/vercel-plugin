@@ -28,10 +28,18 @@ export interface ResolveSkillCacheBannerArgs extends SkillCacheBannerInput {
   registryClient?: RegistryClient;
 }
 
+export type SkillCacheBannerOutcome =
+  | "ready"
+  | "suggest"
+  | "installed"
+  | "partial"
+  | "failed";
+
 export interface ResolveSkillCacheBannerResult {
   status: SkillCacheStatus;
   banner: string | null;
   installResult: InstallSkillsResult | null;
+  outcome: SkillCacheBannerOutcome;
 }
 
 function uniqueSorted(values: string[] | undefined): string[] {
@@ -96,57 +104,84 @@ export function buildSkillCacheStatus(args: {
   };
 }
 
-export function buildSkillCacheBanner(
-  input: SkillCacheBannerInput,
-): string | null {
-  if (input.likelySkills.length === 0) return null;
+export function buildResolvedSkillCacheBanner(args: {
+  projectRoot: string;
+  status: SkillCacheStatus;
+  outcome: SkillCacheBannerOutcome;
+  installResult?: InstallSkillsResult | null;
+}): string | null {
+  const { projectRoot, status, outcome, installResult } = args;
+  if (status.likelySkills.length === 0) return null;
 
-  const detectedLine = `Detected: ${input.likelySkills.join(", ")}`;
+  const detectedLine = `Detected: ${status.likelySkills.join(", ")}`;
   const cachedLine = `Cached: ${
-    input.installedSkills.length > 0
-      ? input.installedSkills.join(", ")
+    status.installedSkills.length > 0
+      ? status.installedSkills.join(", ")
       : "none"
   }`;
 
-  if (input.missingSkills.length === 0) {
-    const extraLine =
-      input.extraInstalledSkills.length > 0
-        ? `Also cached: ${input.extraInstalledSkills.join(", ")}`
-        : null;
-    return [
-      "### Vercel skill cache",
-      "- Status: ready",
-      `- ${detectedLine}`,
-      `- ${cachedLine}`,
-      extraLine ? `- ${extraLine}` : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
+  const statusLine =
+    outcome === "installed"
+      ? "Status: installed now — project cache is ready"
+      : outcome === "partial"
+        ? "Status: partially installed — some skills are ready, some still need install"
+        : outcome === "failed"
+          ? status.bundledFallbackEnabled
+            ? "Status: auto-install failed — bundled fallback can cover the gap during migration"
+            : "Status: auto-install failed — missing skills will not inject until installed"
+          : status.missingSkills.length === 0
+            ? "Status: ready"
+            : status.bundledFallbackEnabled
+              ? "Status: incomplete cache — bundled fallback can cover the gap during migration"
+              : "Status: incomplete cache — missing skills will not inject until installed";
 
-  const installQuestion = buildProjectSkillInstallQuestion(
-    input.missingSkills,
-  );
-  const installCmd = buildProjectSkillInstallCommand({
-    missingSkills: input.missingSkills,
-  });
+  const installQuestion =
+    status.missingSkills.length > 0
+      ? buildProjectSkillInstallQuestion(status.missingSkills)
+      : null;
+  const installCommand =
+    status.missingSkills.length > 0
+      ? buildProjectSkillInstallCommand({ missingSkills: status.missingSkills })
+      : null;
 
-  const statusLine = input.bundledFallbackEnabled
-    ? "Status: incomplete cache — bundled fallback can cover the gap during migration"
-    : "Status: incomplete cache — missing skills will not inject until installed";
+  const extraLine =
+    status.extraInstalledSkills.length > 0 && status.missingSkills.length === 0
+      ? `Also cached: ${status.extraInstalledSkills.join(", ")}`
+      : null;
 
   return [
     "### Vercel skill cache",
     `- ${statusLine}`,
     `- ${detectedLine}`,
     `- ${cachedLine}`,
-    `- Missing: ${input.missingSkills.join(", ")}`,
-    `- Project cache: ${join(input.projectRoot, ".skills")}`,
+    extraLine ? `- ${extraLine}` : null,
+    installResult?.installed.length
+      ? `- Installed now: ${installResult.installed.join(", ")}`
+      : null,
+    installResult?.reused.length
+      ? `- Already cached: ${installResult.reused.join(", ")}`
+      : null,
+    status.missingSkills.length > 0
+      ? `- Missing: ${status.missingSkills.join(", ")}`
+      : null,
+    status.missingSkills.length > 0 || outcome === "installed" || outcome === "partial" || outcome === "failed"
+      ? `- Project cache: ${join(projectRoot, ".skills")}`
+      : null,
     installQuestion ? `- Ask once: "${installQuestion}"` : null,
-    installCmd ? `- Install: \`${installCmd}\`` : null,
+    installCommand ? `- Install: \`${installCommand}\`` : null,
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export function buildSkillCacheBanner(
+  input: SkillCacheBannerInput,
+): string | null {
+  return buildResolvedSkillCacheBanner({
+    projectRoot: input.projectRoot,
+    status: input,
+    outcome: input.missingSkills.length === 0 ? "ready" : "suggest",
+  });
 }
 
 /**
@@ -168,13 +203,17 @@ export async function resolveSkillCacheBanner(
   });
 
   if (!args.autoInstall || initialStatus.missingSkills.length === 0) {
+    const outcome: SkillCacheBannerOutcome =
+      initialStatus.missingSkills.length === 0 ? "ready" : "suggest";
     return {
       status: initialStatus,
-      banner: buildSkillCacheBanner({
-        ...initialStatus,
+      banner: buildResolvedSkillCacheBanner({
         projectRoot: args.projectRoot,
+        status: initialStatus,
+        outcome,
       }),
       installResult: null,
+      outcome,
     };
   }
 
@@ -196,11 +235,13 @@ export async function resolveSkillCacheBanner(
     // CLI failure/timeout — fall back to suggestion-only banner
     return {
       status: initialStatus,
-      banner: buildSkillCacheBanner({
-        ...initialStatus,
+      banner: buildResolvedSkillCacheBanner({
         projectRoot: args.projectRoot,
+        status: initialStatus,
+        outcome: "failed",
       }),
       installResult: null,
+      outcome: "failed",
     };
   }
 
@@ -212,12 +253,22 @@ export async function resolveSkillCacheBanner(
     bundledFallbackEnabled: args.bundledFallbackEnabled,
   });
 
+  const outcome: SkillCacheBannerOutcome =
+    nextStatus.missingSkills.length === 0
+      ? "installed"
+      : installResult.installed.length > 0 || installResult.reused.length > 0
+        ? "partial"
+        : "failed";
+
   return {
     status: nextStatus,
-    banner: buildSkillCacheBanner({
-      ...nextStatus,
+    banner: buildResolvedSkillCacheBanner({
       projectRoot: args.projectRoot,
+      status: nextStatus,
+      outcome,
+      installResult,
     }),
     installResult,
+    outcome,
   };
 }
