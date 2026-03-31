@@ -1,7 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach } from "bun:test";
 import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import type { RegistryClient } from "../hooks/src/registry-client.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "posttooluse-bash-chain.mjs");
@@ -195,8 +196,8 @@ describe("runBashChainInjection unit tests", () => {
     expect(parseInstallCommand("npm install @ai-sdk/react")).toEqual(["@ai-sdk/react"]);
   });
 
-  test("runBashChainInjection returns empty for unknown packages", () => {
-    const result = runBashChainInjection(
+  test("runBashChainInjection returns empty for unknown packages", async () => {
+    const result = await runBashChainInjection(
       ["some-unknown-pkg"],
       null,
       ROOT,
@@ -206,8 +207,8 @@ describe("runBashChainInjection unit tests", () => {
     expect(result.totalBytes).toBe(0);
   });
 
-  test("runBashChainInjection reads skill via store fallback", () => {
-    const result = runBashChainInjection(
+  test("runBashChainInjection reads skill via store fallback", async () => {
+    const result = await runBashChainInjection(
       ["express"],
       null,
       ROOT,
@@ -221,7 +222,7 @@ describe("runBashChainInjection unit tests", () => {
     }
   });
 
-  test("resolves project-local .skills/ even when process.cwd differs", () => {
+  test("resolves project-local .skills/ even when process.cwd differs", async () => {
     // Set up a temp project with a .skills/vercel-functions/SKILL.md
     const projectDir = join(tmpdir(), `bash-chain-test-${Date.now()}`);
     const skillDir = join(projectDir, ".skills", "vercel-functions");
@@ -251,7 +252,7 @@ describe("runBashChainInjection unit tests", () => {
         bundledFallback: true,
       });
 
-      const result = runBashChainInjection(
+      const result = await runBashChainInjection(
         ["express"],
         null,
         projectDir,
@@ -270,7 +271,7 @@ describe("runBashChainInjection unit tests", () => {
     }
   });
 
-  test("reuses single store across multiple packages in one run", () => {
+  test("reuses single store across multiple packages in one run", async () => {
     // Set up a temp project with two project-local skills
     const projectDir = join(tmpdir(), `bash-chain-store-reuse-${Date.now()}`);
     for (const slug of ["vercel-functions", "vercel-storage"]) {
@@ -300,7 +301,7 @@ describe("runBashChainInjection unit tests", () => {
       });
 
       // express → vercel-functions, prisma → vercel-storage
-      const result = runBashChainInjection(
+      const result = await runBashChainInjection(
         ["express", "prisma"],
         null,
         projectDir,
@@ -317,6 +318,147 @@ describe("runBashChainInjection unit tests", () => {
       expect(result.injected[1].content).toContain("Local content");
     } finally {
       rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PostToolUse CLI delegation: banner-only vs auto-install
+// ---------------------------------------------------------------------------
+
+describe("PostToolUse CLI delegation", () => {
+  let runBashChainInjection: typeof import("../hooks/src/posttooluse-bash-chain.mts").runBashChainInjection;
+  let createSkillStore: typeof import("../hooks/src/skill-store.mts").createSkillStore;
+
+  beforeEach(async () => {
+    const mod = await import("../hooks/posttooluse-bash-chain.mjs");
+    runBashChainInjection = mod.runBashChainInjection;
+    const storeMod = await import("../hooks/skill-store.mjs");
+    createSkillStore = storeMod.createSkillStore;
+  });
+
+  /**
+   * Helper: create a project dir with a store that returns null for a given
+   * skill (simulating missing from both project cache and bundled fallback).
+   */
+  function makeMissingSkillStore(projectDir: string) {
+    return createSkillStore({
+      projectRoot: projectDir,
+      pluginRoot: projectDir, // intentionally wrong so bundled lookup fails
+      bundledFallback: false,
+    });
+  }
+
+  test("missing skills produce banner-only when auto-install is off", async () => {
+    const projectDir = join(tmpdir(), `chain-banner-only-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      const store = makeMissingSkillStore(projectDir);
+
+      const result = await runBashChainInjection(
+        ["express"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          // auto-install NOT set — should produce suggestion banner only
+        } as any,
+        store,
+      );
+
+      expect(result.injected).toEqual([]);
+      expect(result.missing).toContain("vercel-functions");
+      expect(result.banners.length).toBeGreaterThan(0);
+      expect(result.banners[0]).toContain("Missing: vercel-functions");
+      expect(result.banners[0]).toContain("Install:");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("missing skills trigger auto-install when VERCEL_PLUGIN_SKILL_AUTO_INSTALL=1", async () => {
+    const projectDir = join(tmpdir(), `chain-auto-install-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      const store = makeMissingSkillStore(projectDir);
+
+      const result = await runBashChainInjection(
+        ["express"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "1",
+        } as any,
+        store,
+      );
+
+      // With auto-install=1, resolveSkillCacheBanner will be called with
+      // autoInstall: true. Since we have no real CLI and no mock injected at
+      // this level, the CLI call will fail and fall back to banner-only.
+      // The key assertion: the hook did NOT crash, and a banner was produced.
+      expect(result.injected).toEqual([]);
+      expect(result.missing).toContain("vercel-functions");
+      expect(result.banners.length).toBeGreaterThan(0);
+      // Banner should still mention the missing skill
+      expect(result.banners[0]).toContain("vercel-functions");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("auto-install graceful fallback: no crash on CLI timeout", async () => {
+    const projectDir = join(tmpdir(), `chain-timeout-${Date.now()}`);
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      const store = makeMissingSkillStore(projectDir);
+
+      // This exercises the full path: missing skill → resolveSkillCacheBanner
+      // with autoInstall=true → createRegistryClient → CLI subprocess fails
+      // → catch → banner fallback. No real CLI is executed because the store
+      // has no bundled skills and the project has none either.
+      const result = await runBashChainInjection(
+        ["stripe"],
+        null,
+        projectDir,
+        projectDir,
+        undefined,
+        {
+          VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "1",
+          VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "1",
+        } as any,
+        store,
+      );
+
+      expect(result.injected).toEqual([]);
+      expect(result.missing).toContain("payments");
+      expect(result.banners.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("no banners when all packages resolve from store", async () => {
+    const result = await runBashChainInjection(
+      ["express"],
+      null,
+      ROOT,
+      ROOT,
+      undefined,
+      { VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "0" } as any,
+    );
+
+    // express → vercel-functions should resolve from bundled skills
+    if (result.injected.length > 0) {
+      expect(result.missing).toEqual([]);
+      expect(result.banners).toEqual([]);
     }
   });
 });

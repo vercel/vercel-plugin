@@ -12,7 +12,7 @@ import {
   syncSessionFileFromClaims
 } from "./hook-env.mjs";
 import { createLogger } from "./logger.mjs";
-import { buildSkillCacheBanner, buildSkillCacheStatus } from "./skill-cache-banner.mjs";
+import { buildSkillCacheStatus, resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
 import { createSkillStore } from "./skill-store.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var CHAIN_BUDGET_BYTES = 18e3;
@@ -243,7 +243,7 @@ function parseBashInput(raw, logger, env = process.env) {
   const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : process.cwd();
   return { command, sessionId, platform, cwd };
 }
-function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore) {
+async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore) {
   const l = logger || log;
   const result = { injected: [], missing: [], banners: [], totalBytes: 0 };
   if (packages.length === 0) return result;
@@ -255,7 +255,7 @@ function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, log
   const seenSet = new Set(fileSeen.split(",").filter(Boolean));
   const store = skillStore ?? createSkillStore({
     projectRoot,
-    pluginRoot,
+    pluginRoot: pluginRoot ?? PLUGIN_ROOT,
     bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
   });
   const targetsSeen = /* @__PURE__ */ new Set();
@@ -319,17 +319,18 @@ function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, log
   const uniqueMissing = [...new Set(result.missing)].sort();
   if (uniqueMissing.length > 0) {
     const installedSkillsRaw = typeof env.VERCEL_PLUGIN_INSTALLED_SKILLS === "string" ? env.VERCEL_PLUGIN_INSTALLED_SKILLS.split(",").map((s) => s.trim()).filter(Boolean) : [];
-    const status = buildSkillCacheStatus({
-      likelySkills: uniqueMissing,
-      installedSkills: installedSkillsRaw,
-      bundledFallbackEnabled: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+    const resolvedBanner = await resolveSkillCacheBanner({
+      ...buildSkillCacheStatus({
+        likelySkills: uniqueMissing,
+        installedSkills: installedSkillsRaw,
+        bundledFallbackEnabled: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+      }),
+      projectRoot,
+      autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
+      timeoutMs: 4e3
     });
-    const banner = buildSkillCacheBanner({
-      ...status,
-      projectRoot
-    });
-    if (banner) {
-      result.banners.push(banner);
+    if (resolvedBanner.banner) {
+      result.banners.push(resolvedBanner.banner);
     }
   }
   return result;
@@ -371,7 +372,7 @@ function formatBashChainOutput(chainResult, platform = "claude-code") {
   }
   return formatPlatformOutput(platform, contextParts.join("\n\n"));
 }
-function run() {
+async function run() {
   const tStart = log.active ? log.now() : 0;
   let raw;
   try {
@@ -393,7 +394,7 @@ function run() {
     pluginRoot: PLUGIN_ROOT,
     bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
   });
-  const chainResult = runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
+  const chainResult = await runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
   const output = formatBashChainOutput(chainResult, platform);
   log.complete("posttooluse-bash-chain-done", {
     matchedCount: packages.length,
@@ -413,10 +414,9 @@ function isMainModule() {
   }
 }
 if (isMainModule()) {
-  try {
-    const output = run();
+  run().then((output) => {
     process.stdout.write(output);
-  } catch (err) {
+  }).catch((err) => {
     const entry = [
       `[${(/* @__PURE__ */ new Date()).toISOString()}] CRASH in posttooluse-bash-chain.mts`,
       `  error: ${err?.message || String(err)}`,
@@ -426,7 +426,7 @@ if (isMainModule()) {
     ].join("\n");
     process.stderr.write(entry);
     process.stdout.write("{}");
-  }
+  });
 }
 export {
   PACKAGE_SKILL_MAP,

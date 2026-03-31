@@ -1,5 +1,9 @@
 // hooks/src/skills-cli-command.mts
 var DEFAULT_SOURCE = "vercel/vercel-skills";
+var SAFE_SHELL_ARG_RE = /^[A-Za-z0-9_./:@-]+$/;
+function quoteShellArg(value) {
+  return SAFE_SHELL_ARG_RE.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
+}
 function buildSkillsAddCommand(source, skillNames, agent = "claude-code") {
   const resolvedSource = (source ?? "").trim() || DEFAULT_SOURCE;
   const skills = [
@@ -20,7 +24,7 @@ function buildSkillsAddCommand(source, skillNames, agent = "claude-code") {
   return {
     file,
     args,
-    printable: ["npx", ...args].join(" ")
+    printable: ["npx", ...args].map(quoteShellArg).join(" ")
   };
 }
 export {

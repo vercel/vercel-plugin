@@ -1,6 +1,10 @@
 // hooks/src/skill-cache-banner.mts
 import { join } from "path";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
+import {
+  createRegistryClient
+} from "./registry-client.mjs";
+import { readProjectSkillState } from "./project-skill-manifest.mjs";
 function uniqueSorted(values) {
   return [
     ...new Set(
@@ -74,9 +78,62 @@ function buildSkillCacheBanner(input) {
     installCmd ? `- Install: \`${installCmd}\`` : null
   ].filter(Boolean).join("\n");
 }
+async function resolveSkillCacheBanner(args) {
+  const initialStatus = buildSkillCacheStatus({
+    likelySkills: args.likelySkills,
+    installedSkills: args.installedSkills,
+    bundledFallbackEnabled: args.bundledFallbackEnabled
+  });
+  if (!args.autoInstall || initialStatus.missingSkills.length === 0) {
+    return {
+      status: initialStatus,
+      banner: buildSkillCacheBanner({
+        ...initialStatus,
+        projectRoot: args.projectRoot
+      }),
+      installResult: null
+    };
+  }
+  const client = args.registryClient ?? createRegistryClient({
+    source: args.skillsSource,
+    agent: args.agent ?? "claude-code",
+    timeoutMs: args.timeoutMs ?? 4e3
+  });
+  let installResult;
+  try {
+    installResult = await client.installSkills({
+      projectRoot: args.projectRoot,
+      skillNames: initialStatus.missingSkills
+    });
+  } catch {
+    return {
+      status: initialStatus,
+      banner: buildSkillCacheBanner({
+        ...initialStatus,
+        projectRoot: args.projectRoot
+      }),
+      installResult: null
+    };
+  }
+  const projectState = readProjectSkillState(args.projectRoot);
+  const nextStatus = buildSkillCacheStatus({
+    likelySkills: args.likelySkills,
+    installedSkills: projectState.installedSlugs,
+    bundledFallbackEnabled: args.bundledFallbackEnabled
+  });
+  return {
+    status: nextStatus,
+    banner: buildSkillCacheBanner({
+      ...nextStatus,
+      projectRoot: args.projectRoot
+    }),
+    installResult
+  };
+}
 export {
   buildProjectSkillInstallCommand,
   buildProjectSkillInstallQuestion,
   buildSkillCacheBanner,
-  buildSkillCacheStatus
+  buildSkillCacheStatus,
+  resolveSkillCacheBanner
 };

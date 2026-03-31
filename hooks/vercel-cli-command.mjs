@@ -13,6 +13,10 @@ var SUBCOMMAND_SPECS = {
     defaultFlags: []
   }
 };
+var SAFE_SHELL_ARG_RE = /^[A-Za-z0-9_./:@-]+$/;
+function quoteShellArg(value) {
+  return SAFE_SHELL_ARG_RE.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
+}
 function buildVercelCliCommand(subcommand, options = {}) {
   const spec = SUBCOMMAND_SPECS[subcommand];
   const binary = options.binary ?? (process.platform === "win32" ? "vercel.cmd" : "vercel");
@@ -21,7 +25,7 @@ function buildVercelCliCommand(subcommand, options = {}) {
   return {
     file: binary,
     args,
-    printable: ["vercel", ...args].join(" ")
+    printable: ["vercel", ...args].map(quoteShellArg).join(" ")
   };
 }
 function vercelSubcommands() {

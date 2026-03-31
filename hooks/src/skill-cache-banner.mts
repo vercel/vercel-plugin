@@ -1,5 +1,11 @@
 import { join } from "node:path";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
+import {
+  createRegistryClient,
+  type InstallSkillsResult,
+  type RegistryClient,
+} from "./registry-client.mjs";
+import { readProjectSkillState } from "./project-skill-manifest.mjs";
 
 export interface SkillCacheStatus {
   likelySkills: string[];
@@ -12,6 +18,20 @@ export interface SkillCacheStatus {
 
 export interface SkillCacheBannerInput extends SkillCacheStatus {
   projectRoot: string;
+}
+
+export interface ResolveSkillCacheBannerArgs extends SkillCacheBannerInput {
+  autoInstall?: boolean;
+  skillsSource?: string;
+  agent?: string;
+  timeoutMs?: number;
+  registryClient?: RegistryClient;
+}
+
+export interface ResolveSkillCacheBannerResult {
+  status: SkillCacheStatus;
+  banner: string | null;
+  installResult: InstallSkillsResult | null;
 }
 
 function uniqueSorted(values: string[] | undefined): string[] {
@@ -127,4 +147,77 @@ export function buildSkillCacheBanner(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/**
+ * Resolve a skill cache banner, optionally auto-installing missing skills
+ * via CLI delegation when `autoInstall` is true.
+ *
+ * When auto-install is disabled or there are no missing skills, this is a
+ * pure formatting function. When enabled, it delegates to the registry
+ * client (which shells out to `npx skills add`), then rereads project
+ * state to produce an updated banner.
+ */
+export async function resolveSkillCacheBanner(
+  args: ResolveSkillCacheBannerArgs,
+): Promise<ResolveSkillCacheBannerResult> {
+  const initialStatus = buildSkillCacheStatus({
+    likelySkills: args.likelySkills,
+    installedSkills: args.installedSkills,
+    bundledFallbackEnabled: args.bundledFallbackEnabled,
+  });
+
+  if (!args.autoInstall || initialStatus.missingSkills.length === 0) {
+    return {
+      status: initialStatus,
+      banner: buildSkillCacheBanner({
+        ...initialStatus,
+        projectRoot: args.projectRoot,
+      }),
+      installResult: null,
+    };
+  }
+
+  const client =
+    args.registryClient ??
+    createRegistryClient({
+      source: args.skillsSource,
+      agent: args.agent ?? "claude-code",
+      timeoutMs: args.timeoutMs ?? 4_000,
+    });
+
+  let installResult: InstallSkillsResult;
+  try {
+    installResult = await client.installSkills({
+      projectRoot: args.projectRoot,
+      skillNames: initialStatus.missingSkills,
+    });
+  } catch {
+    // CLI failure/timeout — fall back to suggestion-only banner
+    return {
+      status: initialStatus,
+      banner: buildSkillCacheBanner({
+        ...initialStatus,
+        projectRoot: args.projectRoot,
+      }),
+      installResult: null,
+    };
+  }
+
+  const projectState = readProjectSkillState(args.projectRoot);
+
+  const nextStatus = buildSkillCacheStatus({
+    likelySkills: args.likelySkills,
+    installedSkills: projectState.installedSlugs,
+    bundledFallbackEnabled: args.bundledFallbackEnabled,
+  });
+
+  return {
+    status: nextStatus,
+    banner: buildSkillCacheBanner({
+      ...nextStatus,
+      projectRoot: args.projectRoot,
+    }),
+    installResult,
+  };
 }

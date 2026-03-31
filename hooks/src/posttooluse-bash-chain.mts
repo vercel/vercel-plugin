@@ -25,7 +25,7 @@ import {
 } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
-import { buildSkillCacheBanner, buildSkillCacheStatus } from "./skill-cache-banner.mjs";
+import { buildSkillCacheStatus, resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
 import { createSkillStore, type SkillStore } from "./skill-store.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
@@ -372,15 +372,15 @@ export interface BashChainResult {
  * For each installed package that maps to a skill, read the SKILL.md body
  * and prepare it for injection (respecting dedup and budget).
  */
-export function runBashChainInjection(
+export async function runBashChainInjection(
   packages: string[],
   sessionId: string | null,
   projectRoot: string,
-  pluginRoot: string,
+  pluginRoot?: string,
   logger?: Logger,
   env: NodeJS.ProcessEnv = process.env,
   skillStore?: SkillStore,
-): BashChainResult {
+): Promise<BashChainResult> {
   const l = logger || log;
   const result: BashChainResult = { injected: [], missing: [], banners: [], totalBytes: 0 };
 
@@ -398,7 +398,7 @@ export function runBashChainInjection(
   // Create the store once for the entire run (not per-package)
   const store = skillStore ?? createSkillStore({
     projectRoot,
-    pluginRoot,
+    pluginRoot: pluginRoot ?? PLUGIN_ROOT,
     bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
   });
 
@@ -481,23 +481,24 @@ export function runBashChainInjection(
     });
   }
 
-  // Build a cache-status banner for any missing skills
+  // Build a cache-status banner for any missing skills, optionally auto-installing
   const uniqueMissing = [...new Set(result.missing)].sort();
   if (uniqueMissing.length > 0) {
     const installedSkillsRaw = typeof env.VERCEL_PLUGIN_INSTALLED_SKILLS === "string"
       ? env.VERCEL_PLUGIN_INSTALLED_SKILLS.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
-    const status = buildSkillCacheStatus({
-      likelySkills: uniqueMissing,
-      installedSkills: installedSkillsRaw,
-      bundledFallbackEnabled: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
-    });
-    const banner = buildSkillCacheBanner({
-      ...status,
+    const resolvedBanner = await resolveSkillCacheBanner({
+      ...buildSkillCacheStatus({
+        likelySkills: uniqueMissing,
+        installedSkills: installedSkillsRaw,
+        bundledFallbackEnabled: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+      }),
       projectRoot,
+      autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
+      timeoutMs: 4_000,
     });
-    if (banner) {
-      result.banners.push(banner);
+    if (resolvedBanner.banner) {
+      result.banners.push(resolvedBanner.banner);
     }
   }
 
@@ -562,7 +563,7 @@ export function formatBashChainOutput(
 // Orchestrator
 // ---------------------------------------------------------------------------
 
-export function run(): string {
+export async function run(): Promise<string> {
   const tStart = log.active ? log.now() : 0;
 
   let raw: string;
@@ -590,7 +591,7 @@ export function run(): string {
     pluginRoot: PLUGIN_ROOT,
     bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
   });
-  const chainResult = runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
+  const chainResult = await runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
   const output = formatBashChainOutput(chainResult, platform);
 
   log.complete("posttooluse-bash-chain-done", {
@@ -618,18 +619,19 @@ function isMainModule(): boolean {
 }
 
 if (isMainModule()) {
-  try {
-    const output = run();
-    process.stdout.write(output);
-  } catch (err) {
-    const entry = [
-      `[${new Date().toISOString()}] CRASH in posttooluse-bash-chain.mts`,
-      `  error: ${(err as Error)?.message || String(err)}`,
-      `  stack: ${(err as Error)?.stack || "(no stack)"}`,
-      `  PLUGIN_ROOT: ${PLUGIN_ROOT}`,
-      "",
-    ].join("\n");
-    process.stderr.write(entry);
-    process.stdout.write("{}");
-  }
+  run()
+    .then((output) => {
+      process.stdout.write(output);
+    })
+    .catch((err) => {
+      const entry = [
+        `[${new Date().toISOString()}] CRASH in posttooluse-bash-chain.mts`,
+        `  error: ${(err as Error)?.message || String(err)}`,
+        `  stack: ${(err as Error)?.stack || "(no stack)"}`,
+        `  PLUGIN_ROOT: ${PLUGIN_ROOT}`,
+        "",
+      ].join("\n");
+      process.stderr.write(entry);
+      process.stdout.write("{}");
+    });
 }
