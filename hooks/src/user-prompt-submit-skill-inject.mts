@@ -1080,6 +1080,8 @@ export function run(): string {
 
   const injectResult = injectSkills(report.selectedSkills, {
     pluginRoot: PLUGIN_ROOT,
+    projectRoot: cwd,
+    skillStore: skills.skillStore,
     hasEnvDedup: !dedupOff,
     sessionId,
     injectedSkills,

@@ -1,5 +1,5 @@
-import { describe, test, expect, beforeEach } from "bun:test";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -99,14 +99,88 @@ describe("posttooluse-bash-chain.mjs", () => {
   });
 });
 
+describe("parseBashInput cwd resolution", () => {
+  let parseBashInput: typeof import("../hooks/src/posttooluse-bash-chain.mts").parseBashInput;
+
+  beforeEach(async () => {
+    const mod = await import("../hooks/posttooluse-bash-chain.mjs");
+    parseBashInput = mod.parseBashInput;
+  });
+
+  test("resolves cwd from hook payload cwd field", () => {
+    const result = parseBashInput(JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: "npm install express" },
+      session_id: "s1",
+      cwd: "/tmp/my-project",
+    }));
+    expect(result).not.toBeNull();
+    expect(result!.cwd).toBe("/tmp/my-project");
+  });
+
+  test("resolves cwd from workspace_roots when cwd is absent", () => {
+    const result = parseBashInput(JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: "npm install express" },
+      session_id: "s1",
+      workspace_roots: ["/tmp/workspace-root"],
+    }));
+    expect(result).not.toBeNull();
+    expect(result!.cwd).toBe("/tmp/workspace-root");
+  });
+
+  test("prefers payload cwd over workspace_roots", () => {
+    const result = parseBashInput(JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: "npm install express" },
+      session_id: "s1",
+      cwd: "/tmp/payload-cwd",
+      workspace_roots: ["/tmp/workspace-root"],
+    }));
+    expect(result).not.toBeNull();
+    expect(result!.cwd).toBe("/tmp/payload-cwd");
+  });
+
+  test("falls back to env vars when payload has no cwd", () => {
+    const result = parseBashInput(
+      JSON.stringify({
+        tool_name: "Bash",
+        tool_input: { command: "npm install express" },
+        session_id: "s1",
+      }),
+      undefined,
+      { CLAUDE_PROJECT_ROOT: "/tmp/env-root" } as any,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.cwd).toBe("/tmp/env-root");
+  });
+
+  test("falls back to process.cwd() as last resort", () => {
+    const result = parseBashInput(
+      JSON.stringify({
+        tool_name: "Bash",
+        tool_input: { command: "npm install express" },
+        session_id: "s1",
+      }),
+      undefined,
+      {} as any,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.cwd).toBe(process.cwd());
+  });
+});
+
 describe("runBashChainInjection unit tests", () => {
   let runBashChainInjection: typeof import("../hooks/src/posttooluse-bash-chain.mts").runBashChainInjection;
   let parseInstallCommand: typeof import("../hooks/src/posttooluse-bash-chain.mts").parseInstallCommand;
+  let createSkillStore: typeof import("../hooks/src/skill-store.mts").createSkillStore;
 
   beforeEach(async () => {
     const mod = await import("../hooks/posttooluse-bash-chain.mjs");
     runBashChainInjection = mod.runBashChainInjection;
     parseInstallCommand = mod.parseInstallCommand;
+    const storeMod = await import("../hooks/skill-store.mjs");
+    createSkillStore = storeMod.createSkillStore;
   });
 
   test("parseInstallCommand extracts packages from npm install", () => {
@@ -126,6 +200,7 @@ describe("runBashChainInjection unit tests", () => {
       ["some-unknown-pkg"],
       null,
       ROOT,
+      ROOT,
     );
     expect(result.injected).toEqual([]);
     expect(result.totalBytes).toBe(0);
@@ -136,12 +211,112 @@ describe("runBashChainInjection unit tests", () => {
       ["express"],
       null,
       ROOT,
+      ROOT,
     );
     // express maps to vercel-functions which exists in bundled skills
     expect(result.injected.length).toBeGreaterThanOrEqual(0);
     if (result.injected.length > 0) {
       expect(result.injected[0].skill).toBe("vercel-functions");
       expect(result.injected[0].content.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("resolves project-local .skills/ even when process.cwd differs", () => {
+    // Set up a temp project with a .skills/vercel-functions/SKILL.md
+    const projectDir = join(tmpdir(), `bash-chain-test-${Date.now()}`);
+    const skillDir = join(projectDir, ".skills", "vercel-functions");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      [
+        "---",
+        "name: vercel-functions",
+        "description: Project-local vercel-functions skill",
+        "summary: Local functions",
+        "metadata:",
+        "  priority: 8",
+        "---",
+        "# Vercel Functions (project-local)",
+        "This is the project-local version of the skill.",
+      ].join("\n"),
+    );
+
+    try {
+      // Create a store rooted at the temp project — this simulates the hook
+      // process running from a different cwd but receiving projectRoot from
+      // the hook payload
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: ROOT,
+        bundledFallback: true,
+      });
+
+      const result = runBashChainInjection(
+        ["express"],
+        null,
+        projectDir,
+        ROOT,
+        undefined,
+        { VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "0" } as any,
+        store,
+      );
+
+      expect(result.injected.length).toBe(1);
+      expect(result.injected[0].skill).toBe("vercel-functions");
+      // Verify it came from the project-local skill, not bundled
+      expect(result.injected[0].content).toContain("project-local");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reuses single store across multiple packages in one run", () => {
+    // Set up a temp project with two project-local skills
+    const projectDir = join(tmpdir(), `bash-chain-store-reuse-${Date.now()}`);
+    for (const slug of ["vercel-functions", "vercel-storage"]) {
+      const skillDir = join(projectDir, ".skills", slug);
+      mkdirSync(skillDir, { recursive: true });
+      writeFileSync(
+        join(skillDir, "SKILL.md"),
+        [
+          "---",
+          `name: ${slug}`,
+          `description: Local ${slug}`,
+          `summary: Local ${slug}`,
+          "metadata:",
+          "  priority: 8",
+          "---",
+          `# ${slug} (local)`,
+          `Local content for ${slug}.`,
+        ].join("\n"),
+      );
+    }
+
+    try {
+      const store = createSkillStore({
+        projectRoot: projectDir,
+        pluginRoot: ROOT,
+        bundledFallback: true,
+      });
+
+      // express → vercel-functions, prisma → vercel-storage
+      const result = runBashChainInjection(
+        ["express", "prisma"],
+        null,
+        projectDir,
+        ROOT,
+        undefined,
+        { VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK: "0" } as any,
+        store,
+      );
+
+      expect(result.injected.length).toBe(2);
+      expect(result.injected[0].skill).toBe("vercel-functions");
+      expect(result.injected[0].content).toContain("Local content");
+      expect(result.injected[1].skill).toBe("vercel-storage");
+      expect(result.injected[1].content).toContain("Local content");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
     }
   });
 });

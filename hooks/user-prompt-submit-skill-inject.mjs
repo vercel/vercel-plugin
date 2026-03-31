@@ -705,6 +705,8 @@ function run() {
   const injectedSkills = dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState);
   const injectResult = injectSkills(report.selectedSkills, {
     pluginRoot: PLUGIN_ROOT,
+    projectRoot: cwd,
+    skillStore: skills.skillStore,
     hasEnvDedup: !dedupOff,
     sessionId,
     injectedSkills,

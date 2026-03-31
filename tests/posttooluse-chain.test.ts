@@ -2869,7 +2869,7 @@ describe("real-world chain and validate scenarios", () => {
   // Chain cap with >2 newly added rules (DEFAULT_CHAIN_CAP=2 enforcement)
   // -------------------------------------------------------------------------
 
-  test("chain cap limits injection to 2 when >2 new rules match (default cap)", () => {
+  test("chain cap limits injection to 2 when >2 new rules match (default cap)", async () => {
     // Simulate a file that triggers chains from 3 different source skills
     // using realistic patterns — we use unit-level test for precise control
     const mod = await import("../hooks/posttooluse-validate.mjs");

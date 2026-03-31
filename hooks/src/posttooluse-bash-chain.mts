@@ -298,6 +298,7 @@ export interface ParsedBashInput {
   command: string;
   sessionId: string | null;
   platform: HookPlatform;
+  cwd: string;
 }
 
 function resolveSessionId(input: Record<string, unknown>): string | null {
@@ -308,6 +309,7 @@ function resolveSessionId(input: Record<string, unknown>): string | null {
 export function parseBashInput(
   raw: string,
   logger?: Logger,
+  env: NodeJS.ProcessEnv = process.env,
 ): ParsedBashInput | null {
   const l = logger || log;
   const trimmed = (raw || "").trim();
@@ -336,7 +338,15 @@ export function parseBashInput(
   const sessionId = resolveSessionId(input);
   const platform = detectPlatform(input);
 
-  return { command, sessionId, platform };
+  const workspaceRoot = Array.isArray(input.workspace_roots) && typeof input.workspace_roots[0] === "string"
+    ? input.workspace_roots[0]
+    : undefined;
+  const cwdCandidate = input.cwd ?? workspaceRoot ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_ROOT ?? process.cwd();
+  const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== ""
+    ? cwdCandidate
+    : process.cwd();
+
+  return { command, sessionId, platform, cwd };
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +372,7 @@ export interface BashChainResult {
 export function runBashChainInjection(
   packages: string[],
   sessionId: string | null,
+  projectRoot: string,
   pluginRoot: string,
   logger?: Logger,
   env: NodeJS.ProcessEnv = process.env,
@@ -380,6 +391,13 @@ export function runBashChainInjection(
   // Read the persisted session-backed seen-skills state for dedup
   const fileSeen = sessionId ? readSessionFile(sessionId, "seen-skills") : "";
   const seenSet = new Set(fileSeen.split(",").filter(Boolean));
+
+  // Create the store once for the entire run (not per-package)
+  const store = skillStore ?? createSkillStore({
+    projectRoot,
+    pluginRoot,
+    bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
 
   // Deduplicate target skills across packages (first package wins per skill)
   const targetsSeen = new Set<string>();
@@ -410,11 +428,6 @@ export function runBashChainInjection(
     }
 
     // Read target SKILL.md via skill store (cache-first resolution)
-    const store = skillStore ?? createSkillStore({
-      projectRoot: process.cwd(),
-      pluginRoot,
-      bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
-    });
     const resolved = store.resolveSkillBody(skill, l);
     if (!resolved) {
       l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill });
@@ -533,7 +546,7 @@ export function run(): string {
   const parsed = parseBashInput(raw, log);
   if (!parsed) return "{}";
 
-  const { command, sessionId, platform } = parsed;
+  const { command, sessionId, platform, cwd } = parsed;
 
   const packages = parseInstallCommand(command);
   if (packages.length === 0) {
@@ -544,11 +557,11 @@ export function run(): string {
   log.debug("posttooluse-bash-chain-packages", { packages, command });
 
   const store = createSkillStore({
-    projectRoot: process.cwd(),
+    projectRoot: cwd,
     pluginRoot: PLUGIN_ROOT,
     bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
   });
-  const chainResult = runBashChainInjection(packages, sessionId, PLUGIN_ROOT, log, process.env, store);
+  const chainResult = runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
   const output = formatBashChainOutput(chainResult, platform);
 
   log.complete("posttooluse-bash-chain-done", {

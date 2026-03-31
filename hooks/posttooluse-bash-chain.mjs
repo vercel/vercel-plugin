@@ -214,7 +214,7 @@ function resolveSessionId(input) {
   const sessionId = input.session_id ?? input.conversation_id;
   return typeof sessionId === "string" && sessionId.trim() !== "" ? sessionId : null;
 }
-function parseBashInput(raw, logger) {
+function parseBashInput(raw, logger, env = process.env) {
   const l = logger || log;
   const trimmed = (raw || "").trim();
   if (!trimmed) return null;
@@ -237,9 +237,12 @@ function parseBashInput(raw, logger) {
   }
   const sessionId = resolveSessionId(input);
   const platform = detectPlatform(input);
-  return { command, sessionId, platform };
+  const workspaceRoot = Array.isArray(input.workspace_roots) && typeof input.workspace_roots[0] === "string" ? input.workspace_roots[0] : void 0;
+  const cwdCandidate = input.cwd ?? workspaceRoot ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_ROOT ?? process.cwd();
+  const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : process.cwd();
+  return { command, sessionId, platform, cwd };
 }
-function runBashChainInjection(packages, sessionId, pluginRoot, logger, env = process.env, skillStore) {
+function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore) {
   const l = logger || log;
   const result = { injected: [], totalBytes: 0 };
   if (packages.length === 0) return result;
@@ -249,6 +252,11 @@ function runBashChainInjection(packages, sessionId, pluginRoot, logger, env = pr
   );
   const fileSeen = sessionId ? readSessionFile(sessionId, "seen-skills") : "";
   const seenSet = new Set(fileSeen.split(",").filter(Boolean));
+  const store = skillStore ?? createSkillStore({
+    projectRoot,
+    pluginRoot,
+    bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+  });
   const targetsSeen = /* @__PURE__ */ new Set();
   for (const pkg of packages) {
     const mapping = PACKAGE_SKILL_MAP[pkg];
@@ -267,11 +275,6 @@ function runBashChainInjection(packages, sessionId, pluginRoot, logger, env = pr
       l.debug("posttooluse-bash-chain-skip-dedup", { pkg, skill });
       continue;
     }
-    const store = skillStore ?? createSkillStore({
-      projectRoot: process.cwd(),
-      pluginRoot,
-      bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
-    });
     const resolved = store.resolveSkillBody(skill, l);
     if (!resolved) {
       l.debug("posttooluse-bash-chain-skip-missing", { pkg, skill });
@@ -356,7 +359,7 @@ function run() {
   }
   const parsed = parseBashInput(raw, log);
   if (!parsed) return "{}";
-  const { command, sessionId, platform } = parsed;
+  const { command, sessionId, platform, cwd } = parsed;
   const packages = parseInstallCommand(command);
   if (packages.length === 0) {
     log.debug("posttooluse-bash-chain-skip", { reason: "no_packages_detected", command });
@@ -364,11 +367,11 @@ function run() {
   }
   log.debug("posttooluse-bash-chain-packages", { packages, command });
   const store = createSkillStore({
-    projectRoot: process.cwd(),
+    projectRoot: cwd,
     pluginRoot: PLUGIN_ROOT,
     bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
   });
-  const chainResult = runBashChainInjection(packages, sessionId, PLUGIN_ROOT, log, process.env, store);
+  const chainResult = runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
   const output = formatBashChainOutput(chainResult, platform);
   log.complete("posttooluse-bash-chain-done", {
     matchedCount: packages.length,
