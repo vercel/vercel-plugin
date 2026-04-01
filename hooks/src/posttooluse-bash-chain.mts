@@ -20,7 +20,6 @@ import { detectPlatform, type HookPlatform } from "./compat.mjs";
 import {
   pluginRoot as resolvePluginRoot,
   readSessionFile,
-  safeReadJson,
   tryClaimSessionKey,
   syncSessionFileFromClaims,
 } from "./hook-env.mjs";
@@ -30,6 +29,10 @@ import { loadProjectInstalledSkillState } from "./project-installed-skill-state.
 import type { InstallSkillsResult, RegistryClient } from "./registry-client.mjs";
 import { readProjectSkillState, type ProjectSkillState } from "./project-skill-manifest.mjs";
 import type { SkillInstallPlan, SkillInstallAction } from "./orchestrator-install-plan.mjs";
+import {
+  readPersistedSkillInstallPlan,
+  refreshPersistedSkillInstallPlan,
+} from "./orchestrator-install-plan-state.mjs";
 import {
   buildSkillCacheStatus,
   formatProjectSkillStateLine,
@@ -785,9 +788,21 @@ export async function runBashChainInjection(
     result.banners.push(nextActionPalette);
   }
 
-  // Append the wrapper palette after install activity surfaces actionable items
+  // Append the wrapper palette after install activity surfaces actionable items.
+  // Always refresh the persisted plan from on-disk state first so the wrapper
+  // reflects any delegated changes that just happened during this Bash chain.
   if (result.deferred.length > 0 || result.banners.length > 0) {
-    const wrapperPlan = readPersistedInstallPlan({ projectRoot, env });
+    const previousPlan = readPersistedSkillInstallPlan({
+      projectRoot,
+      rawEnvPlan: env.VERCEL_PLUGIN_INSTALL_PLAN,
+    });
+    const wrapperPlan = previousPlan
+      ? refreshPersistedSkillInstallPlan({
+          projectRoot,
+          previousPlan,
+          pluginRootOverride: pluginRoot ?? PLUGIN_ROOT,
+        })
+      : null;
     if (wrapperPlan) {
       const wrapperPalette = formatOrchestratorActionPalette({
         pluginRoot: pluginRoot ?? PLUGIN_ROOT,
@@ -806,24 +821,6 @@ export async function runBashChainInjection(
 // Post-install action palette
 // ---------------------------------------------------------------------------
 
-function readPersistedInstallPlan(args: {
-  projectRoot: string;
-  env: NodeJS.ProcessEnv;
-}): SkillInstallPlan | null {
-  const raw = args.env.VERCEL_PLUGIN_INSTALL_PLAN;
-  if (raw && raw.trim() !== "") {
-    try {
-      return JSON.parse(raw) as SkillInstallPlan;
-    } catch (error) {
-      logCaughtError(log, "posttooluse-bash-chain:install-plan-env-parse-failed", error, {
-        projectRoot: args.projectRoot,
-      });
-    }
-  }
-  return safeReadJson<SkillInstallPlan>(
-    join(args.projectRoot, ".skills", "install-plan.json"),
-  );
-}
 
 function formatDeferredSkillLine(deferred: DeferredBashSkill[]): string {
   return deferred
@@ -838,9 +835,9 @@ export function buildPostInstallActionPalette(args: {
 }): string | null {
   if (args.deferred.length === 0) return null;
 
-  const plan = readPersistedInstallPlan({
+  const plan = readPersistedSkillInstallPlan({
     projectRoot: args.projectRoot,
-    env: args.env,
+    rawEnvPlan: args.env.VERCEL_PLUGIN_INSTALL_PLAN,
   });
   const orderedIds: Array<SkillInstallAction["id"]> = [
     "vercel-link",

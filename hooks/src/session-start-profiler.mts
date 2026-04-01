@@ -31,6 +31,7 @@ import {
   type HookPlatform,
 } from "./compat.mjs";
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
+import { writePersistedSkillInstallPlan } from "./orchestrator-install-plan-state.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
@@ -838,18 +839,6 @@ export async function autoPullProjectEnv(args: {
   return result;
 }
 
-function writeInstallPlanFile(
-  projectRoot: string,
-  plan: SkillInstallPlan,
-): void {
-  const skillsDir = join(projectRoot, ".skills");
-  mkdirSync(skillsDir, { recursive: true });
-  writeFileSync(
-    join(skillsDir, "install-plan.json"),
-    JSON.stringify(plan, null, 2) + "\n",
-    "utf-8",
-  );
-}
 
 async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
@@ -1005,7 +994,7 @@ async function main(): Promise<void> {
   });
 
   try {
-    writeInstallPlanFile(projectRoot, installPlan);
+    writePersistedSkillInstallPlan(installPlan);
   } catch (error) {
     logCaughtError(log, "session-start-profiler:write-install-plan-failed", error, {
       projectRoot,

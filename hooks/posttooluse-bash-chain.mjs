@@ -2,19 +2,22 @@
 
 // hooks/src/posttooluse-bash-chain.mts
 import { readFileSync, realpathSync } from "fs";
-import { join, resolve } from "path";
+import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { detectPlatform } from "./compat.mjs";
 import {
   pluginRoot as resolvePluginRoot,
   readSessionFile,
-  safeReadJson,
   tryClaimSessionKey,
   syncSessionFileFromClaims
 } from "./hook-env.mjs";
-import { createLogger, logCaughtError } from "./logger.mjs";
+import { createLogger } from "./logger.mjs";
 import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
 import { readProjectSkillState } from "./project-skill-manifest.mjs";
+import {
+  readPersistedSkillInstallPlan,
+  refreshPersistedSkillInstallPlan
+} from "./orchestrator-install-plan-state.mjs";
 import {
   buildSkillCacheStatus,
   formatProjectSkillStateLine,
@@ -536,7 +539,15 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     result.banners.push(nextActionPalette);
   }
   if (result.deferred.length > 0 || result.banners.length > 0) {
-    const wrapperPlan = readPersistedInstallPlan({ projectRoot, env });
+    const previousPlan = readPersistedSkillInstallPlan({
+      projectRoot,
+      rawEnvPlan: env.VERCEL_PLUGIN_INSTALL_PLAN
+    });
+    const wrapperPlan = previousPlan ? refreshPersistedSkillInstallPlan({
+      projectRoot,
+      previousPlan,
+      pluginRootOverride: pluginRoot ?? PLUGIN_ROOT
+    }) : null;
     if (wrapperPlan) {
       const wrapperPalette = formatOrchestratorActionPalette({
         pluginRoot: pluginRoot ?? PLUGIN_ROOT,
@@ -549,29 +560,14 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
   }
   return result;
 }
-function readPersistedInstallPlan(args) {
-  const raw = args.env.VERCEL_PLUGIN_INSTALL_PLAN;
-  if (raw && raw.trim() !== "") {
-    try {
-      return JSON.parse(raw);
-    } catch (error) {
-      logCaughtError(log, "posttooluse-bash-chain:install-plan-env-parse-failed", error, {
-        projectRoot: args.projectRoot
-      });
-    }
-  }
-  return safeReadJson(
-    join(args.projectRoot, ".skills", "install-plan.json")
-  );
-}
 function formatDeferredSkillLine(deferred) {
   return deferred.map((entry) => `${entry.skill} (${entry.reason})`).join(", ");
 }
 function buildPostInstallActionPalette(args) {
   if (args.deferred.length === 0) return null;
-  const plan = readPersistedInstallPlan({
+  const plan = readPersistedSkillInstallPlan({
     projectRoot: args.projectRoot,
-    env: args.env
+    rawEnvPlan: args.env.VERCEL_PLUGIN_INSTALL_PLAN
   });
   const orderedIds = [
     "vercel-link",

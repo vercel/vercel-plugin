@@ -9,7 +9,7 @@
  * or agent Bash execution.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -22,12 +22,11 @@ import {
   type VercelCliDelegator,
   type VercelCliRunResult,
 } from "./vercel-cli-delegator.mjs";
-import { pluginRoot, safeReadJson } from "./hook-env.mjs";
-import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
+import type { SkillInstallPlan } from "./orchestrator-install-plan.mjs";
 import {
-  buildSkillInstallPlan,
-  type SkillInstallPlan,
-} from "./orchestrator-install-plan.mjs";
+  requirePersistedSkillInstallPlan,
+  refreshPersistedSkillInstallPlan,
+} from "./orchestrator-install-plan-state.mjs";
 import type { OrchestratorRunnerActionId } from "./orchestrator-action-command.mjs";
 
 // ---------------------------------------------------------------------------
@@ -47,65 +46,6 @@ export interface OrchestratorActionRunResult {
 }
 
 // ---------------------------------------------------------------------------
-// Install-plan persistence
-// ---------------------------------------------------------------------------
-
-function installPlanPath(projectRoot: string): string {
-  return join(projectRoot, ".skills", "install-plan.json");
-}
-
-function readPersistedPlan(projectRoot: string): SkillInstallPlan {
-  const plan = safeReadJson<SkillInstallPlan>(installPlanPath(projectRoot));
-  if (!plan) {
-    throw new Error(
-      `Missing install plan at ${installPlanPath(projectRoot)}. Run SessionStart first.`,
-    );
-  }
-  return plan;
-}
-
-function writePersistedPlan(plan: SkillInstallPlan): void {
-  mkdirSync(join(plan.projectRoot, ".skills"), { recursive: true });
-  writeFileSync(
-    installPlanPath(plan.projectRoot),
-    JSON.stringify(plan, null, 2) + "\n",
-    "utf-8",
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Plan refresh from on-disk state
-// ---------------------------------------------------------------------------
-
-function refreshPlan(previous: SkillInstallPlan): SkillInstallPlan {
-  const bundledFallbackEnabled =
-    process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1" &&
-    previous.bundledFallbackEnabled;
-
-  const installedState = loadProjectInstalledSkillState({
-    projectRoot: previous.projectRoot,
-    pluginRoot: pluginRoot(),
-    likelySkills: previous.likelySkills,
-    bundledFallbackEnabled,
-  });
-
-  const refreshed = buildSkillInstallPlan({
-    projectRoot: previous.projectRoot,
-    detections: previous.detections,
-    installedSkills: installedState.installedSkills,
-    bundledFallbackEnabled,
-    zeroBundleReady: installedState.cacheStatus.zeroBundleReady,
-    projectSkillManifestPath:
-      installedState.projectState.projectSkillStatePath,
-    vercelLinked: existsSync(join(previous.projectRoot, ".vercel")),
-    hasEnvLocal: existsSync(join(previous.projectRoot, ".env.local")),
-  });
-
-  writePersistedPlan(refreshed);
-  return refreshed;
-}
-
-// ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
 
@@ -115,7 +55,9 @@ export async function runOrchestratorAction(args: {
   registryClient?: RegistryClient;
   vercelDelegator?: VercelCliDelegator;
 }): Promise<OrchestratorActionRunResult> {
-  let plan = readPersistedPlan(args.projectRoot);
+  let plan = requirePersistedSkillInstallPlan({
+    projectRoot: args.projectRoot,
+  });
 
   const registryClient = args.registryClient ?? createRegistryClient();
   const vercelDelegator = args.vercelDelegator ?? createVercelCliDelegator();
@@ -137,7 +79,10 @@ export async function runOrchestratorAction(args: {
   }
 
   async function runInstallMissing() {
-    plan = refreshPlan(plan);
+    plan = refreshPersistedSkillInstallPlan({
+      projectRoot: args.projectRoot,
+      previousPlan: plan,
+    });
     if (plan.missingSkills.length === 0) {
       return null;
     }
@@ -180,7 +125,10 @@ export async function runOrchestratorAction(args: {
       break;
   }
 
-  const refreshedPlan = refreshPlan(plan);
+  const refreshedPlan = refreshPersistedSkillInstallPlan({
+    projectRoot: args.projectRoot,
+    previousPlan: plan,
+  });
 
   const ok =
     state.vercelResults.every((result) => result.ok) &&
