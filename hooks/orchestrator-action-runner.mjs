@@ -25,7 +25,20 @@ function classifyOrchestratorActionError(error) {
   if (message.includes("Invalid --action")) {
     return "INVALID_ACTION";
   }
+  if (message.includes("Blocked action")) {
+    return "ACTION_BLOCKED";
+  }
   return "RUNNER_ERROR";
+}
+function blockedActionHint(actionId) {
+  switch (actionId) {
+    case "vercel-env-pull":
+      return "Run `bootstrap-project` or `vercel-link` first, then retry `vercel-env-pull`.";
+    case "vercel-deploy":
+      return "Run `bootstrap-project` or `vercel-link` first, then retry `vercel-deploy`.";
+    default:
+      return "Run `bootstrap-project` to satisfy prerequisites, then retry this wrapper action.";
+  }
 }
 function buildOrchestratorActionError(args) {
   const message = args.error instanceof Error ? args.error.message : String(args.error);
@@ -36,7 +49,7 @@ function buildOrchestratorActionError(args) {
     ok: false,
     code,
     message,
-    hint: code === "MISSING_INSTALL_PLAN" ? "Run SessionStart first so .skills/install-plan.json exists before calling the wrapper." : code === "INVALID_ACTION" ? `Use one of: ${ORCHESTRATOR_ACTION_IDS.join(", ")}` : "Inspect the delegated CLI output, fix the failing step, then rerun this wrapper action.",
+    hint: code === "MISSING_INSTALL_PLAN" ? "Run SessionStart first so .skills/install-plan.json exists before calling the wrapper." : code === "INVALID_ACTION" ? `Use one of: ${ORCHESTRATOR_ACTION_IDS.join(", ")}` : code === "ACTION_BLOCKED" ? blockedActionHint(args.actionId) : "Inspect the delegated CLI output, fix the failing step, then rerun this wrapper action.",
     actionId: args.actionId,
     projectRoot: args.projectRoot
   };
@@ -115,7 +128,16 @@ async function runOrchestratorAction(args) {
   let plan = requirePersistedSkillInstallPlan({
     projectRoot: args.projectRoot
   });
+  plan = refreshPersistedSkillInstallPlan({
+    projectRoot: args.projectRoot,
+    previousPlan: plan
+  });
   const spec = getOrchestratorActionSpec(plan, args.actionId);
+  if (!spec.runnable) {
+    throw new Error(
+      `Blocked action ${args.actionId}: ${spec.blockedReason ?? "Action prerequisites are not met."}`
+    );
+  }
   const registryClient = args.registryClient ?? createRegistryClient();
   const vercelDelegator = args.vercelDelegator ?? createVercelCliDelegator();
   const state = { commands: [], vercelResults: [], installResult: null };

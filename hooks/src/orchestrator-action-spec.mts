@@ -27,6 +27,8 @@ export interface OrchestratorActionSpec {
   label: string;
   description: string;
   visible: boolean;
+  runnable: boolean;
+  blockedReason: string | null;
   steps: OrchestratorStepSpec[];
 }
 
@@ -34,6 +36,42 @@ function planActionMap(
   plan: SkillInstallPlan,
 ): Map<string, SkillInstallPlan["actions"][number]> {
   return new Map(plan.actions.map((action) => [action.id, action]));
+}
+
+function blockedReasonForAction(
+  plan: SkillInstallPlan,
+  actionId: OrchestratorRunnerActionId,
+): string | null {
+  switch (actionId) {
+    case "bootstrap-project":
+    case "install-missing":
+    case "vercel-link":
+      return null;
+    case "vercel-env-pull":
+      if (!plan.vercelLinked) {
+        return "Link the project first; `vercel env pull` requires a linked Vercel project.";
+      }
+      if (plan.hasEnvLocal) {
+        return "`.env.local` already exists; env pull is not needed.";
+      }
+      return null;
+    case "vercel-deploy":
+      return plan.vercelLinked
+        ? null
+        : "Link the project first; `vercel deploy` is only runnable after the project is linked.";
+  }
+}
+
+function withRunState(
+  plan: SkillInstallPlan,
+  spec: Omit<OrchestratorActionSpec, "runnable" | "blockedReason">,
+): OrchestratorActionSpec {
+  const blockedReason = blockedReasonForAction(plan, spec.id);
+  return {
+    ...spec,
+    runnable: blockedReason === null,
+    blockedReason,
+  };
 }
 
 export function getOrchestratorActionSpecs(
@@ -47,7 +85,7 @@ export function getOrchestratorActionSpecs(
   const vercelDeploy = actions.get("vercel-deploy");
 
   return [
-    {
+    withRunState(plan, {
       id: "bootstrap-project",
       label: "Bootstrap project (link + env + skills)",
       description:
@@ -61,24 +99,24 @@ export function getOrchestratorActionSpecs(
         { step: "vercel-env-pull", mode: "if-needed" },
         { step: "install-missing", mode: "always" },
       ],
-    },
-    {
+    }),
+    withRunState(plan, {
       id: "install-missing",
       label: "Install missing skills into .skills",
       description:
         installMissing?.description ?? "Install detected skills into `.skills/`.",
       visible: plan.missingSkills.length > 0,
       steps: [{ step: "install-missing", mode: "always" }],
-    },
-    {
+    }),
+    withRunState(plan, {
       id: "vercel-link",
       label: vercelLink?.label ?? "Link Vercel project",
       description:
         vercelLink?.description ?? "Link this project to a Vercel project.",
       visible: !plan.vercelLinked,
       steps: [{ step: "vercel-link", mode: "always" }],
-    },
-    {
+    }),
+    withRunState(plan, {
       id: "vercel-env-pull",
       label: "Pull .env.local from Vercel",
       description:
@@ -86,8 +124,8 @@ export function getOrchestratorActionSpecs(
         "Pull `.env.local` from the linked Vercel project.",
       visible: plan.vercelLinked && !plan.hasEnvLocal,
       steps: [{ step: "vercel-env-pull", mode: "always" }],
-    },
-    {
+    }),
+    withRunState(plan, {
       id: "vercel-deploy",
       label: vercelDeploy?.label ?? "Deploy to Vercel",
       description:
@@ -95,7 +133,7 @@ export function getOrchestratorActionSpecs(
         "Deploy the current project to Vercel.",
       visible: plan.vercelLinked,
       steps: [{ step: "vercel-deploy", mode: "always" }],
-    },
+    }),
   ];
 }
 

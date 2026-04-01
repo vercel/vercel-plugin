@@ -110,6 +110,73 @@ describe("getOrchestratorActionSpecs", () => {
     expect(spec.steps).toEqual([{ step: "install-missing", mode: "always" }]);
   });
 
+  // -------------------------------------------------------------------------
+  // runnable / blockedReason
+  // -------------------------------------------------------------------------
+
+  test("vercel-env-pull is blocked when project is not linked", () => {
+    const spec = getOrchestratorActionSpec(
+      makePlan({ vercelLinked: false }),
+      "vercel-env-pull",
+    );
+    expect(spec.runnable).toBe(false);
+    expect(spec.blockedReason).toContain("Link the project first");
+  });
+
+  test("vercel-env-pull is blocked when .env.local already exists", () => {
+    const spec = getOrchestratorActionSpec(
+      makePlan({ vercelLinked: true, hasEnvLocal: true }),
+      "vercel-env-pull",
+    );
+    expect(spec.runnable).toBe(false);
+    expect(spec.blockedReason).toContain("already exists");
+  });
+
+  test("vercel-env-pull is runnable when linked and no .env.local", () => {
+    const spec = getOrchestratorActionSpec(
+      makePlan({ vercelLinked: true, hasEnvLocal: false }),
+      "vercel-env-pull",
+    );
+    expect(spec.runnable).toBe(true);
+    expect(spec.blockedReason).toBeNull();
+  });
+
+  test("vercel-deploy is blocked when project is not linked", () => {
+    const spec = getOrchestratorActionSpec(
+      makePlan({ vercelLinked: false }),
+      "vercel-deploy",
+    );
+    expect(spec.runnable).toBe(false);
+    expect(spec.blockedReason).toContain("Link the project first");
+  });
+
+  test("vercel-deploy is runnable when linked", () => {
+    const spec = getOrchestratorActionSpec(
+      makePlan({ vercelLinked: true }),
+      "vercel-deploy",
+    );
+    expect(spec.runnable).toBe(true);
+    expect(spec.blockedReason).toBeNull();
+  });
+
+  test("bootstrap-project is always runnable", () => {
+    const spec = getOrchestratorActionSpec(makePlan(), "bootstrap-project");
+    expect(spec.runnable).toBe(true);
+    expect(spec.blockedReason).toBeNull();
+  });
+
+  test("install-missing is always runnable", () => {
+    const spec = getOrchestratorActionSpec(makePlan(), "install-missing");
+    expect(spec.runnable).toBe(true);
+    expect(spec.blockedReason).toBeNull();
+  });
+
+  test("vercel-link is always runnable", () => {
+    const spec = getOrchestratorActionSpec(makePlan(), "vercel-link");
+    expect(spec.runnable).toBe(true);
+    expect(spec.blockedReason).toBeNull();
+  });
+
   test("throws for invalid action ID", () => {
     expect(() =>
       getOrchestratorActionSpec(makePlan(), "bogus" as OrchestratorRunnerActionId),
