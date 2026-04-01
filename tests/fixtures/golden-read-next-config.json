@@ -1,5 +1,5 @@
 {
-  "description": "Golden snapshot: Read next.config.ts triggers nextjs and turbopack",
+  "description": "Golden snapshot: Read next.config.ts triggers next-cache-components, next-upgrade, nextjs, and drops turbopack by cap",
   "input": {
     "tool_name": "Read",
     "tool_input": { "file_path": "/Users/me/project/next.config.ts" }
@@ -9,9 +9,9 @@
       "version": 1,
       "toolName": "Read",
       "toolTarget": "/Users/me/project/next.config.ts",
-      "matchedSkills": ["nextjs", "turbopack"],
-      "injectedSkills": ["nextjs", "turbopack"],
-      "droppedByCap": [],
+      "matchedSkills": ["next-cache-components", "next-upgrade", "nextjs", "turbopack"],
+      "injectedSkills": ["next-cache-components", "next-upgrade", "nextjs"],
+      "droppedByCap": ["turbopack"],
       "droppedByBudget": []
     }
   }

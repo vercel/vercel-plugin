@@ -1,16 +1,42 @@
-import { describe, test, expect, beforeEach } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { describe, test, expect, beforeAll, beforeEach, afterAll } from "bun:test";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, readdirSync, existsSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { resolveProjectStatePaths } from "../hooks/src/project-state-paths.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
 const SESSION_START_SCRIPT = join(ROOT, "hooks", "session-start-seen-skills.mjs");
+const SKILLS_DIR = join(ROOT, "skills");
 const UNLIMITED_BUDGET = "999999";
 let testSession: string;
+let testHomeDir: string;
+
+function seedProjectCache(homeDir: string): void {
+  const paths = resolveProjectStatePaths(ROOT, homeDir);
+  mkdirSync(paths.skillsDir, { recursive: true });
+
+  for (const entry of readdirSync(SKILLS_DIR)) {
+    const sourceDir = join(SKILLS_DIR, entry);
+    if (!existsSync(join(sourceDir, "SKILL.md"))) continue;
+    symlinkSync(sourceDir, join(paths.skillsDir, entry), "dir");
+  }
+}
+
+beforeAll(() => {
+  testHomeDir = join(
+    tmpdir(),
+    `vercel-plugin-home-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+  seedProjectCache(testHomeDir);
+});
 
 beforeEach(() => {
   testSession = `timeline-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+});
+
+afterAll(() => {
+  rmSync(testHomeDir, { recursive: true, force: true });
 });
 
 async function runSessionStart(envFilePath: string): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -37,8 +63,11 @@ async function runHookEnv(
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
+    cwd: ROOT,
     env: {
       ...process.env,
+      VERCEL_PLUGIN_HOME_DIR: testHomeDir,
+      VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY: "1",
       VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
       ...env,
     },
@@ -128,7 +157,9 @@ describe("session timeline subagent integration", () => {
       );
 
       expect(leadRead.code).toBe(0);
-      expect(JSON.parse(leadRead.stdout)).toEqual({});
+      const leadInjected = parseInjectedSkills(leadRead.stdout);
+      expect(leadInjected).not.toContain("nextjs");
+      expect(leadInjected).toContain("next-cache-components");
 
       const subagentSessionStart = await runSessionStart(subagentEnvPath);
       expect(subagentSessionStart.code).toBe(0);

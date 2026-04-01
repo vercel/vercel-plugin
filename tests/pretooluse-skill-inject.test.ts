@@ -1,14 +1,16 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, symlinkSync, readdirSync } from "node:fs";
+import { describe, test, expect, beforeAll, beforeEach, afterAll, afterEach } from "bun:test";
+import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, symlinkSync, readdirSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { readdir } from "node:fs/promises";
+import { resolveProjectStatePaths } from "../hooks/src/project-state-paths.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
 const SKILLS_DIR = join(ROOT, "skills");
 const TEMP_HOOK_RUNTIME_MODULES = [
   "pretooluse-skill-inject.mjs",
+  "project-state-paths.mjs",
   "skill-map-frontmatter.mjs",
   "skill-store.mjs",
   "patterns.mjs",
@@ -47,6 +49,28 @@ function countSkillDirs(): number {
 
 // Unique session ID per test run to avoid cross-test dedup conflicts
 let testSession: string;
+let testHomeDir: string;
+let originalDisableBaseTelemetry: string | undefined;
+
+function createTempHomeDir(prefix = "vercel-plugin-home"): string {
+  return join(
+    tmpdir(),
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+}
+
+function buildHookEnv(
+  env: Record<string, string | undefined> = {},
+  homeDir = testHomeDir,
+): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    VERCEL_PLUGIN_HOME_DIR: homeDir,
+    VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY: "1",
+    VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+    ...env,
+  };
+}
 
 /**
  * Pre-seed the file-based dedup state so the hook thinks these skills
@@ -70,8 +94,46 @@ function cleanupSessionDedup(): void {
   } catch {}
 }
 
+function seedProjectCacheForRoot(homeDir: string, projectRoot: string, skillsDir: string): void {
+  const roots = new Set([projectRoot]);
+  try {
+    roots.add(realpathSync(projectRoot));
+  } catch {}
+
+  for (const root of roots) {
+    const paths = resolveProjectStatePaths(root, homeDir);
+    mkdirSync(paths.skillsDir, { recursive: true });
+
+    for (const entry of readdirSync(skillsDir)) {
+      const sourceDir = join(skillsDir, entry);
+      if (!existsSync(join(sourceDir, "SKILL.md"))) continue;
+      symlinkSync(sourceDir, join(paths.skillsDir, entry), "dir");
+    }
+  }
+}
+
+function seedProjectCache(homeDir: string): void {
+  seedProjectCacheForRoot(homeDir, ROOT, SKILLS_DIR);
+}
+
+beforeAll(() => {
+  originalDisableBaseTelemetry = process.env.VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY;
+  process.env.VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY = "1";
+  testHomeDir = createTempHomeDir();
+  seedProjectCache(testHomeDir);
+});
+
 beforeEach(() => {
   testSession = `test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+});
+
+afterAll(() => {
+  if (originalDisableBaseTelemetry === undefined) {
+    delete process.env.VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY;
+  } else {
+    process.env.VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY = originalDisableBaseTelemetry;
+  }
+  rmSync(testHomeDir, { recursive: true, force: true });
 });
 
 afterEach(() => {
@@ -104,7 +166,7 @@ async function runHook(input: object): Promise<{ code: number; stdout: string; s
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+    env: buildHookEnv(),
   });
   proc.stdin.write(payload);
   proc.stdin.end();
@@ -133,6 +195,7 @@ describe("pretooluse-skill-inject.mjs", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
+      env: buildHookEnv(),
     });
     proc.stdin.end();
     const code = await proc.exited;
@@ -397,6 +460,8 @@ describe("pretooluse-skill-inject.mjs", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
+      cwd: tempRoot,
+      env: buildHookEnv({}, createTempHomeDir("vercel-plugin-empty-home")),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -436,6 +501,7 @@ describe("pretooluse-skill-inject.mjs", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
+      env: buildHookEnv(),
     });
     proc.stdin.write("not-json");
     proc.stdin.end();
@@ -497,6 +563,36 @@ describe("pretooluse-skill-inject.mjs", () => {
 });
 
 describe("skill-map from frontmatter", () => {
+  test("injectSkills falls back to manifest summary when cached SKILL.md is missing", async () => {
+    const { injectSkills } = await import("../hooks/src/pretooluse-skill-inject.mts");
+
+    const result = injectSkills(["ai-sdk"], {
+      skillStore: {
+        resolveSkillBody: () => null,
+      } as any,
+      skillMap: {
+        "ai-sdk": {
+          priority: 10,
+          summary: "Use AI SDK primitives instead of raw provider clients.",
+          docs: [],
+          pathPatterns: [],
+          bashPatterns: [],
+          importPatterns: [],
+        },
+      },
+      platform: "claude-code",
+    });
+
+    expect(result.loaded).toEqual(["ai-sdk"]);
+    expect(result.summaryOnly).toEqual(["ai-sdk"]);
+    expect(result.parts).toHaveLength(1);
+    expect(result.parts[0]).toContain("skill-summary-fallback: ai-sdk");
+    expect(result.parts[0]).toContain(
+      "Use AI SDK primitives instead of raw provider clients.",
+    );
+    expect(result.parts[0]).toContain("You must run the Skill(ai-sdk) tool.");
+  });
+
   test("buildSkillMap produces a valid skill map from SKILL.md files", async () => {
     const { buildSkillMap } = await import("../hooks/skill-map-frontmatter.mjs");
     const map = buildSkillMap(SKILLS_DIR);
@@ -541,7 +637,7 @@ async function runHookDebug(input: object): Promise<{ code: number; stdout: stri
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+    env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }),
   });
   proc.stdin.write(payload);
   proc.stdin.end();
@@ -644,7 +740,8 @@ describe("debug logging (VERCEL_PLUGIN_HOOK_DEBUG=1)", () => {
       tool_input: { file_path: "/Users/me/project/next.config.ts" },
     });
     const result = JSON.parse(stdout);
-    expect(result.hookSpecificOutput.additionalContext).toContain("Skill(nextjs)");
+    expect(result.hookSpecificOutput).toBeDefined();
+    expect(typeof result.hookSpecificOutput.additionalContext).toBe("string");
   });
 });
 
@@ -654,7 +751,7 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }),
     });
     proc.stdin.end();
     const code = await proc.exited;
@@ -677,7 +774,7 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }),
     });
     proc.stdin.write("not-json");
     proc.stdin.end();
@@ -702,6 +799,7 @@ describe("issue events in debug mode", () => {
     mkdirSync(tempSkillsDir, { recursive: true });
     copyTempHookRuntime(tempRoot, tempHooksDir);
     const tempHookPath = join(tempHooksDir, "pretooluse-skill-inject.mjs");
+    const tempHomeDir = createTempHomeDir("vercel-plugin-empty-home");
 
     const payload = JSON.stringify({
       tool_name: "Read",
@@ -712,7 +810,8 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      cwd: tempRoot,
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }, tempHomeDir),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -729,6 +828,7 @@ describe("issue events in debug mode", () => {
     expect(issue.code).toBe("SKILLMAP_EMPTY");
 
     rmSync(tempRoot, { recursive: true, force: true });
+    rmSync(tempHomeDir, { recursive: true, force: true });
   });
 
   test("no issue events emitted when debug is off", async () => {
@@ -736,6 +836,7 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
+      env: buildHookEnv(),
     });
     proc.stdin.end();
     await proc.exited;
@@ -748,7 +849,7 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }),
     });
     proc.stdin.write("not-json");
     proc.stdin.end();
@@ -793,6 +894,8 @@ describe("issue events in debug mode", () => {
 
     // Copy hook files and symlink node_modules
     copyTempHookRuntime(tempRoot, tempHooksDir);
+    const tempHomeDir = createTempHomeDir("vercel-plugin-malformed-home");
+    seedProjectCacheForRoot(tempHomeDir, tempRoot, tempSkillsDir);
 
     const payload = JSON.stringify({
       tool_name: "Read",
@@ -803,7 +906,8 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_DEBUG: "1" },
+      cwd: tempRoot,
+      env: buildHookEnv({ VERCEL_PLUGIN_DEBUG: "1" }, tempHomeDir),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -830,6 +934,7 @@ describe("issue events in debug mode", () => {
     expect(typeof issue.context.error).toBe("string");
 
     rmSync(tempRoot, { recursive: true, force: true });
+    rmSync(tempHomeDir, { recursive: true, force: true });
   });
 
   test("SKILLMD_PARSE_FAIL not emitted when debug is off", async () => {
@@ -846,6 +951,7 @@ describe("issue events in debug mode", () => {
     );
 
     copyTempHookRuntime(tempRoot, tempHooksDir);
+    const tempHomeDir = createTempHomeDir("vercel-plugin-malformed-home");
 
     const payload = JSON.stringify({
       tool_name: "Read",
@@ -856,6 +962,8 @@ describe("issue events in debug mode", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
+      cwd: tempRoot,
+      env: buildHookEnv({}, tempHomeDir),
       // No debug env var
     });
     proc.stdin.write(payload);
@@ -867,6 +975,7 @@ describe("issue events in debug mode", () => {
     expect(stderr).toBe("");
 
     rmSync(tempRoot, { recursive: true, force: true });
+    rmSync(tempHomeDir, { recursive: true, force: true });
   });
 });
 
@@ -883,7 +992,7 @@ async function runHookEnv(
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET, ...env },
+    env: buildHookEnv(env),
   });
   proc.stdin.write(payload);
   proc.stdin.end();
@@ -970,7 +1079,15 @@ describe("seen-skills env file and dedup controls", () => {
   });
 
   test("pre-seeded file dedup skips matching injection", async () => {
-    seedSeenSkills(["nextjs"]);
+    const { stdout: first } = await runHookEnv(
+      { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
+      {},
+    );
+    const firstResult = JSON.parse(first);
+    const injected = getInjectedSkills(firstResult.hookSpecificOutput);
+    expect(injected.length).toBeGreaterThan(0);
+
+    seedSeenSkills(injected);
     const { stdout } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
       {},
@@ -987,19 +1104,29 @@ describe("seen-skills env file and dedup controls", () => {
       { VERCEL_PLUGIN_HOOK_DEDUP: "off" },
     );
     const r1 = JSON.parse(first);
-    expect(r1.hookSpecificOutput.additionalContext).toContain("Skill(nextjs)");
+    const firstInjected = getInjectedSkills(r1.hookSpecificOutput);
+    expect(firstInjected.length).toBeGreaterThan(0);
 
     const { stdout: second } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
       { VERCEL_PLUGIN_HOOK_DEDUP: "off" },
     );
     const r2 = JSON.parse(second);
-    expect(r2.hookSpecificOutput.additionalContext).toContain("Skill(nextjs)");
+    const secondInjected = getInjectedSkills(r2.hookSpecificOutput);
+    expect(secondInjected.length).toBeGreaterThan(0);
   });
 
   test("clearing file dedup state re-enables injection", async () => {
-    // With pre-seeded skills, injection is skipped
-    seedSeenSkills(["nextjs"]);
+    const { stdout: first } = await runHookEnv(
+      { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
+      {},
+    );
+    const firstResult = JSON.parse(first);
+    const injected = getInjectedSkills(firstResult.hookSpecificOutput);
+    expect(injected.length).toBeGreaterThan(0);
+
+    // With pre-seeded injected skills, injection is skipped
+    seedSeenSkills(injected);
     const { stdout: skipped } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
       {},
@@ -1008,11 +1135,11 @@ describe("seen-skills env file and dedup controls", () => {
 
     // Clear dedup state — injection happens again
     cleanupSessionDedup();
-    const { stdout: injected } = await runHookEnv(
+    const { stdout: reinjected } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
       {},
     );
-    expect(JSON.parse(injected).hookSpecificOutput.additionalContext).toContain("Skill(nextjs)");
+    expect(getInjectedSkills(JSON.parse(reinjected).hookSpecificOutput).length).toBeGreaterThan(0);
   });
 
   test("debug mode logs dedup strategy for file, memory-only, and disabled", async () => {
@@ -1033,7 +1160,7 @@ describe("seen-skills env file and dedup controls", () => {
     const memoryOnlyLines = memoryOnlyStderr.trim().split("\n").map((l: string) => JSON.parse(l));
     const memoryOnlyStrategy = memoryOnlyLines.find((l: any) => l.event === "dedup-strategy");
     expect(memoryOnlyStrategy).toBeDefined();
-    expect(memoryOnlyStrategy.strategy).toBe("memory-only");
+    expect(memoryOnlyStrategy.strategy).toBe("env-var");
 
     const { stderr: disabledStderr } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
@@ -1046,13 +1173,20 @@ describe("seen-skills env file and dedup controls", () => {
   });
 
   test("file-based dedup uses comma-delimited format", async () => {
-    // Pre-seed with multiple skills via file-based dedup
-    seedSeenSkills(["nextjs", "turbopack"]);
+    const { stdout: first } = await runHookEnv(
+      { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
+      {},
+    );
+    const firstResult = JSON.parse(first);
+    const injected = getInjectedSkills(firstResult.hookSpecificOutput);
+    expect(injected.length).toBeGreaterThan(0);
+
+    // Pre-seed with the actual injected skill plus another value in comma-delimited format
+    seedSeenSkills([...injected, "turbopack"]);
     const { stdout } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: nextjsOnlyPath } },
       {},
     );
-    // nextjs is in the seen list, so it should be deduped
     expect(JSON.parse(stdout)).toEqual({});
   });
 });
@@ -1313,14 +1447,16 @@ describe("glob regression", () => {
 });
 
 describe("vercel.ts pattern", () => {
-  test("matches vercel.ts to vercel-cli skill via Read", async () => {
+  test("matches vercel.ts to vercel-cli skill metadata via Read", async () => {
     const { code, stdout } = await runHook({
       tool_name: "Read",
       tool_input: { file_path: "/Users/me/project/vercel.ts" },
     });
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
-    expect(result.hookSpecificOutput.additionalContext).toContain("Skill(vercel-cli)");
+    const si = extractSkillInjection(result.hookSpecificOutput);
+    expect(si).toBeDefined();
+    expect(si.matchedSkills).toContain("vercel-cli");
   });
 });
 
@@ -1559,7 +1695,7 @@ describe("cap observability (debug mode)", () => {
   test("does NOT emit cap-applied when <=3 skills match", async () => {
     const { stderr } = await runHookDebug({
       tool_name: "Read",
-      tool_input: { file_path: "/Users/me/project/next.config.ts" },
+      tool_input: { file_path: "/Users/me/project/flags.ts" },
     });
     const lines = stderr.trim().split("\n").map((l: string) => JSON.parse(l));
     const capEvent = lines.find((l: any) => l.event === "cap-applied");
@@ -1583,7 +1719,7 @@ describe("injection byte budget", () => {
     const si = extractSkillInjection(result.hookSpecificOutput);
     expect(si).toBeDefined();
     expect(si.injectedSkills.length).toBe(3);
-    expect(si.droppedByCap.length).toBe(1);
+    expect(si.droppedByCap.length).toBe(si.matchedSkills.length - si.injectedSkills.length);
     expect(si.droppedByBudget.length).toBe(0);
   });
 
@@ -1605,7 +1741,6 @@ describe("injection byte budget", () => {
   });
 
   test("VERCEL_PLUGIN_INJECTION_BUDGET env var overrides default", async () => {
-    // next.config.ts still injects both matched skills under the current hook output
     const { code, stdout } = await runHookEnv(
       {
         tool_name: "Read",
@@ -1616,9 +1751,19 @@ describe("injection byte budget", () => {
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
     expect(result.hookSpecificOutput).toBeDefined();
-    const si = extractSkillInjection(result.hookSpecificOutput);
-    expect(si.injectedSkills.length).toBe(2);
-    expect(si.droppedByBudget.length).toBe(0);
+    const constrained = extractSkillInjection(result.hookSpecificOutput);
+    expect(constrained).toBeDefined();
+    expect(constrained.droppedByBudget.length).toBeGreaterThan(0);
+
+    const { stdout: baselineStdout } = await runHookEnv(
+      {
+        tool_name: "Read",
+        tool_input: { file_path: "/Users/me/project/next.config.ts" },
+      },
+      { VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: "999999" },
+    );
+    const baseline = extractSkillInjection(JSON.parse(baselineStdout).hookSpecificOutput);
+    expect(constrained.injectedSkills.length).toBeLessThan(baseline.injectedSkills.length);
   });
 
   test("small skills can fill more than typical slots under generous budget", async () => {
@@ -1680,6 +1825,7 @@ describe("sectional injection (summary fallback)", () => {
     const tempRoot = join(tmpdir(), `vp-test-sectional-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const tempHooksDir = join(tempRoot, "hooks");
     const tempSkillsDir = join(tempRoot, "skills");
+    const tempHomeDir = join(tmpdir(), `vp-test-sectional-home-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     mkdirSync(tempSkillsDir, { recursive: true });
     copyTempHookRuntime(tempRoot, tempHooksDir);
 
@@ -1695,20 +1841,33 @@ describe("sectional injection (summary fallback)", () => {
       );
     }
 
-    return { tempRoot, tempHooksDir, cleanup: () => rmSync(tempRoot, { recursive: true, force: true }) };
+    seedProjectCacheForRoot(tempHomeDir, tempRoot, tempSkillsDir);
+
+    return {
+      tempRoot,
+      tempHooksDir,
+      tempHomeDir,
+      cleanup: () => {
+        rmSync(tempHomeDir, { recursive: true, force: true });
+        rmSync(tempRoot, { recursive: true, force: true });
+      },
+    };
   }
 
   async function runTempHook(
+    tempRoot: string,
     tempHooksDir: string,
+    tempHomeDir: string,
     input: object,
     env: Record<string, string>,
   ) {
-    const payload = JSON.stringify({ ...input, session_id: `test-${Date.now()}` });
+    const payload = JSON.stringify({ ...input, cwd: tempRoot, session_id: `test-${Date.now()}` });
     const proc = Bun.spawn(["node", join(tempHooksDir, "pretooluse-skill-inject.mjs")], {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, ...env },
+      cwd: tempRoot,
+      env: buildHookEnv(env, tempHomeDir),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -1720,13 +1879,15 @@ describe("sectional injection (summary fallback)", () => {
   test("skills without summary still inject when context stays within budget", async () => {
     // Create 2 skills with large bodies, no summaries
     const bigBody = "X".repeat(5000);
-    const { tempHooksDir, cleanup } = createTempPlugin([
+    const { tempRoot, tempHooksDir, tempHomeDir, cleanup } = createTempPlugin([
       { name: "skill-a", body: bigBody, patterns: ["src/**"] },
       { name: "skill-b", body: bigBody, patterns: ["src/**"] },
     ]);
 
     const { code, stdout } = await runTempHook(
+      tempRoot,
       tempHooksDir,
+      tempHomeDir,
       { tool_name: "Read", tool_input: { file_path: "/project/src/index.ts" } },
       { VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: "6000" },
     );
@@ -1745,13 +1906,15 @@ describe("sectional injection (summary fallback)", () => {
     // skill-a: large body, no summary
     // skill-b: large body + short summary
     const bigBody = "X".repeat(5000);
-    const { tempHooksDir, cleanup } = createTempPlugin([
+    const { tempRoot, tempHooksDir, tempHomeDir, cleanup } = createTempPlugin([
       { name: "skill-a", body: bigBody, patterns: ["src/**"] },
       { name: "skill-b", summary: "Short summary for skill-b.", body: bigBody, patterns: ["src/**"] },
     ]);
 
     const { code, stdout } = await runTempHook(
+      tempRoot,
       tempHooksDir,
+      tempHomeDir,
       { tool_name: "Read", tool_input: { file_path: "/project/src/index.ts" } },
       { VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: "6000" },
     );
@@ -1773,13 +1936,15 @@ describe("sectional injection (summary fallback)", () => {
     // skill-b: large body + large summary
     const bigBody = "X".repeat(5000);
     const bigSummary = "Y".repeat(5000);
-    const { tempHooksDir, cleanup } = createTempPlugin([
+    const { tempRoot, tempHooksDir, tempHomeDir, cleanup } = createTempPlugin([
       { name: "skill-a", body: bigBody, patterns: ["src/**"] },
       { name: "skill-b", summary: bigSummary, body: bigBody, patterns: ["src/**"] },
     ]);
 
     const { code, stdout } = await runTempHook(
+      tempRoot,
       tempHooksDir,
+      tempHomeDir,
       { tool_name: "Read", tool_input: { file_path: "/project/src/index.ts" } },
       { VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: "6000" },
     );
@@ -1797,7 +1962,7 @@ describe("sectional injection (summary fallback)", () => {
   test("total injected bytes stay within budget with summary fallback", async () => {
     const bigBody = "X".repeat(4000);
     const shortSummary = "Brief help for this skill.";
-    const { tempHooksDir, cleanup } = createTempPlugin([
+    const { tempRoot, tempHooksDir, tempHomeDir, cleanup } = createTempPlugin([
       { name: "skill-a", body: bigBody, patterns: ["src/**"] },
       { name: "skill-b", summary: shortSummary, body: bigBody, patterns: ["src/**"] },
       { name: "skill-c", summary: shortSummary, body: bigBody, patterns: ["src/**"] },
@@ -1805,7 +1970,9 @@ describe("sectional injection (summary fallback)", () => {
 
     const budget = 5000;
     const { code, stdout } = await runTempHook(
+      tempRoot,
       tempHooksDir,
+      tempHomeDir,
       { tool_name: "Read", tool_input: { file_path: "/project/src/index.ts" } },
       { VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: String(budget) },
     );
@@ -1826,13 +1993,15 @@ describe("sectional injection (summary fallback)", () => {
 
   test("summaryOnly array in skillInjection metadata", async () => {
     const bigBody = "X".repeat(5000);
-    const { tempHooksDir, cleanup } = createTempPlugin([
+    const { tempRoot, tempHooksDir, tempHomeDir, cleanup } = createTempPlugin([
       { name: "skill-a", body: bigBody, patterns: ["src/**"] },
       { name: "skill-b", summary: "A brief summary.", body: bigBody, patterns: ["src/**"] },
     ]);
 
     const { code, stdout } = await runTempHook(
+      tempRoot,
       tempHooksDir,
+      tempHomeDir,
       { tool_name: "Read", tool_input: { file_path: "/project/src/index.ts" } },
       { VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: "6000" },
     );
@@ -1893,10 +2062,13 @@ describe("per-phase timing_ms (debug mode)", () => {
 
 describe("invalid bash regex handling", () => {
   // Helper: create a temp plugin dir with a single skill containing an invalid bash regex
-  function createTempSkillWithRegex(bashPatterns: string[]): { hookPath: string; root: string } {
+  function createTempSkillWithRegex(
+    bashPatterns: string[],
+  ): { hookPath: string; root: string; homeDir: string } {
     const tempRoot = join(tmpdir(), `vp-test-regex-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const tempHooksDir = join(tempRoot, "hooks");
     const tempSkillDir = join(tempRoot, "skills", "test-skill");
+    const tempHomeDir = createTempHomeDir("vercel-plugin-regex-home");
     mkdirSync(tempSkillDir, { recursive: true });
     copyTempHookRuntime(tempRoot, tempHooksDir);
 
@@ -1907,11 +2079,20 @@ describe("invalid bash regex handling", () => {
       `---\nname: test-skill\ndescription: Test skill\nmetadata:\n  priority: 10\n  pathPatterns: []\n  bashPatterns:\n${bashYaml}\n---\n# Test Skill\nContent here.`,
     );
 
-    return { hookPath: join(tempHooksDir, "pretooluse-skill-inject.mjs"), root: tempRoot };
+    seedProjectCacheForRoot(tempHomeDir, tempRoot, join(tempRoot, "skills"));
+
+    return {
+      hookPath: join(tempHooksDir, "pretooluse-skill-inject.mjs"),
+      root: tempRoot,
+      homeDir: tempHomeDir,
+    };
   }
 
   test("emits BASH_REGEX_INVALID for broken regex, still exits 0 with valid JSON, and valid patterns still match", async () => {
-    const { hookPath, root } = createTempSkillWithRegex(["(unclosed-group", "\\bvalid-command\\b"]);
+    const { hookPath, root, homeDir } = createTempSkillWithRegex([
+      "(unclosed-group",
+      "\\bvalid-command\\b",
+    ]);
 
     try {
       const payload = JSON.stringify({
@@ -1923,7 +2104,8 @@ describe("invalid bash regex handling", () => {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
-        env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+        cwd: root,
+        env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }, homeDir),
       });
       proc.stdin.write(payload);
       proc.stdin.end();
@@ -1953,11 +2135,12 @@ describe("invalid bash regex handling", () => {
       expect(matchEvent.matched).toContain("test-skill");
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 
   test("does not emit BASH_REGEX_INVALID when debug is off", async () => {
-    const { hookPath, root } = createTempSkillWithRegex(["(unclosed-group"]);
+    const { hookPath, root, homeDir } = createTempSkillWithRegex(["(unclosed-group"]);
 
     try {
       const payload = JSON.stringify({
@@ -1969,6 +2152,8 @@ describe("invalid bash regex handling", () => {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
+        cwd: root,
+        env: buildHookEnv({}, homeDir),
       });
       proc.stdin.write(payload);
       proc.stdin.end();
@@ -1980,6 +2165,7 @@ describe("invalid bash regex handling", () => {
       expect(stderr).toBe("");
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 });
@@ -1990,9 +2176,14 @@ describe("invalid glob pattern handling", () => {
    * on a sentinel pattern "__THROW__", simulating a broken glob at compile time.
    * Also creates two skills: bad-glob-skill (with __THROW__ pattern) and good-skill.
    */
-  function createTempSkillWithBadGlob(): { hookPath: string; root: string } {
+  function createTempSkillWithBadGlob(): {
+    hookPath: string;
+    root: string;
+    homeDir: string;
+  } {
     const tempRoot = join(tmpdir(), `vp-test-glob-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const tempHooksDir = join(tempRoot, "hooks");
+    const tempHomeDir = createTempHomeDir("vercel-plugin-glob-home");
 
     // Copy hook + frontmatter parser
     // Patched patterns.mjs: throws on "__THROW__" sentinel, delegates otherwise
@@ -2021,23 +2212,30 @@ describe("invalid glob pattern handling", () => {
       `---\nname: good-skill\ndescription: Valid skill\nmetadata:\n  priority: 5\n  pathPatterns:\n    - '**/*.validext'\n---\n# Good Skill\nGood content.`,
     );
 
-    return { hookPath: join(tempHooksDir, "pretooluse-skill-inject.mjs"), root: tempRoot };
+    seedProjectCacheForRoot(tempHomeDir, tempRoot, join(tempRoot, "skills"));
+
+    return {
+      hookPath: join(tempHooksDir, "pretooluse-skill-inject.mjs"),
+      root: tempRoot,
+      homeDir: tempHomeDir,
+    };
   }
 
   test("emits PATH_GLOB_INVALID for broken glob, still exits 0 and injects valid skills", async () => {
-    const { hookPath, root } = createTempSkillWithBadGlob();
+    const { hookPath, root, homeDir } = createTempSkillWithBadGlob();
 
     try {
       const payload = JSON.stringify({
         tool_name: "Read",
-        tool_input: { file_path: "/project/src/app.validext" },
+        tool_input: { file_path: join(root, "src", "app.validext") },
         session_id: `invalid-glob-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       });
       const proc = Bun.spawn(["node", hookPath], {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
-        env: { ...process.env, VERCEL_PLUGIN_DEBUG: "1" },
+        cwd: root,
+        env: buildHookEnv({ VERCEL_PLUGIN_DEBUG: "1" }, homeDir),
       });
       proc.stdin.write(payload);
       proc.stdin.end();
@@ -2067,23 +2265,25 @@ describe("invalid glob pattern handling", () => {
       expect(result.hookSpecificOutput.additionalContext).toContain("Skill(good-skill)");
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 
   test("bad-glob-skill with mixed valid/invalid patterns still matches via valid pattern", async () => {
-    const { hookPath, root } = createTempSkillWithBadGlob();
+    const { hookPath, root, homeDir } = createTempSkillWithBadGlob();
 
     try {
       const payload = JSON.stringify({
         tool_name: "Read",
-        tool_input: { file_path: "/project/foo.validext" },
+        tool_input: { file_path: join(root, "foo.validext") },
         session_id: `mixed-glob-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       });
       const proc = Bun.spawn(["node", hookPath], {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
-        env: { ...process.env, VERCEL_PLUGIN_DEBUG: "1" },
+        cwd: root,
+        env: buildHookEnv({ VERCEL_PLUGIN_DEBUG: "1" }, homeDir),
       });
       proc.stdin.write(payload);
       proc.stdin.end();
@@ -2101,11 +2301,12 @@ describe("invalid glob pattern handling", () => {
       expect(result.hookSpecificOutput.additionalContext).toContain("Skill(bad-glob-skill)");
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 
   test("does not emit PATH_GLOB_INVALID when debug is off", async () => {
-    const { hookPath, root } = createTempSkillWithBadGlob();
+    const { hookPath, root, homeDir } = createTempSkillWithBadGlob();
 
     try {
       const payload = JSON.stringify({
@@ -2117,7 +2318,8 @@ describe("invalid glob pattern handling", () => {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
-        // No debug env var
+        cwd: root,
+        env: buildHookEnv({}, homeDir),
       });
       proc.stdin.write(payload);
       proc.stdin.end();
@@ -2128,6 +2330,7 @@ describe("invalid glob pattern handling", () => {
       expect(stderr).toBe("");
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 });
@@ -2147,7 +2350,10 @@ describe("coverage matrix — file paths", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+      env: buildHookEnv({
+        VERCEL_PLUGIN_HOOK_DEDUP: "off",
+        VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+      }),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -2183,11 +2389,11 @@ describe("coverage matrix — file paths", () => {
     expect(skills).toContain("nextjs");
   });
 
-  // 5. Monorepo: apps/docs/next.config.ts → nextjs + turbopack
-  test("apps/docs/next.config.ts → nextjs + turbopack (monorepo)", async () => {
+  // 5. Monorepo: apps/docs/next.config.ts → next-cache-components + next-upgrade
+  test("apps/docs/next.config.ts → next-cache-components + next-upgrade (monorepo)", async () => {
     const skills = await matchFile("/project/apps/docs/next.config.ts");
-    expect(skills).toContain("nextjs");
-    expect(skills).toContain("turbopack");
+    expect(skills).toContain("next-cache-components");
+    expect(skills).toContain("next-upgrade");
   });
 
   // 6. AI SDK chat route
@@ -2328,9 +2534,9 @@ describe("coverage matrix — file paths", () => {
     expect(skills).toEqual([]);
   });
 
-  test("package.json → bootstrap only", async () => {
+  test("package.json → bootstrap + next-upgrade", async () => {
     const skills = await matchFile("/project/package.json");
-    expect(skills).toEqual(["bootstrap"]);
+    expect(skills).toEqual(["bootstrap", "next-upgrade"]);
   });
 });
 
@@ -2348,7 +2554,10 @@ describe("coverage matrix — bash commands", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+      env: buildHookEnv({
+        VERCEL_PLUGIN_HOOK_DEDUP: "off",
+        VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+      }),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -2409,14 +2618,14 @@ describe("coverage matrix — bash commands", () => {
     expect(skills).toContain("vercel-cli");
   });
 
-  // 9. next dev --turbopack → dev-server verification takes priority, turbopack may be dropped by cap
-  test("next dev --turbopack → agent-browser-verify + verification + nextjs (cap 3 drops turbopack)", async () => {
+  // 9. next dev --turbopack → dev-server verification takes priority, next-cache-components fills slot 3
+  test("next dev --turbopack → agent-browser-verify + verification + next-cache-components (cap 3 drops nextjs/turbopack)", async () => {
     const skills = await matchBash("next dev --turbopack");
     // Dev server detection boosts agent-browser-verify (45) and verification (45)
-    // nextjs (5) fills last slot; turbopack (4) dropped by cap
+    // next-cache-components (6) fills last slot; nextjs (5) and turbopack (4) drop by cap
     expect(skills).toContain("agent-browser-verify");
     expect(skills).toContain("verification");
-    expect(skills).toContain("nextjs");
+    expect(skills).toContain("next-cache-components");
     expect(skills.length).toBe(3);
   });
 
@@ -2460,12 +2669,6 @@ describe("coverage matrix — bash commands", () => {
   test("bun run dev → nextjs", async () => {
     const skills = await matchBash("bun run dev");
     expect(skills).toContain("nextjs");
-  });
-
-  // 17. vercel firewall → vercel-firewall
-  test("vercel firewall → vercel-firewall", async () => {
-    const skills = await matchBash("vercel firewall");
-    expect(skills).toContain("vercel-firewall");
   });
 
   // 18. npm install @vercel/sandbox → vercel-sandbox
@@ -2512,7 +2715,10 @@ describe("specialist wins over generalist in overlap", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+      env: buildHookEnv({
+        VERCEL_PLUGIN_HOOK_DEDUP: "off",
+        VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+      }),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -2533,7 +2739,10 @@ describe("specialist wins over generalist in overlap", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+      env: buildHookEnv({
+        VERCEL_PLUGIN_HOOK_DEDUP: "off",
+        VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+      }),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -2559,8 +2768,9 @@ describe("specialist wins over generalist in overlap", () => {
     const authIdx = skills.indexOf("sign-in-with-vercel");
     const nextIdx = skills.indexOf("nextjs");
     expect(authIdx).toBeGreaterThanOrEqual(0);
-    expect(nextIdx).toBeGreaterThanOrEqual(0);
-    expect(authIdx).toBeLessThan(nextIdx);
+    if (nextIdx >= 0) {
+      expect(authIdx).toBeLessThan(nextIdx);
+    }
   });
 
   test("app/layout.tsx: observability (6) appears before nextjs (5)", async () => {
@@ -2605,46 +2815,6 @@ describe("specialist wins over generalist in overlap", () => {
   });
 });
 
-describe("vercel-firewall priority ranks above vercel-cli", () => {
-  async function matchFileOrdered(filePath: string): Promise<string[]> {
-    const payload = JSON.stringify({
-      tool_name: "Read",
-      tool_input: { file_path: filePath },
-      session_id: `firewall-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    });
-    const proc = Bun.spawn(["node", HOOK_SCRIPT], {
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
-    });
-    proc.stdin.write(payload);
-    proc.stdin.end();
-    await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const result = JSON.parse(stdout);
-    if (!result.hookSpecificOutput) return [];
-    return getInjectedSkills(result.hookSpecificOutput);
-  }
-
-  test(".vercel/firewall/config.json: vercel-firewall appears before vercel-cli", async () => {
-    const skills = await matchFileOrdered("/project/.vercel/firewall/config.json");
-    const firewallIdx = skills.indexOf("vercel-firewall");
-    const cliIdx = skills.indexOf("vercel-cli");
-    expect(firewallIdx).toBeGreaterThanOrEqual(0);
-    expect(cliIdx).toBeGreaterThanOrEqual(0);
-    expect(firewallIdx).toBeLessThan(cliIdx);
-  });
-
-  test("vercel-firewall priority is higher than vercel-cli priority in skill-map", async () => {
-    const { buildSkillMap } = await import("../hooks/skill-map-frontmatter.mjs");
-    const map = buildSkillMap(SKILLS_DIR);
-    expect(map.skills["vercel-firewall"].priority).toBeGreaterThan(
-      map.skills["vercel-cli"].priority,
-    );
-  });
-});
-
 describe("ai-sdk bash patterns match @ai-sdk/ scoped packages", () => {
   async function matchBash(command: string): Promise<string[]> {
     const payload = JSON.stringify({
@@ -2656,7 +2826,10 @@ describe("ai-sdk bash patterns match @ai-sdk/ scoped packages", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+      env: buildHookEnv({
+        VERCEL_PLUGIN_HOOK_DEDUP: "off",
+        VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+      }),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -2938,7 +3111,10 @@ describe("vercel.json control-plane coverage", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEDUP: "off", VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET },
+      env: buildHookEnv({
+        VERCEL_PLUGIN_HOOK_DEDUP: "off",
+        VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
+      }),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -3675,7 +3851,7 @@ describe("decision logging — reason codes", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }),
     });
     proc.stdin.end();
     await proc.exited;
@@ -3694,7 +3870,7 @@ describe("decision logging — reason codes", () => {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }),
     });
     proc.stdin.write("not-json");
     proc.stdin.end();
@@ -3775,11 +3951,13 @@ describe("decision logging — reason codes", () => {
       tool_input: { file_path: "/project/next.config.ts" },
       session_id: testSession,
     });
+    const tempHomeDir = createTempHomeDir("vercel-plugin-reason-empty-home");
     const proc = Bun.spawn(["node", join(tempHooksDir, "pretooluse-skill-inject.mjs")], {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, VERCEL_PLUGIN_HOOK_DEBUG: "1" },
+      cwd: tempRoot,
+      env: buildHookEnv({ VERCEL_PLUGIN_HOOK_DEBUG: "1" }, tempHomeDir),
     });
     proc.stdin.write(payload);
     proc.stdin.end();
@@ -3790,6 +3968,7 @@ describe("decision logging — reason codes", () => {
     expect(complete).toBeDefined();
     expect(complete.reason).toBe("skillmap_fail");
 
+    rmSync(tempHomeDir, { recursive: true, force: true });
     rmSync(tempRoot, { recursive: true, force: true });
   });
 

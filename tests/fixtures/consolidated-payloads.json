@@ -50,13 +50,19 @@
           "toolName": "Read",
           "toolTarget": "/Users/me/project/next.config.ts",
           "matchedSkills": [
-            "nextjs",
-            "turbopack"],
-          "injectedSkills": [
+            "next-cache-components",
+            "next-upgrade",
             "nextjs",
             "turbopack"
           ],
-          "droppedByCap": [],
+          "injectedSkills": [
+            "next-cache-components",
+            "next-upgrade",
+            "nextjs"
+          ],
+          "droppedByCap": [
+            "turbopack"
+          ],
           "droppedByBudget": []
         }
       }
@@ -105,15 +111,19 @@
           "matchedSkills": [
             "ai-sdk",
             "chat-sdk",
+            "next-cache-components",
             "nextjs",
-            "vercel-functions"],
+            "vercel-functions"
+          ],
           "injectedSkills": [
             "ai-sdk",
             "chat-sdk",
             "vercel-functions"
           ],
           "droppedByCap": [
-            "nextjs"],
+            "next-cache-components",
+            "nextjs"
+          ],
           "droppedByBudget": []
         }
       }
@@ -135,15 +145,19 @@
           "matchedSkills": [
             "ai-sdk",
             "chat-sdk",
+            "next-cache-components",
             "nextjs",
-            "vercel-functions"],
+            "vercel-functions"
+          ],
           "injectedSkills": [
             "ai-sdk",
             "chat-sdk",
             "vercel-functions"
           ],
           "droppedByCap": [
-            "nextjs"],
+            "next-cache-components",
+            "nextjs"
+          ],
           "droppedByBudget": []
         }
       }

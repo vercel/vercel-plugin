@@ -1,5 +1,5 @@
 {
-  "description": "Golden snapshot: Bash 'npx next dev --turbopack' triggers 5 skills, cap 3 keeps agent-browser-verify (boosted 45), verification (45), nextjs (5)",
+  "description": "Golden snapshot: Bash 'npx next dev --turbopack' triggers 6 skills, cap 3 keeps agent-browser-verify, verification, and next-cache-components",
   "input": {
     "tool_name": "Bash",
     "tool_input": {
@@ -14,6 +14,7 @@
       "matchedSkills": [
         "agent-browser-verify",
         "agent-browser",
+        "next-cache-components",
         "turbopack",
         "verification",
         "nextjs"
@@ -21,9 +22,10 @@
       "injectedSkills": [
         "agent-browser-verify",
         "verification",
-        "nextjs"
+        "next-cache-components"
       ],
       "droppedByCap": [
+        "nextjs",
         "turbopack",
         "agent-browser"
       ],

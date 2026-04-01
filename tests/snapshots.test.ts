@@ -8,19 +8,46 @@
  * AI SDK file edit, and cap-collision scenarios.
  */
 
-import { describe, test, expect, beforeEach } from "bun:test";
-import { readFileSync } from "node:fs";
+import { describe, test, expect, beforeAll, beforeEach, afterAll } from "bun:test";
+import { readFileSync, mkdirSync, readdirSync, existsSync, symlinkSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { resolveProjectStatePaths } from "../hooks/src/project-state-paths.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
 const PAYLOADS_PATH = join(ROOT, "tests", "fixtures", "consolidated-payloads.json");
+const SKILLS_DIR = join(ROOT, "skills");
 
 // Unique session ID per test to avoid cross-test dedup conflicts
 let testSession: string;
+let testHomeDir: string;
 
 beforeEach(() => {
   testSession = `snap-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+});
+
+function seedProjectCache(homeDir: string): void {
+  const paths = resolveProjectStatePaths(ROOT, homeDir);
+  mkdirSync(paths.skillsDir, { recursive: true });
+
+  for (const entry of readdirSync(SKILLS_DIR)) {
+    const sourceDir = join(SKILLS_DIR, entry);
+    if (!existsSync(join(sourceDir, "SKILL.md"))) continue;
+    symlinkSync(sourceDir, join(paths.skillsDir, entry), "dir");
+  }
+}
+
+beforeAll(() => {
+  testHomeDir = join(
+    tmpdir(),
+    `vercel-plugin-home-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+  seedProjectCache(testHomeDir);
+});
+
+afterAll(() => {
+  rmSync(testHomeDir, { recursive: true, force: true });
 });
 
 // High budget disables budget-based limiting so cap tests are unaffected
@@ -51,8 +78,11 @@ async function runHook(input: object): Promise<HookResult> {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
+    cwd: ROOT,
     env: {
       ...process.env,
+      VERCEL_PLUGIN_HOME_DIR: testHomeDir,
+      VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY: "1",
       VERCEL_PLUGIN_HOOK_DEDUP: "off",
       VERCEL_PLUGIN_INJECTION_BUDGET: UNLIMITED_BUDGET,
     },

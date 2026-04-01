@@ -7,15 +7,17 @@
  * To update baselines:  bun test tests/snapshot-runner.test.ts -- --update-snapshots
  */
 
-import { describe, test, expect, beforeAll } from "bun:test";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { resolveProjectStatePaths } from "../hooks/src/project-state-paths.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
 const SNAP_DIR = join(ROOT, "tests", "snapshots");
 const FIXTURES_DIR = join(ROOT, "tests", "fixtures");
+const SKILLS_DIR = join(ROOT, "skills");
 
 const UPDATE_SNAPSHOTS =
   process.argv.includes("--update-snapshots") ||
@@ -47,8 +49,11 @@ async function runHook(input: object): Promise<{
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
+    cwd: ROOT,
     env: {
       ...process.env,
+      VERCEL_PLUGIN_HOME_DIR: testHomeDir,
+      VERCEL_PLUGIN_DISABLE_BASE_TELEMETRY: "1",
       VERCEL_PLUGIN_HOOK_DEDUP: "off", // disable dedup so each scenario is independent
       VERCEL_PLUGIN_INJECTION_BUDGET: "999999", // unlimited budget for snapshot tests
     },
@@ -217,10 +222,32 @@ const scenarios: Scenario[] = [
 // ---------------------------------------------------------------------------
 
 let tempDir: string;
+let testHomeDir: string;
+
+function seedProjectCache(homeDir: string): void {
+  const paths = resolveProjectStatePaths(ROOT, homeDir);
+  mkdirSync(paths.skillsDir, { recursive: true });
+
+  for (const entry of readdirSync(SKILLS_DIR)) {
+    const sourceDir = join(SKILLS_DIR, entry);
+    if (!existsSync(join(sourceDir, "SKILL.md"))) continue;
+    symlinkSync(sourceDir, join(paths.skillsDir, entry), "dir");
+  }
+}
 
 beforeAll(() => {
   tempDir = join(tmpdir(), `vp-snap-${Date.now()}`);
   mkdirSync(tempDir, { recursive: true });
+  testHomeDir = join(
+    tmpdir(),
+    `vercel-plugin-home-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+  seedProjectCache(testHomeDir);
+});
+
+afterAll(() => {
+  rmSync(tempDir, { recursive: true, force: true });
+  rmSync(testHomeDir, { recursive: true, force: true });
 });
 
 describe("golden snapshot tests", () => {
