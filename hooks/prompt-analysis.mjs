@@ -2,9 +2,20 @@
 import { normalizePromptText, compilePromptSignals, matchPromptWithReason, scorePromptWithLexical } from "./prompt-patterns.mjs";
 import { searchSkills } from "./lexical-index.mjs";
 import { parseSeenSkills } from "./patterns.mjs";
+function parseLikelySkillsEnv(envValue = process.env.VERCEL_PLUGIN_LIKELY_SKILLS) {
+  if (typeof envValue !== "string" || envValue.trim() === "") {
+    return /* @__PURE__ */ new Set();
+  }
+  return new Set(
+    envValue.split(",").map((skill) => skill.trim()).filter((skill) => skill.length > 0)
+  );
+}
 function analyzePrompt(prompt, skillMap, seenSkills, budgetBytes, maxSkills, options) {
   const t0 = performance.now();
   const lexicalEnabled = options?.lexicalEnabled ?? false;
+  const likelySkills = options?.likelySkills ? new Set(
+    [...options.likelySkills].map((skill) => String(skill).trim()).filter((skill) => skill.length > 0)
+  ) : parseLikelySkillsEnv();
   const normalizedPrompt = normalizePromptText(prompt);
   const dedupOff = process.env.VERCEL_PLUGIN_HOOK_DEDUP === "off";
   const hasEnvVar = typeof seenSkills === "string";
@@ -22,8 +33,7 @@ function analyzePrompt(prompt, skillMap, seenSkills, budgetBytes, maxSkills, opt
   const matched = [];
   for (const [skill, config] of Object.entries(skillMap)) {
     const hasPromptSignals = !!config.promptSignals;
-    if (!hasPromptSignals && !lexicalEnabled) continue;
-    if (!hasPromptSignals && !config.retrieval) continue;
+    if (!hasPromptSignals) continue;
     const compiled = hasPromptSignals ? compilePromptSignals(config.promptSignals) : void 0;
     if (lexicalEnabled) {
       const exactResult = compiled ? matchPromptWithReason(normalizedPrompt, compiled) : { matched: false, score: 0, reason: "no promptSignals" };
@@ -46,9 +56,19 @@ function analyzePrompt(prompt, skillMap, seenSkills, budgetBytes, maxSkills, opt
           suppressed: false
         };
         matched.push({ skill, score: exactResult.score, priority: config.priority });
-      } else if (rawLexical > 0 && (exactResult.score > 0 || !hasPromptSignals || !!config.retrieval && topKLexicalSkills.has(skill))) {
+      } else {
+        const allowLexicalOnlyRecall = exactResult.score <= 0 && rawLexical > 0 && topKLexicalSkills.has(skill) && likelySkills.has(skill);
+        if (!(rawLexical > 0 && (exactResult.score > 0 || allowLexicalOnlyRecall))) {
+          perSkillResults[skill] = {
+            score: exactResult.score,
+            reason: exactResult.reason,
+            matched: false,
+            suppressed: false
+          };
+          continue;
+        }
         const lexResult = scorePromptWithLexical(prompt, skill, compiled, lexicalHits);
-        const isRetrievalRecall = !!config.retrieval && topKLexicalSkills.has(skill) && exactResult.score <= 0;
+        const isRetrievalRecall = allowLexicalOnlyRecall;
         const boostCap = isRetrievalRecall ? RETRIEVAL_LEXICAL_BOOST_CAP : LEXICAL_BOOST_CAP;
         const lexicalBoost = Math.min(
           Math.max(lexResult.score - exactResult.score, 0),
@@ -71,13 +91,6 @@ function analyzePrompt(prompt, skillMap, seenSkills, budgetBytes, maxSkills, opt
         if (isMatched) {
           matched.push({ skill, score: effectiveScore, priority: config.priority });
         }
-      } else {
-        perSkillResults[skill] = {
-          score: exactResult.score,
-          reason: exactResult.reason,
-          matched: false,
-          suppressed: false
-        };
       }
     } else {
       const result = matchPromptWithReason(normalizedPrompt, compiled);

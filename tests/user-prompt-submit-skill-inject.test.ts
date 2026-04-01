@@ -51,20 +51,20 @@ describe("lexical prompt matching (VERCEL_PLUGIN_LEXICAL_PROMPT)", () => {
   const LEXICAL_ON = { VERCEL_PLUGIN_LEXICAL_PROMPT: "1", VERCEL_PLUGIN_SEEN_SKILLS: "" };
   const LEXICAL_OFF = { VERCEL_PLUGIN_LEXICAL_PROMPT: "0", VERCEL_PLUGIN_SEEN_SKILLS: "" };
 
-  test("with flag on, 'I want to ship my app' matches deployments-cicd via synonym expansion (ship→deploy)", async () => {
+  test("with flag on, lexical-only recall requires profiler evidence for the target skill", async () => {
     const { code, stdout } = await runHook(
-      "I want to ship my app to production as soon as possible",
-      LEXICAL_ON,
+      "I want a conversation interface",
+      { ...LEXICAL_ON, VERCEL_PLUGIN_LIKELY_SKILLS: "chat-sdk" },
     );
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
     expect(result.hookSpecificOutput).toBeDefined();
     const meta = extractSkillInjection(result.hookSpecificOutput);
     expect(meta).toBeDefined();
-    const hasDeployments =
-      meta.injectedSkills.includes("deployments-cicd") ||
-      meta.matchedSkills.includes("deployments-cicd");
-    expect(hasDeployments).toBe(true);
+    const hasChatSdk =
+      meta.injectedSkills.includes("chat-sdk") ||
+      meta.matchedSkills.includes("chat-sdk");
+    expect(hasChatSdk).toBe(true);
   });
 
   test("with flag off, 'I want to ship my app' does NOT match (no exact substring 'deploy')", async () => {
@@ -81,6 +81,22 @@ describe("lexical prompt matching (VERCEL_PLUGIN_LEXICAL_PROMPT)", () => {
         expect(meta.injectedSkills).not.toContain("deployments-cicd");
         expect(meta.matchedSkills).not.toContain("deployments-cicd");
       }
+    }
+  });
+
+  test("generic frustration prompt does not fan out into unrelated lexical skill matches", async () => {
+    const { code, stdout } = await runHook(
+      "what the fuck is making you stuck in a loop",
+      LEXICAL_ON,
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    if (result.hookSpecificOutput) {
+      const meta = extractSkillInjection(result.hookSpecificOutput);
+      expect(meta).toBeDefined();
+      expect(meta.injectedSkills).not.toContain("ai-sdk");
+      expect(meta.injectedSkills).not.toContain("chat-sdk");
+      expect(meta.matchedSkills).not.toContain("vercel-agent");
     }
   });
 
@@ -119,7 +135,7 @@ describe("lexical prompt matching (VERCEL_PLUGIN_LEXICAL_PROMPT)", () => {
     // "throttle" (rate-limit→vercel-firewall), "secret" (env→env-vars)
     const { code, stdout } = await runHook(
       "I need to ship my app and also configure throttle rules and manage my secrets for the release",
-      LEXICAL_ON,
+      { ...LEXICAL_ON, VERCEL_PLUGIN_LIKELY_SKILLS: "deployments-cicd,env-vars" },
     );
     expect(code).toBe(0);
     const result = JSON.parse(stdout);

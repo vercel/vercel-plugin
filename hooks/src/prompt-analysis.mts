@@ -45,6 +45,24 @@ export interface PromptAnalysisReport {
 export interface AnalyzePromptOptions {
   /** When true, use lexical index as primary recall stage. Default false. */
   lexicalEnabled?: boolean;
+  /**
+   * Likely skills inferred from the session profiler.
+   * When omitted, falls back to VERCEL_PLUGIN_LIKELY_SKILLS.
+   */
+  likelySkills?: Iterable<string>;
+}
+
+function parseLikelySkillsEnv(envValue = process.env.VERCEL_PLUGIN_LIKELY_SKILLS): Set<string> {
+  if (typeof envValue !== "string" || envValue.trim() === "") {
+    return new Set();
+  }
+
+  return new Set(
+    envValue
+      .split(",")
+      .map((skill) => skill.trim())
+      .filter((skill) => skill.length > 0),
+  );
 }
 
 /**
@@ -54,9 +72,10 @@ export interface AnalyzePromptOptions {
  * read stdin, and does not write to stdout. It reuses normalizePromptText,
  * compilePromptSignals, and matchPromptWithReason from prompt-patterns.mts.
  *
- * When lexicalEnabled is true, uses scorePromptWithLexical() as the primary
- * recall stage — skills can be matched via retrieval metadata even without
- * exact phrase hits. noneOf hard suppression is preserved regardless.
+ * When lexicalEnabled is true, uses scorePromptWithLexical() to boost weak
+ * exact matches. Lexical-only recall is reserved for profiler-confirmed
+ * skills, which keeps generic prompts from surfacing unrelated skills.
+ * noneOf hard suppression is preserved regardless.
  */
 export function analyzePrompt(
   prompt: string,
@@ -68,6 +87,13 @@ export function analyzePrompt(
 ): PromptAnalysisReport {
   const t0 = performance.now();
   const lexicalEnabled = options?.lexicalEnabled ?? false;
+  const likelySkills = options?.likelySkills
+    ? new Set(
+      [...options.likelySkills]
+        .map((skill) => String(skill).trim())
+        .filter((skill) => skill.length > 0),
+    )
+    : parseLikelySkillsEnv();
 
   const normalizedPrompt = normalizePromptText(prompt);
 
@@ -93,8 +119,8 @@ export function analyzePrompt(
   // Higher cap for skills with curated retrieval metadata — trusted for
   // primary recall so lexical alone can reach the default minScore of 6.
   const RETRIEVAL_LEXICAL_BOOST_CAP = 8;
-  // Only the top-K lexical hits qualify for retrieval-only recall (exact=0).
-  // This prevents broad lexical matches from creating massive false positives.
+  // Only the top-K lexical hits qualify for lexical-only recall (exact=0).
+  // Even then, the repo profiler must have already marked the skill as likely.
   const RETRIEVAL_TOP_K = 5;
   const topKLexicalSkills = new Set(
     lexicalHits.slice(0, RETRIEVAL_TOP_K).map((h) => h.skill),
@@ -106,10 +132,10 @@ export function analyzePrompt(
 
   for (const [skill, config] of Object.entries(skillMap)) {
     const hasPromptSignals = !!config.promptSignals;
-    // When lexical is off, skip skills without promptSignals (existing behavior).
-    // When lexical is on, also consider skills with retrieval metadata.
-    if (!hasPromptSignals && !lexicalEnabled) continue;
-    if (!hasPromptSignals && !config.retrieval) continue;
+    // Prompt-time matching must remain anchored to explicit promptSignals.
+    // Retrieval metadata is used only as a lexical boost, not as a primary
+    // recall path for prompt suggestions.
+    if (!hasPromptSignals) continue;
 
     const compiled = hasPromptSignals
       ? compilePromptSignals(config.promptSignals!)
@@ -145,21 +171,34 @@ export function analyzePrompt(
           suppressed: false,
         };
         matched.push({ skill, score: exactResult.score, priority: config.priority });
-      } else if (rawLexical > 0 && (exactResult.score > 0 || !hasPromptSignals || (!!config.retrieval && topKLexicalSkills.has(skill)))) {
+      } else {
+        const allowLexicalOnlyRecall = (
+          exactResult.score <= 0
+          && rawLexical > 0
+          && topKLexicalSkills.has(skill)
+          && likelySkills.has(skill)
+        );
+
+        if (!(rawLexical > 0 && (exactResult.score > 0 || allowLexicalOnlyRecall))) {
+          // No lexical hit we trust enough — record sub-threshold result
+          perSkillResults[skill] = {
+            score: exactResult.score,
+            reason: exactResult.reason,
+            matched: false,
+            suppressed: false,
+          };
+          continue;
+        }
+
         // Stage 2: exact didn't reach threshold but lexical index has a hit.
-        // For skills with promptSignals but NO retrieval metadata, require at
-        // least some exact signal match (score > 0) before lexical can boost —
-        // prevents irrelevant skills from being recalled purely via broad
-        // lexical matches.
-        // For skills with retrieval metadata that are in the top-K lexical
-        // results, lexical alone suffices — their curated aliases/intents/
-        // entities are trusted as a primary recall mechanism. The top-K gate
-        // prevents low-ranked broad matches from creating false positives.
+        // Lexical can always boost a weak exact match.
+        // Lexical-only recall is much stricter: only top-ranked hits for
+        // profiler-confirmed skills are allowed to cross the threshold.
         const lexResult = scorePromptWithLexical(prompt, skill, compiled, lexicalHits);
         // Cap effective score: exact score + bounded lexical boost.
-        // Skills with retrieval metadata in top-K get a higher cap so
-        // lexical can reach the default minScore on its own.
-        const isRetrievalRecall = !!config.retrieval && topKLexicalSkills.has(skill) && exactResult.score <= 0;
+        // Lexical-only recall gets a higher cap, but only after the profiler
+        // has already established stack evidence for the skill.
+        const isRetrievalRecall = allowLexicalOnlyRecall;
         const boostCap = isRetrievalRecall ? RETRIEVAL_LEXICAL_BOOST_CAP : LEXICAL_BOOST_CAP;
         const lexicalBoost = Math.min(
           Math.max(lexResult.score - exactResult.score, 0),
@@ -186,14 +225,6 @@ export function analyzePrompt(
         if (isMatched) {
           matched.push({ skill, score: effectiveScore, priority: config.priority });
         }
-      } else {
-        // No lexical hit either — record sub-threshold result
-        perSkillResults[skill] = {
-          score: exactResult.score,
-          reason: exactResult.reason,
-          matched: false,
-          suppressed: false,
-        };
       }
     } else {
       // --- Existing exact-only path ---
