@@ -34,6 +34,7 @@ import {
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { selectManagedContextChunk } from "./vercel-context.mjs";
 var MAX_SKILLS = 3;
 var DEFAULT_INJECTION_BUDGET_BYTES = 18e3;
 var SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
@@ -553,6 +554,7 @@ function formatOutput({
   parts,
   matched,
   injectedSkills,
+  contextChunks,
   summaryOnly,
   droppedByCap,
   droppedByBudget,
@@ -573,6 +575,7 @@ function formatOutput({
     toolTarget: toolName === "Bash" ? redactCommand(toolTarget) : toolTarget,
     matchedSkills: [...matched],
     injectedSkills,
+    contextChunks: contextChunks || [],
     summaryOnly: summaryOnly || [],
     droppedByBudget: droppedByBudget || []
   };
@@ -722,6 +725,22 @@ function run() {
     parts.push(VERCEL_ENV_HELP);
     log.debug("vercel-env-help-appended", { subcommand: vercelEnvHelp.subcommand || "" });
   }
+  const injectedContextChunks = [];
+  if (!scopeId) {
+    const chunk = selectManagedContextChunk(loaded, {
+      pluginRoot: PLUGIN_ROOT,
+      sessionId
+    });
+    if (chunk) {
+      parts.push(chunk.wrapped);
+      injectedContextChunks.push(chunk.chunkId);
+      log.debug("managed-context-chunk-injected", {
+        chunkId: chunk.chunkId,
+        skill: chunk.skill,
+        bytes: chunk.bytes
+      });
+    }
+  }
   if (parts.length === 0) {
     if (log.active) timing.total = log.elapsed();
     log.complete("no_matches", {
@@ -764,6 +783,7 @@ function run() {
     parts,
     matched,
     injectedSkills: loaded,
+    contextChunks: injectedContextChunks,
     summaryOnly,
     droppedByCap,
     droppedByBudget,
@@ -782,6 +802,7 @@ function run() {
       toolTarget: toolName === "Bash" ? redactCommand(toolTarget) : toolTarget,
       matchedSkills: [...matched],
       injectedSkills: loaded,
+      contextChunks: injectedContextChunks,
       summaryOnly,
       droppedByCap,
       droppedByBudget

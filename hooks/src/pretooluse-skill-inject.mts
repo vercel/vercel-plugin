@@ -59,6 +59,7 @@ import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 18_000;
@@ -815,6 +816,7 @@ export interface FormatOutputParams {
   parts: string[];
   matched: Set<string>;
   injectedSkills: string[];
+  contextChunks?: string[];
   summaryOnly?: string[];
   droppedByCap: string[];
   droppedByBudget?: string[];
@@ -895,6 +897,7 @@ export function formatOutput({
   parts,
   matched,
   injectedSkills,
+  contextChunks,
   summaryOnly,
   droppedByCap,
   droppedByBudget,
@@ -916,6 +919,7 @@ export function formatOutput({
     toolTarget: toolName === "Bash" ? redactCommand(toolTarget) : toolTarget,
     matchedSkills: [...matched],
     injectedSkills,
+    contextChunks: contextChunks || [],
     summaryOnly: summaryOnly || [],
     droppedByBudget: droppedByBudget || [],
   };
@@ -1107,6 +1111,23 @@ function run(): string {
     log.debug("vercel-env-help-appended", { subcommand: vercelEnvHelp.subcommand || "" });
   }
 
+  const injectedContextChunks: string[] = [];
+  if (!scopeId) {
+    const chunk = selectManagedContextChunk(loaded, {
+      pluginRoot: PLUGIN_ROOT,
+      sessionId,
+    });
+    if (chunk) {
+      parts.push(chunk.wrapped);
+      injectedContextChunks.push(chunk.chunkId);
+      log.debug("managed-context-chunk-injected", {
+        chunkId: chunk.chunkId,
+        skill: chunk.skill,
+        bytes: chunk.bytes,
+      });
+    }
+  }
+
   if (parts.length === 0) {
     if (log.active) timing.total = log.elapsed();
     log.complete("no_matches", {
@@ -1155,6 +1176,7 @@ function run(): string {
     parts,
     matched,
     injectedSkills: loaded,
+    contextChunks: injectedContextChunks,
     summaryOnly,
     droppedByCap,
     droppedByBudget,
@@ -1174,6 +1196,7 @@ function run(): string {
       toolTarget: toolName === "Bash" ? redactCommand(toolTarget) : toolTarget,
       matchedSkills: [...matched],
       injectedSkills: loaded,
+      contextChunks: injectedContextChunks,
       summaryOnly,
       droppedByCap,
       droppedByBudget,

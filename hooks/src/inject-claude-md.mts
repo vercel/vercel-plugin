@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SessionStart hook: inject vercel.md as additional context.
+ * SessionStart hook: inject a thin Vercel session context.
  * Claude Code receives plain-text stdout.
  * Cursor receives `{ additional_context: "..." }` JSON on stdout.
  */
@@ -86,9 +86,10 @@ function stripFrontmatter(content: string): string {
 function main(): void {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
+  const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
   const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
   const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
-  const parts = buildInjectClaudeMdParts(safeReadFile(join(pluginRoot(), "vercel.md")), process.env, knowledgeUpdate);
+  const parts = buildInjectClaudeMdParts(thinSessionContext, process.env, knowledgeUpdate);
 
   if (parts.length === 0) {
     return;

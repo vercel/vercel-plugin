@@ -48,6 +48,7 @@ import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
+import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 2;
 const DEFAULT_INJECTION_BUDGET_BYTES = 8_000;
@@ -750,6 +751,7 @@ export function formatOutput(
   parts: string[],
   matchedSkills: string[],
   injectedSkills: string[],
+  contextChunks: string[],
   summaryOnly: string[],
   droppedByCap: string[],
   droppedByBudget: string[],
@@ -767,6 +769,7 @@ export function formatOutput(
     hookEvent: "UserPromptSubmit",
     matchedSkills,
     injectedSkills,
+    contextChunks,
     summaryOnly,
     droppedByBudget,
   };
@@ -997,6 +1000,20 @@ export function run(): string {
   if (log.active) timing.inject = Math.round(log.now() - tInject);
 
   const { parts, loaded, summaryOnly } = injectResult;
+  const injectedContextChunks: string[] = [];
+  const chunk = selectManagedContextChunk(loaded, {
+    pluginRoot: PLUGIN_ROOT,
+    sessionId,
+  });
+  if (chunk) {
+    parts.push(chunk.wrapped);
+    injectedContextChunks.push(chunk.chunkId);
+    log.debug("managed-context-chunk-injected", {
+      chunkId: chunk.chunkId,
+      skill: chunk.skill,
+      bytes: chunk.bytes,
+    });
+  }
   let syncedSeenSkills = seenState;
   if (hasFileDedup) {
     syncedSeenSkills = syncPromptSeenSkillClaims(sessionId as string, loaded);
@@ -1028,6 +1045,7 @@ export function run(): string {
       hookEvent: "UserPromptSubmit",
       matchedSkills,
       injectedSkills: loaded,
+      contextChunks: injectedContextChunks,
       summaryOnly,
       droppedByCap,
       droppedByBudget,
@@ -1070,6 +1088,7 @@ export function run(): string {
     parts,
     matchedSkills,
     loaded,
+    injectedContextChunks,
     summaryOnly,
     droppedByCap,
     droppedByBudget,

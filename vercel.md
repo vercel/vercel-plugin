@@ -808,6 +808,50 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Use `vercel deploy --prebuilt` in CI for fastest deploys (separate build from deploy).
 - For monorepos, use Turborepo with remote caching and `--affected` for efficient CI.
 
+## Session Chunks
+
+### Next.js and Rendering
+
+- Default to Next.js App Router and Server Components; add `'use client'` only where interactivity is required.
+- Use `proxy.ts` instead of `middleware.ts` in Next.js 16 and keep proxy logic focused on interception, auth gates, rewrites, and redirects.
+- Prefer Cache Components, `next/image`, and `next/font` over custom rendering/caching/font-loading workarounds.
+- Treat `@vercel/postgres` and `@vercel/kv` as sunset packages; use modern storage integrations instead.
+
+### AI Stack
+
+- Default to AI SDK v6 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
+- Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
+- Prefer `toUIMessageStreamResponse()`, `DefaultChatTransport`, and modern tool definitions (`inputSchema`, `outputSchema`) over v5-era patterns.
+- Keep AI recommendations scoped to the current task; do not force broad AI stack migrations unless the code already points there.
+
+### Compute and Routing
+
+- Prefer Vercel Functions, Route Handlers, and proxy/routing primitives over custom servers when the task fits platform-native execution.
+- Use Fluid Compute, `waitUntil`/`after`, and Runtime Cache for long-running work, background tasks, and shared caching.
+- Keep routing guidance focused on the matched boundary: request interception, rewrites/redirects, function behavior, or cache invalidation.
+- Do not recommend Edge-only patterns by default when regular Node.js execution solves the problem cleanly.
+
+### Deploy and Operations
+
+- Use `vercel env`, linked projects, and Marketplace-managed provisioning instead of hardcoded secrets or manual config drift.
+- For deploy workflows, prefer `vercel deploy`, `--prebuilt` CI flows, and platform-native preview/production promotion patterns.
+- Keep environment and deployment advice narrow to the current repo state rather than reciting the whole platform.
+- Only surface Marketplace or CLI recommendations when the prompt, files, or commands already imply those workflows.
+
+### Storage and Data
+
+- Prefer current Vercel data integrations such as Neon, Upstash, Blob, and Edge Config over sunset packages.
+- Match storage advice to the active need: relational data, cache/queue-style access, blob assets, or low-latency config reads.
+- Avoid recommending data migrations unless the codebase is actually using deprecated Vercel storage packages.
+- Keep data-layer guidance practical: client choice, env setup, and runtime-fit over product catalog detail.
+
+### Workflow and Durability
+
+- Use Workflow DevKit and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
+- Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.
+- When workflow context is injected, emphasize survival of crashes, retries, and async callback orchestration.
+
 ---
 
 ## Plugin Mechanics
@@ -816,7 +860,9 @@ This document is part of the **Vercel plugin for Claude Code**. The plugin uses 
 
 ### SessionStart — Baseline injection
 
-On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook runs and feeds the entire contents of `vercel.md` (this file) into the conversation as foundational context. This ensures every session starts with the full Vercel ecosystem knowledge graph.
+On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
+
+Deeper `vercel.md` guidance is now loaded later in small topic chunks when prompt or tool-time skill matching shows it is relevant. Chunking is deduped per session so the same Vercel topic is not repeated on every prompt.
 
 **Hook config** (`hooks/hooks.json`):
 ```json
