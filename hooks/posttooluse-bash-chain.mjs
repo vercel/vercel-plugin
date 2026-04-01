@@ -14,7 +14,10 @@ import {
 } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
-import { resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
+import {
+  formatProjectSkillStateLine,
+  resolveSkillCacheBanner
+} from "./skill-cache-banner.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var CHAIN_BUDGET_BYTES = 18e3;
 var DEFAULT_CHAIN_CAP = 2;
@@ -250,6 +253,7 @@ function tryInjectResolvedBashSkill(args) {
     skill,
     message,
     resolvedBody,
+    source,
     sessionId,
     seenSet,
     result,
@@ -287,13 +291,17 @@ function tryInjectResolvedBashSkill(args) {
     packageName,
     skill,
     message,
-    content: resolvedBody
+    content: resolvedBody,
+    source,
+    phase
   });
   result.totalBytes += bytes;
   l.debug(`posttooluse-bash-chain-injected${suffix}`, {
     skill,
     bytes,
-    totalBytes: result.totalBytes
+    totalBytes: result.totalBytes,
+    source,
+    phase
   });
   return "injected";
 }
@@ -392,6 +400,7 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
       skill,
       message,
       resolvedBody: trimmedBody,
+      source: resolved.source,
       sessionId,
       seenSet,
       result,
@@ -428,13 +437,15 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
       projectRoot,
       autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
       timeoutMs: 4e3,
-      registryClient
+      registryClient,
+      logger: l
     });
     if (resolvedBanner.banner) {
       result.banners.push(resolvedBanner.banner);
     }
     const installedNow = (resolvedBanner.installResult?.installed.length ?? 0) > 0 || (resolvedBanner.installResult?.reused.length ?? 0) > 0;
     if (installedNow) {
+      const injectedCountBeforeInstall = result.injected.length;
       const refreshedState = loadProjectInstalledSkillState({
         projectRoot,
         pluginRoot: pluginRoot ?? PLUGIN_ROOT,
@@ -457,19 +468,23 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
           stillMissing.push(skill);
           continue;
         }
-        resolvedAfterInstall.set(skill, trimmedBody);
+        resolvedAfterInstall.set(skill, {
+          body: trimmedBody,
+          source: resolved.source
+        });
       }
       for (const [currentIndex, skill] of uniqueMissing.entries()) {
         const candidate = missingCandidates.get(skill);
-        const trimmedBody = resolvedAfterInstall.get(skill);
-        if (!trimmedBody || !candidate) {
+        const resolvedAfterInstallEntry = resolvedAfterInstall.get(skill);
+        if (!resolvedAfterInstallEntry || !candidate) {
           continue;
         }
         const injectResult = tryInjectResolvedBashSkill({
           packageName: candidate.packageName,
           skill: candidate.skill,
           message: candidate.message,
-          resolvedBody: trimmedBody,
+          resolvedBody: resolvedAfterInstallEntry.body,
+          source: resolvedAfterInstallEntry.source,
           sessionId,
           seenSet,
           result,
@@ -489,6 +504,18 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
       }
       const deferredSkillSet = new Set(result.deferred.map((d) => d.skill));
       result.missing = [...new Set(stillMissing)].filter((s) => !deferredSkillSet.has(s));
+      const afterInstallInjected = result.injected.slice(injectedCountBeforeInstall);
+      const delegatedOutcomeBanner = buildDelegatedInstallOutcomeBanner({
+        installResult: resolvedBanner.installResult,
+        injectedAfterInstall: afterInstallInjected,
+        deferredAfterInstall: result.deferred,
+        remainingMissing: result.missing,
+        projectStateSource: refreshedState.projectState.source,
+        projectStatePath: refreshedState.projectState.projectSkillStatePath
+      });
+      if (delegatedOutcomeBanner) {
+        result.banners.unshift(delegatedOutcomeBanner);
+      }
     }
   }
   const nextActionPalette = buildPostInstallActionPalette({
@@ -545,6 +572,53 @@ function buildPostInstallActionPalette(args) {
   }
   return lines.join("\n");
 }
+function buildDelegatedInstallOutcomeBanner(args) {
+  if (!args.installResult && args.injectedAfterInstall.length === 0 && args.deferredAfterInstall.length === 0 && args.remainingMissing.length === 0) {
+    return null;
+  }
+  const lines = ["### Vercel skill delegation"];
+  if (args.injectedAfterInstall.length > 0 && args.deferredAfterInstall.length === 0 && args.remainingMissing.length === 0) {
+    lines.push("- Flow: detect \u2192 install \u2192 inject");
+  } else if (args.deferredAfterInstall.length > 0) {
+    lines.push("- Flow: detect \u2192 install \u2192 defer");
+  } else if (args.remainingMissing.length > 0) {
+    lines.push("- Flow: detect \u2192 install \u2192 partial");
+  } else {
+    lines.push("- Flow: detect \u2192 install \u2192 read");
+  }
+  if (args.installResult?.installed.length) {
+    lines.push(`- Installed now: ${args.installResult.installed.join(", ")}`);
+  }
+  if (args.installResult?.reused.length) {
+    lines.push(`- Already cached: ${args.installResult.reused.join(", ")}`);
+  }
+  if (args.injectedAfterInstall.length) {
+    lines.push(
+      `- Injected now: ${args.injectedAfterInstall.map((entry) => entry.skill).join(", ")}`
+    );
+  }
+  if (args.deferredAfterInstall.length) {
+    lines.push(
+      `- Deferred: ${args.deferredAfterInstall.map((entry) => `${entry.skill} (${entry.reason})`).join(", ")}`
+    );
+  }
+  if (args.remainingMissing.length) {
+    lines.push(`- Still missing: ${args.remainingMissing.join(", ")}`);
+  }
+  const readStateLine = formatProjectSkillStateLine({
+    source: args.projectStateSource,
+    path: args.projectStatePath
+  });
+  if (readStateLine) {
+    lines.push(`- ${readStateLine}`);
+  }
+  return lines.join("\n");
+}
+function formatBashChainContextTitle(chain) {
+  const sourceLabel = chain.source === "project-cache" ? "project cache" : chain.source === "global-cache" ? "global cache" : "bundled fallback";
+  const phaseLabel = chain.phase === "after-install" ? "installed now" : "cached";
+  return `**Skill context auto-loaded** (${chain.skill} \u2022 ${phaseLabel} \u2022 ${sourceLabel}): ${chain.message}`;
+}
 function formatPlatformOutput(platform, additionalContext) {
   if (platform === "cursor") {
     return JSON.stringify({ additional_context: additionalContext });
@@ -566,7 +640,7 @@ function formatBashChainOutput(chainResult, platform = "claude-code") {
     contextParts.push(
       [
         `<!-- posttooluse-bash-chain: ${chain.packageName} \u2192 ${chain.skill} -->`,
-        `**Skill context auto-loaded** (${chain.skill}): ${chain.message}`,
+        formatBashChainContextTitle(chain),
         "",
         chain.content,
         `<!-- /posttooluse-bash-chain: ${chain.skill} -->`
@@ -637,6 +711,7 @@ if (isMainModule()) {
 }
 export {
   PACKAGE_SKILL_MAP,
+  buildDelegatedInstallOutcomeBanner,
   buildPostInstallActionPalette,
   formatBashChainOutput,
   parseBashInput,

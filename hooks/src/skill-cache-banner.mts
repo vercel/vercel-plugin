@@ -1,11 +1,15 @@
 import { join } from "node:path";
+import { logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import {
   createRegistryClient,
   type InstallSkillsResult,
   type RegistryClient,
 } from "./registry-client.mjs";
-import { readProjectSkillState } from "./project-skill-manifest.mjs";
+import {
+  readProjectSkillState,
+  type ProjectSkillState,
+} from "./project-skill-manifest.mjs";
 
 export interface SkillCacheStatus {
   likelySkills: string[];
@@ -18,6 +22,8 @@ export interface SkillCacheStatus {
 
 export interface SkillCacheBannerInput extends SkillCacheStatus {
   projectRoot: string;
+  projectStateSource?: ProjectSkillState["source"];
+  projectStatePath?: string | null;
 }
 
 export interface ResolveSkillCacheBannerArgs extends SkillCacheBannerInput {
@@ -26,6 +32,7 @@ export interface ResolveSkillCacheBannerArgs extends SkillCacheBannerInput {
   agent?: string;
   timeoutMs?: number;
   registryClient?: RegistryClient;
+  logger?: Logger;
 }
 
 export type SkillCacheBannerOutcome =
@@ -104,13 +111,42 @@ export function buildSkillCacheStatus(args: {
   };
 }
 
+export function formatProjectSkillStateLine(args: {
+  source?: ProjectSkillState["source"];
+  path?: string | null;
+}): string | null {
+  const source = args.source ?? "none";
+  const path = args.path ?? null;
+  if (source === "none") return null;
+  const label =
+    source === "skills-lock.json"
+      ? "Read from: skills-lock.json"
+      : source === "manifest.json"
+        ? "Read from: .skills/manifest.json"
+        : "Read from: .skills directory";
+  return path ? `${label} (${path})` : label;
+}
+
 export function buildResolvedSkillCacheBanner(args: {
   projectRoot: string;
   status: SkillCacheStatus;
   outcome: SkillCacheBannerOutcome;
   installResult?: InstallSkillsResult | null;
+  skillsSource?: string;
+  agent?: string;
+  projectStateSource?: ProjectSkillState["source"];
+  projectStatePath?: string | null;
 }): string | null {
-  const { projectRoot, status, outcome, installResult } = args;
+  const {
+    projectRoot,
+    status,
+    outcome,
+    installResult,
+    skillsSource,
+    agent,
+    projectStateSource,
+    projectStatePath,
+  } = args;
   if (status.likelySkills.length === 0) return null;
 
   const detectedLine = `Detected: ${status.likelySkills.join(", ")}`;
@@ -119,6 +155,11 @@ export function buildResolvedSkillCacheBanner(args: {
       ? status.installedSkills.join(", ")
       : "none"
   }`;
+
+  const readStateLine = formatProjectSkillStateLine({
+    source: projectStateSource,
+    path: projectStatePath,
+  });
 
   const statusLine =
     outcome === "installed"
@@ -135,13 +176,18 @@ export function buildResolvedSkillCacheBanner(args: {
               ? "Status: incomplete cache — bundled fallback can cover the gap during migration"
               : "Status: incomplete cache — missing skills will not inject until installed";
 
+  const showAskOnce = outcome === "suggest";
   const installQuestion =
-    status.missingSkills.length > 0
+    showAskOnce && status.missingSkills.length > 0
       ? buildProjectSkillInstallQuestion(status.missingSkills)
       : null;
   const installCommand =
     status.missingSkills.length > 0
-      ? buildProjectSkillInstallCommand({ missingSkills: status.missingSkills })
+      ? buildProjectSkillInstallCommand({
+          missingSkills: status.missingSkills,
+          skillsSource,
+          agent,
+        })
       : null;
 
   const extraLine =
@@ -154,6 +200,7 @@ export function buildResolvedSkillCacheBanner(args: {
     `- ${statusLine}`,
     `- ${detectedLine}`,
     `- ${cachedLine}`,
+    readStateLine ? `- ${readStateLine}` : null,
     extraLine ? `- ${extraLine}` : null,
     installResult?.installed.length
       ? `- Installed now: ${installResult.installed.join(", ")}`
@@ -164,7 +211,10 @@ export function buildResolvedSkillCacheBanner(args: {
     status.missingSkills.length > 0
       ? `- Missing: ${status.missingSkills.join(", ")}`
       : null,
-    status.missingSkills.length > 0 || outcome === "installed" || outcome === "partial" || outcome === "failed"
+    status.missingSkills.length > 0 ||
+    outcome === "installed" ||
+    outcome === "partial" ||
+    outcome === "failed"
       ? `- Project cache: ${join(projectRoot, ".skills")}`
       : null,
     installQuestion ? `- Ask once: "${installQuestion}"` : null,
@@ -196,6 +246,7 @@ export function buildSkillCacheBanner(
 export async function resolveSkillCacheBanner(
   args: ResolveSkillCacheBannerArgs,
 ): Promise<ResolveSkillCacheBannerResult> {
+  const initialProjectState = readProjectSkillState(args.projectRoot);
   const initialStatus = buildSkillCacheStatus({
     likelySkills: args.likelySkills,
     installedSkills: args.installedSkills,
@@ -211,6 +262,10 @@ export async function resolveSkillCacheBanner(
         projectRoot: args.projectRoot,
         status: initialStatus,
         outcome,
+        skillsSource: args.skillsSource,
+        agent: args.agent ?? "claude-code",
+        projectStateSource: initialProjectState.source,
+        projectStatePath: initialProjectState.projectSkillStatePath,
       }),
       installResult: null,
       outcome,
@@ -231,14 +286,28 @@ export async function resolveSkillCacheBanner(
       projectRoot: args.projectRoot,
       skillNames: initialStatus.missingSkills,
     });
-  } catch {
-    // CLI failure/timeout — fall back to suggestion-only banner
+  } catch (error) {
+    if (args.logger) {
+      logCaughtError(
+        args.logger,
+        "skill-cache-banner:auto-install-failed",
+        error,
+        {
+          projectRoot: args.projectRoot,
+          missingSkills: initialStatus.missingSkills,
+        },
+      );
+    }
     return {
       status: initialStatus,
       banner: buildResolvedSkillCacheBanner({
         projectRoot: args.projectRoot,
         status: initialStatus,
         outcome: "failed",
+        skillsSource: args.skillsSource,
+        agent: args.agent ?? "claude-code",
+        projectStateSource: initialProjectState.source,
+        projectStatePath: initialProjectState.projectSkillStatePath,
       }),
       installResult: null,
       outcome: "failed",
@@ -267,6 +336,10 @@ export async function resolveSkillCacheBanner(
       status: nextStatus,
       outcome,
       installResult,
+      skillsSource: args.skillsSource,
+      agent: args.agent ?? "claude-code",
+      projectStateSource: projectState.source,
+      projectStatePath: projectState.projectSkillStatePath,
     }),
     installResult,
     outcome,

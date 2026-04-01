@@ -27,10 +27,15 @@ import {
 import { createLogger, logCaughtError } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
-import type { RegistryClient } from "./registry-client.mjs";
+import type { InstallSkillsResult, RegistryClient } from "./registry-client.mjs";
+import type { ProjectSkillState } from "./project-skill-manifest.mjs";
 import type { SkillInstallPlan, SkillInstallAction } from "./orchestrator-install-plan.mjs";
-import { resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
+import {
+  formatProjectSkillStateLine,
+  resolveSkillCacheBanner,
+} from "./skill-cache-banner.mjs";
 import type { SkillStore } from "./skill-store.mjs";
+import type { SkillSource } from "./skill-store.mjs";
 
 const PLUGIN_ROOT = resolvePluginRoot();
 const CHAIN_BUDGET_BYTES = 18_000;
@@ -358,11 +363,15 @@ export function parseBashInput(
 // Skill injection
 // ---------------------------------------------------------------------------
 
+type BashChainSkillSource = SkillSource;
+
 export interface BashChainInjection {
   packageName: string;
   skill: string;
   message: string;
   content: string;
+  source: BashChainSkillSource;
+  phase: InjectionPhase;
 }
 
 export interface DeferredBashSkill {
@@ -399,6 +408,7 @@ function tryInjectResolvedBashSkill(args: {
   skill: string;
   message: string;
   resolvedBody: string;
+  source: BashChainSkillSource;
   sessionId: string | null;
   seenSet: Set<string>;
   result: BashChainResult;
@@ -411,6 +421,7 @@ function tryInjectResolvedBashSkill(args: {
     skill,
     message,
     resolvedBody,
+    source,
     sessionId,
     seenSet,
     result,
@@ -455,6 +466,8 @@ function tryInjectResolvedBashSkill(args: {
     skill,
     message,
     content: resolvedBody,
+    source,
+    phase,
   });
   result.totalBytes += bytes;
 
@@ -462,6 +475,8 @@ function tryInjectResolvedBashSkill(args: {
     skill,
     bytes,
     totalBytes: result.totalBytes,
+    source,
+    phase,
   });
 
   return "injected";
@@ -611,6 +626,7 @@ export async function runBashChainInjection(
       skill,
       message,
       resolvedBody: trimmedBody,
+      source: resolved.source as BashChainSkillSource,
       sessionId,
       seenSet,
       result,
@@ -651,6 +667,7 @@ export async function runBashChainInjection(
       autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
       timeoutMs: 4_000,
       registryClient,
+      logger: l,
     });
     if (resolvedBanner.banner) {
       result.banners.push(resolvedBanner.banner);
@@ -662,6 +679,7 @@ export async function runBashChainInjection(
       (resolvedBanner.installResult?.reused.length ?? 0) > 0;
 
     if (installedNow) {
+      const injectedCountBeforeInstall = result.injected.length;
       const refreshedState = loadProjectInstalledSkillState({
         projectRoot,
         pluginRoot: pluginRoot ?? PLUGIN_ROOT,
@@ -671,7 +689,10 @@ export async function runBashChainInjection(
       });
       const refreshedStore = refreshedState.skillStore;
 
-      const resolvedAfterInstall = new Map<string, string>();
+      const resolvedAfterInstall = new Map<
+        string,
+        { body: string; source: BashChainSkillSource }
+      >();
       const stillMissing: string[] = [];
       for (const skill of uniqueMissing) {
         const candidate = missingCandidates.get(skill);
@@ -685,20 +706,24 @@ export async function runBashChainInjection(
           stillMissing.push(skill);
           continue;
         }
-        resolvedAfterInstall.set(skill, trimmedBody);
+        resolvedAfterInstall.set(skill, {
+          body: trimmedBody,
+          source: resolved.source as BashChainSkillSource,
+        });
       }
 
       for (const [currentIndex, skill] of uniqueMissing.entries()) {
         const candidate = missingCandidates.get(skill);
-        const trimmedBody = resolvedAfterInstall.get(skill);
-        if (!trimmedBody || !candidate) {
+        const resolvedAfterInstallEntry = resolvedAfterInstall.get(skill);
+        if (!resolvedAfterInstallEntry || !candidate) {
           continue;
         }
         const injectResult = tryInjectResolvedBashSkill({
           packageName: candidate.packageName,
           skill: candidate.skill,
           message: candidate.message,
-          resolvedBody: trimmedBody,
+          resolvedBody: resolvedAfterInstallEntry.body,
+          source: resolvedAfterInstallEntry.source,
           sessionId,
           seenSet,
           result,
@@ -721,6 +746,20 @@ export async function runBashChainInjection(
       // Deferred skills (installed but not injected) should not appear in missing
       const deferredSkillSet = new Set(result.deferred.map((d) => d.skill));
       result.missing = [...new Set(stillMissing)].filter((s) => !deferredSkillSet.has(s));
+
+      // Wire delegation outcome banner
+      const afterInstallInjected = result.injected.slice(injectedCountBeforeInstall);
+      const delegatedOutcomeBanner = buildDelegatedInstallOutcomeBanner({
+        installResult: resolvedBanner.installResult,
+        injectedAfterInstall: afterInstallInjected,
+        deferredAfterInstall: result.deferred,
+        remainingMissing: result.missing,
+        projectStateSource: refreshedState.projectState.source,
+        projectStatePath: refreshedState.projectState.projectSkillStatePath,
+      });
+      if (delegatedOutcomeBanner) {
+        result.banners.unshift(delegatedOutcomeBanner);
+      }
     }
   }
 
@@ -802,6 +841,86 @@ export function buildPostInstallActionPalette(args: {
 }
 
 // ---------------------------------------------------------------------------
+// Delegation outcome banner + context title
+// ---------------------------------------------------------------------------
+
+export function buildDelegatedInstallOutcomeBanner(args: {
+  installResult: InstallSkillsResult | null;
+  injectedAfterInstall: BashChainInjection[];
+  deferredAfterInstall: DeferredBashSkill[];
+  remainingMissing: string[];
+  projectStateSource: ProjectSkillState["source"];
+  projectStatePath: string | null;
+}): string | null {
+  if (
+    !args.installResult &&
+    args.injectedAfterInstall.length === 0 &&
+    args.deferredAfterInstall.length === 0 &&
+    args.remainingMissing.length === 0
+  ) {
+    return null;
+  }
+
+  const lines: string[] = ["### Vercel skill delegation"];
+
+  if (
+    args.injectedAfterInstall.length > 0 &&
+    args.deferredAfterInstall.length === 0 &&
+    args.remainingMissing.length === 0
+  ) {
+    lines.push("- Flow: detect \u2192 install \u2192 inject");
+  } else if (args.deferredAfterInstall.length > 0) {
+    lines.push("- Flow: detect \u2192 install \u2192 defer");
+  } else if (args.remainingMissing.length > 0) {
+    lines.push("- Flow: detect \u2192 install \u2192 partial");
+  } else {
+    lines.push("- Flow: detect \u2192 install \u2192 read");
+  }
+
+  if (args.installResult?.installed.length) {
+    lines.push(`- Installed now: ${args.installResult.installed.join(", ")}`);
+  }
+  if (args.installResult?.reused.length) {
+    lines.push(`- Already cached: ${args.installResult.reused.join(", ")}`);
+  }
+  if (args.injectedAfterInstall.length) {
+    lines.push(
+      `- Injected now: ${args.injectedAfterInstall.map((entry) => entry.skill).join(", ")}`,
+    );
+  }
+  if (args.deferredAfterInstall.length) {
+    lines.push(
+      `- Deferred: ${args.deferredAfterInstall.map((entry) => `${entry.skill} (${entry.reason})`).join(", ")}`,
+    );
+  }
+  if (args.remainingMissing.length) {
+    lines.push(`- Still missing: ${args.remainingMissing.join(", ")}`);
+  }
+
+  const readStateLine = formatProjectSkillStateLine({
+    source: args.projectStateSource,
+    path: args.projectStatePath,
+  });
+  if (readStateLine) {
+    lines.push(`- ${readStateLine}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatBashChainContextTitle(chain: BashChainInjection): string {
+  const sourceLabel =
+    chain.source === "project-cache"
+      ? "project cache"
+      : chain.source === "global-cache"
+        ? "global cache"
+        : "bundled fallback";
+  const phaseLabel =
+    chain.phase === "after-install" ? "installed now" : "cached";
+  return `**Skill context auto-loaded** (${chain.skill} \u2022 ${phaseLabel} \u2022 ${sourceLabel}): ${chain.message}`;
+}
+
+// ---------------------------------------------------------------------------
 // Output formatting
 // ---------------------------------------------------------------------------
 
@@ -840,7 +959,7 @@ export function formatBashChainOutput(
     contextParts.push(
       [
         `<!-- posttooluse-bash-chain: ${chain.packageName} → ${chain.skill} -->`,
-        `**Skill context auto-loaded** (${chain.skill}): ${chain.message}`,
+        formatBashChainContextTitle(chain),
         "",
         chain.content,
         `<!-- /posttooluse-bash-chain: ${chain.skill} -->`,
