@@ -2,18 +2,19 @@
 
 // hooks/src/posttooluse-bash-chain.mts
 import { readFileSync, realpathSync } from "fs";
-import { resolve } from "path";
+import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { detectPlatform } from "./compat.mjs";
 import {
   pluginRoot as resolvePluginRoot,
   readSessionFile,
+  safeReadJson,
   tryClaimSessionKey,
   syncSessionFileFromClaims
 } from "./hook-env.mjs";
-import { createLogger } from "./logger.mjs";
-import { buildSkillCacheStatus, resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
-import { createSkillStore } from "./skill-store.mjs";
+import { createLogger, logCaughtError } from "./logger.mjs";
+import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
+import { resolveSkillCacheBanner } from "./skill-cache-banner.mjs";
 var PLUGIN_ROOT = resolvePluginRoot();
 var CHAIN_BUDGET_BYTES = 18e3;
 var DEFAULT_CHAIN_CAP = 2;
@@ -333,6 +334,16 @@ function applyAfterInstallAttempt(args) {
       return { kind: "stop", reason: injectResult };
   }
 }
+function mapPackagesToTargetSkills(packages) {
+  return [
+    ...new Set(
+      packages.flatMap((pkg) => {
+        const mapping = PACKAGE_SKILL_MAP[pkg];
+        return mapping ? [mapping.skill] : [];
+      })
+    )
+  ].sort();
+}
 async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoot, logger, env = process.env, skillStore, registryClient) {
   const l = logger || log;
   const result = { injected: [], missing: [], deferred: [], banners: [], totalBytes: 0 };
@@ -343,11 +354,16 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
   );
   const fileSeen = sessionId ? readSessionFile(sessionId, "seen-skills") : "";
   const seenSet = new Set(fileSeen.split(",").filter(Boolean));
-  const store = skillStore ?? createSkillStore({
+  const bundledFallbackEnabled = env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1";
+  const targetSkills = mapPackagesToTargetSkills(packages);
+  const initialState = loadProjectInstalledSkillState({
     projectRoot,
     pluginRoot: pluginRoot ?? PLUGIN_ROOT,
-    bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+    likelySkills: targetSkills,
+    bundledFallbackEnabled,
+    logger: l
   });
+  const store = skillStore ?? initialState.skillStore;
   const targetsSeen = /* @__PURE__ */ new Set();
   const missingCandidates = /* @__PURE__ */ new Map();
   for (const pkg of packages) {
@@ -399,13 +415,16 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
   }
   const uniqueMissing = [...new Set(result.missing)].sort();
   if (uniqueMissing.length > 0) {
-    const installedSkillsRaw = typeof env.VERCEL_PLUGIN_INSTALLED_SKILLS === "string" ? env.VERCEL_PLUGIN_INSTALLED_SKILLS.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    const bundledFallbackEnabled2 = env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1";
+    const missingState = loadProjectInstalledSkillState({
+      projectRoot,
+      pluginRoot: pluginRoot ?? PLUGIN_ROOT,
+      likelySkills: uniqueMissing,
+      bundledFallbackEnabled: bundledFallbackEnabled2,
+      logger: l
+    });
     const resolvedBanner = await resolveSkillCacheBanner({
-      ...buildSkillCacheStatus({
-        likelySkills: uniqueMissing,
-        installedSkills: installedSkillsRaw,
-        bundledFallbackEnabled: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
-      }),
+      ...missingState.cacheStatus,
       projectRoot,
       autoInstall: env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1",
       timeoutMs: 4e3,
@@ -416,11 +435,14 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     }
     const installedNow = (resolvedBanner.installResult?.installed.length ?? 0) > 0 || (resolvedBanner.installResult?.reused.length ?? 0) > 0;
     if (installedNow) {
-      const refreshedStore = createSkillStore({
+      const refreshedState = loadProjectInstalledSkillState({
         projectRoot,
         pluginRoot: pluginRoot ?? PLUGIN_ROOT,
-        bundledFallback: env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
+        likelySkills: uniqueMissing,
+        bundledFallbackEnabled: bundledFallbackEnabled2,
+        logger: l
       });
+      const refreshedStore = refreshedState.skillStore;
       const resolvedAfterInstall = /* @__PURE__ */ new Map();
       const stillMissing = [];
       for (const skill of uniqueMissing) {
@@ -470,6 +492,7 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
     }
   }
   const nextActionPalette = buildPostInstallActionPalette({
+    projectRoot,
     deferred: result.deferred,
     env
   });
@@ -478,21 +501,30 @@ async function runBashChainInjection(packages, sessionId, projectRoot, pluginRoo
   }
   return result;
 }
-function parseInstallPlanFromEnv(env = process.env) {
-  const raw = env.VERCEL_PLUGIN_INSTALL_PLAN;
-  if (!raw || raw.trim() === "") return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
+function readPersistedInstallPlan(args) {
+  const raw = args.env.VERCEL_PLUGIN_INSTALL_PLAN;
+  if (raw && raw.trim() !== "") {
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      logCaughtError(log, "posttooluse-bash-chain:install-plan-env-parse-failed", error, {
+        projectRoot: args.projectRoot
+      });
+    }
   }
+  return safeReadJson(
+    join(args.projectRoot, ".skills", "install-plan.json")
+  );
 }
 function formatDeferredSkillLine(deferred) {
   return deferred.map((entry) => `${entry.skill} (${entry.reason})`).join(", ");
 }
 function buildPostInstallActionPalette(args) {
   if (args.deferred.length === 0) return null;
-  const plan = parseInstallPlanFromEnv(args.env);
+  const plan = readPersistedInstallPlan({
+    projectRoot: args.projectRoot,
+    env: args.env
+  });
   const orderedIds = [
     "vercel-link",
     "vercel-env-pull",
@@ -569,12 +601,7 @@ async function run() {
     return "{}";
   }
   log.debug("posttooluse-bash-chain-packages", { packages, command });
-  const store = createSkillStore({
-    projectRoot: cwd,
-    pluginRoot: PLUGIN_ROOT,
-    bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
-  });
-  const chainResult = await runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env, store);
+  const chainResult = await runBashChainInjection(packages, sessionId, cwd, PLUGIN_ROOT, log, process.env);
   const output = formatBashChainOutput(chainResult, platform);
   log.complete("posttooluse-bash-chain-done", {
     matchedCount: packages.length,

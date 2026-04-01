@@ -917,12 +917,13 @@ describe("buildPostInstallActionPalette", () => {
   });
 
   test("returns null when no deferred skills", () => {
-    const result = buildPostInstallActionPalette({ deferred: [], env: {} as any });
+    const result = buildPostInstallActionPalette({ projectRoot: "/tmp", deferred: [], env: {} as any });
     expect(result).toBeNull();
   });
 
   test("renders deferred skills without plan actions", () => {
     const result = buildPostInstallActionPalette({
+      projectRoot: "/tmp",
       deferred: [
         {
           packageName: "prisma",
@@ -962,6 +963,7 @@ describe("buildPostInstallActionPalette", () => {
     };
 
     const result = buildPostInstallActionPalette({
+      projectRoot: "/tmp",
       deferred: [
         {
           packageName: "prisma",
