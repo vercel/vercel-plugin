@@ -11,13 +11,12 @@ import {
   requirePersistedSkillInstallPlan,
   refreshPersistedSkillInstallPlan
 } from "./orchestrator-install-plan-state.mjs";
-var ACTION_IDS = [
-  "bootstrap-project",
-  "install-missing",
-  "vercel-link",
-  "vercel-env-pull",
-  "vercel-deploy"
-];
+import {
+  ORCHESTRATOR_ACTION_IDS
+} from "./orchestrator-action-command.mjs";
+import {
+  getOrchestratorActionSpec
+} from "./orchestrator-action-spec.mjs";
 function classifyOrchestratorActionError(error) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("Missing install plan")) {
@@ -37,7 +36,7 @@ function buildOrchestratorActionError(args) {
     ok: false,
     code,
     message,
-    hint: code === "MISSING_INSTALL_PLAN" ? "Run SessionStart first so .skills/install-plan.json exists before calling the wrapper." : code === "INVALID_ACTION" ? `Use one of: ${ACTION_IDS.join(", ")}` : "Inspect the delegated CLI output, fix the failing step, then rerun this wrapper action.",
+    hint: code === "MISSING_INSTALL_PLAN" ? "Run SessionStart first so .skills/install-plan.json exists before calling the wrapper." : code === "INVALID_ACTION" ? `Use one of: ${ORCHESTRATOR_ACTION_IDS.join(", ")}` : "Inspect the delegated CLI output, fix the failing step, then rerun this wrapper action.",
     actionId: args.actionId,
     projectRoot: args.projectRoot
   };
@@ -116,9 +115,17 @@ async function runOrchestratorAction(args) {
   let plan = requirePersistedSkillInstallPlan({
     projectRoot: args.projectRoot
   });
+  const spec = getOrchestratorActionSpec(plan, args.actionId);
   const registryClient = args.registryClient ?? createRegistryClient();
   const vercelDelegator = args.vercelDelegator ?? createVercelCliDelegator();
   const state = { commands: [], vercelResults: [], installResult: null };
+  async function refreshPlan() {
+    plan = refreshPersistedSkillInstallPlan({
+      projectRoot: args.projectRoot,
+      previousPlan: plan
+    });
+    return plan;
+  }
   async function runVercel(subcommand) {
     const result = await vercelDelegator.run({
       projectRoot: args.projectRoot,
@@ -129,10 +136,7 @@ async function runOrchestratorAction(args) {
     return result;
   }
   async function runInstallMissing() {
-    plan = refreshPersistedSkillInstallPlan({
-      projectRoot: args.projectRoot,
-      previousPlan: plan
-    });
+    await refreshPlan();
     if (plan.missingSkills.length === 0) {
       return null;
     }
@@ -146,34 +150,39 @@ async function runOrchestratorAction(args) {
     }
     return result;
   }
-  switch (args.actionId) {
-    case "bootstrap-project": {
-      if (!existsSync(join(args.projectRoot, ".vercel"))) {
+  async function runStep(stepSpec) {
+    switch (stepSpec.step) {
+      case "vercel-link": {
+        const alreadyLinked = existsSync(join(args.projectRoot, ".vercel"));
+        if (stepSpec.mode === "if-needed" && alreadyLinked) {
+          return;
+        }
         await runVercel("link");
+        return;
       }
-      if (existsSync(join(args.projectRoot, ".vercel")) && !existsSync(join(args.projectRoot, ".env.local"))) {
+      case "vercel-env-pull": {
+        const linked = existsSync(join(args.projectRoot, ".vercel"));
+        const hasEnvLocal = existsSync(
+          join(args.projectRoot, ".env.local")
+        );
+        if (stepSpec.mode === "if-needed" && (!linked || hasEnvLocal)) {
+          return;
+        }
         await runVercel("env-pull");
+        return;
       }
-      await runInstallMissing();
-      break;
+      case "install-missing":
+        await runInstallMissing();
+        return;
+      case "vercel-deploy":
+        await runVercel("deploy");
+        return;
     }
-    case "install-missing":
-      await runInstallMissing();
-      break;
-    case "vercel-link":
-      await runVercel("link");
-      break;
-    case "vercel-env-pull":
-      await runVercel("env-pull");
-      break;
-    case "vercel-deploy":
-      await runVercel("deploy");
-      break;
   }
-  const refreshedPlan = refreshPersistedSkillInstallPlan({
-    projectRoot: args.projectRoot,
-    previousPlan: plan
-  });
+  for (const step of spec.steps) {
+    await runStep(step);
+  }
+  const refreshedPlan = await refreshPlan();
   const ok = state.vercelResults.every((result) => result.ok) && (state.installResult ? state.installResult.missing.length === 0 : true);
   return {
     schemaVersion: 1,
@@ -199,7 +208,9 @@ function getRequiredArg(flag) {
   return value;
 }
 function isOrchestratorActionId(value) {
-  return ACTION_IDS.includes(value);
+  return ORCHESTRATOR_ACTION_IDS.includes(
+    value
+  );
 }
 async function main() {
   const projectRoot = getRequiredArg("--project-root");

@@ -16,6 +16,14 @@ export type OrchestratorRunnerActionId =
   | "vercel-env-pull"
   | "vercel-deploy";
 
+export const ORCHESTRATOR_ACTION_IDS: readonly OrchestratorRunnerActionId[] = [
+  "bootstrap-project",
+  "install-missing",
+  "vercel-link",
+  "vercel-env-pull",
+  "vercel-deploy",
+];
+
 // ---------------------------------------------------------------------------
 // Shell quoting
 // ---------------------------------------------------------------------------
