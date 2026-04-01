@@ -103,6 +103,7 @@ async function main() {
   const wantJson = process.argv.includes("--json");
   if (wantJson) {
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    process.exitCode = result.ok ? 0 : 1;
     return;
   }
   process.stdout.write(
@@ -113,10 +114,15 @@ async function main() {
       `missing=${result.refreshedPlan.missingSkills.join(",")}`
     ].join("\n") + "\n"
   );
+  process.exitCode = result.ok ? 0 : 1;
 }
 var isEntrypoint = process.argv[1]?.endsWith("/orchestrator-action-runner.mjs") ?? false;
 if (isEntrypoint) {
-  await main();
+  await main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(message + "\n");
+    process.exitCode = 1;
+  });
 }
 export {
   runOrchestratorAction
