@@ -121,10 +121,14 @@ describe("session-start-seen-skills hook", () => {
       // Pre-seed dedup state: claim dir + session file
       expect(tryClaimSessionKey(sessionId, "seen-skills", "nextjs")).toBe(true);
       expect(tryClaimSessionKey(sessionId, "seen-skills", "ai-sdk")).toBe(true);
+      expect(tryClaimSessionKey(sessionId, "seen-context-chunks", "nextjs-platform")).toBe(true);
       writeFileSync(dedupFilePath(sessionId, "seen-skills"), "nextjs,ai-sdk", "utf-8");
+      writeFileSync(dedupFilePath(sessionId, "seen-context-chunks"), "nextjs-platform", "utf-8");
 
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(true);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(true);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(true);
+      expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks"))).toBe(true);
 
       // Fire the hook with a "clear" event
       const result = await runSessionStart(
@@ -138,9 +142,13 @@ describe("session-start-seen-skills hook", () => {
       // Both claim dir and session file should be gone
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(false);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(false);
+      expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks"))).toBe(false);
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
+      rmSync(dedupClaimDirPath(sessionId, "seen-context-chunks"), { recursive: true, force: true });
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}
+      try { rmSync(dedupFilePath(sessionId, "seen-context-chunks")); } catch {}
     }
   });
 
@@ -229,10 +237,18 @@ describe("session-start-seen-skills hook", () => {
       expect(tryClaimSessionKey(sessionId, "seen-skills", "ai-sdk", scopeId)).toBe(true);
       writeFileSync(dedupFilePath(sessionId, "seen-skills", scopeId), "ai-sdk", "utf-8");
 
+      expect(tryClaimSessionKey(sessionId, "seen-context-chunks", "nextjs-platform")).toBe(true);
+      writeFileSync(dedupFilePath(sessionId, "seen-context-chunks"), "nextjs-platform", "utf-8");
+      expect(tryClaimSessionKey(sessionId, "seen-context-chunks", "deploy-operations", scopeId)).toBe(true);
+      writeFileSync(dedupFilePath(sessionId, "seen-context-chunks", scopeId), "deploy-operations", "utf-8");
+
       // Verify both exist
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(true);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills", scopeId))).toBe(true);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills", scopeId))).toBe(true);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(true);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks", scopeId))).toBe(true);
+      expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks", scopeId))).toBe(true);
 
       // Fire "clear" event
       const result = await runSessionStart(
@@ -246,14 +262,23 @@ describe("session-start-seen-skills hook", () => {
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills", scopeId))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills", scopeId))).toBe(false);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(false);
+      expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks"))).toBe(false);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks", scopeId))).toBe(false);
+      expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks", scopeId))).toBe(false);
 
       // Scoped skill can be reclaimed after clear
       expect(tryClaimSessionKey(sessionId, "seen-skills", "ai-sdk", scopeId)).toBe(true);
+      expect(tryClaimSessionKey(sessionId, "seen-context-chunks", "deploy-operations", scopeId)).toBe(true);
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
       rmSync(dedupClaimDirPath(sessionId, "seen-skills", scopeId), { recursive: true, force: true });
+      rmSync(dedupClaimDirPath(sessionId, "seen-context-chunks"), { recursive: true, force: true });
+      rmSync(dedupClaimDirPath(sessionId, "seen-context-chunks", scopeId), { recursive: true, force: true });
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}
       try { rmSync(dedupFilePath(sessionId, "seen-skills", scopeId)); } catch {}
+      try { rmSync(dedupFilePath(sessionId, "seen-context-chunks")); } catch {}
+      try { rmSync(dedupFilePath(sessionId, "seen-context-chunks", scopeId)); } catch {}
     }
   });
 

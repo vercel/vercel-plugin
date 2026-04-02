@@ -29,15 +29,8 @@ var SKILL_TO_CHUNK = {
   "vercel-storage": { chunkId: "storage-data", heading: "Storage and Data" },
   "workflow": { chunkId: "workflow-durable", heading: "Workflow and Durability" }
 };
-function parseHeadingSpec(spec) {
-  const match = spec.match(/^(#{1,6})\s+(.+)$/);
-  if (match) {
-    return { level: match[1].length, text: match[2].trim().toLowerCase() };
-  }
-  return { level: null, text: spec.trim().toLowerCase() };
-}
-function extractDirectSection(markdown, headingSpec) {
-  const { level: specLevel, text: specText } = parseHeadingSpec(headingSpec);
+function extractDirectSection(markdown, headingText) {
+  const specText = headingText.trim().toLowerCase();
   const lines = markdown.split("\n");
   let startLine = -1;
   let headingLevel = 0;
@@ -46,7 +39,7 @@ function extractDirectSection(markdown, headingSpec) {
     if (!headingMatch) continue;
     const lineLevel = headingMatch[1].length;
     const lineText = headingMatch[2].trim().toLowerCase();
-    if (lineText === specText && (specLevel === null || lineLevel === specLevel)) {
+    if (lineText === specText) {
       startLine = i;
       headingLevel = lineLevel;
       break;
