@@ -1,12 +1,12 @@
 import { describe, test, expect, beforeAll, beforeEach, afterAll, afterEach } from "bun:test";
-import { writeFileSync, readdirSync, rmSync, existsSync, mkdirSync, symlinkSync } from "node:fs";
+import { writeFileSync, readFileSync, readdirSync, rmSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveProjectStatePaths } from "../hooks/src/project-state-paths.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
-const SKILLS_DIR = join(ROOT, "skills");
+const ENGINE_DIR = join(ROOT, "engine");
 const UNLIMITED_BUDGET = "999999";
 let testSession: string;
 let testHomeDir: string;
@@ -36,20 +36,23 @@ function createTempHomeDir(prefix = "vercel-plugin-home"): string {
   );
 }
 
-function seedProjectCache(homeDir: string, projectRoot: string, skillsDir: string): void {
+function seedProjectCache(homeDir: string, projectRoot: string, engineDir: string): void {
   const statePaths = resolveProjectStatePaths(projectRoot, homeDir);
   mkdirSync(statePaths.skillsDir, { recursive: true });
 
-  for (const entry of readdirSync(skillsDir)) {
-    const sourceDir = join(skillsDir, entry);
-    if (!existsSync(join(sourceDir, "SKILL.md"))) continue;
-    symlinkSync(sourceDir, join(statePaths.skillsDir, entry), "dir");
+  for (const entry of readdirSync(engineDir)) {
+    if (!entry.endsWith(".md")) continue;
+    const slug = entry.replace(/\.md$/, "");
+    const skillDir = join(statePaths.skillsDir, slug);
+    mkdirSync(skillDir, { recursive: true });
+    const content = readFileSync(join(engineDir, entry), "utf-8");
+    writeFileSync(join(skillDir, "SKILL.md"), content);
   }
 }
 
 beforeAll(() => {
   testHomeDir = createTempHomeDir();
-  seedProjectCache(testHomeDir, ROOT, SKILLS_DIR);
+  seedProjectCache(testHomeDir, ROOT, ENGINE_DIR);
 });
 
 beforeEach(() => {

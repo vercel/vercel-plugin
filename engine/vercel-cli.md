@@ -1,6 +1,8 @@
 ---
 name: vercel-cli
 priority: 4
+registry: vercel-labs/agent-skills
+registrySlug: vercel-cli-with-tokens
 docs: https://vercel.com/docs/cli
 sitemap: https://vercel.com/sitemap/docs.xml
 pathPatterns:

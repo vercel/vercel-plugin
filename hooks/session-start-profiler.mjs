@@ -20,7 +20,6 @@ import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./
 import { writePersistedSkillInstallPlan } from "./orchestrator-install-plan-state.mjs";
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
-import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 import {
@@ -32,6 +31,7 @@ import {
   createRegistryClient,
   formatCommandWithCwd
 } from "./registry-client.mjs";
+import { loadRegistrySkillMetadata } from "./registry-skill-metadata.mjs";
 import {
   createVercelCliDelegator
 } from "./vercel-cli-delegator.mjs";
@@ -409,32 +409,62 @@ function normalizeSessionStartSessionId(input) {
 function resolveSessionStartProjectRoot(env = process.env) {
   return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
-function collectBrokenSkillFrontmatterNames(files) {
-  return [...new Set(
-    files.map((file) => file.replaceAll("\\", "/").split("/").at(-2) || "").filter((skill) => skill !== "")
-  )].sort();
+function scanBrokenEngineRules(engineDir) {
+  const broken = [];
+  let entries;
+  try {
+    entries = readdirSync(engineDir).filter((f) => f.endsWith(".md")).sort();
+  } catch {
+    return broken;
+  }
+  for (const file of entries) {
+    try {
+      const content = readFileSync(join(engineDir, file), "utf-8");
+      if (/\t/.test(content.split("\n---")[0] ?? "")) {
+        broken.push(file.replace(/\.md$/, ""));
+        continue;
+      }
+      if (!content.startsWith("---")) {
+        broken.push(file.replace(/\.md$/, ""));
+        continue;
+      }
+      const endIdx = content.indexOf("\n---", 3);
+      if (endIdx === -1) {
+        broken.push(file.replace(/\.md$/, ""));
+        continue;
+      }
+      const yaml = content.slice(4, endIdx);
+      if (!/^name\s*:/m.test(yaml)) {
+        broken.push(file.replace(/\.md$/, ""));
+      }
+    } catch {
+      broken.push(file.replace(/\.md$/, ""));
+    }
+  }
+  return broken;
 }
-function logBrokenSkillFrontmatterSummary(rootDir = pluginRoot(), logger = log) {
+function logBrokenEngineFrontmatterSummary(rootDir = pluginRoot(), logger = log) {
   if (!logger.isEnabled("summary")) {
     return null;
   }
   try {
-    const built = buildSkillMap(join(rootDir, "skills"));
-    const brokenSkills = collectBrokenSkillFrontmatterNames(
-      built.diagnostics.map((diagnostic) => diagnostic.file)
-    );
+    const engineDir = join(rootDir, "engine");
+    if (!existsSync(engineDir)) {
+      return null;
+    }
+    const brokenSkills = scanBrokenEngineRules(engineDir);
     if (brokenSkills.length === 0) {
       return null;
     }
-    const message = `WARNING: ${brokenSkills.length} skills have broken frontmatter: ${brokenSkills.join(", ")}`;
-    logger.summary("session-start-profiler:broken-skill-frontmatter", {
+    const message = `WARNING: ${brokenSkills.length} engine rules have broken frontmatter: ${brokenSkills.join(", ")}`;
+    logger.summary("session-start-profiler:broken-engine-frontmatter", {
       message,
-      brokenSkillCount: brokenSkills.length,
-      brokenSkills
+      brokenEngineRuleCount: brokenSkills.length,
+      brokenEngineRules: brokenSkills
     });
     return message;
   } catch (error) {
-    logCaughtError(logger, "session-start-profiler:broken-skill-frontmatter-check-failed", error, {
+    logCaughtError(logger, "session-start-profiler:broken-engine-frontmatter-check-failed", error, {
       rootDir
     });
     return null;
@@ -541,6 +571,45 @@ function buildAutoInstallResultBlock(args) {
     retryCommand && args.refreshedMissingSkills.length > 0 ? `- Retry: ${retryCommand}` : null
   ].filter((line) => Boolean(line)).join("\n");
 }
+function loadRegistryMap(rootDir = pluginRoot()) {
+  const map = /* @__PURE__ */ new Map();
+  for (const [name, metadata] of loadRegistrySkillMetadata(rootDir)) {
+    if (metadata.registry.length > 0) {
+      map.set(name, metadata.registry);
+    }
+  }
+  return map;
+}
+function mergeInstallResults(results) {
+  const installed = /* @__PURE__ */ new Set();
+  const reused = /* @__PURE__ */ new Set();
+  const missing = /* @__PURE__ */ new Set();
+  const commands = [];
+  let commandCwd = null;
+  for (const result of results) {
+    result.installed.forEach((skill) => installed.add(skill));
+    result.reused.forEach((skill) => reused.add(skill));
+    result.missing.forEach((skill) => missing.add(skill));
+    if (result.command) {
+      commands.push(result.command);
+      commandCwd = commandCwd ?? result.commandCwd;
+    }
+  }
+  installed.forEach((skill) => missing.delete(skill));
+  reused.forEach((skill) => missing.delete(skill));
+  return {
+    installed: [...installed].sort(),
+    reused: [...reused].sort(),
+    missing: [...missing].sort(),
+    command: commands.length > 0 ? commands.join(" && ") : null,
+    commandCwd
+  };
+}
+function shouldAutoInstall(args) {
+  if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1") return true;
+  if (args.installedSkillCount === 0 && args.missingSkillCount > 0) return true;
+  return false;
+}
 async function autoInstallDetectedSkills(args) {
   const emptyResult = {
     installed: [],
@@ -552,26 +621,60 @@ async function autoInstallDetectedSkills(args) {
   if (args.missingSkills.length === 0) {
     return emptyResult;
   }
+  const registryMetadata = loadRegistrySkillMetadata();
+  const registryMap = args.registryMap ?? loadRegistryMap();
+  const registryBacked = args.missingSkills.filter((s) => registryMap.has(s));
+  const skipped = args.missingSkills.filter((s) => !registryMap.has(s));
   args.logger?.debug("session-start-profiler-auto-install-start", {
     projectRoot: args.projectRoot,
-    missingSkills: args.missingSkills
+    missingSkills: args.missingSkills,
+    registryBacked,
+    skippedNonRegistry: skipped
   });
-  const client = createRegistryClient({
-    source: args.skillsSource
-  });
-  try {
-    const result = await client.installSkills({
-      projectRoot: args.projectRoot,
-      skillNames: args.missingSkills
+  if (registryBacked.length === 0) {
+    return {
+      ...emptyResult,
+      missing: args.missingSkills
+    };
+  }
+  const installGroups = /* @__PURE__ */ new Map();
+  for (const skill of registryBacked) {
+    const registry = registryMap.get(skill);
+    if (!registry) continue;
+    const group = installGroups.get(registry) ?? [];
+    const metadata = registryMetadata.get(skill);
+    group.push({
+      requestedName: skill,
+      installName: metadata?.registrySlug ?? skill
     });
+    installGroups.set(registry, group);
+  }
+  try {
+    const results = [];
+    for (const [registry, installTargets] of installGroups) {
+      const client = createRegistryClient({
+        source: args.skillsSource ?? registry
+      });
+      results.push(await client.installSkills({
+        projectRoot: args.projectRoot,
+        source: args.skillsSource ?? registry,
+        skillNames: installTargets.map((target) => target.requestedName),
+        installTargets
+      }));
+    }
+    const result = mergeInstallResults(results);
     args.logger?.debug("session-start-profiler-auto-install-result", {
       projectRoot: args.projectRoot,
       installed: result.installed,
       reused: result.reused,
       missing: result.missing,
+      skippedNonRegistry: skipped,
       command: result.command
     });
-    return result;
+    return {
+      ...result,
+      missing: [...result.missing, ...skipped]
+    };
   } catch (error) {
     logCaughtError(
       args.logger ?? log,
@@ -616,7 +719,7 @@ async function main() {
     skillsDir: statePaths.skillsDir,
     installPlanPath: statePaths.installPlanPath
   });
-  logBrokenSkillFrontmatterSummary();
+  logBrokenEngineFrontmatterSummary();
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
@@ -661,23 +764,43 @@ async function main() {
   let installedSkills = installedState.installedSkills;
   let skillCacheStatus = installedState.cacheStatus;
   const missingBeforeInstall = [...skillCacheStatus.missingSkills];
-  if (missingBeforeInstall.length > 0) {
+  const autoInstallEnabled = shouldAutoInstall({
+    installedSkillCount: installedSkills.length,
+    missingSkillCount: missingBeforeInstall.length
+  });
+  const registryMap = loadRegistryMap();
+  const registryBackedMissing = missingBeforeInstall.filter((s) => registryMap.has(s));
+  log.debug("session-start-profiler-auto-install-gate", {
+    autoInstallEnabled,
+    missingBeforeInstall,
+    registryBackedMissing,
+    installedSkillCount: installedSkills.length,
+    envVar: process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL ?? null
+  });
+  if (autoInstallEnabled && registryBackedMissing.length > 0) {
     emitProgressBlock(
       platform,
       buildAutoInstallStartBlock({
-        missingSkills: missingBeforeInstall,
+        missingSkills: registryBackedMissing,
         stateRoot: statePaths.stateRoot,
         skillsDir: statePaths.skillsDir,
         installPlanPath: statePaths.installPlanPath
       })
     );
   }
-  const installResult = await autoInstallDetectedSkills({
+  const installResult = await (autoInstallEnabled ? autoInstallDetectedSkills({
     projectRoot,
-    missingSkills: missingBeforeInstall,
+    missingSkills: registryBackedMissing,
+    registryMap,
     logger: log
-  });
-  if (missingBeforeInstall.length > 0) {
+  }) : Promise.resolve({
+    installed: [],
+    reused: [],
+    missing: missingBeforeInstall,
+    command: null,
+    commandCwd: null
+  }));
+  if (autoInstallEnabled && registryBackedMissing.length > 0) {
     installedState = loadProjectInstalledSkillState({
       projectRoot,
       pluginRoot: pluginRoot(),
@@ -708,7 +831,7 @@ async function main() {
       )
     });
   }
-  if (missingBeforeInstall.length > 0) {
+  if (autoInstallEnabled && registryBackedMissing.length > 0) {
     userMessages.unshift(
       buildAutoInstallResultBlock({
         result: installResult,
@@ -884,11 +1007,13 @@ export {
   detectSessionStartPlatform,
   emitProgressBlock,
   formatSessionStartProfilerCursorOutput,
-  logBrokenSkillFrontmatterSummary,
+  loadRegistryMap,
+  logBrokenEngineFrontmatterSummary,
   normalizeSessionStartSessionId,
   parseSessionStartInput,
   profileBootstrapSignals,
   profileProject,
   profileProjectDetections,
-  resolveSessionStartProjectRoot
+  resolveSessionStartProjectRoot,
+  shouldAutoInstall
 };

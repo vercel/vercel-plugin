@@ -402,4 +402,72 @@ describe("installSkills", () => {
     expect(result.reused).toEqual(["existing"]);
     expect(result.missing).toEqual(["broken"]);
   });
+
+  test("maps registrySlug installs back to engine slugs", async () => {
+    const PROJECT = join(TMP, "project");
+    mkdirSync(PROJECT, { recursive: true });
+    const state = ensureStateRoot(PROJECT);
+
+    const exec = mockExecFile(() => {
+      writeFileSync(
+        state.lockfilePath,
+        JSON.stringify({
+          version: 1,
+          skills: {
+            "next-best-practices": { source: "vercel/vercel-skills" },
+          },
+        }),
+        "utf-8",
+      );
+    });
+
+    const client = createRegistryClient({
+      source: "vercel/vercel-skills",
+      execFileImpl: exec.impl,
+    });
+
+    const result = await client.installSkills({
+      projectRoot: PROJECT,
+      skillNames: ["nextjs"],
+      installTargets: [{ requestedName: "nextjs", installName: "next-best-practices" }],
+    });
+
+    expect(exec.calls[0]?.args).toEqual([
+      "skills", "add", "vercel/vercel-skills",
+      "--skill", "next-best-practices",
+      "--agent", "claude-code",
+      "-y", "--copy",
+    ]);
+    expect(result.installed).toEqual(["nextjs"]);
+    expect(result.reused).toEqual([]);
+    expect(result.missing).toEqual([]);
+  });
+
+  test("does not send skills from a different registry source in the same command", async () => {
+    const PROJECT = join(TMP, "project");
+    mkdirSync(PROJECT, { recursive: true });
+    ensureStateRoot(PROJECT);
+
+    const exec = mockExecFile();
+    const client = createRegistryClient({
+      source: "vercel/vercel-skills",
+      execFileImpl: exec.impl,
+    });
+
+    const result = await client.installSkills({
+      projectRoot: PROJECT,
+      skillNames: ["ai-sdk", "vercel-cli"],
+      installTargets: [
+        { requestedName: "ai-sdk", installName: "ai-sdk" },
+      ],
+    });
+
+    expect(exec.calls[0]?.args).toEqual([
+      "skills", "add", "vercel/vercel-skills",
+      "--skill", "ai-sdk",
+      "--agent", "claude-code",
+      "-y", "--copy",
+    ]);
+    expect(result.missing).toEqual(["ai-sdk"]);
+  });
 });

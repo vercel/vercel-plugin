@@ -18,6 +18,7 @@ import {
   ensureProjectStateRoot,
   resolveProjectStatePaths,
 } from "./project-state-paths.mjs";
+import { canonicalizeInstalledSkillNames } from "./registry-skill-metadata.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -28,6 +29,11 @@ const execFileAsync = promisify(execFile);
 export interface InstallSkillsArgs {
   projectRoot: string;
   skillNames: string[];
+  source?: string;
+  installTargets?: Array<{
+    requestedName: string;
+    installName: string;
+  }>;
 }
 
 export interface InstallSkillsResult {
@@ -87,7 +93,7 @@ export interface RegistryClient {
  */
 function listProjectCachedSkills(projectRoot: string): string[] {
   const state = readProjectSkillState(projectRoot);
-  return state.installedSlugs;
+  return canonicalizeInstalledSkillNames(state.installedSlugs);
 }
 
 // ---------------------------------------------------------------------------
@@ -110,16 +116,33 @@ export function createRegistryClient(
         resolveProjectStatePaths(args.projectRoot),
       );
       const before = new Set(listProjectCachedSkills(args.projectRoot));
+      const resolvedSource =
+        typeof args.source === "string" && args.source.trim() !== ""
+          ? args.source
+          : source;
+      const requestedEntries = [
+        ...new Map(
+          (args.installTargets ?? args.skillNames.map((skillName) => ({
+            requestedName: skillName,
+            installName: skillName,
+          })))
+            .map((target) => ({
+              requestedName: target.requestedName.trim(),
+              installName: target.installName.trim(),
+            }))
+            .filter((target) => target.requestedName && target.installName)
+            .map((target) => [target.requestedName, target] as const),
+        ).values(),
+      ].sort((left, right) => left.requestedName.localeCompare(right.requestedName));
+      const commandSkills = requestedEntries.map((entry) => entry.installName);
       const command = buildSkillsAddCommand(
-        source,
-        args.skillNames,
+        resolvedSource,
+        commandSkills,
         agent,
       );
 
       if (!command) {
-        const requested = [
-          ...new Set(args.skillNames.map((s) => s.trim()).filter(Boolean)),
-        ].sort();
+        const requested = requestedEntries.map((entry) => entry.requestedName);
         return {
           installed: [],
           reused: [],
@@ -141,9 +164,7 @@ export function createRegistryClient(
       }
 
       const after = new Set(listProjectCachedSkills(args.projectRoot));
-      const requested = [
-        ...new Set(args.skillNames.map((s) => s.trim()).filter(Boolean)),
-      ].sort();
+      const requested = requestedEntries.map((entry) => entry.requestedName);
 
       return {
         installed: requested.filter(

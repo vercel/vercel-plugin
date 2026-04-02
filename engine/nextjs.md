@@ -1,6 +1,8 @@
 ---
 name: nextjs
 priority: 5
+registry: vercel/vercel-skills
+registrySlug: next-best-practices
 docs:
   - https://nextjs.org/docs
   - https://nextjs.org/docs/app

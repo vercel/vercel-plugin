@@ -19,6 +19,7 @@ import {
   type SkillStore,
   type SkillStoreLogger,
 } from "./skill-store.mjs";
+import { canonicalizeInstalledSkillNames } from "./registry-skill-metadata.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,8 +76,8 @@ export function loadProjectInstalledSkillState(args: {
   // Preserve layered cache semantics (project + global) while making the
   // project-side read path lockfile-canonical.
   const installedSkills = uniqueSorted([
-    ...skillStore.listInstalledSkills(args.logger),
-    ...projectState.installedSlugs,
+    ...canonicalizeInstalledSkillNames(skillStore.listInstalledSkills(args.logger)),
+    ...canonicalizeInstalledSkillNames(projectState.installedSlugs),
   ]);
 
   const cacheStatus = buildSkillCacheStatus({

@@ -8,6 +8,7 @@ import {
 import {
   createSkillStore
 } from "./skill-store.mjs";
+import { canonicalizeInstalledSkillNames } from "./registry-skill-metadata.mjs";
 function uniqueSorted(values) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
 }
@@ -19,8 +20,8 @@ function loadProjectInstalledSkillState(args) {
   });
   const projectState = readProjectSkillState(args.projectRoot);
   const installedSkills = uniqueSorted([
-    ...skillStore.listInstalledSkills(args.logger),
-    ...projectState.installedSlugs
+    ...canonicalizeInstalledSkillNames(skillStore.listInstalledSkills(args.logger)),
+    ...canonicalizeInstalledSkillNames(projectState.installedSlugs)
   ]);
   const cacheStatus = buildSkillCacheStatus({
     likelySkills: args.likelySkills,

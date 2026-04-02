@@ -140,4 +140,22 @@ describe("loadProjectInstalledSkillState — lockfile-canonical readback", () =>
 
     expect(state.installedSkills).toEqual(["ai-sdk", "nextjs"]);
   });
+
+  test("canonicalizes registry alias slugs from lockfile state", async () => {
+    setupMocks({
+      storeInstalled: ["next-best-practices"],
+      projectInstalledSlugs: ["vercel-react-best-practices"],
+    });
+
+    const mod = await import(`${LOADER_MODULE}?t=${Date.now()}-6`);
+    const state = mod.loadProjectInstalledSkillState({
+      projectRoot: "/repo",
+      pluginRoot: "/plugin",
+      likelySkills: ["nextjs", "react-best-practices"],
+      bundledFallbackEnabled: true,
+    });
+
+    expect(state.installedSkills).toEqual(["nextjs", "react-best-practices"]);
+    expect(state.cacheStatus.missingSkills).toEqual([]);
+  });
 });

@@ -358,6 +358,7 @@ function buildFromEngine(engineDir: string): { manifest: any; warnings: string[]
     }
     if (config.sitemap) entry.sitemap = config.sitemap;
     if (config.registry) entry.registry = config.registry;
+    if (config.registrySlug) entry.registrySlug = config.registrySlug;
     if (config.validate?.length) entry.validate = config.validate;
     if (config.chainTo?.length) entry.chainTo = config.chainTo;
     if (config.promptSignals) entry.promptSignals = config.promptSignals;

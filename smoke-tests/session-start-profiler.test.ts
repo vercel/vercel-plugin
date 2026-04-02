@@ -749,6 +749,37 @@ metadata:
     expect(cache.installedSkills).toEqual([]);
   });
 
+  test("treats registrySlug lockfile entries as installed engine skills", async () => {
+    const projectDir = join(tempDir, "registry-alias-installed");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+    const statePaths = resolveProjectStatePaths(projectDir, testHomeDir);
+    mkdirSync(statePaths.stateRoot, { recursive: true });
+    writeFileSync(
+      statePaths.lockfilePath,
+      JSON.stringify({
+        version: 1,
+        skills: {
+          "next-best-practices": { source: "vercel/vercel-skills" },
+        },
+      }),
+      "utf-8",
+    );
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+      VERCEL_PLUGIN_HOME_DIR: testHomeDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    const cachePath = profileCachePath(testSessionId);
+    const cache = JSON.parse(readFileSync(cachePath, "utf-8"));
+    expect(cache.installedSkills).toContain("nextjs");
+    expect(cache.installedSkills).not.toContain("next-best-practices");
+  });
+
   test("install plan includes vercel-link action when .vercel dir is absent", async () => {
     const projectDir = join(tempDir, "no-vercel-link");
     mkdirSync(projectDir);
@@ -938,14 +969,14 @@ describe("profileProject (unit)", () => {
   });
 });
 
-describe("logBrokenSkillFrontmatterSummary (unit)", () => {
-  test("emits one summary warning when a skill has malformed frontmatter", async () => {
-    const { logBrokenSkillFrontmatterSummary } = await import("../hooks/session-start-profiler.mjs");
+describe("logBrokenEngineFrontmatterSummary (unit)", () => {
+  test("emits one summary warning when an engine rule has malformed frontmatter", async () => {
+    const { logBrokenEngineFrontmatterSummary } = await import("../hooks/session-start-profiler.mjs");
     const pluginDir = join(tempDir, "plugin-root");
-    const brokenSkillDir = join(pluginDir, "skills", "broken-skill");
-    mkdirSync(brokenSkillDir, { recursive: true });
+    const engineDir = join(pluginDir, "engine");
+    mkdirSync(engineDir, { recursive: true });
     writeFileSync(
-      join(brokenSkillDir, "SKILL.md"),
+      join(engineDir, "broken-skill.md"),
       "---\nname: broken-skill\nmetadata:\n\tpathPatterns: []\n---\n# Broken\n",
       "utf-8",
     );
@@ -967,15 +998,15 @@ describe("logBrokenSkillFrontmatterSummary (unit)", () => {
       isEnabled: (minLevel: string) => minLevel === "summary" || minLevel === "off",
     };
 
-    const message = logBrokenSkillFrontmatterSummary(pluginDir, logger as any);
+    const message = logBrokenEngineFrontmatterSummary(pluginDir, logger as any);
 
-    expect(message).toBe("WARNING: 1 skills have broken frontmatter: broken-skill");
+    expect(message).toBe("WARNING: 1 engine rules have broken frontmatter: broken-skill");
     expect(summaries).toHaveLength(1);
-    expect(summaries[0].event).toBe("session-start-profiler:broken-skill-frontmatter");
+    expect(summaries[0].event).toBe("session-start-profiler:broken-engine-frontmatter");
     expect(summaries[0].data).toEqual({
-      message: "WARNING: 1 skills have broken frontmatter: broken-skill",
-      brokenSkillCount: 1,
-      brokenSkills: ["broken-skill"],
+      message: "WARNING: 1 engine rules have broken frontmatter: broken-skill",
+      brokenEngineRuleCount: 1,
+      brokenEngineRules: ["broken-skill"],
     });
   });
 });
@@ -1212,5 +1243,148 @@ describe("autoPullProjectEnv", () => {
     } finally {
       delete process.env.VERCEL_PLUGIN_VERCEL_AUTO_ENV_PULL;
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shouldAutoInstall gating (unit)
+// ---------------------------------------------------------------------------
+
+describe("shouldAutoInstall (unit)", () => {
+  test("returns true when VERCEL_PLUGIN_SKILL_AUTO_INSTALL=1", async () => {
+    const { shouldAutoInstall } = await import("../hooks/session-start-profiler.mjs");
+    const saved = process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+    try {
+      process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL = "1";
+      expect(shouldAutoInstall({ installedSkillCount: 5, missingSkillCount: 2 })).toBe(true);
+    } finally {
+      if (saved === undefined) delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      else process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL = saved;
+    }
+  });
+
+  test("returns true on first session (no cached skills)", async () => {
+    const { shouldAutoInstall } = await import("../hooks/session-start-profiler.mjs");
+    const saved = process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+    try {
+      delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      expect(shouldAutoInstall({ installedSkillCount: 0, missingSkillCount: 3 })).toBe(true);
+    } finally {
+      if (saved === undefined) delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      else process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL = saved;
+    }
+  });
+
+  test("returns false when some skills cached and env var not set", async () => {
+    const { shouldAutoInstall } = await import("../hooks/session-start-profiler.mjs");
+    const saved = process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+    try {
+      delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      expect(shouldAutoInstall({ installedSkillCount: 2, missingSkillCount: 3 })).toBe(false);
+    } finally {
+      if (saved === undefined) delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      else process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL = saved;
+    }
+  });
+
+  test("returns false when no missing skills", async () => {
+    const { shouldAutoInstall } = await import("../hooks/session-start-profiler.mjs");
+    const saved = process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+    try {
+      delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      expect(shouldAutoInstall({ installedSkillCount: 0, missingSkillCount: 0 })).toBe(false);
+    } finally {
+      if (saved === undefined) delete process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL;
+      else process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL = saved;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadRegistryMap (unit)
+// ---------------------------------------------------------------------------
+
+describe("loadRegistryMap (unit)", () => {
+  test("loads registry fields from generated manifest", async () => {
+    const { loadRegistryMap } = await import("../hooks/session-start-profiler.mjs");
+    const map = loadRegistryMap(ROOT);
+    // Should have entries for skills with registry field in engine/*.md
+    expect(map.size).toBeGreaterThan(0);
+    expect(map.get("nextjs")).toBe("vercel/vercel-skills");
+    expect(map.get("vercel-cli")).toBe("vercel-labs/agent-skills");
+  });
+
+  test("returns empty map for non-existent directory", async () => {
+    const { loadRegistryMap } = await import("../hooks/session-start-profiler.mjs");
+    const map = loadRegistryMap("/nonexistent/path");
+    expect(map.size).toBe(0);
+  });
+
+  test("excludes skills without registry field", async () => {
+    const { loadRegistryMap } = await import("../hooks/session-start-profiler.mjs");
+    const map = loadRegistryMap(ROOT);
+    // ai-gateway has no registry field
+    expect(map.has("ai-gateway")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// autoInstallDetectedSkills registry filtering (unit)
+// ---------------------------------------------------------------------------
+
+describe("autoInstallDetectedSkills registry filtering (unit)", () => {
+  test("skips non-registry skills and passes only registry-backed to installer", async () => {
+    const { autoInstallDetectedSkills } = await import("../hooks/session-start-profiler.mjs");
+    const registryMap = new Map([["nextjs", "vercel/vercel-skills"]]);
+
+    const result = await autoInstallDetectedSkills({
+      projectRoot: tempDir,
+      missingSkills: ["nextjs", "custom-skill-no-registry"],
+      registryMap,
+      // No real CLI — the client will fail, but we test filtering not execution
+      skillsSource: "test-source",
+    });
+
+    // custom-skill-no-registry should appear in missing since it was filtered out
+    expect(result.missing).toContain("custom-skill-no-registry");
+  });
+
+  test("returns empty result when no missing skills have registry backing", async () => {
+    const { autoInstallDetectedSkills } = await import("../hooks/session-start-profiler.mjs");
+    const registryMap = new Map<string, string>();
+
+    const result = await autoInstallDetectedSkills({
+      projectRoot: tempDir,
+      missingSkills: ["custom-a", "custom-b"],
+      registryMap,
+    });
+
+    expect(result.installed).toEqual([]);
+    expect(result.reused).toEqual([]);
+    expect(result.missing).toEqual(["custom-a", "custom-b"]);
+    expect(result.command).toBeNull();
+  });
+
+  test("groups installs by registry and maps registrySlug aliases", async () => {
+    const { autoInstallDetectedSkills } = await import("../hooks/session-start-profiler.mjs");
+    const projectRoot = join(tempDir, "grouped-install-project");
+    mkdirSync(projectRoot, { recursive: true });
+    const statePaths = resolveProjectStatePaths(projectRoot, testHomeDir);
+    mkdirSync(statePaths.stateRoot, { recursive: true });
+
+    const result = await autoInstallDetectedSkills({
+      projectRoot,
+      missingSkills: ["nextjs", "vercel-cli"],
+      registryMap: new Map([
+        ["nextjs", "vercel/vercel-skills"],
+        ["vercel-cli", "vercel-labs/agent-skills"],
+      ]),
+      logger: undefined,
+    });
+
+    expect(result.command).toContain("vercel/vercel-skills");
+    expect(result.command).toContain("vercel-labs/agent-skills");
+    expect(result.command).toContain("next-best-practices");
+    expect(result.command).toContain("vercel-cli-with-tokens");
   });
 });

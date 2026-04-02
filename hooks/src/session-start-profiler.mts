@@ -34,7 +34,6 @@ import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./
 import { writePersistedSkillInstallPlan } from "./orchestrator-install-plan-state.mjs";
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
-import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { loadProjectInstalledSkillState } from "./project-installed-skill-state.mjs";
 import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 import {
@@ -50,6 +49,7 @@ import {
   formatCommandWithCwd,
   type InstallSkillsResult,
 } from "./registry-client.mjs";
+import { loadRegistrySkillMetadata } from "./registry-skill-metadata.mjs";
 import {
   createVercelCliDelegator,
   type VercelCliDelegator,
@@ -619,15 +619,50 @@ export function resolveSessionStartProjectRoot(env: NodeJS.ProcessEnv = process.
   return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 
-function collectBrokenSkillFrontmatterNames(files: string[]): string[] {
-  return [...new Set(
-    files
-      .map((file: string) => file.replaceAll("\\", "/").split("/").at(-2) || "")
-      .filter((skill: string) => skill !== ""),
-  )].sort();
+/**
+ * Scan engine/*.md files for broken frontmatter. Returns slug names of
+ * any engine rule files that fail to parse.
+ */
+function scanBrokenEngineRules(engineDir: string): string[] {
+  const broken: string[] = [];
+  let entries: string[];
+  try {
+    entries = readdirSync(engineDir).filter((f: string) => f.endsWith(".md")).sort();
+  } catch {
+    return broken;
+  }
+
+  for (const file of entries) {
+    try {
+      const content = readFileSync(join(engineDir, file), "utf-8");
+      // Check for tab indentation (common YAML parse error)
+      if (/\t/.test(content.split("\n---")[0] ?? "")) {
+        broken.push(file.replace(/\.md$/, ""));
+        continue;
+      }
+      // Check for missing frontmatter
+      if (!content.startsWith("---")) {
+        broken.push(file.replace(/\.md$/, ""));
+        continue;
+      }
+      const endIdx = content.indexOf("\n---", 3);
+      if (endIdx === -1) {
+        broken.push(file.replace(/\.md$/, ""));
+        continue;
+      }
+      // Check for missing name field
+      const yaml = content.slice(4, endIdx);
+      if (!/^name\s*:/m.test(yaml)) {
+        broken.push(file.replace(/\.md$/, ""));
+      }
+    } catch {
+      broken.push(file.replace(/\.md$/, ""));
+    }
+  }
+  return broken;
 }
 
-export function logBrokenSkillFrontmatterSummary(
+export function logBrokenEngineFrontmatterSummary(
   rootDir: string = pluginRoot(),
   logger: Logger = log,
 ): string | null {
@@ -636,24 +671,26 @@ export function logBrokenSkillFrontmatterSummary(
   }
 
   try {
-    const built = buildSkillMap(join(rootDir, "skills"));
-    const brokenSkills = collectBrokenSkillFrontmatterNames(
-      built.diagnostics.map((diagnostic) => diagnostic.file),
-    );
+    const engineDir = join(rootDir, "engine");
+    if (!existsSync(engineDir)) {
+      return null;
+    }
+
+    const brokenSkills = scanBrokenEngineRules(engineDir);
 
     if (brokenSkills.length === 0) {
       return null;
     }
 
-    const message = `WARNING: ${brokenSkills.length} skills have broken frontmatter: ${brokenSkills.join(", ")}`;
-    logger.summary("session-start-profiler:broken-skill-frontmatter", {
+    const message = `WARNING: ${brokenSkills.length} engine rules have broken frontmatter: ${brokenSkills.join(", ")}`;
+    logger.summary("session-start-profiler:broken-engine-frontmatter", {
       message,
-      brokenSkillCount: brokenSkills.length,
-      brokenSkills,
+      brokenEngineRuleCount: brokenSkills.length,
+      brokenEngineRules: brokenSkills,
     });
     return message;
   } catch (error) {
-    logCaughtError(logger, "session-start-profiler:broken-skill-frontmatter-check-failed", error, {
+    logCaughtError(logger, "session-start-profiler:broken-engine-frontmatter-check-failed", error, {
       rootDir,
     });
     return null;
@@ -825,12 +862,79 @@ export function buildAutoInstallResultBlock(args: {
 }
 
 /**
+ * Load registry metadata from the compiled skill-rules.json manifest.
+ * Returns a Map from skill slug → registry repo string (e.g. "vercel/vercel-skills").
+ * Skills without a registry field are omitted.
+ */
+export function loadRegistryMap(
+  rootDir: string = pluginRoot(),
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [name, metadata] of loadRegistrySkillMetadata(rootDir)) {
+    if (metadata.registry.length > 0) {
+      map.set(name, metadata.registry);
+    }
+  }
+  return map;
+}
+
+function mergeInstallResults(
+  results: InstallSkillsResult[],
+): InstallSkillsResult {
+  const installed = new Set<string>();
+  const reused = new Set<string>();
+  const missing = new Set<string>();
+  const commands: string[] = [];
+  let commandCwd: string | null = null;
+
+  for (const result of results) {
+    result.installed.forEach((skill) => installed.add(skill));
+    result.reused.forEach((skill) => reused.add(skill));
+    result.missing.forEach((skill) => missing.add(skill));
+    if (result.command) {
+      commands.push(result.command);
+      commandCwd = commandCwd ?? result.commandCwd;
+    }
+  }
+
+  installed.forEach((skill) => missing.delete(skill));
+  reused.forEach((skill) => missing.delete(skill));
+
+  return {
+    installed: [...installed].sort(),
+    reused: [...reused].sort(),
+    missing: [...missing].sort(),
+    command: commands.length > 0 ? commands.join(" && ") : null,
+    commandCwd,
+  };
+}
+
+/**
+ * Determine whether auto-install should run.
+ *
+ * Returns true when:
+ * - `VERCEL_PLUGIN_SKILL_AUTO_INSTALL=1` is set, OR
+ * - This is a first session with no cached skills (all detected skills are missing)
+ */
+export function shouldAutoInstall(args: {
+  installedSkillCount: number;
+  missingSkillCount: number;
+}): boolean {
+  if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1") return true;
+  // First session: no skills are cached yet
+  if (args.installedSkillCount === 0 && args.missingSkillCount > 0) return true;
+  return false;
+}
+
+/**
  * Install missing detected skills from the registry into the hashed
- * home-state cache directory. Always-on — no env-var gate required.
+ * home-state cache directory. Only installs registry-backed skills.
+ * Gated by `VERCEL_PLUGIN_SKILL_AUTO_INSTALL=1` or first-session-no-cache.
  */
 export async function autoInstallDetectedSkills(args: {
   projectRoot: string;
   missingSkills: string[];
+  registryMap?: Map<string, string>;
   skillsSource?: string;
   logger?: Logger;
 }): Promise<InstallSkillsResult> {
@@ -846,29 +950,70 @@ export async function autoInstallDetectedSkills(args: {
     return emptyResult;
   }
 
+  const registryMetadata = loadRegistrySkillMetadata();
+  // Filter to only registry-backed skills
+  const registryMap = args.registryMap ?? loadRegistryMap();
+  const registryBacked = args.missingSkills.filter((s) => registryMap.has(s));
+  const skipped = args.missingSkills.filter((s) => !registryMap.has(s));
+
   args.logger?.debug("session-start-profiler-auto-install-start", {
     projectRoot: args.projectRoot,
     missingSkills: args.missingSkills,
+    registryBacked,
+    skippedNonRegistry: skipped,
   });
 
-  const client = createRegistryClient({
-    source: args.skillsSource,
-  });
-  try {
-    const result = await client.installSkills({
-      projectRoot: args.projectRoot,
-      skillNames: args.missingSkills,
+  if (registryBacked.length === 0) {
+    return {
+      ...emptyResult,
+      missing: args.missingSkills,
+    };
+  }
+
+  const installGroups = new Map<
+    string,
+    Array<{ requestedName: string; installName: string }>
+  >();
+  for (const skill of registryBacked) {
+    const registry = registryMap.get(skill);
+    if (!registry) continue;
+    const group = installGroups.get(registry) ?? [];
+    const metadata = registryMetadata.get(skill);
+    group.push({
+      requestedName: skill,
+      installName: metadata?.registrySlug ?? skill,
     });
+    installGroups.set(registry, group);
+  }
+
+  try {
+    const results: InstallSkillsResult[] = [];
+    for (const [registry, installTargets] of installGroups) {
+      const client = createRegistryClient({
+        source: args.skillsSource ?? registry,
+      });
+      results.push(await client.installSkills({
+        projectRoot: args.projectRoot,
+        source: args.skillsSource ?? registry,
+        skillNames: installTargets.map((target) => target.requestedName),
+        installTargets,
+      }));
+    }
+    const result = mergeInstallResults(results);
 
     args.logger?.debug("session-start-profiler-auto-install-result", {
       projectRoot: args.projectRoot,
       installed: result.installed,
       reused: result.reused,
       missing: result.missing,
+      skippedNonRegistry: skipped,
       command: result.command,
     });
 
-    return result;
+    return {
+      ...result,
+      missing: [...result.missing, ...skipped],
+    };
   } catch (error) {
     logCaughtError(
       args.logger ?? log,
@@ -935,7 +1080,7 @@ async function main(): Promise<void> {
     installPlanPath: statePaths.installPlanPath,
   });
 
-  logBrokenSkillFrontmatterSummary();
+  logBrokenEngineFrontmatterSummary();
 
   // Greenfield check — seed defaults and skip repository exploration.
   const greenfield: GreenfieldResult | null = checkGreenfield(projectRoot);
@@ -997,14 +1142,29 @@ async function main(): Promise<void> {
   let installedSkills = installedState.installedSkills;
   let skillCacheStatus = installedState.cacheStatus;
 
-  // Auto-install missing skills from registry (always-on, blocking)
+  // Auto-install missing skills — only registry-backed, gated by env var or first-session
   const missingBeforeInstall = [...skillCacheStatus.missingSkills];
+  const autoInstallEnabled = shouldAutoInstall({
+    installedSkillCount: installedSkills.length,
+    missingSkillCount: missingBeforeInstall.length,
+  });
 
-  if (missingBeforeInstall.length > 0) {
+  const registryMap = loadRegistryMap();
+  const registryBackedMissing = missingBeforeInstall.filter((s) => registryMap.has(s));
+
+  log.debug("session-start-profiler-auto-install-gate", {
+    autoInstallEnabled,
+    missingBeforeInstall,
+    registryBackedMissing,
+    installedSkillCount: installedSkills.length,
+    envVar: process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL ?? null,
+  });
+
+  if (autoInstallEnabled && registryBackedMissing.length > 0) {
     emitProgressBlock(
       platform,
       buildAutoInstallStartBlock({
-        missingSkills: missingBeforeInstall,
+        missingSkills: registryBackedMissing,
         stateRoot: statePaths.stateRoot,
         skillsDir: statePaths.skillsDir,
         installPlanPath: statePaths.installPlanPath,
@@ -1012,13 +1172,22 @@ async function main(): Promise<void> {
     );
   }
 
-  const installResult = await autoInstallDetectedSkills({
-    projectRoot,
-    missingSkills: missingBeforeInstall,
-    logger: log,
-  });
+  const installResult = await (autoInstallEnabled
+    ? autoInstallDetectedSkills({
+        projectRoot,
+        missingSkills: registryBackedMissing,
+        registryMap,
+        logger: log,
+      })
+    : Promise.resolve<InstallSkillsResult>({
+        installed: [],
+        reused: [],
+        missing: missingBeforeInstall,
+        command: null,
+        commandCwd: null,
+      }));
 
-  if (missingBeforeInstall.length > 0) {
+  if (autoInstallEnabled && registryBackedMissing.length > 0) {
     // Refresh via shared loader after any install attempt — unconditional so
     // that global-cache-only or lockfile-only installs are picked up even when
     // the install result reports zero installed/reused (e.g. external install).
@@ -1061,7 +1230,7 @@ async function main(): Promise<void> {
     });
   }
 
-  if (missingBeforeInstall.length > 0) {
+  if (autoInstallEnabled && registryBackedMissing.length > 0) {
     userMessages.unshift(
       buildAutoInstallResultBlock({
         result: installResult,

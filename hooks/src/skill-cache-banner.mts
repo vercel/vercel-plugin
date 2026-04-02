@@ -13,6 +13,7 @@ import {
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
 import { createSkillStore } from "./skill-store.mjs";
 import { pluginRoot as resolvePluginRoot } from "./hook-env.mjs";
+import { canonicalizeInstalledSkillNames } from "./registry-skill-metadata.mjs";
 
 export interface SkillCacheStatus {
   likelySkills: string[];
@@ -252,8 +253,8 @@ function resolveInstalledSkillUnion(args: {
     pluginRoot: args.pluginRootOverride ?? resolvePluginRoot(),
   });
   return uniqueSorted([
-    ...store.listInstalledSkills(),
-    ...args.projectState.installedSlugs,
+    ...canonicalizeInstalledSkillNames(store.listInstalledSkills()),
+    ...canonicalizeInstalledSkillNames(args.projectState.installedSlugs),
   ]);
 }
 

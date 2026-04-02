@@ -1,6 +1,8 @@
 ---
 name: deployments-cicd
 priority: 6
+registry: vercel/vercel-skills
+registrySlug: vercel-deploy
 docs:
   - https://vercel.com/docs/deployments/overview
   - https://vercel.com/docs/git

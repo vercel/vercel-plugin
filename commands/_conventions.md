@@ -76,4 +76,4 @@ description: One-line summary of what the command does.
 
 ## Validation
 
-`scripts/validate.ts` enforces these conventions. Every non-underscore command file is checked for the required sections: Preflight, Plan, Commands, Verification, Summary, Next Steps.
+Every non-underscore command file should include the required sections: Preflight, Plan, Commands, Verification, Summary, Next Steps.

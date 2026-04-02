@@ -1,16 +1,17 @@
 /**
  * `vercel-plugin doctor` — self-diagnosis command that checks:
- *   1. Manifest vs dynamic-scan parity
+ *   1. Manifest vs engine live-scan parity
  *   2. Hook timeout risk (skill count threshold)
  *   3. Dedup env var correctness
- *   4. Skill map validation errors/warnings
+ *   4. Engine build errors/warnings
+ *   5. Subagent hook registration
  *
  * Exit code 0 = all checks pass, non-zero = issues found.
  */
 
-import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
+import { buildFromEngine } from "../../scripts/build-manifest.ts";
 
 /** Maximum allowed timeout (seconds) for subagent hooks. */
 const SUBAGENT_HOOK_TIMEOUT_MAX = 5;
@@ -46,46 +47,52 @@ export interface DoctorResult {
 
 export function doctor(projectRoot: string): DoctorResult {
   const issues: DoctorIssue[] = [];
-  const skillsDir = join(projectRoot, "skills");
+  const engineDir = join(projectRoot, "engine");
   const manifestPath = join(projectRoot, "generated", "skill-rules.json");
 
-  // --- Live scan ---
-  const { validation, skills: loadedSkills, buildDiagnostics } = loadValidatedSkillMap(skillsDir);
+  // --- Engine live scan ---
+  const {
+    manifest: liveManifest,
+    warnings: engineWarnings,
+    errors: engineErrors,
+  } = buildFromEngine(engineDir);
 
-  if (!validation.ok) {
-    for (const e of validation.errors) {
-      issues.push({
-        severity: "error",
-        check: "skill-validation",
-        message: e,
-      });
-    }
+  for (const message of engineErrors) {
+    issues.push({
+      severity: "error",
+      check: "engine-build",
+      message,
+    });
   }
 
-  if (validation.warnings?.length) {
-    for (const w of validation.warnings) {
-      issues.push({
-        severity: "warning",
-        check: "skill-validation",
-        message: w,
-      });
-    }
-  }
-
-  if (buildDiagnostics.length > 0) {
-    for (const d of buildDiagnostics) {
-      issues.push({
-        severity: "warning",
-        check: "skill-build",
-        message: d,
-      });
-    }
+  for (const message of engineWarnings) {
+    issues.push({
+      severity: "warning",
+      check: "engine-build",
+      message,
+    });
   }
 
   const liveSkills: Record<
     string,
     { priority: number; pathPatterns: string[]; bashPatterns: string[] }
-  > = loadedSkills;
+  > = Object.fromEntries(
+    Object.entries(liveManifest?.skills ?? {}).map(
+      ([name, skill]: [string, any]) => [
+        name,
+        {
+          priority:
+            typeof skill.priority === "number" ? skill.priority : 5,
+          pathPatterns: Array.isArray(skill.pathPatterns)
+            ? skill.pathPatterns
+            : [],
+          bashPatterns: Array.isArray(skill.bashPatterns)
+            ? skill.bashPatterns
+            : [],
+        },
+      ]
+    )
+  );
 
   const liveSkillCount = Object.keys(liveSkills).length;
 
@@ -140,7 +147,7 @@ export function doctor(projectRoot: string): DoctorResult {
         severity: "error",
         check: "manifest-parity",
         message: `Skills in manifest but missing from live scan: ${extraInManifest.join(", ")}`,
-        hint: "A skill directory may have been deleted without rebuilding the manifest",
+        hint: "An engine rule may have been deleted without rebuilding the manifest",
       });
     }
 
@@ -244,88 +251,6 @@ export function doctor(projectRoot: string): DoctorResult {
         "VERCEL_PLUGIN_SEEN_SKILLS is not set — dedup limited to single invocation",
       hint: "Ensure session-start-seen-skills.mjs runs on SessionStart to set the env var",
     });
-  }
-
-  // --- Stale generated files (template newer than output) ---
-  const tmplDirs = [join(projectRoot, "agents"), join(projectRoot, "commands")];
-  for (const dir of tmplDirs) {
-    if (!existsSync(dir)) continue;
-    let files: string[];
-    try {
-      files = readdirSync(dir);
-    } catch {
-      continue;
-    }
-    for (const f of files) {
-      if (!f.endsWith(".md.tmpl")) continue;
-      const tmplPath = join(dir, f);
-      const outPath = join(dir, f.replace(/\.md\.tmpl$/, ".md"));
-
-      if (!existsSync(outPath)) {
-        issues.push({
-          severity: "error",
-          check: "template-staleness",
-          message: `Template ${f} has no generated output: ${f.replace(/\.tmpl$/, "")}`,
-          hint: "Run `bun run build:from-skills` to generate it",
-        });
-        continue;
-      }
-
-      const tmplMtime = statSync(tmplPath).mtimeMs;
-      const outMtime = statSync(outPath).mtimeMs;
-      if (tmplMtime > outMtime) {
-        issues.push({
-          severity: "error",
-          check: "template-staleness",
-          message: `${f} is newer than its output ${f.replace(/\.tmpl$/, "")}`,
-          hint: "Run `bun run build:from-skills` to regenerate",
-        });
-      }
-    }
-  }
-
-  // Check if any SKILL.md is newer than the oldest generated .md
-  const skillsRoot = join(projectRoot, "skills");
-  if (existsSync(skillsRoot)) {
-    let newestSkillMtime = 0;
-    try {
-      for (const skillDir of readdirSync(skillsRoot)) {
-        const skillFile = join(skillsRoot, skillDir, "SKILL.md");
-        if (existsSync(skillFile)) {
-          const mtime = statSync(skillFile).mtimeMs;
-          if (mtime > newestSkillMtime) newestSkillMtime = mtime;
-        }
-      }
-    } catch {
-      // skip if skills dir is unreadable
-    }
-
-    if (newestSkillMtime > 0) {
-      for (const dir of tmplDirs) {
-        if (!existsSync(dir)) continue;
-        let files: string[];
-        try {
-          files = readdirSync(dir);
-        } catch {
-          continue;
-        }
-        for (const f of files) {
-          if (!f.endsWith(".md.tmpl")) continue;
-          const outPath = join(dir, f.replace(/\.md\.tmpl$/, ".md"));
-          if (!existsSync(outPath)) continue;
-          const outMtime = statSync(outPath).mtimeMs;
-          if (newestSkillMtime > outMtime) {
-            issues.push({
-              severity: "warning",
-              check: "template-staleness",
-              message: `A SKILL.md was modified after ${f.replace(/\.tmpl$/, "")} was last generated`,
-              hint: "Run `bun run build:from-skills` to regenerate (skill content may have changed)",
-            });
-            break; // One warning per dir is enough
-          }
-        }
-      }
-    }
   }
 
   // --- Subagent hook registration ---
@@ -436,12 +361,12 @@ export function formatDoctorResult(result: DoctorResult): string {
   lines.push("====================");
   lines.push("");
 
-  lines.push(`Skills (live scan): ${summary.liveSkillCount}`);
+  lines.push(`Skills (engine live scan): ${summary.liveSkillCount}`);
   if (summary.manifestSkillCount !== null) {
-    lines.push(`Skills (manifest):  ${summary.manifestSkillCount}`);
+    lines.push(`Skills (manifest):        ${summary.manifestSkillCount}`);
   }
-  lines.push(`Total patterns:     ${summary.totalPatterns}`);
-  lines.push(`Dedup strategy:     ${summary.dedupStrategy}`);
+  lines.push(`Total patterns:           ${summary.totalPatterns}`);
+  lines.push(`Dedup strategy:           ${summary.dedupStrategy}`);
   lines.push("");
 
   const errors = issues.filter((i) => i.severity === "error");

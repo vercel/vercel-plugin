@@ -7,13 +7,13 @@ import { doctor, type DoctorResult } from "../src/commands/doctor.ts";
 const ROOT = resolve(import.meta.dir, "..");
 
 /**
- * Create a minimal project fixture by copying skills/ and generated/ from ROOT,
+ * Create a minimal project fixture by copying engine/ and generated/ from ROOT,
  * plus writing a custom hooks.json.
  */
 function createFixture(hooksJson: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), "doctor-subagent-"));
-  // Copy skills dir (needed for live scan)
-  cpSync(join(ROOT, "skills"), join(dir, "skills"), { recursive: true });
+  // Copy engine dir (needed for live scan)
+  cpSync(join(ROOT, "engine"), join(dir, "engine"), { recursive: true });
   // Copy generated manifest
   mkdirSync(join(dir, "generated"), { recursive: true });
   cpSync(
@@ -213,7 +213,7 @@ describe("doctor: subagent hooks", () => {
   test("errors when hooks.json is missing", () => {
     // Create fixture without hooks.json
     const dir = mkdtempSync(join(tmpdir(), "doctor-subagent-"));
-    cpSync(join(ROOT, "skills"), join(dir, "skills"), { recursive: true });
+    cpSync(join(ROOT, "engine"), join(dir, "engine"), { recursive: true });
     mkdirSync(join(dir, "generated"), { recursive: true });
     cpSync(
       join(ROOT, "generated", "skill-rules.json"),

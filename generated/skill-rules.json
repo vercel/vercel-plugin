@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-02T06:23:45.473Z",
+  "generatedAt": "2026-04-02T10:21:48.319Z",
   "version": 3,
   "skills": {
     "agent-browser-verify": {
@@ -1878,6 +1878,8 @@
         }
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "registry": "vercel/vercel-skills",
+      "registrySlug": "vercel-deploy",
       "validate": [
         {
           "pattern": "cron:\\s*[''\"]|from\\s+[''\"](node-cron)[''\"]|cron\\.schedule\\(",
@@ -3095,6 +3097,8 @@
         }
       ],
       "sitemap": "https://nextjs.org/sitemap.xml",
+      "registry": "vercel/vercel-skills",
+      "registrySlug": "next-best-practices",
       "validate": [
         {
           "pattern": "export.*getServerSideProps",
@@ -3803,6 +3807,8 @@
           "https": "//react.dev/learn"
         }
       ],
+      "registry": "vercel/vercel-skills",
+      "registrySlug": "vercel-react-best-practices",
       "validate": [
         {
           "pattern": "from\\s+[''\"](styled-components|@emotion/styled|@emotion/react|@mui/material|@chakra-ui/react)[''\"]|styled\\.",
@@ -4618,6 +4624,8 @@
         "https://vercel.com/docs/cli"
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "registry": "vercel-labs/agent-skills",
+      "registrySlug": "vercel-cli-with-tokens",
       "chainTo": [
         {
           "pattern": "\"crons\"\\s*:",
