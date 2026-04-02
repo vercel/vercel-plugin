@@ -35,10 +35,6 @@ promptSignals:
     - "revalidate"
     - "cache profile"
   minScore: 6
-
-  - pattern: "use cache"
-    targetSkill: nextjs
-    message: "Cache component detected — loading Next.js best practices for RSC boundaries and data patterns alongside caching."
 retrieval:
   aliases: ["cache components", "partial prerendering", "PPR", "use cache"]
   intents: ["enable partial prerendering in Next.js", "cache async data with use cache directive", "invalidate cache with cacheTag", "migrate from unstable_cache"]

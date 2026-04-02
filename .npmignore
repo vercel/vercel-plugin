@@ -1,7 +1,5 @@
-# Source skills directory — not shipped in the package.
-# Runtime hooks resolve skills from ~/.vercel-plugin/ cache
-# or the prebuilt generated/skill-rules.json metadata manifest.
-skills/
+# Engine rule sources — compiled into generated/skill-rules.json
+engine/
 
 # Dev-only directories
 tests/
@@ -10,10 +8,6 @@ evals/
 .playground/
 .reports/
 .ploop/
-
-# Template sources (compiled outputs are committed)
-agents/*.md.tmpl
-commands/*.md.tmpl
 
 # TypeScript hook sources (compiled .mjs outputs are committed)
 hooks/src/

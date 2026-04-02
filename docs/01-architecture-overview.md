@@ -24,18 +24,12 @@ The Vercel Plugin for Claude Code is an **event-driven skill injection system** 
 ```mermaid
 graph TB
     subgraph "Build Time"
-        SKILL["skills/*/SKILL.md<br/>(43 skills, YAML frontmatter + markdown)"]
+        RULES["engine/*.md<br/>(40+ rule files, YAML frontmatter + markdown)"]
         BUILD_MANIFEST["scripts/build-manifest.ts"]
-        BUILD_FROM["scripts/build-from-skills.ts"]
-        MANIFEST["generated/skill-manifest.json<br/>(pre-compiled glob→regex)"]
-        TEMPLATES["agents/*.md.tmpl<br/>commands/*.md.tmpl"]
-        GENERATED_MD["agents/*.md<br/>commands/*.md"]
+        MANIFEST["generated/skill-rules.json<br/>(pre-compiled glob→regex)"]
 
-        SKILL -->|"extract frontmatter<br/>compile patterns"| BUILD_MANIFEST
+        RULES -->|"extract frontmatter<br/>compile patterns"| BUILD_MANIFEST
         BUILD_MANIFEST --> MANIFEST
-        SKILL -->|"resolve {{include:skill:...}}"| BUILD_FROM
-        TEMPLATES --> BUILD_FROM
-        BUILD_FROM --> GENERATED_MD
     end
 
     subgraph "Runtime (Claude Code Session)"
@@ -83,7 +77,7 @@ graph TB
     PROMPT_INJECT -->|"additionalContext"| CLAUDE
     SUBAGENT_BOOT -->|"additionalContext"| SUBAGENT["Spawned Subagent"]
 
-    style SKILL fill:#f9f,stroke:#333
+    style RULES fill:#f9f,stroke:#333
     style MANIFEST fill:#bbf,stroke:#333
     style CLAUDE fill:#bfb,stroke:#333
 ```
@@ -94,11 +88,12 @@ graph TB
 
 The plugin is built around a simple pipeline:
 
-1. **Skills** define *what* knowledge exists (markdown content + matching rules)
-2. **The build** compiles skills into an optimized **manifest** (pre-compiled regex patterns)
+1. **Engine rules** (`engine/*.md`) define *what* knowledge exists (matching rules, priority, prompt signals, validation)
+2. **The build** compiles engine rules into an optimized **manifest** (`generated/skill-rules.json` with pre-compiled regex patterns)
 3. **Hooks** fire at lifecycle events, use the manifest to **match** and **rank** skills, then **inject** the right ones into Claude's context
+4. **Runtime cache** (`~/.vercel-plugin/skills/`) stores full skill content installed from a registry or resolved from docs/sitemap fallback
 
-Every piece flows through this pipeline. Skills are the single source of truth — the manifest is derived, hooks consume it, and templates reference it.
+Every piece flows through this pipeline. Engine rules are the source of truth for matching metadata — the manifest is derived, hooks consume it, and skill content is resolved from the cache at runtime.
 
 ---
 
@@ -268,43 +263,47 @@ These are not hooks themselves but are imported by entry-point hooks:
 
 ---
 
-## Data Flow: From SKILL.md to Injection
+## Data Flow: From Engine Rule to Injection
 
-Here's how a skill goes from source markdown to injected context:
+Here's how a skill goes from engine rule to injected context:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. AUTHOR                                                       │
 │                                                                  │
-│  skills/vercel-cron/SKILL.md                                     │
+│  engine/vercel-cron.md                                           │
 │  ┌──────────────────────────────┐                                │
 │  │ ---                          │                                │
 │  │ name: vercel-cron            │  ← YAML frontmatter defines    │
-│  │ metadata:                    │    matching rules + priority    │
-│  │   priority: 6               │                                 │
-│  │   pathPatterns:              │                                 │
-│  │     - "vercel.json"         │                                 │
-│  │   promptSignals:            │                                 │
-│  │     phrases: ["cron job"]   │                                 │
+│  │ priority: 6                  │    matching rules + priority    │
+│  │ pathPatterns:                │                                 │
+│  │   - "vercel.json"           │                                 │
+│  │ promptSignals:              │                                 │
+│  │   phrases: ["cron job"]     │                                 │
+│  │ registry: "owner/repo"      │  ← Optional registry source     │
 │  │ ---                          │                                │
-│  │ # How to configure crons... │  ← Markdown body = injected     │
-│  └──────────────────────────────┘    context                     │
+│  │ # Fallback rule body...     │  ← Injected when cached          │
+│  └──────────────────────────────┘                                │
 │                                                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│  2. BUILD  (bun run build)                                       │
+│  2. BUILD  (bun run build:manifest)                              │
 │                                                                  │
-│  build-manifest.ts reads all 43 SKILL.md files                   │
+│  build-manifest.ts reads all engine/*.md files                   │
 │       ↓                                                          │
 │  Parses YAML frontmatter (inline parser, not js-yaml)            │
 │       ↓                                                          │
 │  Compiles globs → regex at build time for runtime speed           │
 │       ↓                                                          │
-│  generated/skill-manifest.json (paired arrays format v2)          │
+│  generated/skill-rules.json (paired arrays format v2)             │
 │                                                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │  3. RUNTIME  (Claude Code session)                               │
 │                                                                  │
 │  Hook loads manifest → compiles patterns → matches input          │
+│       ↓                                                          │
+│  Skill content resolved from cache:                              │
+│    ~/.vercel-plugin/projects/<hash>/.skills/<slug>/SKILL.md      │
+│    ~/.vercel-plugin/skills/<slug>/SKILL.md                       │
 │       ↓                                                          │
 │  Ranking: base priority (6)                                      │
 │         + vercel.json routing (±10 if key matches)               │
@@ -405,9 +404,9 @@ All of this happened transparently. The developer got expert-level Vercel guidan
 
 | Term | Definition |
 |------|------------|
-| **Skill** | A unit of injectable knowledge. Lives in `skills/<name>/SKILL.md` with YAML frontmatter (matching rules, priority, validation) and a markdown body (the content injected into Claude's context) |
+| **Skill** | A unit of injectable knowledge. Matching metadata is defined in `engine/<name>.md` (compiled into `generated/skill-rules.json`). Full skill content is resolved at runtime from the `~/.vercel-plugin/` cache (installed via registry or docs fallback) |
 | **Hook** | A Node.js script registered in `hooks/hooks.json` that runs at a specific Claude Code lifecycle event. Hooks receive JSON on stdin and may output JSON on stdout to modify Claude's behavior (e.g., inject additionalContext) |
-| **Manifest** | `generated/skill-manifest.json` — a pre-compiled index of all skill frontmatter with glob patterns converted to regex at build time. Hooks load this at runtime instead of scanning SKILL.md files directly |
+| **Manifest** | `generated/skill-rules.json` — a pre-compiled index of all engine rule frontmatter with glob patterns converted to regex at build time. Hooks load this at runtime instead of scanning engine rule files directly |
 | **Dedup** | The deduplication system that prevents the same skill from being injected twice in a session. Uses three layers: atomic file claims (O_EXCL), a session file (comma-delimited), and an env var (`VERCEL_PLUGIN_SEEN_SKILLS`). All three are merged via `mergeSeenSkillStates()` |
 | **Budget** | Byte limits that cap how much skill content can be injected per hook invocation. PreToolUse: 18KB max, 3 skills. UserPromptSubmit: 8KB max, 2 skills. SubagentStart: varies by agent type (1KB–8KB). Prevents context window bloat |
 | **Profiler** | The `session-start-profiler` hook that scans the project at session start — checking config files, package.json dependencies, and vercel.json keys — to pre-identify likely relevant skills. Profiled skills receive a +5 priority boost |

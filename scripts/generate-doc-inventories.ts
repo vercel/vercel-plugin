@@ -136,16 +136,8 @@ export function generateInventory(): DocInventory {
         .sort()
     : [];
 
-  // ── Templates ───────────────────────────────────────────────────────────
+  // ── Templates (legacy — no .md.tmpl files in engine architecture) ────
   const templates: string[] = [];
-  for (const dir of ["agents", "commands"]) {
-    const dirPath = join(ROOT, dir);
-    if (existsSync(dirPath)) {
-      const tmpls = readdirSync(dirPath).filter((f) => f.endsWith(".md.tmpl"));
-      templates.push(...tmpls.map((f) => `${dir}/${f}`));
-    }
-  }
-  templates.sort();
 
   // ── Library modules (non-hook .mts files in hooks/src/) ─────────────────
   const hookSrcDir = join(ROOT, "hooks/src");

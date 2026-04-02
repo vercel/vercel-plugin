@@ -241,10 +241,9 @@ bun run doctor
 |-------|-------------|---------------|
 | **Skill validation** | Parses all `SKILL.md` frontmatter | Malformed YAML, missing required fields |
 | **Build diagnostics** | Loads and validates skill map | Invalid patterns, deprecated fields |
-| **Manifest parity** | Compares live scan vs `skill-manifest.json` | Manifest is out of date — run `bun run build:manifest` |
+| **Manifest parity** | Compares live scan vs `skill-rules.json` | Manifest is out of date — run `bun run build:manifest` |
 | **Hook timeout risk** | Warns if skill/pattern count is high | >50 skills or >200 patterns may hit 5s timeout |
 | **Dedup strategy** | Validates dedup env var format | Malformed `VERCEL_PLUGIN_SEEN_SKILLS` |
-| **Template staleness** | Checks `.md.tmpl` mtime vs `.md` mtime | Run `bun run build:from-skills` to regenerate |
 | **Subagent hooks** | Validates SubagentStart/Stop registration | Missing or misconfigured subagent hooks |
 
 ### Example Output

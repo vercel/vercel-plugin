@@ -29,8 +29,8 @@ flowchart TB
     subgraph Plugin["vercel-plugin Hook System"]
         direction TB
         HooksJSON["hooks.json<br/>(12 hook registrations)"]
-        Manifest["skill-manifest.json<br/>(pre-compiled patterns)"]
-        Skills["skills/<name>/SKILL.md<br/>(46 skill definitions)"]
+        Manifest["skill-rules.json<br/>(pre-compiled patterns)"]
+        Rules["engine/<name>.md<br/>(40+ engine rule files)"]
         VercelMD["vercel.md<br/>(ecosystem graph, ~52KB)"]
     end
 
@@ -327,44 +327,44 @@ Subagent context is sized by agent type to avoid wasting context on lightweight 
 
 ## Skill Structure
 
-The plugin ships 46 skills in `skills/<name>/SKILL.md`. Each skill is a self-contained markdown document with YAML frontmatter that declares its triggers and metadata:
+Engine rules live in `engine/<name>.md` (40+ rule files). Each is a self-contained markdown document with YAML frontmatter that declares its triggers and metadata. At runtime, skills are resolved from the `~/.vercel-plugin/` cache (populated via registry install or docs fallback), not from bundled files.
 
 ```yaml
 ---
 name: skill-slug
 description: "One-line description"
-summary: "Brief fallback injected when budget is exceeded"
-metadata:
-  priority: 6                    # Base priority (4-8 range)
-  pathPatterns: ["**/*.prisma"]  # File glob triggers
-  bashPatterns: ["prisma\\s"]   # Bash command regex triggers
-  importPatterns: ["@prisma/client"]  # Import/require triggers
-  promptSignals:
-    phrases: ["prisma schema"]  # +6 each
-    allOf: [["database", "orm"]] # +4 per group
-    anyOf: ["migration"]        # +1 each (cap +2)
-    noneOf: ["mongodb"]         # Hard exclude
-    minScore: 6
-  validate:
-    - pattern: "executeRaw\\("
-      message: "Use $queryRaw for type safety"
-      severity: "warn"
-      skipIfFileContains: "\\$queryRaw"
+summary: "Brief fallback (injected when budget exceeded)"
+registry: "owner/repo"           # Optional: GitHub repo for npx skills add
+priority: 6                      # 4-8 range; higher = injected first
+pathPatterns: ["**/*.prisma"]    # File glob triggers
+bashPatterns: ["prisma\\s"]     # Bash command regex triggers
+importPatterns: ["@prisma/client"]  # Import/require triggers
+promptSignals:
+  phrases: ["prisma schema"]    # +6 each
+  allOf: [["database", "orm"]]  # +4 per group
+  anyOf: ["migration"]          # +1 each (cap +2)
+  noneOf: ["mongodb"]           # Hard exclude
+  minScore: 6
+validate:
+  - pattern: "executeRaw\\("
+    message: "Use $queryRaw for type safety"
+    severity: "warn"
+    skipIfFileContains: "\\$queryRaw"
+docs:
+  - https://example.com/docs
 ---
-# Skill Title
-
-Markdown body injected as additionalContext...
+# Rule body (markdown, injected as additionalContext when cached)
 ```
 
 ---
 
 ## Manifest
 
-`generated/skill-manifest.json` is built by `scripts/build-manifest.ts` from all `SKILL.md` frontmatter. It pre-compiles glob patterns to regex at build time so hooks don't parse YAML or convert globs at runtime.
+`generated/skill-rules.json` is built by `scripts/build-manifest.ts` from all `engine/*.md` rule files. It pre-compiles glob patterns to regex at build time so hooks don't parse YAML or convert globs at runtime.
 
 The manifest uses a **version 2 paired-array format**: `pathPatterns[i]` corresponds to `pathRegexSources[i]`, ensuring globs and their compiled regex stay aligned.
 
-Hooks prefer the manifest over scanning `SKILL.md` files directly. Run `bun run build:manifest` to regenerate after changing any skill frontmatter.
+Hooks prefer the manifest over scanning engine rule files directly. Run `bun run build:manifest` to regenerate after changing any rule frontmatter.
 
 ---
 
@@ -383,53 +383,20 @@ These choices are deliberate. The parser is optimized for the narrow use case of
 
 ---
 
-## Template Include Engine
-
-Agents and commands derive their instructions from skills via `.md.tmpl` templates. This keeps skills as the single source of truth — no copy-pasting skill content into agent definitions.
-
-```mermaid
-flowchart LR
-    SKILL["skills/nextjs/SKILL.md<br/>(source of truth)"]
-    TMPL["agents/ai-architect.md.tmpl<br/>(template with include markers)"]
-    BUILD["bun run build:from-skills"]
-    OUTPUT["agents/ai-architect.md<br/>(generated, committed)"]
-
-    SKILL --> BUILD
-    TMPL --> BUILD
-    BUILD --> OUTPUT
-```
-
-Two include formats:
-
-```
-{{include:skill:<name>:<heading>}}            — extracts a section by heading
-{{include:skill:<name>:frontmatter:<field>}}  — extracts a frontmatter value
-```
-
-**Build**: `bun run build:from-skills` resolves includes and writes output files. 8 templates currently exist across `agents/` and `commands/`.
-
-**Check**: `bun run build:from-skills:check` verifies outputs are up-to-date (exits non-zero on drift).
-
----
-
 ## Build Pipeline
 
 ```mermaid
 flowchart LR
     SRC["hooks/src/*.mts<br/>(TypeScript source)"]
     HOOKS["hooks/*.mjs<br/>(compiled ESM)"]
-    SKILLS["skills/*/SKILL.md<br/>(skill definitions)"]
-    MANIFEST["generated/skill-manifest.json"]
-    TMPLS["*.md.tmpl<br/>(templates)"]
-    AGENTS["agents/*.md + commands/*.md<br/>(generated)"]
+    RULES["engine/*.md<br/>(rule definitions)"]
+    MANIFEST["generated/skill-rules.json"]
 
     SRC -->|"bun run build:hooks<br/>(tsup)"| HOOKS
-    SKILLS -->|"bun run build:manifest"| MANIFEST
-    SKILLS -->|"bun run build:from-skills"| AGENTS
-    TMPLS -->|"bun run build:from-skills"| AGENTS
+    RULES -->|"bun run build:manifest"| MANIFEST
 ```
 
-All three steps are combined in `bun run build`. A pre-commit hook auto-compiles `.mts` files when staged.
+Both steps are combined in `bun run build`. A pre-commit hook auto-compiles `.mts` files when staged. Agents and commands (`agents/*.md`, `commands/*.md`) are standalone files — no template compilation step is needed.
 
 ---
 
@@ -530,16 +497,14 @@ hooks/
 ├── posttooluse-shadcn-font-fix.mjs   # Standalone hook (no .mts source)
 ├── *.mjs                             # Compiled output (committed, ESM)
 
-skills/
-├── <name>/SKILL.md                   # 46 skill definitions with YAML frontmatter
+engine/
+├── <name>.md                         # 40+ engine rule files with YAML frontmatter
 
 generated/
-├── skill-manifest.json               # Pre-compiled manifest (globs -> regex)
-├── build-from-skills.manifest.json   # Template include build manifest
+├── skill-rules.json                  # Pre-compiled manifest (globs -> regex)
 
 scripts/
-├── build-manifest.ts                 # Manifest builder
-├── build-from-skills.ts              # Template include engine
+├── build-manifest.ts                 # Manifest builder (engine/*.md → generated/skill-rules.json)
 
 src/cli/
 ├── explain.ts                        # `vercel-plugin explain` command

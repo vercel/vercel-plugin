@@ -40,7 +40,7 @@ The `<target>` is a file path or bash command string. The CLI auto-detects the t
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--json` | boolean | `false` | Machine-readable JSON output (full `ExplainResult` structure) |
-| `--project <path>` | string | auto-detected | Plugin root directory. Must contain a `skills/` directory |
+| `--project <path>` | string | auto-detected | Plugin root directory. Must contain an `engine/` directory |
 | `--likely-skills <s1,s2>` | string | — | Comma-delimited skill slugs to simulate profiler boost (+5 priority each) |
 | `--budget <bytes>` | number | `12000` | Override injection byte budget for simulation |
 
@@ -158,7 +158,7 @@ vercel-plugin doctor [options]
 
 #### 1. `skill-validation` — Skill map validity
 
-Loads all `skills/*/SKILL.md` files and validates:
+Loads all `engine/*.md` rule files and validates:
 - Valid YAML frontmatter is present
 - Required fields exist (name, description, summary, metadata)
 - Pattern arrays contain valid entries
@@ -167,11 +167,11 @@ Reports both errors (invalid skills) and warnings (non-critical issues).
 
 #### 2. `manifest-parity` — Manifest vs live scan consistency
 
-Compares `generated/skill-manifest.json` against a live scan of all `SKILL.md` files:
+Compares `generated/skill-rules.json` against a live scan of all `engine/*.md` files:
 
 | Sub-check | Severity | Condition |
 |-----------|----------|-----------|
-| Missing manifest file | warning | `generated/skill-manifest.json` does not exist |
+| Missing manifest file | warning | `generated/skill-rules.json` does not exist |
 | Parse failure | error | Manifest JSON is malformed |
 | Skills in live but not manifest | error | New skills added without rebuilding |
 | Skills in manifest but not live | error | Skills deleted without rebuilding |
@@ -201,19 +201,7 @@ Validates the `VERCEL_PLUGIN_SEEN_SKILLS` environment variable and dedup strateg
 | Invalid format | error | Expected empty or comma-delimited slugs |
 | Env var not set | warning | Dedup limited to single invocation |
 
-#### 5. `template-staleness` — Generated file freshness
-
-Checks whether `.md.tmpl` templates or `SKILL.md` sources are newer than their generated `.md` outputs:
-
-| Condition | Severity |
-|-----------|----------|
-| Template has no generated output | error |
-| Template is newer than output | error |
-| SKILL.md is newer than output | warning |
-
-**Fix:** `bun run build:from-skills`
-
-#### 6. `subagent-hooks` — Subagent hook registration
+#### 5. `subagent-hooks` — Subagent hook registration
 
 Validates that `hooks/hooks.json` has proper `SubagentStart` and `SubagentStop` entries:
 
@@ -255,11 +243,7 @@ Errors (1):
   [manifest-parity] Skills in live scan but missing from manifest: vercel-queues
     -> Run `bun run build:manifest` to regenerate
 
-Warnings (1):
-  [template-staleness] A SKILL.md was modified after commands/deploy.md was last generated
-    -> Run `bun run build:from-skills` to regenerate (skill content may have changed)
-
-Result: 1 error(s), 1 warning(s)
+Result: 1 error(s), 0 warning(s)
 ```
 
 ### JSON output
@@ -330,9 +314,6 @@ vercel-plugin doctor
 ```bash
 # In your CI pipeline, verify plugin health
 vercel-plugin doctor --json | jq '.issues | length'
-
-# Check template freshness (non-zero exit on drift)
-bun run build:from-skills:check
 ```
 
 ### Comparing priorities across tools

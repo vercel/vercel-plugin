@@ -14,6 +14,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { pluginRoot, safeReadJson } from "./hook-env.mjs";
+import { logCaughtError, type Logger } from "./logger.mjs";
 import {
   buildSkillInstallPlan,
   type SkillInstallPlan,
@@ -144,6 +145,7 @@ export function refreshPersistedSkillInstallPlan(args: {
   projectRoot: string;
   previousPlan: SkillInstallPlan;
   pluginRootOverride?: string;
+  logger?: Logger;
 }): SkillInstallPlan {
   const bundledFallbackEnabled =
     process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1" &&
@@ -168,6 +170,15 @@ export function refreshPersistedSkillInstallPlan(args: {
     hasEnvLocal: existsSync(join(args.projectRoot, ".env.local")),
   });
 
-  writePersistedSkillInstallPlan(refreshed);
+  try {
+    writePersistedSkillInstallPlan(refreshed, args.logger);
+  } catch (error) {
+    if (args.logger) {
+      logCaughtError(args.logger, "install-plan-refresh-persist-failed", error, {
+        installPlanPath: installPlanPath(args.projectRoot),
+        projectRoot: args.projectRoot,
+      });
+    }
+  }
   return refreshed;
 }

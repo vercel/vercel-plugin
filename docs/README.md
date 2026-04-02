@@ -37,19 +37,16 @@ cd vercel-plugin
 # 2. Install dependencies (requires Bun)
 bun install
 
-# 3. Build everything (hooks + manifest + from-skills templates)
+# 3. Build everything (hooks + manifest)
 bun run build
 
-# 4. Run the full test suite (typecheck + 32 test files)
+# 4. Run the full test suite (typecheck + test files)
 bun test
 
-# 5. Validate skill structure and manifest parity
-bun run validate
-
-# 6. Self-diagnosis (manifest parity, hook timeouts, dedup health)
+# 5. Self-diagnosis (manifest parity, hook timeouts, dedup health)
 bun run doctor
 
-# 7. See which skills match a file or command
+# 6. See which skills match a file or command
 bun run explain app/api/route.ts
 bun run explain "vercel deploy --prod"
 ```
@@ -59,8 +56,7 @@ bun run explain "vercel deploy --prod"
 | Task | Command |
 |------|---------|
 | Edit a hook source file (`.mts`) | `bun run build:hooks` (auto-runs on pre-commit) |
-| Edit a skill's SKILL.md | `bun run build:manifest` to regenerate the manifest |
-| Edit a `.md.tmpl` template | `bun run build:from-skills` to recompile |
+| Edit an engine rule (`engine/*.md`) | `bun run build:manifest` to regenerate the manifest |
 | Run a single test | `bun test tests/<file>.test.ts` |
 | Update golden snapshots | `bun run test:update-snapshots` |
 | Typecheck only | `bun run typecheck` |
@@ -95,7 +91,7 @@ All of this happens transparently. The developer gets expert Vercel guidance wit
 
 ## Skill Catalog by Category
 
-The plugin ships 46 skills organized into 10 categories. Each skill is a self-contained `skills/<name>/SKILL.md` file with YAML frontmatter (patterns, priority, validation rules) and a markdown body (the knowledge injected into Claude's context).
+The plugin manages 40+ skills organized into categories. Each skill's matching metadata is defined in an `engine/<name>.md` rule file with YAML frontmatter (patterns, priority, validation rules). Full skill content is resolved at runtime from the `~/.vercel-plugin/` cache.
 
 ```mermaid
 mindmap
@@ -163,8 +159,8 @@ mindmap
 | File | Purpose |
 |------|---------|
 | `hooks/hooks.json` | Hook registry — all lifecycle event bindings |
-| `generated/skill-manifest.json` | Pre-compiled skill index (glob→regex, frontmatter) |
-| `skills/*/SKILL.md` | Skill definitions (YAML frontmatter + markdown body) |
+| `generated/skill-rules.json` | Pre-compiled skill index (glob→regex, frontmatter) |
+| `engine/*.md` | Engine rule files (YAML frontmatter + markdown body) |
 | `hooks/src/*.mts` | Hook source code (TypeScript, compiled to `.mjs`) |
 | `CLAUDE.md` | Developer quick-reference guide |
 
@@ -175,11 +171,11 @@ mindmap
 | Term | Definition |
 |------|-----------|
 | **Hook** | A TypeScript function registered in `hooks/hooks.json` that fires on a specific Claude Code lifecycle event (`SessionStart`, `PreToolUse`, `UserPromptSubmit`, `PostToolUse`, `SessionEnd`). Hooks are the injection engine — they decide *what* knowledge Claude receives and *when*. |
-| **Skill** | A self-contained knowledge module in `skills/<name>/SKILL.md`. Each skill has YAML frontmatter (defining when to inject) and a markdown body (the content injected into Claude's context). Skills are the unit of domain knowledge. |
+| **Skill** | A unit of injectable knowledge. Matching metadata is defined in `engine/<name>.md` (compiled into `generated/skill-rules.json`). Full skill content is resolved at runtime from the `~/.vercel-plugin/` cache. Skills are the unit of domain knowledge. |
 | **Injection** | The act of inserting a skill's markdown body into Claude's `additionalContext` during a hook invocation. Injection is gated by pattern matching, priority ranking, dedup checks, and budget limits. |
 | **Dedup** | The deduplication system that prevents the same skill from being injected more than once per session. Uses a three-layer state merge: atomic file claims (`O_EXCL`), an env var (`VERCEL_PLUGIN_SEEN_SKILLS`), and a session file — all unioned by `mergeSeenSkillStates()`. |
 | **Claim** | An atomic file created in the claim directory (`<tmpdir>/vercel-plugin-<sessionId>-seen-skills.d/`) to mark a skill as already injected. Created with `openSync(path, "wx")` (O_EXCL) to guarantee exactly-once semantics even under concurrent hook invocations. |
 | **Budget** | The maximum byte size of skill content that can be injected in a single hook invocation. PreToolUse allows up to **3 skills / 18 KB**; UserPromptSubmit allows up to **2 skills / 8 KB**. If a skill's body exceeds the remaining budget, its `summary` field is injected as a compact fallback. |
 | **Profiler** | The `session-start-profiler` hook that runs at session startup. It scans `package.json` dependencies, config files (`vercel.json`, `next.config.*`, etc.), and project structure to pre-identify *likely skills*, giving them a **+5 priority boost** in subsequent ranking. |
 | **Greenfield** | A project state detected by the profiler when the working directory is empty or has no meaningful source files. In greenfield mode, the `bootstrap` skill is automatically prioritized to help scaffold a new project. |
-| **Manifest** | The pre-compiled skill index at `generated/skill-manifest.json`. Built by `scripts/build-manifest.ts`, it converts glob patterns to regex at build time so hooks can match file paths without parsing SKILL.md files at runtime. Version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`). |
+| **Manifest** | The pre-compiled skill index at `generated/skill-rules.json`. Built by `scripts/build-manifest.ts` from `engine/*.md` rule files, it converts glob patterns to regex at build time so hooks can match file paths without parsing rule files at runtime. Version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`). |

@@ -819,6 +819,7 @@ export async function runBashChainInjection(
           projectRoot,
           previousPlan,
           pluginRootOverride: pluginRoot ?? PLUGIN_ROOT,
+          logger: l,
         })
       : null;
     if (wrapperPlan) {

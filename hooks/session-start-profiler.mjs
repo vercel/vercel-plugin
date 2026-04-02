@@ -621,15 +621,18 @@ async function autoInstallDetectedSkills(args) {
   if (args.missingSkills.length === 0) {
     return emptyResult;
   }
-  const registryMetadata = loadRegistrySkillMetadata();
-  const registryMap = args.registryMap ?? loadRegistryMap();
+  const registryMetadata = args.registryMetadata ?? loadRegistrySkillMetadata();
+  const registryMap = args.registryMap ?? new Map(
+    [...registryMetadata].map(([skill, metadata]) => [skill, metadata.registry])
+  );
   const registryBacked = args.missingSkills.filter((s) => registryMap.has(s));
   const skipped = args.missingSkills.filter((s) => !registryMap.has(s));
   args.logger?.debug("session-start-profiler-auto-install-start", {
     projectRoot: args.projectRoot,
     missingSkills: args.missingSkills,
     registryBacked,
-    skippedNonRegistry: skipped
+    skippedNonRegistry: skipped,
+    registryMetadataCount: registryMetadata.size
   });
   if (registryBacked.length === 0) {
     return {
@@ -768,7 +771,10 @@ async function main() {
     installedSkillCount: installedSkills.length,
     missingSkillCount: missingBeforeInstall.length
   });
-  const registryMap = loadRegistryMap();
+  const registryMetadata = loadRegistrySkillMetadata(pluginRoot());
+  const registryMap = new Map(
+    [...registryMetadata].map(([skill, metadata]) => [skill, metadata.registry])
+  );
   const registryBackedMissing = missingBeforeInstall.filter((s) => registryMap.has(s));
   log.debug("session-start-profiler-auto-install-gate", {
     autoInstallEnabled,
@@ -792,6 +798,7 @@ async function main() {
     projectRoot,
     missingSkills: registryBackedMissing,
     registryMap,
+    registryMetadata,
     logger: log
   }) : Promise.resolve({
     installed: [],

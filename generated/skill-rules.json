@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-02T10:21:48.319Z",
+  "generatedAt": "2026-04-02T11:24:03.460Z",
   "version": 3,
   "skills": {
     "agent-browser-verify": {
@@ -2604,9 +2604,7 @@
           "revalidate",
           "cache profile"
         ],
-        "minScore": 6,
-        "targetSkill": "nextjs",
-        "message": "Cache component detected — loading Next.js best practices for RSC boundaries and data patterns alongside caching."
+        "minScore": 6
       },
       "retrieval": {
         "aliases": [

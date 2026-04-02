@@ -49,7 +49,7 @@ import {
   formatCommandWithCwd,
   type InstallSkillsResult,
 } from "./registry-client.mjs";
-import { loadRegistrySkillMetadata } from "./registry-skill-metadata.mjs";
+import { loadRegistrySkillMetadata, type RegistrySkillMetadata } from "./registry-skill-metadata.mjs";
 import {
   createVercelCliDelegator,
   type VercelCliDelegator,
@@ -935,6 +935,7 @@ export async function autoInstallDetectedSkills(args: {
   projectRoot: string;
   missingSkills: string[];
   registryMap?: Map<string, string>;
+  registryMetadata?: Map<string, RegistrySkillMetadata>;
   skillsSource?: string;
   logger?: Logger;
 }): Promise<InstallSkillsResult> {
@@ -950,9 +951,11 @@ export async function autoInstallDetectedSkills(args: {
     return emptyResult;
   }
 
-  const registryMetadata = loadRegistrySkillMetadata();
+  const registryMetadata = args.registryMetadata ?? loadRegistrySkillMetadata();
   // Filter to only registry-backed skills
-  const registryMap = args.registryMap ?? loadRegistryMap();
+  const registryMap = args.registryMap ?? new Map(
+    [...registryMetadata].map(([skill, metadata]) => [skill, metadata.registry]),
+  );
   const registryBacked = args.missingSkills.filter((s) => registryMap.has(s));
   const skipped = args.missingSkills.filter((s) => !registryMap.has(s));
 
@@ -961,6 +964,7 @@ export async function autoInstallDetectedSkills(args: {
     missingSkills: args.missingSkills,
     registryBacked,
     skippedNonRegistry: skipped,
+    registryMetadataCount: registryMetadata.size,
   });
 
   if (registryBacked.length === 0) {
@@ -1149,7 +1153,10 @@ async function main(): Promise<void> {
     missingSkillCount: missingBeforeInstall.length,
   });
 
-  const registryMap = loadRegistryMap();
+  const registryMetadata = loadRegistrySkillMetadata(pluginRoot());
+  const registryMap = new Map(
+    [...registryMetadata].map(([skill, metadata]) => [skill, metadata.registry]),
+  );
   const registryBackedMissing = missingBeforeInstall.filter((s) => registryMap.has(s));
 
   log.debug("session-start-profiler-auto-install-gate", {
@@ -1177,6 +1184,7 @@ async function main(): Promise<void> {
         projectRoot,
         missingSkills: registryBackedMissing,
         registryMap,
+        registryMetadata,
         logger: log,
       })
     : Promise.resolve<InstallSkillsResult>({

@@ -8,7 +8,6 @@ This guide covers every build command, CLI tool, testing workflow, and developme
 
 - [Build Pipeline](#build-pipeline)
 - [Build Commands](#build-commands)
-- [Template Include Engine](#template-include-engine)
 - [Testing Architecture](#testing-architecture)
 - [Pre-Commit Hook](#pre-commit-hook)
 - [Playground System](#playground-system)
@@ -19,7 +18,7 @@ This guide covers every build command, CLI tool, testing workflow, and developme
 
 ## Build Pipeline
 
-The project has three independent build stages that combine into a single `bun run build`:
+The project has two independent build stages that combine into a single `bun run build`:
 
 ```mermaid
 graph TD
@@ -29,39 +28,30 @@ graph TD
     end
 
     subgraph "Stage 2 — Manifest Generation"
-        SKILL["skills/*/SKILL.md<br/>(43 skills, YAML frontmatter)"]
-        SKILL -->|"build-manifest.ts<br/>glob→regex pre-compile"| MANIFEST["generated/skill-manifest.json<br/>(version 2, paired arrays)"]
-    end
-
-    subgraph "Stage 3 — Template Compilation"
-        TMPL["*.md.tmpl<br/>(8 template files)"]
-        SKILL2["skills/*/SKILL.md"] -->|"heading & frontmatter<br/>extraction"| RESOLVER["build-from-skills.ts<br/>(include resolver)"]
-        TMPL --> RESOLVER
-        RESOLVER -->|"marker replacement"| MD["*.md<br/>(agents + commands)"]
-        RESOLVER -->|"dependency tracking"| BMANIFEST["generated/<br/>build-from-skills.manifest.json"]
+        RULES["engine/*.md<br/>(40+ rule files, YAML frontmatter)"]
+        RULES -->|"build-manifest.ts<br/>glob→regex pre-compile"| MANIFEST["generated/skill-rules.json<br/>(version 2, paired arrays)"]
     end
 
     MJS --> RUNTIME["Runtime: Claude Code<br/>hook execution"]
     MANIFEST --> RUNTIME
-    MD --> OUTPUT["agents/*.md<br/>commands/*.md"]
 ```
 
 ### Data flow summary
 
 1. **TypeScript hooks** (`hooks/src/*.mts`) compile via tsup to ESM modules (`hooks/*.mjs`). Target: `node20`, no bundling, no sourcemaps. The compiled `.mjs` files are committed to the repo so the Claude Agent SDK can execute them directly.
-2. **Skill frontmatter** from 43 `SKILL.md` files gets pre-compiled into `generated/skill-manifest.json` with glob-to-regex conversion for fast runtime matching. The manifest uses a version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`, `bashPatterns` ↔ `bashRegexSources`).
-3. **Templates** (`*.md.tmpl`) pull sections from skills via `{{include:skill:...}}` markers, producing committed `.md` files for agents and commands. A build manifest (`generated/build-from-skills.manifest.json`) tracks dependencies for staleness detection.
+2. **Engine rule frontmatter** from 40+ `engine/*.md` files gets pre-compiled into `generated/skill-rules.json` with glob-to-regex conversion for fast runtime matching. The manifest uses a version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`, `bashPatterns` ↔ `bashRegexSources`).
+
+Agents and commands (`agents/*.md`, `commands/*.md`) are standalone files that do not require a build step.
 
 ### Stage execution order
 
 ```
 bun run build
   ├── bun run build:hooks        # Stage 1: .mts → .mjs
-  ├── bun run build:manifest     # Stage 2: SKILL.md → manifest
-  └── bun run build:from-skills  # Stage 3: .md.tmpl → .md
+  └── bun run build:manifest     # Stage 2: engine/*.md → skill-rules.json
 ```
 
-All three stages are independent and can run in any order, but `build` runs them sequentially for simplicity.
+Both stages are independent and can run in any order, but `build` runs them sequentially for simplicity.
 
 ---
 
@@ -82,38 +72,22 @@ Run this after editing any `.mts` file. The pre-commit hook runs it automaticall
 
 ### `bun run build:manifest`
 
-Generates the skill manifest from SKILL.md frontmatter.
+Generates the skill rules manifest from engine rule frontmatter.
 
 | Detail | Value |
 |--------|-------|
 | Script | `scripts/build-manifest.ts` |
-| Input | `skills/*/SKILL.md` (43 skills) |
-| Output | `generated/skill-manifest.json` |
+| Input | `engine/*.md` (40+ rule files) |
+| Output | `generated/skill-rules.json` |
 
 The manifest pre-compiles glob patterns to regex at build time so runtime hooks avoid expensive parsing. Version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`).
 
-### `bun run build:from-skills`
-
-Resolves template includes and generates output files.
-
-| Detail | Value |
-|--------|-------|
-| Script | `scripts/build-from-skills.ts` |
-| Templates | 8 files in `agents/` and `commands/` |
-| Output | Corresponding `.md` files + `generated/build-from-skills.manifest.json` |
-
-See [Template Include Engine](#template-include-engine) below for full details.
-
-### `bun run build:from-skills:check`
-
-Verifies generated `.md` files are up-to-date without writing. Exits non-zero on drift. Useful in CI.
-
 ### `bun run build`
 
-Runs all three stages sequentially:
+Runs both stages sequentially:
 
 ```
-bun run build:hooks && bun run build:manifest && bun run build:from-skills
+bun run build:hooks && bun run build:manifest
 ```
 
 ### `bun run typecheck`
@@ -124,109 +98,9 @@ Runs TypeScript type checking on hook sources without emitting files:
 tsc -p hooks/tsconfig.json --noEmit
 ```
 
-### `bun run validate`
-
-Structural validation of all skills and the manifest. Runs `scripts/validate.ts` to check:
-- Every skill has valid YAML frontmatter
-- Required fields are present (name, description, summary, metadata)
-- Pattern arrays contain valid entries
-- Manifest is consistent with live skill data
-
 ### `bun run doctor`
 
 Runs `vercel-plugin doctor` (see [docs/cli-reference.md](cli-reference.md) for full details). Self-diagnosis for the plugin setup.
-
----
-
-## Template Include Engine
-
-The template engine (`scripts/build-from-skills.ts`) resolves skill content into agent and command definitions at build time. Skills are the **single source of truth** — templates pull content so agents/commands stay in sync without duplicating prose.
-
-### Marker formats
-
-Two include marker syntaxes are supported:
-
-#### 1. Section extraction
-
-```
-{{include:skill:<name>:<heading>}}
-```
-
-Extracts a markdown section by heading from `skills/<name>/SKILL.md`. The extraction algorithm:
-
-1. Finds the first heading whose text matches `<heading>` (case-insensitive, optional leading `#` characters)
-2. Captures all content from that heading to the next heading of equal or higher level
-3. Skips heading detection inside fenced code blocks (``` markers)
-
-**Nested headings** use `>` as a path separator:
-
-```
-{{include:skill:nextjs:Rendering Strategy Decision > Caching Strategy Matrix}}
-```
-
-This first extracts the "Rendering Strategy Decision" section, then extracts "Caching Strategy Matrix" within that narrowed scope.
-
-#### 2. Frontmatter field extraction
-
-```
-{{include:skill:<name>:frontmatter:<field>}}
-```
-
-Extracts a YAML frontmatter field value from `skills/<name>/SKILL.md`. Supports dotted paths for nested fields (e.g., `frontmatter:metadata.priority`). Returns strings/numbers directly; arrays/objects are JSON-serialized.
-
-### CLI options for `build-from-skills`
-
-| Flag | Description |
-|------|-------------|
-| `--check` | Verify outputs are up-to-date without writing (exit 1 on drift) |
-| `--dry-run` | Print resolved output to stdout without writing |
-| `--json` | Structured JSON output with per-template diagnostics |
-| `--audit` | Coverage report showing what percentage of each template comes from includes |
-| `--skill <name>` | Reverse-dependency query: which templates depend on a given skill |
-
-### All 8 templates and their source skills
-
-#### Agent templates (`agents/*.md.tmpl`)
-
-| Template | Output | Source skills | Includes |
-|----------|--------|---------------|----------|
-| `ai-architect.md.tmpl` | `ai-architect.md` | `ai-sdk` | Core Functions > Agents, Migration from AI SDK 5 |
-| `deployment-expert.md.tmpl` | `deployment-expert.md` | `vercel-functions`, `deployments-cicd` | Function Runtime Diagnostics (5 subsections), Deployment Strategy Matrix, Common Build Errors, CI/CD Integration, Promote & Rollback |
-| `performance-optimizer.md.tmpl` | `performance-optimizer.md` | `nextjs`, `observability` | Rendering Strategy Decision (6 subsections), Bundle Analyzer, Cache Components, Speed Insights Metrics, Performance Audit Checklist |
-
-#### Command templates (`commands/*.md.tmpl`)
-
-| Template | Output | Source skills | Includes |
-|----------|--------|---------------|----------|
-| `bootstrap.md.tmpl` | `bootstrap.md` | `bootstrap` | Preflight, Rules, Resource Setup, AUTH_SECRET, Env Verification, App Setup, Bootstrap Verification, Summary Format, Next Steps |
-| `deploy.md.tmpl` | `deploy.md` | `observability`, `deployments-cicd` | Deploy Preflight, Post-Deploy Error Scan, Preview/Production Deployment, Inspect, Summary, Next Steps |
-| `env.md.tmpl` | `env.md` | `env-vars` | vercel env CLI (List/Pull/Add/Remove), Environment-Specific Config, Gotchas |
-| `marketplace.md.tmpl` | `marketplace.md` | `marketplace` | Observability Integration Path |
-| `status.md.tmpl` | `status.md` | `observability` | Drains Security/Signature, Fallback Guidance, Decision Matrix |
-
-### User story: editing a skill updates downstream templates
-
-```
-Developer edits skills/observability/SKILL.md
-  → Pre-commit hook detects staged SKILL.md
-  → Runs `bun run build:from-skills:check`
-  → Detects drift in commands/deploy.md and commands/status.md
-  → Auto-regenerates with `bun run build:from-skills`
-  → Stages updated .md files
-  → Exits with code 1 ("review and re-commit")
-  → Developer reviews diff, runs `git commit` again
-```
-
-### Diagnostic codes
-
-The template engine emits structured diagnostics when includes fail:
-
-| Code | Meaning |
-|------|---------|
-| `SKILL_NOT_FOUND` | `skills/<name>/SKILL.md` does not exist |
-| `HEADING_NOT_FOUND` | Heading text not found in the skill body |
-| `FRONTMATTER_NOT_FOUND` | YAML field not present in frontmatter |
-| `STALE_OUTPUT` | Output file is out of date (--check mode) |
 
 ---
 
@@ -288,12 +162,6 @@ graph LR
         E3["build-skill-map"]
         E4["skill-map-frontmatter"]
         E5["external-skill-resolution"]
-    end
-
-    subgraph "Build & Templates"
-        F1["build-from-skills"]
-        F2["build-from-skills-integration"]
-        F3["build-from-skills-workflow"]
     end
 
     subgraph "CLI & Infrastructure"
@@ -369,9 +237,7 @@ Real-world regression tests that simulate specific project types (Notion clone, 
 
 ## Pre-Commit Hook
 
-The `.git/hooks/pre-commit` script automates two tasks:
-
-### 1. Hook compilation
+The `.git/hooks/pre-commit` script automates hook compilation.
 
 When any `hooks/src/*.mts` file is staged:
 
@@ -380,19 +246,6 @@ When any `hooks/src/*.mts` file is staged:
 2. Compile:   bun run build:hooks
 3. Stage:     git add hooks/*.mjs
 ```
-
-### 2. Template freshness
-
-When any `.md.tmpl`, `SKILL.md`, `build-from-skills.ts`, or `skill-map-frontmatter.mts` is staged:
-
-```
-1. Check:      bun run build:from-skills:check
-2. If stale:   bun run build:from-skills
-3. Stage:      git add agents/*.md commands/*.md
-4. Exit 1:     "Generated files updated and staged. Please review and re-commit."
-```
-
-The hook exits with code 1 after regeneration so you can review the changes before committing. Simply run `git commit` again after reviewing.
 
 ---
 
@@ -481,20 +334,9 @@ These variables control runtime behavior. Set them before running Claude Code or
 
 ## Troubleshooting
 
-### "Generated files are out of date"
-
-The pre-commit hook or CI detected drift between `.md.tmpl` templates and their `.md` outputs.
-
-**Fix:**
-
-```bash
-bun run build:from-skills
-git add agents/*.md commands/*.md
-```
-
 ### Manifest parity errors from `doctor`
 
-The `generated/skill-manifest.json` is out of sync with live `SKILL.md` files.
+The `generated/skill-rules.json` is out of sync with live `engine/*.md` files.
 
 **Fix:**
 
@@ -546,7 +388,7 @@ chmod +x .git/hooks/pre-commit
 
 ### Playground generator fails
 
-Ensure the plugin root has a `skills/` directory with valid SKILL.md files:
+Ensure the plugin root has an `engine/` directory with valid rule files:
 
 ```bash
 bun run playground:generate --dry-run
@@ -556,11 +398,10 @@ The `--dry-run` flag previews without writing, showing discovery errors on stder
 
 ### Tests fail after adding a new skill
 
-After adding a new `skills/<name>/SKILL.md`:
+After adding a new `engine/<name>.md`:
 
 ```bash
 bun run build:manifest          # Update manifest
-bun run build:from-skills       # Update templates (if referenced)
 bun run test:update-snapshots   # Update golden snapshots
 bun test                        # Verify everything passes
 ```

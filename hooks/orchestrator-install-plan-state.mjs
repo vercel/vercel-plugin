@@ -2,6 +2,7 @@
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { pluginRoot, safeReadJson } from "./hook-env.mjs";
+import { logCaughtError } from "./logger.mjs";
 import {
   buildSkillInstallPlan
 } from "./orchestrator-install-plan.mjs";
@@ -86,7 +87,16 @@ function refreshPersistedSkillInstallPlan(args) {
     vercelLinked: existsSync(join(args.projectRoot, ".vercel")),
     hasEnvLocal: existsSync(join(args.projectRoot, ".env.local"))
   });
-  writePersistedSkillInstallPlan(refreshed);
+  try {
+    writePersistedSkillInstallPlan(refreshed, args.logger);
+  } catch (error) {
+    if (args.logger) {
+      logCaughtError(args.logger, "install-plan-refresh-persist-failed", error, {
+        installPlanPath: installPlanPath(args.projectRoot),
+        projectRoot: args.projectRoot
+      });
+    }
+  }
   return refreshed;
 }
 export {

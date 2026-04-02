@@ -2,7 +2,7 @@
 
 > **Audience**: Skill authors — anyone adding new skills or extending existing ones.
 
-This guide walks you through creating a new skill from scratch, explains every frontmatter field, documents the scoring engine, the validation system, the manifest build pipeline, the template include engine, and the custom YAML parser's non-standard behavior. It includes annotated real-world examples from the `skills/` directory.
+This guide walks you through creating a new skill from scratch, explains every frontmatter field, documents the scoring engine, the validation system, the manifest build pipeline, and the custom YAML parser's non-standard behavior. It includes annotated real-world examples from the `engine/` directory.
 
 ---
 
@@ -25,12 +25,8 @@ This guide walks you through creating a new skill from scratch, explains every f
 5. [Prompt Signal Scoring](#prompt-signal-scoring)
 6. [Validation Rules](#validation-rules)
 7. [Manifest Build Pipeline](#manifest-build-pipeline)
-8. [Template Include Engine](#template-include-engine)
-   - [Section Includes](#section-includes)
-   - [Frontmatter Includes](#frontmatter-includes)
-   - [Build Workflow](#build-workflow)
-9. [Custom YAML Parser Gotchas](#custom-yaml-parser-gotchas)
-10. [Build & Test Workflow](#build--test-workflow)
+8. [Custom YAML Parser Gotchas](#custom-yaml-parser-gotchas)
+9. [Build & Test Workflow](#build--test-workflow)
 
 ---
 
@@ -42,25 +38,24 @@ This guide walks you through creating a new skill from scratch, explains every f
 
 ```mermaid
 flowchart LR
-    A["1. Create directory<br/>skills/edge-config/"] --> B["2. Write SKILL.md<br/>frontmatter + body"]
+    A["1. Create rule<br/>engine/edge-config.md"] --> B["2. Write frontmatter<br/>+ body"]
     B --> C["3. Build manifest<br/>bun run build:manifest"]
-    C --> D["4. Validate<br/>bun run validate"]
-    D --> E["5. Test with explain CLI<br/>bun run explain -- --file edge-config.json"]
-    E --> F["6. Run tests<br/>bun test"]
-    F --> G["7. Build all & commit<br/>bun run build"]
+    C --> D["4. Test with explain CLI<br/>bun run explain -- --file edge-config.json"]
+    D --> E["5. Run tests<br/>bun test"]
+    E --> F["6. Build all & commit<br/>bun run build"]
 ```
 
-### Step 1 — Create the skill directory
+### Step 1 — Create the engine rule file
 
 ```bash
-mkdir -p skills/edge-config
+touch engine/edge-config.md
 ```
 
-Skills are keyed by **directory name**, not the frontmatter `name` field. The directory name is the canonical identifier used everywhere: dedup, manifest, env vars, and logs.
+Skills are keyed by **filename** (without extension). The filename is the canonical identifier used everywhere: dedup, manifest, env vars, and logs.
 
-### Step 2 — Write `SKILL.md`
+### Step 2 — Write the rule with frontmatter
 
-Create `skills/edge-config/SKILL.md` with YAML frontmatter between `---` delimiters, followed by the guidance body in markdown. See the [Frontmatter Schema](#skillmd-frontmatter-schema) section for every available field.
+Create `engine/edge-config.md` with YAML frontmatter between `---` delimiters, followed by the guidance body in markdown. See the [Frontmatter Schema](#skillmd-frontmatter-schema) section for every available field.
 
 Minimal skeleton:
 
@@ -69,22 +64,24 @@ Minimal skeleton:
 name: edge-config
 description: "Best practices for Vercel Edge Config — a low-latency global data store"
 summary: "Edge Config: use read() not get(), prefer JSON values"
-metadata:
-  priority: 6
-  pathPatterns:
-    - "edge-config.*"
-  bashPatterns:
-    - "\\bedge.config\\b"
-  importPatterns:
-    - "@vercel/edge-config"
-  promptSignals:
-    phrases:
-      - "edge config"
-    minScore: 6
+registry: "vercel/edge-config-skill"
+priority: 6
+pathPatterns:
+  - "edge-config.*"
+bashPatterns:
+  - "\\bedge.config\\b"
+importPatterns:
+  - "@vercel/edge-config"
+promptSignals:
+  phrases:
+    - "edge config"
+  minScore: 6
 validate:
   - pattern: "edgeConfig\\.get\\("
     message: "Use edgeConfig.read() instead of .get() — read() returns typed values"
     severity: error
+docs:
+  - https://vercel.com/docs/edge-config
 ---
 
 # Edge Config
@@ -92,21 +89,15 @@ validate:
 You are an expert in Vercel Edge Config...
 ```
 
+At runtime, full skill content is resolved from the `~/.vercel-plugin/` cache (installed from registry via `npx skills add`, or resolved from docs/sitemap fallback). The rule body serves as fallback content when the skill is not yet cached.
+
 ### Step 3 — Build the manifest
 
 ```bash
 bun run build:manifest
 ```
 
-This reads all `skills/*/SKILL.md`, extracts frontmatter, compiles glob→regex and import→regex at build time, and writes `generated/skill-manifest.json`. Hooks read the manifest at runtime for fast matching — they never parse SKILL.md live.
-
-### Step 4 — Validate
-
-```bash
-bun run validate
-```
-
-Checks that frontmatter parses, required fields are present, patterns are valid (globs compile, regexes parse), and the manifest is in sync.
+This reads all `engine/*.md`, extracts frontmatter, compiles glob-to-regex and import-to-regex at build time, and writes `generated/skill-rules.json`. Hooks read the manifest at runtime for fast matching.
 
 ### Step 5 — Test with the explain CLI
 
@@ -132,7 +123,7 @@ bun test
 ### Step 7 — Build everything and commit
 
 ```bash
-bun run build   # hooks + manifest + from-skills
+bun run build   # hooks + manifest
 bun test        # final verification
 ```
 
@@ -321,7 +312,7 @@ Optional metadata for discovery and search systems.
 
 ### Example 1: nextjs
 
-**File**: `skills/nextjs/SKILL.md` — a complex skill with prompt signals, 11 validation rules, and broad pattern coverage.
+**File**: `engine/nextjs.md` — a complex skill with prompt signals, validation rules, and broad pattern coverage.
 
 ```yaml
 ---
@@ -414,7 +405,7 @@ validate:                              # ← 11 rules catching common mistakes
 
 ### Example 2: email
 
-**File**: `skills/email/SKILL.md` — a simpler skill with only path/bash patterns, no prompt signals or validation rules.
+**File**: `engine/email.md` — a simpler skill with only path/bash patterns, no prompt signals or validation rules.
 
 ```yaml
 ---
@@ -639,17 +630,17 @@ validate:
 
 ## Manifest Build Pipeline
 
-Skills are the source of truth, but hooks don't parse SKILL.md at runtime. Instead, a build step pre-compiles everything into a fast-lookup manifest.
+Engine rules are the source of truth for matching metadata, but hooks don't parse them at runtime. Instead, a build step pre-compiles everything into a fast-lookup manifest.
 
 ```mermaid
 flowchart LR
-    SKILLS["skills/*/SKILL.md<br/>(43 skills)"] -->|"build-manifest.ts"| MANIFEST["generated/skill-manifest.json"]
+    RULES["engine/*.md<br/>(40+ rules)"] -->|"build-manifest.ts"| MANIFEST["generated/skill-rules.json"]
     MANIFEST -->|"imported by"| HOOKS["Runtime hooks<br/>(pretooluse, user-prompt-submit)"]
 ```
 
-### Pipeline: `SKILL.md` → `build-manifest.ts` → `skill-manifest.json`
+### Pipeline: `engine/*.md` → `build-manifest.ts` → `skill-rules.json`
 
-**Input**: All `skills/*/SKILL.md` files.
+**Input**: All `engine/*.md` files.
 
 **Processing** (`scripts/build-manifest.ts`):
 
@@ -659,7 +650,7 @@ flowchart LR
 4. **Compile importPatterns** — each pattern is converted via `importPatternToRegex()`, producing `{ source, flags }` pairs.
 5. **Paired arrays** — the manifest stores patterns and their compiled regex sources in parallel arrays with matching indices. If a pattern fails to compile, **both** the pattern and its regex slot are dropped to keep indices aligned.
 
-**Output** (`generated/skill-manifest.json`, version 2):
+**Output** (`generated/skill-rules.json`, version 2):
 
 ```json
 {
@@ -675,7 +666,7 @@ flowchart LR
       "bashRegexSources": ["\\bnext\\s+(dev|build|start)\\b", ...],
       "importPatterns": [],
       "importRegexSources": [],
-      "bodyPath": "skills/nextjs/SKILL.md",
+      "bodyPath": "engine/nextjs.md",
       "validate": [...],
       "promptSignals": { "phrases": [...], ... }
     }
@@ -689,112 +680,12 @@ flowchart LR
 bun run build:manifest
 ```
 
-This is also included in `bun run build` (which runs hooks + manifest + from-skills).
+This is also included in `bun run build` (which runs hooks + manifest).
 
 ### Keeping the manifest in sync
 
-- Run `bun run validate` to check manifest parity
 - Run `bun run doctor` for a comprehensive health check including manifest drift detection
 - The pre-commit hook does **not** auto-rebuild the manifest (only hooks are auto-compiled)
-
----
-
-## Template Include Engine
-
-Skills are the single source of truth for domain knowledge. Agents and commands pull content from skills at build time via `.md.tmpl` templates, so they stay in sync without duplicating prose.
-
-### Section Includes
-
-Extract a markdown section by heading:
-
-```
-{{include:skill:<skill-name>:<heading>}}
-```
-
-**Behavior**: Finds the heading (case-insensitive) in the skill's markdown body and extracts everything from that heading to the next heading of **equal or higher level**. Code blocks are skipped during heading detection.
-
-**Example**: Given `skills/nextjs/SKILL.md` contains:
-
-```markdown
-## App Router
-
-Use the App Router for all new projects...
-
-### File Conventions
-
-- `page.tsx` — route entry point
-- `layout.tsx` — shared layout
-
-## Pages Router
-
-Legacy approach...
-```
-
-Then `{{include:skill:nextjs:App Router}}` extracts:
-
-```markdown
-## App Router
-
-Use the App Router for all new projects...
-
-### File Conventions
-
-- `page.tsx` — route entry point
-- `layout.tsx` — shared layout
-```
-
-It stops at `## Pages Router` because that's an equal-level heading.
-
-**Nested headings** are supported with `>` separator: `{{include:skill:env-vars:vercel env CLI > List Environment Variables}}` extracts a subsection under a parent heading.
-
-### Frontmatter Includes
-
-Extract a frontmatter field value:
-
-```
-{{include:skill:<skill-name>:frontmatter:<field>}}
-```
-
-Supports dotted paths for nested fields:
-
-```
-{{include:skill:nextjs:frontmatter:metadata.priority}}     → "5"
-{{include:skill:email:frontmatter:description}}             → "Email sending integration guidance..."
-```
-
-### Build Workflow
-
-```bash
-# Compile all .md.tmpl templates → .md files
-bun run build:from-skills
-
-# Check if generated .md files are up-to-date (CI mode, exits non-zero on drift)
-bun run build:from-skills:check
-```
-
-**Current templates** (8 files):
-
-| Template | Output |
-|----------|--------|
-| `agents/ai-architect.md.tmpl` | `agents/ai-architect.md` |
-| `agents/deployment-expert.md.tmpl` | `agents/deployment-expert.md` |
-| `agents/performance-optimizer.md.tmpl` | `agents/performance-optimizer.md` |
-| `commands/bootstrap.md.tmpl` | `commands/bootstrap.md` |
-| `commands/deploy.md.tmpl` | `commands/deploy.md` |
-| `commands/env.md.tmpl` | `commands/env.md` |
-| `commands/marketplace.md.tmpl` | `commands/marketplace.md` |
-| `commands/status.md.tmpl` | `commands/status.md` |
-
-**Diagnostic codes** (reported when includes fail):
-
-| Code | Meaning |
-|------|---------|
-| `SKILL_NOT_FOUND` | No `skills/<name>/SKILL.md` exists |
-| `HEADING_NOT_FOUND` | Heading doesn't exist in the skill body |
-| `FRONTMATTER_NOT_FOUND` | Field path doesn't exist in YAML |
-| `STALE_OUTPUT` | Generated `.md` is out of date |
-
-**Dependency tracking**: `generated/build-from-skills.manifest.json` records which templates depend on which skills, enabling incremental builds and CI staleness checks.
 
 ---
 
@@ -827,19 +718,16 @@ After creating or modifying a skill:
 # 1. Build manifest (compiles frontmatter → JSON)
 bun run build:manifest
 
-# 2. Validate all skills
-bun run validate
-
-# 3. Test with explain CLI
+# 2. Test with explain CLI
 bun run scripts/explain.ts --file <your-file-pattern>
 
-# 4. Run full test suite
+# 3. Run full test suite
 bun test
 
-# 5. Build everything (hooks + manifest + templates)
+# 4. Build everything (hooks + manifest)
 bun run build
 
-# 6. Run doctor to check for issues
+# 5. Run doctor to check for issues
 bun run doctor
 ```
 
