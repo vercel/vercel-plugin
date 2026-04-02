@@ -439,7 +439,7 @@ describe("formatSkillInstallPalette", () => {
     });
 
     const palette = formatSkillInstallPalette(plan)!;
-    expect(palette).toContain("[1] Install now: npx skills add vercel/vercel-skills --skill ai-sdk --agent claude-code -y --copy");
+    expect(palette).toContain(`[1] Install now: cd '${plan.projectStateRoot}' && npx skills add vercel/vercel-skills --skill ai-sdk --agent claude-code -y --copy`);
   });
 
   test("omits install line when all skills cached", () => {
@@ -510,7 +510,7 @@ describe("formatSkillInstallPalette", () => {
     });
 
     const palette = formatSkillInstallPalette(plan)!;
-    expect(palette).toContain("[4] Link project: vercel link --yes");
+    expect(palette).toContain("[4] Link project: cd '/repo' && vercel link --yes");
   });
 
   test("shows env pull command when linked but no .env.local", () => {
@@ -526,7 +526,7 @@ describe("formatSkillInstallPalette", () => {
     });
 
     const palette = formatSkillInstallPalette(plan)!;
-    expect(palette).toContain("[5] Pull env: vercel env pull --yes");
+    expect(palette).toContain("[5] Pull env: cd '/repo' && vercel env pull --yes");
     // Should not show link since already linked
     expect(palette).not.toContain("[4] Link project");
   });
@@ -543,7 +543,7 @@ describe("formatSkillInstallPalette", () => {
     });
 
     const palette = formatSkillInstallPalette(plan)!;
-    expect(palette).toContain("[6] Deploy: vercel deploy");
+    expect(palette).toContain("[6] Deploy: cd '/repo' && vercel deploy");
   });
 
   test("omits deploy and env-pull commands when not linked", () => {
@@ -560,7 +560,7 @@ describe("formatSkillInstallPalette", () => {
 
     const palette = formatSkillInstallPalette(plan)!;
     // Link should be shown
-    expect(palette).toContain("[4] Link project: vercel link --yes");
+    expect(palette).toContain("[4] Link project: cd '/repo' && vercel link --yes");
     // Env pull / deploy have null commands so should not appear
     expect(palette).not.toContain("[5] Pull env");
     expect(palette).not.toContain("[6] Deploy");

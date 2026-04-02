@@ -13,6 +13,7 @@ import {
   type VercelSubcommand,
 } from "./vercel-cli-command.mjs";
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
+import { formatCommandWithCwd } from "./registry-client.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +42,7 @@ export interface SkillInstallAction {
   label: string;
   description: string;
   command: string | null;
+  cwd: string | null;
   default?: boolean;
 }
 
@@ -126,6 +128,7 @@ export function buildSkillInstallPlan(args: {
           ? "All detected skills are already cached."
           : `Install ${missingSkills.length} missing skill${missingSkills.length === 1 ? "" : "s"} into ${statePaths.skillsDir}.`,
       command: installCommand,
+      cwd: installCommand ? statePaths.stateRoot : null,
       default: !args.zeroBundleReady,
     },
     {
@@ -137,6 +140,7 @@ export function buildSkillInstallPlan(args: {
       command: args.zeroBundleReady
         ? "export VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK=1"
         : null,
+      cwd: null,
       default: args.zeroBundleReady,
     },
     {
@@ -145,6 +149,7 @@ export function buildSkillInstallPlan(args: {
       description:
         "Open the persisted install plan with full detection reasons.",
       command: `cat "${statePaths.installPlanPath}"`,
+      cwd: null,
     },
   ];
 
@@ -155,6 +160,7 @@ export function buildSkillInstallPlan(args: {
       label: "Link Vercel project",
       description: "No .vercel/ directory found. Link this project to a Vercel project.",
       command: buildVercelCliCommand("link").printable,
+      cwd: args.projectRoot,
     });
   }
 
@@ -168,6 +174,7 @@ export function buildSkillInstallPlan(args: {
       command: vercelLinked
         ? buildVercelCliCommand("env-pull").printable
         : null,
+      cwd: vercelLinked ? args.projectRoot : null,
     });
   }
 
@@ -180,6 +187,7 @@ export function buildSkillInstallPlan(args: {
     command: vercelLinked
       ? buildVercelCliCommand("deploy").printable
       : null,
+    cwd: vercelLinked ? args.projectRoot : null,
   });
 
   return {
@@ -235,15 +243,21 @@ export function formatSkillInstallPalette(
   const installAction = plan.actions.find(
     (action) => action.id === "install-missing",
   );
-  if (installAction?.command) {
-    lines.push(`- [1] Install now: ${installAction.command}`);
+  const installDisplay = installAction
+    ? formatCommandWithCwd(installAction.command, installAction.cwd)
+    : null;
+  if (installDisplay) {
+    lines.push(`- [1] Install now: ${installDisplay}`);
   }
 
   const cacheOnlyAction = plan.actions.find(
     (action) => action.id === "activate-cache-only",
   );
-  if (cacheOnlyAction?.command) {
-    lines.push(`- [2] Cache only: ${cacheOnlyAction.command}`);
+  const cacheOnlyDisplay = cacheOnlyAction
+    ? formatCommandWithCwd(cacheOnlyAction.command, cacheOnlyAction.cwd)
+    : null;
+  if (cacheOnlyDisplay) {
+    lines.push(`- [2] Cache only: ${cacheOnlyDisplay}`);
   }
 
   lines.push(`- [3] Explain: cat "${plan.installPlanPath}"`);
@@ -251,22 +265,31 @@ export function formatSkillInstallPalette(
   const vercelLinkAction = plan.actions.find(
     (action) => action.id === "vercel-link",
   );
-  if (vercelLinkAction?.command) {
-    lines.push(`- [4] Link project: ${vercelLinkAction.command}`);
+  const vercelLinkDisplay = vercelLinkAction
+    ? formatCommandWithCwd(vercelLinkAction.command, vercelLinkAction.cwd)
+    : null;
+  if (vercelLinkDisplay) {
+    lines.push(`- [4] Link project: ${vercelLinkDisplay}`);
   }
 
   const envPullAction = plan.actions.find(
     (action) => action.id === "vercel-env-pull",
   );
-  if (envPullAction?.command) {
-    lines.push(`- [5] Pull env: ${envPullAction.command}`);
+  const envPullDisplay = envPullAction
+    ? formatCommandWithCwd(envPullAction.command, envPullAction.cwd)
+    : null;
+  if (envPullDisplay) {
+    lines.push(`- [5] Pull env: ${envPullDisplay}`);
   }
 
   const deployAction = plan.actions.find(
     (action) => action.id === "vercel-deploy",
   );
-  if (deployAction?.command) {
-    lines.push(`- [6] Deploy: ${deployAction.command}`);
+  const deployDisplay = deployAction
+    ? formatCommandWithCwd(deployAction.command, deployAction.cwd)
+    : null;
+  if (deployDisplay) {
+    lines.push(`- [6] Deploy: ${deployDisplay}`);
   }
 
   if (plan.detections.length > 0) {

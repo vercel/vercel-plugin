@@ -35,6 +35,21 @@ export interface InstallSkillsResult {
   reused: string[];
   missing: string[];
   command: string | null;
+  commandCwd: string | null;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+export function formatCommandWithCwd(
+  command: string | null,
+  cwd: string | null,
+): string | null {
+  if (!command) return null;
+  return cwd && cwd.trim() !== ""
+    ? `cd ${shellQuote(cwd)} && ${command}`
+    : command;
 }
 
 export interface RegistryClientOptions {
@@ -110,6 +125,7 @@ export function createRegistryClient(
           reused: [],
           missing: requested,
           command: null,
+          commandCwd: null,
         };
       }
 
@@ -138,6 +154,7 @@ export function createRegistryClient(
         ),
         missing: requested.filter((skill) => !after.has(skill)),
         command: command.printable,
+        commandCwd: statePaths.stateRoot,
       };
     },
   };

@@ -543,6 +543,7 @@ describe("PostToolUse install-and-reinject", () => {
           reused: [],
           missing: args.skillNames.filter((s) => !installed.includes(s)),
           command: `npx skills add vercel/vercel-skills --skill ${args.skillNames.join(" --skill ")} --agent claude-code -y`,
+          commandCwd: projectDir,
         };
       },
     };
@@ -780,6 +781,7 @@ describe("PostToolUse install-and-reinject", () => {
             reused: [],
             missing: [],
             command: "npx skills add mock",
+            commandCwd: projectDir,
           };
         },
       };
@@ -978,9 +980,9 @@ describe("buildPostInstallActionPalette", () => {
       hasEnvLocal: false,
       detections: [],
       actions: [
-        { id: "vercel-link", label: "Link Vercel project", description: "", command: "vercel link --yes" },
-        { id: "vercel-env-pull", label: "Pull environment variables", description: "", command: "vercel env pull --yes" },
-        { id: "vercel-deploy", label: "Deploy to Vercel", description: "", command: "vercel deploy" },
+        { id: "vercel-link", label: "Link Vercel project", description: "", command: "vercel link --yes", cwd: "/tmp" },
+        { id: "vercel-env-pull", label: "Pull environment variables", description: "", command: "vercel env pull --yes", cwd: "/tmp" },
+        { id: "vercel-deploy", label: "Deploy to Vercel", description: "", command: "vercel deploy", cwd: "/tmp" },
       ],
     };
 

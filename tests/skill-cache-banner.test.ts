@@ -317,6 +317,7 @@ describe("resolveSkillCacheBanner", () => {
             reused: [],
             missing: args.skillNames.slice(1),
             command: "npx skills add ...",
+            commandCwd: null,
           };
         },
       };

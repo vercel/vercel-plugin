@@ -37,6 +37,7 @@ async function runBuild(): Promise<{ code: number; stdout: string; stderr: strin
     stdout: "pipe",
     stderr: "pipe",
     cwd: ROOT,
+    env: { ...process.env, VERCEL_PLUGIN_SKILLS_DIR: SKILLS_DIR },
   });
   const code = await proc.exited;
   const stdout = await new Response(proc.stdout).text();

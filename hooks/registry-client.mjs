@@ -8,6 +8,13 @@ import {
   resolveProjectStatePaths
 } from "./project-state-paths.mjs";
 var execFileAsync = promisify(execFile);
+function shellQuote(value) {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+function formatCommandWithCwd(command, cwd) {
+  if (!command) return null;
+  return cwd && cwd.trim() !== "" ? `cd ${shellQuote(cwd)} && ${command}` : command;
+}
 function listProjectCachedSkills(projectRoot) {
   const state = readProjectSkillState(projectRoot);
   return state.installedSlugs;
@@ -36,7 +43,8 @@ function createRegistryClient(options = {}) {
           installed: [],
           reused: [],
           missing: requested2,
-          command: null
+          command: null,
+          commandCwd: null
         };
       }
       try {
@@ -60,11 +68,13 @@ function createRegistryClient(options = {}) {
           (skill) => after.has(skill) && before.has(skill)
         ),
         missing: requested.filter((skill) => !after.has(skill)),
-        command: command.printable
+        command: command.printable,
+        commandCwd: statePaths.stateRoot
       };
     }
   };
 }
 export {
-  createRegistryClient
+  createRegistryClient,
+  formatCommandWithCwd
 };

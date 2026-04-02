@@ -47,6 +47,7 @@ import {
 } from "./orchestrator-install-plan.mjs";
 import {
   createRegistryClient,
+  formatCommandWithCwd,
   type InstallSkillsResult,
 } from "./registry-client.mjs";
 import {
@@ -784,10 +785,17 @@ export function buildAutoInstallResultBlock(args: {
   stateRoot: string;
   skillsDir: string;
   installPlanPath: string;
+  refreshedInstalledSkills: string[];
+  refreshedMissingSkills: string[];
 }): string {
   const { result } = args;
+  const retryCommand = formatCommandWithCwd(
+    result.command,
+    result.commandCwd,
+  );
+
   const outcome =
-    result.missing.length === 0
+    args.refreshedMissingSkills.length === 0
       ? "ready"
       : result.installed.length > 0 || result.reused.length > 0
         ? "partial"
@@ -801,12 +809,15 @@ export function buildAutoInstallResultBlock(args: {
     result.reused.length > 0
       ? `- Already cached: ${result.reused.join(", ")}`
       : null,
-    `- Remaining missing: ${result.missing.length > 0 ? result.missing.join(", ") : "none"}`,
+    args.refreshedInstalledSkills.length > 0
+      ? `- Cached after refresh: ${args.refreshedInstalledSkills.join(", ")}`
+      : null,
+    `- Remaining missing: ${args.refreshedMissingSkills.length > 0 ? args.refreshedMissingSkills.join(", ") : "none"}`,
     `- State root: ${args.stateRoot}`,
     `- Skill cache: ${args.skillsDir}`,
     `- Install plan: ${args.installPlanPath}`,
-    result.command && result.missing.length > 0
-      ? `- Retry: ${result.command}`
+    retryCommand && args.refreshedMissingSkills.length > 0
+      ? `- Retry: ${retryCommand}`
       : null,
   ]
     .filter((line): line is string => Boolean(line))
@@ -828,6 +839,7 @@ export async function autoInstallDetectedSkills(args: {
     reused: [],
     missing: [...args.missingSkills],
     command: null,
+    commandCwd: null,
   };
 
   if (args.missingSkills.length === 0) {
@@ -1030,6 +1042,23 @@ async function main(): Promise<void> {
       installResultMissing: installResult.missing,
       cacheStatusMissing: skillCacheStatus.missingSkills,
     });
+
+    log.debug("session-start-profiler-auto-install-rendered-status", {
+      projectRoot,
+      refreshedInstalledSkills: installedSkills,
+      refreshedMissingSkills: skillCacheStatus.missingSkills,
+      renderedOutcome:
+        skillCacheStatus.missingSkills.length === 0
+          ? "ready"
+          : installResult.installed.length > 0 ||
+              installResult.reused.length > 0
+            ? "partial"
+            : "needs attention",
+      retryCommand: formatCommandWithCwd(
+        installResult.command,
+        installResult.commandCwd,
+      ),
+    });
   }
 
   if (missingBeforeInstall.length > 0) {
@@ -1039,6 +1068,8 @@ async function main(): Promise<void> {
         stateRoot: statePaths.stateRoot,
         skillsDir: statePaths.skillsDir,
         installPlanPath: statePaths.installPlanPath,
+        refreshedInstalledSkills: installedSkills,
+        refreshedMissingSkills: skillCacheStatus.missingSkills,
       }),
     );
   }
@@ -1083,6 +1114,11 @@ async function main(): Promise<void> {
     projectSkillManifestPath,
     vercelLinked,
     hasEnvLocal,
+  });
+
+  log.debug("session-start-profiler-install-plan-install-action", {
+    projectRoot,
+    installAction: installPlan.actions.find((action) => action.id === "install-missing") ?? null,
   });
 
   try {

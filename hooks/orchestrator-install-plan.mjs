@@ -4,6 +4,7 @@ import {
   buildVercelCliCommand
 } from "./vercel-cli-command.mjs";
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
+import { formatCommandWithCwd } from "./registry-client.mjs";
 import { buildVercelCliCommand as buildVercelCliCommand2, vercelSubcommands } from "./vercel-cli-command.mjs";
 function uniqueSorted(values) {
   return [...new Set(values.filter((value) => value.trim() !== ""))].sort();
@@ -34,6 +35,7 @@ function buildSkillInstallPlan(args) {
       label: "Install detected skills",
       description: missingSkills.length === 0 ? "All detected skills are already cached." : `Install ${missingSkills.length} missing skill${missingSkills.length === 1 ? "" : "s"} into ${statePaths.skillsDir}.`,
       command: installCommand,
+      cwd: installCommand ? statePaths.stateRoot : null,
       default: !args.zeroBundleReady
     },
     {
@@ -41,13 +43,15 @@ function buildSkillInstallPlan(args) {
       label: "Use cache-only mode",
       description: args.zeroBundleReady ? "All detected skills are cached. This session can disable shipped fallback metadata." : "Cache-only mode is blocked until the missing skills are installed.",
       command: args.zeroBundleReady ? "export VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK=1" : null,
+      cwd: null,
       default: args.zeroBundleReady
     },
     {
       id: "explain",
       label: "Explain detections",
       description: "Open the persisted install plan with full detection reasons.",
-      command: `cat "${statePaths.installPlanPath}"`
+      command: `cat "${statePaths.installPlanPath}"`,
+      cwd: null
     }
   ];
   if (!vercelLinked) {
@@ -55,7 +59,8 @@ function buildSkillInstallPlan(args) {
       id: "vercel-link",
       label: "Link Vercel project",
       description: "No .vercel/ directory found. Link this project to a Vercel project.",
-      command: buildVercelCliCommand("link").printable
+      command: buildVercelCliCommand("link").printable,
+      cwd: args.projectRoot
     });
   }
   if (!hasEnvLocal) {
@@ -63,14 +68,16 @@ function buildSkillInstallPlan(args) {
       id: "vercel-env-pull",
       label: "Pull environment variables",
       description: vercelLinked ? "Pull .env.local from the linked Vercel project." : "Link the project first, then pull .env.local.",
-      command: vercelLinked ? buildVercelCliCommand("env-pull").printable : null
+      command: vercelLinked ? buildVercelCliCommand("env-pull").printable : null,
+      cwd: vercelLinked ? args.projectRoot : null
     });
   }
   actions.push({
     id: "vercel-deploy",
     label: "Deploy to Vercel",
     description: vercelLinked ? "Deploy the current project to Vercel." : "Link the project first, then deploy.",
-    command: vercelLinked ? buildVercelCliCommand("deploy").printable : null
+    command: vercelLinked ? buildVercelCliCommand("deploy").printable : null,
+    cwd: vercelLinked ? args.projectRoot : null
   });
   return {
     schemaVersion: 1,
@@ -111,33 +118,38 @@ function formatSkillInstallPalette(plan) {
   const installAction = plan.actions.find(
     (action) => action.id === "install-missing"
   );
-  if (installAction?.command) {
-    lines.push(`- [1] Install now: ${installAction.command}`);
+  const installDisplay = installAction ? formatCommandWithCwd(installAction.command, installAction.cwd) : null;
+  if (installDisplay) {
+    lines.push(`- [1] Install now: ${installDisplay}`);
   }
   const cacheOnlyAction = plan.actions.find(
     (action) => action.id === "activate-cache-only"
   );
-  if (cacheOnlyAction?.command) {
-    lines.push(`- [2] Cache only: ${cacheOnlyAction.command}`);
+  const cacheOnlyDisplay = cacheOnlyAction ? formatCommandWithCwd(cacheOnlyAction.command, cacheOnlyAction.cwd) : null;
+  if (cacheOnlyDisplay) {
+    lines.push(`- [2] Cache only: ${cacheOnlyDisplay}`);
   }
   lines.push(`- [3] Explain: cat "${plan.installPlanPath}"`);
   const vercelLinkAction = plan.actions.find(
     (action) => action.id === "vercel-link"
   );
-  if (vercelLinkAction?.command) {
-    lines.push(`- [4] Link project: ${vercelLinkAction.command}`);
+  const vercelLinkDisplay = vercelLinkAction ? formatCommandWithCwd(vercelLinkAction.command, vercelLinkAction.cwd) : null;
+  if (vercelLinkDisplay) {
+    lines.push(`- [4] Link project: ${vercelLinkDisplay}`);
   }
   const envPullAction = plan.actions.find(
     (action) => action.id === "vercel-env-pull"
   );
-  if (envPullAction?.command) {
-    lines.push(`- [5] Pull env: ${envPullAction.command}`);
+  const envPullDisplay = envPullAction ? formatCommandWithCwd(envPullAction.command, envPullAction.cwd) : null;
+  if (envPullDisplay) {
+    lines.push(`- [5] Pull env: ${envPullDisplay}`);
   }
   const deployAction = plan.actions.find(
     (action) => action.id === "vercel-deploy"
   );
-  if (deployAction?.command) {
-    lines.push(`- [6] Deploy: ${deployAction.command}`);
+  const deployDisplay = deployAction ? formatCommandWithCwd(deployAction.command, deployAction.cwd) : null;
+  if (deployDisplay) {
+    lines.push(`- [6] Deploy: ${deployDisplay}`);
   }
   if (plan.detections.length > 0) {
     lines.push("", "Detection reasons:");

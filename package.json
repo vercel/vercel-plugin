@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build:hooks": "tsup --config hooks/tsup.config.ts",
-    "build:manifest": "bun run scripts/build-manifest.ts",
+    "build:manifest": "VERCEL_PLUGIN_SKILLS_DIR=./skills bun run scripts/build-manifest.ts",
     "build:from-skills": "VERCEL_PLUGIN_SKILLS_DIR=./skills bun run scripts/build-from-skills.ts",
     "build:from-skills:check": "VERCEL_PLUGIN_SKILLS_DIR=./skills bun run scripts/build-from-skills.ts --check",
     "build": "bun run build:hooks && bun run build:manifest && bun run build:from-skills",

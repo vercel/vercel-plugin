@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildAutoInstallResultBlock,
   buildSessionStartProfilerEnvVars,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
 } from "./src/session-start-profiler.mts";
+import type { InstallSkillsResult } from "./src/registry-client.mts";
 
 describe("session-start-profiler platform detection", () => {
   test("test_session_start_profiler_does_not_infer_cursor_from_cursor_project_dir_alone", () => {
@@ -153,5 +155,121 @@ describe("session-start-profiler env export contract", () => {
     const parsed = JSON.parse(output);
     expect(parsed.env.VERCEL_PLUGIN_LIKELY_SKILLS).toBe("ai-sdk,nextjs");
     expect(parsed.env.VERCEL_PLUGIN_INSTALLED_SKILLS).toBe("ai-sdk");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildAutoInstallResultBlock — refreshed vs stale result rendering
+// ---------------------------------------------------------------------------
+
+describe("buildAutoInstallResultBlock", () => {
+  const stateRoot = "/home/alice/.vercel-plugin/projects/abc123";
+  const skillsDir = `${stateRoot}/.skills`;
+  const installPlanPath = `${skillsDir}/install-plan.json`;
+
+  test("renders 'ready' when refreshed missing is empty even if install result had misses", () => {
+    const result: InstallSkillsResult = {
+      installed: [],
+      reused: [],
+      missing: ["nextjs"],
+      command: "npx skills add nextjs --agent claude-code",
+      commandCwd: stateRoot,
+    };
+    const block = buildAutoInstallResultBlock({
+      result,
+      stateRoot,
+      skillsDir,
+      installPlanPath,
+      refreshedInstalledSkills: ["nextjs"],
+      refreshedMissingSkills: [],
+    });
+    expect(block).toContain("(ready)");
+    expect(block).toContain("Remaining missing: none");
+    expect(block).toContain("Cached after refresh: nextjs");
+    // No retry line when nothing is missing after refresh
+    expect(block).not.toContain("Retry:");
+  });
+
+  test("renders 'partial' when install succeeded but refreshed missing remains", () => {
+    const result: InstallSkillsResult = {
+      installed: ["nextjs"],
+      reused: [],
+      missing: ["ai-sdk"],
+      command: "npx skills add nextjs ai-sdk --agent claude-code",
+      commandCwd: stateRoot,
+    };
+    const block = buildAutoInstallResultBlock({
+      result,
+      stateRoot,
+      skillsDir,
+      installPlanPath,
+      refreshedInstalledSkills: ["nextjs"],
+      refreshedMissingSkills: ["ai-sdk"],
+    });
+    expect(block).toContain("(partial)");
+    expect(block).toContain("Installed now: nextjs");
+    expect(block).toContain("Remaining missing: ai-sdk");
+    expect(block).toContain(`Retry: cd '${stateRoot}'`);
+  });
+
+  test("renders 'needs attention' when nothing installed and refreshed missing remains", () => {
+    const result: InstallSkillsResult = {
+      installed: [],
+      reused: [],
+      missing: ["nextjs"],
+      command: "npx skills add nextjs --agent claude-code",
+      commandCwd: stateRoot,
+    };
+    const block = buildAutoInstallResultBlock({
+      result,
+      stateRoot,
+      skillsDir,
+      installPlanPath,
+      refreshedInstalledSkills: [],
+      refreshedMissingSkills: ["nextjs"],
+    });
+    expect(block).toContain("(needs attention)");
+    expect(block).toContain("Remaining missing: nextjs");
+    expect(block).toContain("Retry:");
+  });
+
+  test("omits retry line when command is null", () => {
+    const result: InstallSkillsResult = {
+      installed: [],
+      reused: [],
+      missing: ["nextjs"],
+      command: null,
+      commandCwd: null,
+    };
+    const block = buildAutoInstallResultBlock({
+      result,
+      stateRoot,
+      skillsDir,
+      installPlanPath,
+      refreshedInstalledSkills: [],
+      refreshedMissingSkills: ["nextjs"],
+    });
+    expect(block).not.toContain("Retry:");
+  });
+
+  test("retry uses cd '<stateRoot>' && <command> format", () => {
+    const result: InstallSkillsResult = {
+      installed: [],
+      reused: [],
+      missing: ["ai-sdk"],
+      command: "npx skills add ai-sdk --agent claude-code",
+      commandCwd: stateRoot,
+    };
+    const block = buildAutoInstallResultBlock({
+      result,
+      stateRoot,
+      skillsDir,
+      installPlanPath,
+      refreshedInstalledSkills: [],
+      refreshedMissingSkills: ["ai-sdk"],
+    });
+    expect(block).toContain(
+      `Retry: cd '${stateRoot}' && npx skills add ai-sdk --agent claude-code`,
+    );
   });
 });

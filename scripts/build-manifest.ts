@@ -20,10 +20,14 @@ import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 export { buildManifest, writeManifestFile, synthesizeChainToFromValidate };
 
 const ROOT = resolve(import.meta.dir, "..");
-const SKILLS_DIR = join(ROOT, "skills");
-const INPUT_SKILLS_DIR = process.env.VERCEL_PLUGIN_SKILLS_DIR
-  ? resolve(process.env.VERCEL_PLUGIN_SKILLS_DIR)
-  : SKILLS_DIR;
+
+function resolveInputSkillsDir(): string {
+  const configured = process.env.VERCEL_PLUGIN_SKILLS_DIR?.trim();
+  if (configured) return resolve(configured);
+  throw new Error(
+    "VERCEL_PLUGIN_SKILLS_DIR is required. Set it to the skills source directory (e.g. VERCEL_PLUGIN_SKILLS_DIR=./skills).",
+  );
+}
 const OUT_DIR = join(ROOT, "generated");
 const OUT_FILE = join(OUT_DIR, "skill-rules.json");
 
@@ -232,7 +236,7 @@ function isMain() {
 }
 
 if (isMain()) {
-  const { manifest, warnings, errors } = buildManifest(INPUT_SKILLS_DIR);
+  const { manifest, warnings, errors } = buildManifest(resolveInputSkillsDir());
 
   for (const w of warnings) console.warn(`[warn] ${w}`);
 

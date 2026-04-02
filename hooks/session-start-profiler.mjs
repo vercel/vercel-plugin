@@ -29,7 +29,8 @@ import {
   serializeSkillInstallPlan
 } from "./orchestrator-install-plan.mjs";
 import {
-  createRegistryClient
+  createRegistryClient,
+  formatCommandWithCwd
 } from "./registry-client.mjs";
 import {
   createVercelCliDelegator
@@ -523,16 +524,21 @@ function buildAutoInstallStartBlock(args) {
 }
 function buildAutoInstallResultBlock(args) {
   const { result } = args;
-  const outcome = result.missing.length === 0 ? "ready" : result.installed.length > 0 || result.reused.length > 0 ? "partial" : "needs attention";
+  const retryCommand = formatCommandWithCwd(
+    result.command,
+    result.commandCwd
+  );
+  const outcome = args.refreshedMissingSkills.length === 0 ? "ready" : result.installed.length > 0 || result.reused.length > 0 ? "partial" : "needs attention";
   return [
     `### Vercel skill cache (${outcome})`,
     result.installed.length > 0 ? `- Installed now: ${result.installed.join(", ")}` : null,
     result.reused.length > 0 ? `- Already cached: ${result.reused.join(", ")}` : null,
-    `- Remaining missing: ${result.missing.length > 0 ? result.missing.join(", ") : "none"}`,
+    args.refreshedInstalledSkills.length > 0 ? `- Cached after refresh: ${args.refreshedInstalledSkills.join(", ")}` : null,
+    `- Remaining missing: ${args.refreshedMissingSkills.length > 0 ? args.refreshedMissingSkills.join(", ") : "none"}`,
     `- State root: ${args.stateRoot}`,
     `- Skill cache: ${args.skillsDir}`,
     `- Install plan: ${args.installPlanPath}`,
-    result.command && result.missing.length > 0 ? `- Retry: ${result.command}` : null
+    retryCommand && args.refreshedMissingSkills.length > 0 ? `- Retry: ${retryCommand}` : null
   ].filter((line) => Boolean(line)).join("\n");
 }
 async function autoInstallDetectedSkills(args) {
@@ -540,7 +546,8 @@ async function autoInstallDetectedSkills(args) {
     installed: [],
     reused: [],
     missing: [...args.missingSkills],
-    command: null
+    command: null,
+    commandCwd: null
   };
   if (args.missingSkills.length === 0) {
     return emptyResult;
@@ -690,6 +697,16 @@ async function main() {
       installResultMissing: installResult.missing,
       cacheStatusMissing: skillCacheStatus.missingSkills
     });
+    log.debug("session-start-profiler-auto-install-rendered-status", {
+      projectRoot,
+      refreshedInstalledSkills: installedSkills,
+      refreshedMissingSkills: skillCacheStatus.missingSkills,
+      renderedOutcome: skillCacheStatus.missingSkills.length === 0 ? "ready" : installResult.installed.length > 0 || installResult.reused.length > 0 ? "partial" : "needs attention",
+      retryCommand: formatCommandWithCwd(
+        installResult.command,
+        installResult.commandCwd
+      )
+    });
   }
   if (missingBeforeInstall.length > 0) {
     userMessages.unshift(
@@ -697,7 +714,9 @@ async function main() {
         result: installResult,
         stateRoot: statePaths.stateRoot,
         skillsDir: statePaths.skillsDir,
-        installPlanPath: statePaths.installPlanPath
+        installPlanPath: statePaths.installPlanPath,
+        refreshedInstalledSkills: installedSkills,
+        refreshedMissingSkills: skillCacheStatus.missingSkills
       })
     );
   }
@@ -731,6 +750,10 @@ async function main() {
     projectSkillManifestPath,
     vercelLinked,
     hasEnvLocal
+  });
+  log.debug("session-start-profiler-install-plan-install-action", {
+    projectRoot,
+    installAction: installPlan.actions.find((action) => action.id === "install-missing") ?? null
   });
   try {
     writePersistedSkillInstallPlan(installPlan, log);
