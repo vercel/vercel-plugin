@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { afterAll, beforeEach, describe, test, expect } from "bun:test";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,6 +13,18 @@ const {
   buildProjectSkillInstallQuestion,
   resolveSkillCacheBanner,
 } = await import("../hooks/skill-cache-banner.mjs");
+
+const TEST_HOME = join(tmpdir(), `vercel-plugin-skill-cache-banner-home-${Date.now()}`);
+
+beforeEach(() => {
+  rmSync(TEST_HOME, { recursive: true, force: true });
+  process.env.VERCEL_PLUGIN_HOME_DIR = TEST_HOME;
+});
+
+afterAll(() => {
+  rmSync(TEST_HOME, { recursive: true, force: true });
+  delete process.env.VERCEL_PLUGIN_HOME_DIR;
+});
 
 // ---------------------------------------------------------------------------
 // buildSkillCacheStatus
@@ -103,7 +115,7 @@ describe("buildSkillCacheBanner", () => {
     expect(banner).not.toContain("Missing:");
   });
 
-  test("incomplete banner with bundled fallback", () => {
+  test("incomplete banner with summary-only fallback", () => {
     const banner = buildSkillCacheBanner({
       likelySkills: ["ai-sdk", "nextjs"],
       installedSkills: ["nextjs"],
@@ -113,12 +125,12 @@ describe("buildSkillCacheBanner", () => {
       zeroBundleReady: false,
       projectRoot: "/repo",
     });
-    expect(banner).toContain("bundled fallback can cover the gap");
+    expect(banner).toContain("summary-only injection from rules manifest until cached");
     expect(banner).toContain("Missing: ai-sdk");
     expect(banner).toContain("Install:");
   });
 
-  test("incomplete banner without bundled fallback", () => {
+  test("incomplete banner without bundled fallback also shows summary-only", () => {
     const banner = buildSkillCacheBanner({
       likelySkills: ["ai-sdk"],
       installedSkills: [],
@@ -128,7 +140,7 @@ describe("buildSkillCacheBanner", () => {
       zeroBundleReady: false,
       projectRoot: "/repo",
     });
-    expect(banner).toContain("missing skills will not inject until installed");
+    expect(banner).toContain("summary-only injection from rules manifest until cached");
   });
 
   test("shows extra installed skills in ready banner", () => {
@@ -175,6 +187,7 @@ describe("buildProjectSkillInstallQuestion", () => {
     expect(q).toContain("ai-sdk");
     expect(q).toContain("nextjs");
     expect(q).toContain("Want me to install");
+    expect(q).toContain("project's skill cache");
   });
 });
 
@@ -376,6 +389,6 @@ describe("resolveSkillCacheBanner", () => {
     });
 
     expect(result.installResult).toBeNull();
-    expect(result.banner).toContain("missing skills will not inject until installed");
+    expect(result.banner).toContain("summary-only injection from rules manifest until cached");
   });
 });

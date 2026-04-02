@@ -749,8 +749,73 @@ export function formatSessionStartProfilerCursorOutput(
 }
 
 /**
- * When VERCEL_PLUGIN_SKILL_AUTO_INSTALL=1, install missing detected skills
- * from the registry into the hashed home-state cache directory.
+ * Emit a progress block to stdout for Claude Code before installation begins.
+ * Cursor output stays JSON-only, so this is a no-op for non-claude-code platforms.
+ */
+export function emitProgressBlock(platform: string, lines: string[]): void {
+  if (platform !== "claude-code" || lines.length === 0) return;
+  process.stdout.write(`${lines.join("\n")}\n\n`);
+}
+
+/**
+ * Build the pre-install progress lines shown before auto-install starts.
+ */
+export function buildAutoInstallStartBlock(args: {
+  missingSkills: string[];
+  stateRoot: string;
+  skillsDir: string;
+  installPlanPath: string;
+}): string[] {
+  return [
+    "### Vercel skill cache",
+    `- Installing ${args.missingSkills.length} detected skill${args.missingSkills.length === 1 ? "" : "s"} before the session starts`,
+    `- Queue: ${args.missingSkills.join(", ")}`,
+    `- State root: ${args.stateRoot}`,
+    `- Skill cache: ${args.skillsDir}`,
+    `- Install plan: ${args.installPlanPath}`,
+  ];
+}
+
+/**
+ * Build the post-install result block for the final session context.
+ */
+export function buildAutoInstallResultBlock(args: {
+  result: InstallSkillsResult;
+  stateRoot: string;
+  skillsDir: string;
+  installPlanPath: string;
+}): string {
+  const { result } = args;
+  const outcome =
+    result.missing.length === 0
+      ? "ready"
+      : result.installed.length > 0 || result.reused.length > 0
+        ? "partial"
+        : "needs attention";
+
+  return [
+    `### Vercel skill cache (${outcome})`,
+    result.installed.length > 0
+      ? `- Installed now: ${result.installed.join(", ")}`
+      : null,
+    result.reused.length > 0
+      ? `- Already cached: ${result.reused.join(", ")}`
+      : null,
+    `- Remaining missing: ${result.missing.length > 0 ? result.missing.join(", ") : "none"}`,
+    `- State root: ${args.stateRoot}`,
+    `- Skill cache: ${args.skillsDir}`,
+    `- Install plan: ${args.installPlanPath}`,
+    result.command && result.missing.length > 0
+      ? `- Retry: ${result.command}`
+      : null,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+}
+
+/**
+ * Install missing detected skills from the registry into the hashed
+ * home-state cache directory. Always-on — no env-var gate required.
  */
 export async function autoInstallDetectedSkills(args: {
   projectRoot: string;
@@ -765,22 +830,33 @@ export async function autoInstallDetectedSkills(args: {
     command: null,
   };
 
-  if (
-    args.missingSkills.length === 0 ||
-    process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL !== "1"
-  ) {
+  if (args.missingSkills.length === 0) {
     return emptyResult;
   }
+
+  args.logger?.debug("session-start-profiler-auto-install-start", {
+    projectRoot: args.projectRoot,
+    missingSkills: args.missingSkills,
+  });
 
   const client = createRegistryClient({
     source: args.skillsSource,
   });
-  let result: InstallSkillsResult;
   try {
-    result = await client.installSkills({
+    const result = await client.installSkills({
       projectRoot: args.projectRoot,
       skillNames: args.missingSkills,
     });
+
+    args.logger?.debug("session-start-profiler-auto-install-result", {
+      projectRoot: args.projectRoot,
+      installed: result.installed,
+      reused: result.reused,
+      missing: result.missing,
+      command: result.command,
+    });
+
+    return result;
   } catch (error) {
     logCaughtError(
       args.logger ?? log,
@@ -793,14 +869,6 @@ export async function autoInstallDetectedSkills(args: {
     );
     return emptyResult;
   }
-
-  args.logger?.debug("session-start-profiler-auto-install", {
-    installed: result.installed,
-    reused: result.reused,
-    missing: result.missing,
-  });
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -917,10 +985,24 @@ async function main(): Promise<void> {
   let installedSkills = installedState.installedSkills;
   let skillCacheStatus = installedState.cacheStatus;
 
-  // Auto-install missing skills from registry when opted in
+  // Auto-install missing skills from registry (always-on, blocking)
+  const missingBeforeInstall = [...skillCacheStatus.missingSkills];
+
+  if (missingBeforeInstall.length > 0) {
+    emitProgressBlock(
+      platform,
+      buildAutoInstallStartBlock({
+        missingSkills: missingBeforeInstall,
+        stateRoot: statePaths.stateRoot,
+        skillsDir: statePaths.skillsDir,
+        installPlanPath: statePaths.installPlanPath,
+      }),
+    );
+  }
+
   const installResult = await autoInstallDetectedSkills({
     projectRoot,
-    missingSkills: skillCacheStatus.missingSkills,
+    missingSkills: missingBeforeInstall,
     logger: log,
   });
 
@@ -936,30 +1018,17 @@ async function main(): Promise<void> {
     skillStore = installedState.skillStore;
     installedSkills = installedState.installedSkills;
     skillCacheStatus = installedState.cacheStatus;
+  }
 
-    // Surface a visible callout so the user knows auto-install happened
-    const installedOrReusedNow = [
-      ...installResult.installed,
-      ...installResult.reused,
-    ];
-    if (installedOrReusedNow.length > 0) {
-      userMessages.unshift(
-        [
-          "### Vercel skill cache",
-          installResult.installed.length > 0
-            ? `- Installed now: ${installResult.installed.join(", ")}`
-            : null,
-          installResult.reused.length > 0
-            ? `- Already cached: ${installResult.reused.join(", ")}`
-            : null,
-          `- State root: ${statePaths.stateRoot}`,
-          `- Skill cache: ${statePaths.skillsDir}`,
-          `- Install plan: ${statePaths.installPlanPath}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      );
-    }
+  if (missingBeforeInstall.length > 0) {
+    userMessages.unshift(
+      buildAutoInstallResultBlock({
+        result: installResult,
+        stateRoot: statePaths.stateRoot,
+        skillsDir: statePaths.skillsDir,
+        installPlanPath: statePaths.installPlanPath,
+      }),
+    );
   }
 
   // Read CLI-produced project skill state from the shared loader

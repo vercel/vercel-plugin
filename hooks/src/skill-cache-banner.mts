@@ -84,7 +84,7 @@ export function buildProjectSkillInstallQuestion(
   const missing = uniqueSorted(missingSkills);
   return missing.length === 0
     ? null
-    : `I detected Vercel skills for ${missing.join(", ")}. Want me to install them into .skills for this project?`;
+    : `I detected Vercel skills for ${missing.join(", ")}. Want me to install them into this project's skill cache?`;
 }
 
 export function buildSkillCacheStatus(args: {
@@ -125,8 +125,8 @@ export function formatProjectSkillStateLine(args: {
     source === "skills-lock.json"
       ? "Read from: skills-lock.json"
       : source === "manifest.json"
-        ? "Read from: .skills/manifest.json"
-        : "Read from: .skills directory";
+        ? "Read from: project skill manifest"
+        : "Read from: project skill cache";
   return path ? `${label} (${path})` : label;
 }
 
@@ -170,14 +170,10 @@ export function buildResolvedSkillCacheBanner(args: {
       : outcome === "partial"
         ? "Status: partially installed — some skills are ready, some still need install"
         : outcome === "failed"
-          ? status.bundledFallbackEnabled
-            ? "Status: auto-install failed — bundled fallback can cover the gap during migration"
-            : "Status: auto-install failed — missing skills will not inject until installed"
+          ? "Status: auto-install failed — summary-only injection from rules manifest until cached"
           : status.missingSkills.length === 0
             ? "Status: ready"
-            : status.bundledFallbackEnabled
-              ? "Status: incomplete cache — bundled fallback can cover the gap during migration"
-              : "Status: incomplete cache — missing skills will not inject until installed";
+            : "Status: incomplete cache — summary-only injection from rules manifest until cached";
 
   const showAskOnce = outcome === "suggest";
   const installQuestion =

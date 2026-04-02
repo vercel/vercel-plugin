@@ -2,7 +2,7 @@
 
 // hooks/src/pretooluse-skill-inject.mts
 import { readFileSync, realpathSync } from "fs";
-import { resolve } from "path";
+import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import {
   detectPlatform
@@ -31,6 +31,7 @@ import {
   buildDocsBlock
 } from "./patterns.mjs";
 import { createSkillStore } from "./skill-store.mjs";
+import { resolveProjectStatePaths, resolveVercelPluginHome } from "./project-state-paths.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
@@ -310,15 +311,21 @@ function loadSkills(pluginRoot, logger, projectRoot) {
     pluginRoot: root,
     bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
   });
+  const effectiveProjectRoot = projectRoot ?? process.cwd();
+  const statePaths = resolveProjectStatePaths(effectiveProjectRoot);
+  const globalCacheDir = join(resolveVercelPluginHome(), "skills");
   const loaded = skillStore.loadSkillSet(l);
   if (!loaded || Object.keys(loaded.skillMap).length === 0) {
     l.issue(
       "SKILLMAP_EMPTY",
-      "No skills were available from project cache, global cache, or bundled fallback",
-      "Install skills into .skills/ or ~/.vercel-plugin/skills, or re-enable bundled fallback during migration",
+      "No skills were available from the project cache, shared global cache, or shipped rules manifest",
+      `Install skills into ${statePaths.skillsDir} or ${globalCacheDir}. Until a body is cached, only the shipped summary can be injected.`,
       {
-        projectRoot: projectRoot ?? process.cwd(),
+        projectRoot: effectiveProjectRoot,
         pluginRoot: root,
+        stateRoot: statePaths.stateRoot,
+        skillsDir: statePaths.skillsDir,
+        globalCacheDir,
         roots: skillStore.roots.map((r) => ({
           source: r.source,
           rootDir: r.rootDir

@@ -27,7 +27,7 @@ function buildProjectSkillInstallCommand(args) {
 }
 function buildProjectSkillInstallQuestion(missingSkills) {
   const missing = uniqueSorted(missingSkills);
-  return missing.length === 0 ? null : `I detected Vercel skills for ${missing.join(", ")}. Want me to install them into .skills for this project?`;
+  return missing.length === 0 ? null : `I detected Vercel skills for ${missing.join(", ")}. Want me to install them into this project's skill cache?`;
 }
 function buildSkillCacheStatus(args) {
   const likelySkills = uniqueSorted(args.likelySkills);
@@ -53,7 +53,7 @@ function formatProjectSkillStateLine(args) {
   const source = args.source ?? "none";
   const path = args.path ?? null;
   if (source === "none") return null;
-  const label = source === "skills-lock.json" ? "Read from: skills-lock.json" : source === "manifest.json" ? "Read from: .skills/manifest.json" : "Read from: .skills directory";
+  const label = source === "skills-lock.json" ? "Read from: skills-lock.json" : source === "manifest.json" ? "Read from: project skill manifest" : "Read from: project skill cache";
   return path ? `${label} (${path})` : label;
 }
 function buildResolvedSkillCacheBanner(args) {
@@ -74,7 +74,7 @@ function buildResolvedSkillCacheBanner(args) {
     source: projectStateSource,
     path: projectStatePath
   });
-  const statusLine = outcome === "installed" ? "Status: installed now \u2014 project cache is ready" : outcome === "partial" ? "Status: partially installed \u2014 some skills are ready, some still need install" : outcome === "failed" ? status.bundledFallbackEnabled ? "Status: auto-install failed \u2014 bundled fallback can cover the gap during migration" : "Status: auto-install failed \u2014 missing skills will not inject until installed" : status.missingSkills.length === 0 ? "Status: ready" : status.bundledFallbackEnabled ? "Status: incomplete cache \u2014 bundled fallback can cover the gap during migration" : "Status: incomplete cache \u2014 missing skills will not inject until installed";
+  const statusLine = outcome === "installed" ? "Status: installed now \u2014 project cache is ready" : outcome === "partial" ? "Status: partially installed \u2014 some skills are ready, some still need install" : outcome === "failed" ? "Status: auto-install failed \u2014 summary-only injection from rules manifest until cached" : status.missingSkills.length === 0 ? "Status: ready" : "Status: incomplete cache \u2014 summary-only injection from rules manifest until cached";
   const showAskOnce = outcome === "suggest";
   const installQuestion = showAskOnce && status.missingSkills.length > 0 ? buildProjectSkillInstallQuestion(status.missingSkills) : null;
   const installCommand = status.missingSkills.length > 0 ? buildProjectSkillInstallCommand({

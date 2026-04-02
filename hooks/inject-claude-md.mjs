@@ -6,6 +6,7 @@ import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { formatOutput } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 var GREENFIELD_CONTEXT = `<!-- vercel-plugin:greenfield-execution -->
 ## Greenfield execution mode
 
@@ -48,15 +49,42 @@ function formatInjectClaudeMdOutput(platform, content) {
   }
   return content;
 }
-function stripFrontmatter(content) {
-  const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
-  return match ? match[1].trim() : content.trim();
+function debugInjectClaudeMd(event, data) {
+  if (process.env.VERCEL_PLUGIN_DEBUG !== "1") return;
+  process.stderr.write(`${JSON.stringify({ event, ...data })}
+`);
+}
+function loadKnowledgeUpdate(projectRoot) {
+  const store = createSkillStore({
+    projectRoot,
+    pluginRoot: pluginRoot()
+  });
+  const payload = store.resolveSkillPayload("knowledge-update");
+  if (!payload) {
+    debugInjectClaudeMd("inject-claude-md-knowledge-update", {
+      mode: "missing",
+      projectRoot
+    });
+    return null;
+  }
+  debugInjectClaudeMd("inject-claude-md-knowledge-update", {
+    mode: payload.mode,
+    source: payload.source,
+    projectRoot
+  });
+  if (payload.mode === "body" && payload.body) {
+    return payload.body.trim();
+  }
+  const lines = [
+    payload.summary.trim() !== "" ? `Summary: ${payload.summary.trim()}` : null,
+    payload.docs.length > 0 ? `Docs: ${payload.docs.join(", ")}` : null
+  ].filter((line) => Boolean(line));
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 function main() {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
-  const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
-  const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
+  const knowledgeUpdate = loadKnowledgeUpdate(process.cwd());
   const parts = buildInjectClaudeMdParts(safeReadFile(join(pluginRoot(), "vercel.md")), process.env, knowledgeUpdate);
   if (parts.length === 0) {
     return;
@@ -72,5 +100,6 @@ export {
   buildInjectClaudeMdParts,
   detectInjectClaudeMdPlatform,
   formatInjectClaudeMdOutput,
+  loadKnowledgeUpdate,
   parseInjectClaudeMdInput
 };

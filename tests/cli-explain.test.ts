@@ -137,7 +137,7 @@ describe("explain --project validation", () => {
   test("invalid project path exits non-zero", async () => {
     const { exitCode, stderr } = await runCli("explain", "middleware.ts", "--project", "/tmp/no-such-plugin-dir");
     expect(exitCode).toBe(2);
-    expect(stderr).toContain("no skills/ directory");
+    expect(stderr).toContain("expected a vercel-plugin root");
   });
 });
 

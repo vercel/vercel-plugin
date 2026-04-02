@@ -505,6 +505,36 @@ function formatSessionStartProfilerCursorOutput(envVars, userMessages) {
     env: envVars
   }));
 }
+function emitProgressBlock(platform, lines) {
+  if (platform !== "claude-code" || lines.length === 0) return;
+  process.stdout.write(`${lines.join("\n")}
+
+`);
+}
+function buildAutoInstallStartBlock(args) {
+  return [
+    "### Vercel skill cache",
+    `- Installing ${args.missingSkills.length} detected skill${args.missingSkills.length === 1 ? "" : "s"} before the session starts`,
+    `- Queue: ${args.missingSkills.join(", ")}`,
+    `- State root: ${args.stateRoot}`,
+    `- Skill cache: ${args.skillsDir}`,
+    `- Install plan: ${args.installPlanPath}`
+  ];
+}
+function buildAutoInstallResultBlock(args) {
+  const { result } = args;
+  const outcome = result.missing.length === 0 ? "ready" : result.installed.length > 0 || result.reused.length > 0 ? "partial" : "needs attention";
+  return [
+    `### Vercel skill cache (${outcome})`,
+    result.installed.length > 0 ? `- Installed now: ${result.installed.join(", ")}` : null,
+    result.reused.length > 0 ? `- Already cached: ${result.reused.join(", ")}` : null,
+    `- Remaining missing: ${result.missing.length > 0 ? result.missing.join(", ") : "none"}`,
+    `- State root: ${args.stateRoot}`,
+    `- Skill cache: ${args.skillsDir}`,
+    `- Install plan: ${args.installPlanPath}`,
+    result.command && result.missing.length > 0 ? `- Retry: ${result.command}` : null
+  ].filter((line) => Boolean(line)).join("\n");
+}
 async function autoInstallDetectedSkills(args) {
   const emptyResult = {
     installed: [],
@@ -512,18 +542,29 @@ async function autoInstallDetectedSkills(args) {
     missing: [...args.missingSkills],
     command: null
   };
-  if (args.missingSkills.length === 0 || process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL !== "1") {
+  if (args.missingSkills.length === 0) {
     return emptyResult;
   }
+  args.logger?.debug("session-start-profiler-auto-install-start", {
+    projectRoot: args.projectRoot,
+    missingSkills: args.missingSkills
+  });
   const client = createRegistryClient({
     source: args.skillsSource
   });
-  let result;
   try {
-    result = await client.installSkills({
+    const result = await client.installSkills({
       projectRoot: args.projectRoot,
       skillNames: args.missingSkills
     });
+    args.logger?.debug("session-start-profiler-auto-install-result", {
+      projectRoot: args.projectRoot,
+      installed: result.installed,
+      reused: result.reused,
+      missing: result.missing,
+      command: result.command
+    });
+    return result;
   } catch (error) {
     logCaughtError(
       args.logger ?? log,
@@ -536,12 +577,6 @@ async function autoInstallDetectedSkills(args) {
     );
     return emptyResult;
   }
-  args.logger?.debug("session-start-profiler-auto-install", {
-    installed: result.installed,
-    reused: result.reused,
-    missing: result.missing
-  });
-  return result;
 }
 async function autoPullProjectEnv(args) {
   if (process.env.VERCEL_PLUGIN_VERCEL_AUTO_ENV_PULL !== "1" || !args.vercelLinked || args.hasEnvLocal) {
@@ -618,9 +653,21 @@ async function main() {
   let skillStore = installedState.skillStore;
   let installedSkills = installedState.installedSkills;
   let skillCacheStatus = installedState.cacheStatus;
+  const missingBeforeInstall = [...skillCacheStatus.missingSkills];
+  if (missingBeforeInstall.length > 0) {
+    emitProgressBlock(
+      platform,
+      buildAutoInstallStartBlock({
+        missingSkills: missingBeforeInstall,
+        stateRoot: statePaths.stateRoot,
+        skillsDir: statePaths.skillsDir,
+        installPlanPath: statePaths.installPlanPath
+      })
+    );
+  }
   const installResult = await autoInstallDetectedSkills({
     projectRoot,
-    missingSkills: skillCacheStatus.missingSkills,
+    missingSkills: missingBeforeInstall,
     logger: log
   });
   if (installResult.installed.length > 0 || installResult.reused.length > 0) {
@@ -634,22 +681,16 @@ async function main() {
     skillStore = installedState.skillStore;
     installedSkills = installedState.installedSkills;
     skillCacheStatus = installedState.cacheStatus;
-    const installedOrReusedNow = [
-      ...installResult.installed,
-      ...installResult.reused
-    ];
-    if (installedOrReusedNow.length > 0) {
-      userMessages.unshift(
-        [
-          "### Vercel skill cache",
-          installResult.installed.length > 0 ? `- Installed now: ${installResult.installed.join(", ")}` : null,
-          installResult.reused.length > 0 ? `- Already cached: ${installResult.reused.join(", ")}` : null,
-          `- State root: ${statePaths.stateRoot}`,
-          `- Skill cache: ${statePaths.skillsDir}`,
-          `- Install plan: ${statePaths.installPlanPath}`
-        ].filter(Boolean).join("\n")
-      );
-    }
+  }
+  if (missingBeforeInstall.length > 0) {
+    userMessages.unshift(
+      buildAutoInstallResultBlock({
+        result: installResult,
+        stateRoot: statePaths.stateRoot,
+        skillsDir: statePaths.skillsDir,
+        installPlanPath: statePaths.installPlanPath
+      })
+    );
   }
   const projectSkillManifestPath = installedState.projectState.projectSkillStatePath;
   let vercelLinked = existsSync(join(projectRoot, ".vercel"));
@@ -802,11 +843,14 @@ if (isSessionStartProfilerEntrypoint) {
 export {
   autoInstallDetectedSkills,
   autoPullProjectEnv,
+  buildAutoInstallResultBlock,
+  buildAutoInstallStartBlock,
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   checkAgentBrowser,
   checkGreenfield,
   detectSessionStartPlatform,
+  emitProgressBlock,
   formatSessionStartProfilerCursorOutput,
   logBrokenSkillFrontmatterSummary,
   normalizeSessionStartSessionId,

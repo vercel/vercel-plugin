@@ -155,14 +155,14 @@ describe("buildSkillCacheBanner", () => {
       projectRoot: "/work/app",
     });
     expect(banner).toContain(
-      "Status: incomplete cache — bundled fallback can cover the gap during migration",
+      "Status: incomplete cache — summary-only injection from rules manifest until cached",
     );
     expect(banner).toContain("Detected: ai-sdk, nextjs, shadcn");
     expect(banner).toContain("Cached: nextjs");
     expect(banner).toContain("Missing: ai-sdk, shadcn");
     expect(banner).toContain(`Project cache: ${resolveProjectStatePaths("/work/app").skillsDir}`);
     expect(banner).toContain(
-      'Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into .skills for this project?"',
+      'Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into this project\'s skill cache?"',
     );
     expect(banner).toContain(
       "Install: `npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy`",
@@ -180,7 +180,7 @@ describe("buildSkillCacheBanner", () => {
       projectRoot: "/tmp/proj",
     });
     expect(banner).toContain(
-      "Status: incomplete cache — missing skills will not inject until installed",
+      "Status: incomplete cache — summary-only injection from rules manifest until cached",
     );
     expect(banner).toContain("Cached: none");
     expect(banner).toContain("Missing: ai-sdk, nextjs");
@@ -199,12 +199,12 @@ describe("buildSkillCacheBanner", () => {
     expect(banner).toBe(
       [
         "### Vercel skill cache",
-        "- Status: incomplete cache — bundled fallback can cover the gap during migration",
+        "- Status: incomplete cache — summary-only injection from rules manifest until cached",
         "- Detected: ai-sdk, nextjs, shadcn",
         "- Cached: nextjs",
         "- Missing: ai-sdk, shadcn",
         `- Project cache: ${resolveProjectStatePaths("/work/app").skillsDir}`,
-        '- Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into .skills for this project?"',
+        '- Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into this project\'s skill cache?"',
         "- Install: `npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy`",
       ].join("\n"),
     );

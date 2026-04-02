@@ -107,9 +107,9 @@ export function getOrchestratorActionSpecs(
     }),
     withRunState(plan, {
       id: "install-missing",
-      label: "Install missing skills into .skills",
+      label: "Install missing skills into cache",
       description:
-        installMissing?.description ?? "Install detected skills into `.skills/`.",
+        installMissing?.description ?? "Install detected skills into the project skill cache.",
       discoverable: plan.missingSkills.length > 0,
       visible: plan.missingSkills.length > 0,
       steps: [{ step: "install-missing", mode: "always" }],

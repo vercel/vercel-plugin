@@ -638,7 +638,7 @@ function buildDelegatedInstallOutcomeBanner(args) {
   return lines.join("\n");
 }
 function formatBashChainContextTitle(chain) {
-  const sourceLabel = chain.source === "project-cache" ? "project cache" : chain.source === "global-cache" ? "global cache" : "bundled fallback";
+  const sourceLabel = chain.source === "project-cache" ? "project cache" : chain.source === "global-cache" ? "global cache" : "rules manifest";
   const phaseLabel = chain.phase === "after-install" ? "installed now" : "cached";
   return `**Skill context auto-loaded** (${chain.skill} \u2022 ${phaseLabel} \u2022 ${sourceLabel}): ${chain.message}`;
 }

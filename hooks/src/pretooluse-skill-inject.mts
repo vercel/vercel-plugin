@@ -57,6 +57,7 @@ import {
 import type { CompiledSkillEntry, CompiledPattern, CompileCallbacks, ManifestSkill } from "./patterns.mjs";
 import { createSkillStore } from "./skill-store.mjs";
 import type { ResolvedSkillPayload, SkillStore } from "./skill-store.mjs";
+import { resolveProjectStatePaths, resolveVercelPluginHome } from "./project-state-paths.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
@@ -557,7 +558,7 @@ export interface LoadedSkills {
  * Returns null if the skill map cannot be loaded or is empty.
  *
  * The third parameter `projectRoot` defaults to `process.cwd()` and controls
- * where the store looks for a project-local `.skills/` cache.
+ * where the store looks for the hashed project cache.
  */
 export function loadSkills(pluginRoot?: string, logger?: Logger, projectRoot?: string): LoadedSkills | null {
   const root = pluginRoot || PLUGIN_ROOT;
@@ -569,15 +570,22 @@ export function loadSkills(pluginRoot?: string, logger?: Logger, projectRoot?: s
     bundledFallback: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
   });
 
+  const effectiveProjectRoot = projectRoot ?? process.cwd();
+  const statePaths = resolveProjectStatePaths(effectiveProjectRoot);
+  const globalCacheDir = join(resolveVercelPluginHome(), "skills");
+
   const loaded = skillStore.loadSkillSet(l);
   if (!loaded || Object.keys(loaded.skillMap).length === 0) {
     l.issue(
       "SKILLMAP_EMPTY",
-      "No skills were available from project cache, global cache, or bundled fallback",
-      "Install skills into .skills/ or ~/.vercel-plugin/skills, or re-enable bundled fallback during migration",
+      "No skills were available from the project cache, shared global cache, or shipped rules manifest",
+      `Install skills into ${statePaths.skillsDir} or ${globalCacheDir}. Until a body is cached, only the shipped summary can be injected.`,
       {
-        projectRoot: projectRoot ?? process.cwd(),
+        projectRoot: effectiveProjectRoot,
         pluginRoot: root,
+        stateRoot: statePaths.stateRoot,
+        skillsDir: statePaths.skillsDir,
+        globalCacheDir,
         roots: skillStore.roots.map((r) => ({
           source: r.source,
           rootDir: r.rootDir,
@@ -1210,7 +1218,7 @@ function run(): string {
     trackBaseEvents(sessionId, toolEntries).catch(() => {});
   }
 
-  // Stage 2: loadSkills (cache-first: project .skills/ → global cache → bundled)
+  // Stage 2: loadSkills (cache-first: project cache → global cache → rules manifest)
   const tSkillmap = log.active ? log.now() : 0;
   const skills = loadSkills(PLUGIN_ROOT, log, cwd);
   if (!skills) return "{}";

@@ -10,6 +10,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatOutput, type HookPlatform } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 
 interface InjectClaudeMdInput {
   session_id?: string;
@@ -78,16 +79,47 @@ export function formatInjectClaudeMdOutput(platform: HookPlatform, content: stri
   return content;
 }
 
-function stripFrontmatter(content: string): string {
-  const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
-  return match ? match[1].trim() : content.trim();
+function debugInjectClaudeMd(event: string, data: Record<string, unknown>): void {
+  if (process.env.VERCEL_PLUGIN_DEBUG !== "1") return;
+  process.stderr.write(`${JSON.stringify({ event, ...data })}\n`);
+}
+
+export function loadKnowledgeUpdate(projectRoot: string): string | null {
+  const store = createSkillStore({
+    projectRoot,
+    pluginRoot: pluginRoot(),
+  });
+
+  const payload = store.resolveSkillPayload("knowledge-update");
+  if (!payload) {
+    debugInjectClaudeMd("inject-claude-md-knowledge-update", {
+      mode: "missing",
+      projectRoot,
+    });
+    return null;
+  }
+
+  debugInjectClaudeMd("inject-claude-md-knowledge-update", {
+    mode: payload.mode,
+    source: payload.source,
+    projectRoot,
+  });
+
+  if (payload.mode === "body" && payload.body) {
+    return payload.body.trim();
+  }
+
+  const lines = [
+    payload.summary.trim() !== "" ? `Summary: ${payload.summary.trim()}` : null,
+    payload.docs.length > 0 ? `Docs: ${payload.docs.join(", ")}` : null,
+  ].filter((line): line is string => Boolean(line));
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 function main(): void {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
-  const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
-  const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
+  const knowledgeUpdate = loadKnowledgeUpdate(process.cwd());
   const parts = buildInjectClaudeMdParts(safeReadFile(join(pluginRoot(), "vercel.md")), process.env, knowledgeUpdate);
 
   if (parts.length === 0) {

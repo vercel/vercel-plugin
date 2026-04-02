@@ -13,12 +13,21 @@ import { explain, formatExplainResult } from "./explain.ts";
 import { doctor, formatDoctorResult } from "../commands/doctor.ts";
 
 function validateProjectRoot(projectRoot: string): void {
-  const skillsDir = join(projectRoot, "skills");
-  if (!existsSync(skillsDir)) {
-    console.error(`Error: no skills/ directory found at ${projectRoot}`);
-    console.error("Use --project to specify the plugin root directory");
-    process.exit(2);
+  const rulesManifestPath = join(projectRoot, "generated", "skill-rules.json");
+  const hooksConfigPath = join(projectRoot, "hooks", "hooks.json");
+
+  if (existsSync(rulesManifestPath) && existsSync(hooksConfigPath)) {
+    return;
   }
+
+  const missing = [
+    !existsSync(rulesManifestPath) ? "generated/skill-rules.json" : null,
+    !existsSync(hooksConfigPath) ? "hooks/hooks.json" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  console.error(`Error: expected a vercel-plugin root at ${projectRoot}`);
+  console.error(`Missing: ${missing.join(", ")}`);
+  process.exit(2);
 }
 
 const args = process.argv.slice(2);
@@ -114,7 +123,6 @@ function runExplain(explainArgs: string[]) {
     process.exit(1);
   }
 
-  // Validate project path has skills/
   validateProjectRoot(projectRoot);
 
   try {
