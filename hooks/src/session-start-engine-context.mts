@@ -29,6 +29,7 @@ import {
   type SkillDetection,
 } from "./orchestrator-install-plan.mjs";
 import {
+  type ProfileNextAction,
   type ProjectFact,
   profileProjectDetections,
 } from "./session-start-profiler.mjs";
@@ -67,6 +68,7 @@ interface ProfileCache {
   likelySkills: string[];
   detections?: CachedSkillDetection[];
   projectFacts?: ProjectFact[];
+  nextActions?: ProfileNextAction[];
   greenfield: boolean;
   installedSkills?: string[];
   missingSkills?: string[];
@@ -84,6 +86,7 @@ interface SessionProfileSnapshot {
   likelySkills: string[];
   detections: SkillDetection[];
   projectFacts: ProjectFact[];
+  nextActions: ProfileNextAction[];
   greenfield: boolean;
 }
 
@@ -171,6 +174,8 @@ function loadSessionProfileSnapshot(
     });
   }
 
+  const nextActions = normalizeNextActions(cached?.nextActions);
+
   log.debug("session-start-engine-context:profile-cache", {
     sessionId,
     cacheHit: Boolean(cached?.detections?.length),
@@ -178,9 +183,46 @@ function loadSessionProfileSnapshot(
     likelySkills,
     greenfield,
     detectionCount: detections.length,
+    nextActionCount: nextActions.length,
   });
 
-  return { projectRoot, likelySkills, detections, projectFacts, greenfield };
+  return { projectRoot, likelySkills, detections, projectFacts, nextActions, greenfield };
+}
+
+// ---------------------------------------------------------------------------
+// Next-action normalization and Fast Lane rendering
+// ---------------------------------------------------------------------------
+
+function normalizeNextActions(raw: unknown): ProfileNextAction[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (value): value is Record<string, unknown> =>
+        Boolean(value) && typeof value === "object",
+    )
+    .map((value) => ({
+      id: (typeof value.id === "string" ? value.id : "unknown") as ProfileNextAction["id"],
+      title: typeof value.title === "string" ? value.title : "",
+      reason: typeof value.reason === "string" ? value.reason : "",
+      command:
+        typeof value.command === "string" && value.command.trim() !== ""
+          ? value.command
+          : null,
+      priority: typeof value.priority === "number" ? value.priority : 0,
+    }))
+    .filter((value) => value.title !== "")
+    .sort((left, right) => right.priority - left.priority);
+}
+
+function renderFastLaneBlock(actions: ProfileNextAction[]): string | null {
+  if (actions.length === 0) return null;
+  return [
+    "## Fast Lane",
+    ...actions.slice(0, 3).map(
+      (action) =>
+        `- ${action.title}${action.reason ? ` — ${action.reason}` : ""}${action.command ? ` (\`${action.command}\`)` : ""}`,
+    ),
+  ].join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -601,6 +643,17 @@ function main(): void {
         : [];
 
     const parts: string[] = [];
+
+    // Fast Lane: render cached next-actions near the top of the context
+    const fastLaneBlock = renderFastLaneBlock(snapshot.nextActions);
+    if (fastLaneBlock) {
+      parts.push(fastLaneBlock);
+      log.debug("session-start-engine-context:fast-lane-rendered", {
+        sessionId,
+        actionCount: snapshot.nextActions.length,
+        actionIds: snapshot.nextActions.map((action) => action.id),
+      });
+    }
 
     if (tier === 0) {
       if (greenfield) {

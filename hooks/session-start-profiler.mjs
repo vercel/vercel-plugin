@@ -36,6 +36,53 @@ import {
   createVercelCliDelegator
 } from "./vercel-cli-delegator.mjs";
 import { formatOrchestratorActionPalette } from "./orchestrator-action-palette.mjs";
+function buildProfileNextActions({
+  greenfield,
+  vercelLinked,
+  hasEnvLocal,
+  missingSkills,
+  zeroBundleReady
+}) {
+  const actions = [];
+  if (greenfield) {
+    actions.push({
+      id: "bootstrap-project",
+      title: "Bootstrap the repo before feature work",
+      reason: "Profiler marked the project as greenfield, so architecture/setup work should come before feature implementation.",
+      command: null,
+      priority: 100
+    });
+  }
+  if (!vercelLinked) {
+    actions.push({
+      id: "link-vercel",
+      title: "Link this repo to a Vercel project",
+      reason: "`.vercel/` is missing, so deploy and env delegation are not fully available yet.",
+      command: "vercel link",
+      priority: 95
+    });
+  }
+  if (vercelLinked && !hasEnvLocal) {
+    actions.push({
+      id: "pull-env-local",
+      title: "Pull environment variables into `.env.local`",
+      reason: "The repo is linked, but `.env.local` is still missing.",
+      command: "vercel env pull .env.local",
+      priority: 90
+    });
+  }
+  if (missingSkills.length > 0) {
+    const preview = missingSkills.slice(0, 3).join(", ");
+    actions.push({
+      id: "install-missing-skills",
+      title: `Load full guidance for ${preview}${missingSkills.length > 3 ? "\u2026" : ""}`,
+      reason: zeroBundleReady ? "Bundled fallback is ready immediately, but full installed skill bodies are still missing." : "The profiler detected useful skills that are not installed locally yet.",
+      command: null,
+      priority: 85
+    });
+  }
+  return actions.sort((left, right) => right.priority - left.priority);
+}
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -982,6 +1029,23 @@ async function main() {
 
 `);
   }
+  const nextActions = buildProfileNextActions({
+    greenfield: greenfield !== null,
+    vercelLinked,
+    hasEnvLocal,
+    missingSkills: skillCacheStatus.missingSkills,
+    zeroBundleReady: skillCacheStatus.zeroBundleReady
+  });
+  if (nextActions.length > 0) {
+    log.debug("session-start-profiler-next-actions", {
+      projectRoot,
+      actionCount: nextActions.length,
+      actionIds: nextActions.map((action) => action.id),
+      missingSkillCount: skillCacheStatus.missingSkills.length,
+      vercelLinked,
+      hasEnvLocal
+    });
+  }
   if (sessionId) {
     try {
       const cache = {
@@ -1005,6 +1069,7 @@ async function main() {
         resourceHints: setupSignals.resourceHints,
         setupMode: setupSignals.setupMode,
         agentBrowserAvailable,
+        nextActions,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       };
       log.debug("session-start-profiler:profile-cache-written", {
@@ -1052,6 +1117,7 @@ export {
   autoPullProjectEnv,
   buildAutoInstallResultBlock,
   buildAutoInstallStartBlock,
+  buildProfileNextActions,
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   checkAgentBrowser,

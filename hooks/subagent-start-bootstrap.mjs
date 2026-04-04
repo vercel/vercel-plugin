@@ -61,6 +61,55 @@ function resolveBootstrapProjectRoot(sessionId) {
   }
   return process.env.CLAUDE_PROJECT_ROOT ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
+function getProfileNextActions(sessionId) {
+  if (!sessionId) return [];
+  const cache = safeReadJson(profileCachePath(sessionId));
+  if (!cache || !Array.isArray(cache.nextActions)) return [];
+  const actions = cache.nextActions.filter(
+    (value) => Boolean(value) && typeof value === "object"
+  ).map((value) => ({
+    id: typeof value.id === "string" ? value.id : "unknown",
+    title: typeof value.title === "string" ? value.title : "",
+    reason: typeof value.reason === "string" ? value.reason : "",
+    command: typeof value.command === "string" && value.command.trim() !== "" ? value.command : null,
+    priority: typeof value.priority === "number" ? value.priority : 0
+  })).filter((value) => value.title !== "").sort((left, right) => right.priority - left.priority);
+  log.debug("subagent-start-bootstrap:fast-lane-source", {
+    sessionId,
+    actionCount: actions.length,
+    actionIds: actions.map((action) => action.id)
+  });
+  return actions;
+}
+function appendFastLaneWithinBudget(parts, usedBytes, budgetBytes, sessionId, limit = 2) {
+  const actions = getProfileNextActions(sessionId).slice(0, limit);
+  if (actions.length === 0) return usedBytes;
+  const lines = [
+    "Fast lane:",
+    ...actions.map(
+      (action, index) => `  ${index + 1}. ${action.title}${action.command ? ` \u2014 \`${action.command}\`` : ""}`
+    )
+  ];
+  let nextUsed = usedBytes;
+  const acceptedLines = [];
+  for (const line of lines) {
+    const byteLen = Buffer.byteLength(line, "utf8");
+    if (nextUsed + byteLen + 1 > budgetBytes) break;
+    parts.push(line);
+    acceptedLines.push(line);
+    nextUsed += byteLen + 1;
+  }
+  if (acceptedLines.length > 0) {
+    log.summary("subagent-start-bootstrap:fast-lane-added", {
+      sessionId,
+      lineCount: acceptedLines.length,
+      actionIds: actions.map((action) => action.id),
+      usedBytes: nextUsed,
+      budgetBytes
+    });
+  }
+  return nextUsed;
+}
 function getPromptMatchedSkills(promptText, projectRoot) {
   const normalizedPrompt = normalizePromptText(promptText);
   if (!normalizedPrompt) return [];
@@ -151,6 +200,7 @@ function buildLightContext(agentType, likelySkills, budgetBytes, sessionId) {
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="light" -->`);
   parts.push(profileLine(agentType, likelySkills));
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
+  usedBytes = appendFastLaneWithinBudget(parts, usedBytes, budgetBytes, sessionId, 2);
   const loaded = loadSkills(PLUGIN_ROOT, log, projectRoot);
   if (loaded) {
     for (const skill of likelySkills) {
@@ -186,6 +236,7 @@ function buildStandardContext(agentType, likelySkills, budgetBytes, sessionId) {
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="standard" -->`);
   parts.push(profileLine(agentType, likelySkills));
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
+  usedBytes = appendFastLaneWithinBudget(parts, usedBytes, budgetBytes, sessionId, 2);
   const store = createSkillStore({
     projectRoot,
     pluginRoot: PLUGIN_ROOT,
@@ -342,10 +393,12 @@ export {
   LIGHT_BUDGET_BYTES,
   MINIMAL_BUDGET_BYTES,
   STANDARD_BUDGET_BYTES,
+  appendFastLaneWithinBudget,
   buildLightContext,
   buildMinimalContext,
   buildStandardContext,
   getLikelySkills,
+  getProfileNextActions,
   main,
   parseInput,
   resolveBootstrapProjectRoot

@@ -61,6 +61,14 @@ function parseInput(): SubagentStartInput | null {
 // Profile cache
 // ---------------------------------------------------------------------------
 
+interface ProfileNextAction {
+  id: string;
+  title: string;
+  reason: string;
+  command: string | null;
+  priority: number;
+}
+
 interface ProfileCache {
   projectRoot: string;
   likelySkills: string[];
@@ -82,6 +90,7 @@ interface ProfileCache {
   resourceHints: string[];
   setupMode: boolean;
   agentBrowserAvailable: boolean;
+  nextActions?: ProfileNextAction[];
   timestamp: string;
 }
 
@@ -148,6 +157,83 @@ function resolveBootstrapProjectRoot(sessionId?: string): string {
     process.env.CURSOR_PROJECT_DIR ??
     process.cwd()
   );
+}
+
+/**
+ * Read nextActions from the session profile cache, sorted by descending priority.
+ */
+function getProfileNextActions(sessionId?: string): ProfileNextAction[] {
+  if (!sessionId) return [];
+  const cache = safeReadJson<ProfileCache>(profileCachePath(sessionId));
+  if (!cache || !Array.isArray(cache.nextActions)) return [];
+  const rawActions: unknown[] = cache.nextActions;
+  const actions = rawActions
+    .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object")
+    .map((value) => ({
+      id: typeof value.id === "string" ? value.id : "unknown",
+      title: typeof value.title === "string" ? value.title : "",
+      reason: typeof value.reason === "string" ? value.reason : "",
+      command:
+        typeof value.command === "string" && value.command.trim() !== ""
+          ? value.command
+          : null,
+      priority: typeof value.priority === "number" ? value.priority : 0,
+    }))
+    .filter((value) => value.title !== "")
+    .sort((left, right) => right.priority - left.priority);
+
+  log.debug("subagent-start-bootstrap:fast-lane-source", {
+    sessionId,
+    actionCount: actions.length,
+    actionIds: actions.map((action) => action.id),
+  });
+  return actions;
+}
+
+/**
+ * Append a compact Fast lane block to the context parts array, respecting the byte budget.
+ * Returns the updated byte count.
+ */
+function appendFastLaneWithinBudget(
+  parts: string[],
+  usedBytes: number,
+  budgetBytes: number,
+  sessionId?: string,
+  limit: number = 2,
+): number {
+  const actions = getProfileNextActions(sessionId).slice(0, limit);
+  if (actions.length === 0) return usedBytes;
+
+  const lines = [
+    "Fast lane:",
+    ...actions.map(
+      (action, index) =>
+        `  ${index + 1}. ${action.title}${action.command ? ` — \`${action.command}\`` : ""}`,
+    ),
+  ];
+
+  let nextUsed = usedBytes;
+  const acceptedLines: string[] = [];
+
+  for (const line of lines) {
+    const byteLen = Buffer.byteLength(line, "utf8");
+    if (nextUsed + byteLen + 1 > budgetBytes) break;
+    parts.push(line);
+    acceptedLines.push(line);
+    nextUsed += byteLen + 1;
+  }
+
+  if (acceptedLines.length > 0) {
+    log.summary("subagent-start-bootstrap:fast-lane-added", {
+      sessionId,
+      lineCount: acceptedLines.length,
+      actionIds: actions.map((action) => action.id),
+      usedBytes: nextUsed,
+      budgetBytes,
+    });
+  }
+
+  return nextUsed;
 }
 
 function getPromptMatchedSkills(promptText: string, projectRoot: string): PromptMatchedSkill[] {
@@ -279,6 +365,9 @@ function buildLightContext(agentType: string, likelySkills: string[], budgetByte
 
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
 
+  // Insert fast lane before skill content
+  usedBytes = appendFastLaneWithinBudget(parts, usedBytes, budgetBytes, sessionId, 2);
+
   // Add skill summaries
   const loaded = loadSkills(PLUGIN_ROOT, log, projectRoot);
   if (loaded) {
@@ -325,6 +414,9 @@ function buildStandardContext(agentType: string, likelySkills: string[], budgetB
   parts.push(profileLine(agentType, likelySkills));
 
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
+
+  // Insert fast lane before skill content
+  usedBytes = appendFastLaneWithinBudget(parts, usedBytes, budgetBytes, sessionId, 2);
 
   const store = createSkillStore({
     projectRoot,
@@ -522,7 +614,9 @@ export {
   buildLightContext,
   buildStandardContext,
   getLikelySkills,
+  getProfileNextActions,
+  appendFastLaneWithinBudget,
   resolveBootstrapProjectRoot,
   main,
 };
-export type { SubagentStartInput, ProfileCache, BudgetCategory, BootstrapContextResult };
+export type { SubagentStartInput, ProfileCache, ProfileNextAction, BudgetCategory, BootstrapContextResult };

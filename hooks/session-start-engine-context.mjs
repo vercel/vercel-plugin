@@ -73,15 +73,38 @@ function loadSessionProfileSnapshot(sessionId, fallbackProjectRoot) {
       detectionCount: detections.length
     });
   }
+  const nextActions = normalizeNextActions(cached?.nextActions);
   log.debug("session-start-engine-context:profile-cache", {
     sessionId,
     cacheHit: Boolean(cached?.detections?.length),
     projectRoot,
     likelySkills,
     greenfield,
-    detectionCount: detections.length
+    detectionCount: detections.length,
+    nextActionCount: nextActions.length
   });
-  return { projectRoot, likelySkills, detections, projectFacts, greenfield };
+  return { projectRoot, likelySkills, detections, projectFacts, nextActions, greenfield };
+}
+function normalizeNextActions(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (value) => Boolean(value) && typeof value === "object"
+  ).map((value) => ({
+    id: typeof value.id === "string" ? value.id : "unknown",
+    title: typeof value.title === "string" ? value.title : "",
+    reason: typeof value.reason === "string" ? value.reason : "",
+    command: typeof value.command === "string" && value.command.trim() !== "" ? value.command : null,
+    priority: typeof value.priority === "number" ? value.priority : 0
+  })).filter((value) => value.title !== "").sort((left, right) => right.priority - left.priority);
+}
+function renderFastLaneBlock(actions) {
+  if (actions.length === 0) return null;
+  return [
+    "## Fast Lane",
+    ...actions.slice(0, 3).map(
+      (action) => `- ${action.title}${action.reason ? ` \u2014 ${action.reason}` : ""}${action.command ? ` (\`${action.command}\`)` : ""}`
+    )
+  ].join("\n");
 }
 var STRONG_DEPENDENCY_PREFIXES = ["ai", "@ai-sdk/", "@vercel/"];
 function isStrongReason(reason) {
@@ -330,6 +353,15 @@ function main() {
     }
     const skillEntries = tier > 0 ? resolveSessionStartSkillEntries(projectRoot, likelySkills) : [];
     const parts = [];
+    const fastLaneBlock = renderFastLaneBlock(snapshot.nextActions);
+    if (fastLaneBlock) {
+      parts.push(fastLaneBlock);
+      log.debug("session-start-engine-context:fast-lane-rendered", {
+        sessionId,
+        actionCount: snapshot.nextActions.length,
+        actionIds: snapshot.nextActions.map((action) => action.id)
+      });
+    }
     if (tier === 0) {
       if (greenfield) {
         parts.push(buildGreenfieldBlock(likelySkills, projectFacts));

@@ -89,6 +89,84 @@ export type ProjectFact =
   | "no-env-files"
   | "no-ai-gateway-dep";
 
+export interface ProfileNextAction {
+  id:
+    | "bootstrap-project"
+    | "link-vercel"
+    | "pull-env-local"
+    | "install-missing-skills";
+  title: string;
+  reason: string;
+  command: string | null;
+  priority: number;
+}
+
+interface BuildProfileNextActionsParams {
+  greenfield: boolean;
+  vercelLinked: boolean;
+  hasEnvLocal: boolean;
+  missingSkills: string[];
+  zeroBundleReady: boolean;
+}
+
+export function buildProfileNextActions({
+  greenfield,
+  vercelLinked,
+  hasEnvLocal,
+  missingSkills,
+  zeroBundleReady,
+}: BuildProfileNextActionsParams): ProfileNextAction[] {
+  const actions: ProfileNextAction[] = [];
+
+  if (greenfield) {
+    actions.push({
+      id: "bootstrap-project",
+      title: "Bootstrap the repo before feature work",
+      reason:
+        "Profiler marked the project as greenfield, so architecture/setup work should come before feature implementation.",
+      command: null,
+      priority: 100,
+    });
+  }
+
+  if (!vercelLinked) {
+    actions.push({
+      id: "link-vercel",
+      title: "Link this repo to a Vercel project",
+      reason:
+        "`.vercel/` is missing, so deploy and env delegation are not fully available yet.",
+      command: "vercel link",
+      priority: 95,
+    });
+  }
+
+  if (vercelLinked && !hasEnvLocal) {
+    actions.push({
+      id: "pull-env-local",
+      title: "Pull environment variables into `.env.local`",
+      reason:
+        "The repo is linked, but `.env.local` is still missing.",
+      command: "vercel env pull .env.local",
+      priority: 90,
+    });
+  }
+
+  if (missingSkills.length > 0) {
+    const preview = missingSkills.slice(0, 3).join(", ");
+    actions.push({
+      id: "install-missing-skills",
+      title: `Load full guidance for ${preview}${missingSkills.length > 3 ? "…" : ""}`,
+      reason: zeroBundleReady
+        ? "Bundled fallback is ready immediately, but full installed skill bodies are still missing."
+        : "The profiler detected useful skills that are not installed locally yet.",
+      command: null,
+      priority: 85,
+    });
+  }
+
+  return actions.sort((left, right) => right.priority - left.priority);
+}
+
 /**
  * Shape of the JSON snapshot written to profileCachePath(sessionId).
  * Downstream consumers (session-start-engine-context, subagent-start-bootstrap)
@@ -111,6 +189,7 @@ export interface SessionProfileCache {
   resourceHints: string[];
   setupMode: boolean;
   agentBrowserAvailable: boolean;
+  nextActions?: ProfileNextAction[];
   timestamp: string;
 }
 
@@ -1472,6 +1551,26 @@ async function main(): Promise<void> {
     process.stdout.write(`${additionalContext}\n\n`);
   }
 
+  // Compute executable next-actions from settled project state
+  const nextActions = buildProfileNextActions({
+    greenfield: greenfield !== null,
+    vercelLinked,
+    hasEnvLocal,
+    missingSkills: skillCacheStatus.missingSkills,
+    zeroBundleReady: skillCacheStatus.zeroBundleReady,
+  });
+
+  if (nextActions.length > 0) {
+    log.debug("session-start-profiler-next-actions", {
+      projectRoot,
+      actionCount: nextActions.length,
+      actionIds: nextActions.map((action) => action.id),
+      missingSkillCount: skillCacheStatus.missingSkills.length,
+      vercelLinked,
+      hasEnvLocal,
+    });
+  }
+
   // Write profile cache so SubagentStart hooks can read it without re-profiling
   if (sessionId) {
     try {
@@ -1496,6 +1595,7 @@ async function main(): Promise<void> {
         resourceHints: setupSignals.resourceHints,
         setupMode: setupSignals.setupMode,
         agentBrowserAvailable,
+        nextActions,
         timestamp: new Date().toISOString(),
       };
       log.debug("session-start-profiler:profile-cache-written", {
