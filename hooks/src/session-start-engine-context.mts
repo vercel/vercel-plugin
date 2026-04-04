@@ -14,13 +14,11 @@
  */
 
 import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   pluginRoot,
   readSessionFile,
-  safeReadFile,
-  safeReadJson,
   writeSessionFile,
 } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
@@ -32,6 +30,7 @@ import {
   type ProjectFact,
   profileProjectDetections,
 } from "./session-start-profiler.mjs";
+import { createSkillStore } from "./skill-store.mjs";
 
 const log: Logger = createLogger();
 
@@ -43,17 +42,6 @@ interface SessionStartInput {
   session_id?: string;
   cwd?: string;
   hook_event_name?: string;
-  [key: string]: unknown;
-}
-
-interface ManifestSkill {
-  summary?: string;
-  priority?: number;
-  [key: string]: unknown;
-}
-
-interface Manifest {
-  skills?: Record<string, ManifestSkill>;
   [key: string]: unknown;
 }
 
@@ -98,16 +86,114 @@ export function computeSessionTier(
 }
 
 // ---------------------------------------------------------------------------
-// Context block builders
+// Context block builders — skill store integration
 // ---------------------------------------------------------------------------
 
-function loadManifest(): Manifest | null {
-  return safeReadJson<Manifest>(join(pluginRoot(), "generated", "skill-rules.json"));
+type SessionStartEligible = "body" | "summary" | "none";
+
+interface SessionStartSkillEntry {
+  skill: string;
+  summary: string;
+  summarySource: string;
+  sessionStartEligible: SessionStartEligible;
+  body: string | null;
+  bodySource: string | null;
 }
 
-function loadCachedSkillBody(cwd: string, slug: string): string | null {
-  const skillPath = join(cwd, ".claude", "skills", slug, "SKILL.md");
-  return safeReadFile(skillPath);
+function resolveSessionStartEligibility(
+  config: { summary?: string; sessionStartEligible?: string },
+  body: string | null,
+): SessionStartEligible {
+  if (
+    config.sessionStartEligible === "body" ||
+    config.sessionStartEligible === "summary" ||
+    config.sessionStartEligible === "none"
+  ) {
+    return config.sessionStartEligible;
+  }
+  if (body && body.trim().length > 100) {
+    return "body";
+  }
+  if ((config.summary ?? "").trim() !== "") {
+    return "summary";
+  }
+  return "none";
+}
+
+export function resolveSessionStartSkillEntries(
+  projectRoot: string,
+  skills: string[],
+): SessionStartSkillEntry[] {
+  if (skills.length === 0) {
+    return [];
+  }
+
+  const store = createSkillStore({
+    projectRoot,
+    pluginRoot: pluginRoot(),
+    includeRulesManifest:
+      process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1",
+  });
+
+  const loaded = store.loadSkillSet(log);
+  if (!loaded) {
+    log.debug("session-start-engine-context:no-skill-store-data", {
+      projectRoot,
+      requestedSkills: skills,
+    });
+    return [];
+  }
+
+  const entries = skills.flatMap((skill): SessionStartSkillEntry[] => {
+    const config = loaded.skillMap[skill];
+    if (!config) {
+      return [];
+    }
+
+    const payload = store.resolveSkillPayload(skill, log);
+    const body =
+      payload?.mode === "body" && payload.body
+        ? payload.body.trim()
+        : null;
+
+    return [
+      {
+        skill,
+        summary: (config.summary ?? "").trim(),
+        summarySource: loaded.origins[skill]?.source ?? "unknown",
+        sessionStartEligible: resolveSessionStartEligibility(config, body),
+        body,
+        bodySource: body ? (payload?.source ?? null) : null,
+      },
+    ];
+  });
+
+  log.debug("session-start-engine-context:resolved-skills", {
+    projectRoot,
+    requestedSkills: skills,
+    resolvedSkills: entries.map((entry) => ({
+      skill: entry.skill,
+      eligible: entry.sessionStartEligible,
+      hasSummary: entry.summary !== "",
+      hasBody: entry.body !== null,
+      summarySource: entry.summarySource,
+      bodySource: entry.bodySource,
+    })),
+  });
+
+  return entries;
+}
+
+function appendSkillSummaries(
+  lines: string[],
+  skillEntries: SessionStartSkillEntry[],
+): void {
+  for (const entry of skillEntries) {
+    if (entry.summary === "" || entry.sessionStartEligible === "none") {
+      continue;
+    }
+    lines.push(`- ${entry.skill}: ${entry.summary}`);
+  }
 }
 
 function buildTier1Block(skills: string[]): string {
@@ -121,75 +207,94 @@ function buildTier1Block(skills: string[]): string {
 }
 
 function buildTier2Block(
-  skills: string[],
+  likelySkills: string[],
   projectFacts: ProjectFact[],
-  manifest: Manifest | null,
+  skillEntries: SessionStartSkillEntry[],
 ): string {
+  const displayedSkills =
+    skillEntries.length > 0
+      ? skillEntries.map((entry) => entry.skill)
+      : likelySkills;
+
   const lines = [
     `<!-- vercel-plugin:session-start tier="2" -->`,
     `Vercel project detected.`,
-    `Detected skills: ${skills.join(", ")}`,
+    `Detected skills: ${displayedSkills.join(", ")}`,
   ];
 
   if (projectFacts.length > 0) {
     lines.push(`Project facts: ${projectFacts.join(", ")}`);
   }
 
-  if (manifest?.skills) {
-    for (const skill of skills) {
-      const entry = manifest.skills[skill];
-      if (entry?.summary) {
-        lines.push(`- ${skill}: ${entry.summary}`);
-      }
-    }
-  }
+  appendSkillSummaries(lines, skillEntries);
 
   lines.push(`Policy: Detailed guidance loads automatically when you work with matching files.`);
   lines.push(`<!-- /vercel-plugin:session-start -->`);
   return lines.join("\n");
 }
 
-function buildTier3Block(
-  skills: string[],
+export function buildTier3Block(
+  likelySkills: string[],
   projectFacts: ProjectFact[],
-  manifest: Manifest | null,
-  cwd: string,
+  skillEntries: SessionStartSkillEntry[],
 ): string {
+  const displayedSkills =
+    skillEntries.length > 0
+      ? skillEntries.map((entry) => entry.skill)
+      : likelySkills;
+
   const lines = [
     `<!-- vercel-plugin:session-start tier="3" -->`,
     `Vercel project detected.`,
-    `Detected skills: ${skills.join(", ")}`,
+    `Detected skills: ${displayedSkills.join(", ")}`,
   ];
 
   if (projectFacts.length > 0) {
     lines.push(`Project facts: ${projectFacts.join(", ")}`);
   }
 
-  if (manifest?.skills) {
-    for (const skill of skills) {
-      const entry = manifest.skills[skill];
-      if (entry?.summary) {
-        lines.push(`- ${skill}: ${entry.summary}`);
-      }
-    }
-  }
+  appendSkillSummaries(lines, skillEntries);
 
-  // Try to load one cached skill body — prefer AI-related foundational skills
   const aiSkills = ["ai-sdk", "ai-elements", "ai-gateway"];
-  const foundationalOrder = [
-    ...aiSkills.filter((s) => skills.includes(s)),
-    ...skills.filter((s) => !aiSkills.includes(s)),
+  const preferredOrder = [
+    ...aiSkills.filter((skill) => displayedSkills.includes(skill)),
+    ...displayedSkills.filter((skill) => !aiSkills.includes(skill)),
   ];
 
-  for (const slug of foundationalOrder) {
-    const body = loadCachedSkillBody(cwd, slug);
-    if (body) {
-      lines.push("");
-      lines.push(`### Loaded Skill(${slug})`);
-      const MAX_BODY = 4096;
-      lines.push(body.length > MAX_BODY ? body.slice(0, MAX_BODY) + "\n[...truncated]" : body);
-      break;
-    }
+  const bodyCandidate = preferredOrder
+    .map((skill) => skillEntries.find((entry) => entry.skill === skill) ?? null)
+    .find(
+      (entry): entry is SessionStartSkillEntry =>
+        entry !== null &&
+        entry.sessionStartEligible === "body" &&
+        entry.body !== null &&
+        entry.body.trim() !== "",
+    );
+
+  if (bodyCandidate) {
+    log.debug("session-start-engine-context:body-selected", {
+      skill: bodyCandidate.skill,
+      source: bodyCandidate.bodySource,
+      bytes: Buffer.byteLength(bodyCandidate.body!, "utf8"),
+    });
+    lines.push("");
+    lines.push(`### Loaded Skill(${bodyCandidate.skill})`);
+    const MAX_BODY = 4096;
+    lines.push(
+      bodyCandidate.body!.length > MAX_BODY
+        ? `${bodyCandidate.body!.slice(0, MAX_BODY)}\n[...truncated]`
+        : bodyCandidate.body!,
+    );
+  } else {
+    log.debug("session-start-engine-context:body-missing", {
+      requestedSkills: displayedSkills,
+      candidates: skillEntries.map((entry) => ({
+        skill: entry.skill,
+        eligible: entry.sessionStartEligible,
+        hasBody: entry.body !== null,
+        bodySource: entry.bodySource,
+      })),
+    });
   }
 
   lines.push(`Policy: Detailed guidance loads automatically when you work with matching files.`);
@@ -276,6 +381,8 @@ function main(): void {
       writeSessionFile(sessionId, "session-tier", String(tier));
     }
 
+    const skillEntries = resolveSessionStartSkillEntries(cwd, likelySkills);
+
     const parts: string[] = [];
 
     if (tier === 0) {
@@ -283,13 +390,12 @@ function main(): void {
         parts.push(GREENFIELD_CONTEXT);
       }
     } else {
-      const manifest = loadManifest();
       if (tier === 1) {
         parts.push(buildTier1Block(likelySkills));
       } else if (tier === 2) {
-        parts.push(buildTier2Block(likelySkills, projectFacts, manifest));
+        parts.push(buildTier2Block(likelySkills, projectFacts, skillEntries));
       } else {
-        parts.push(buildTier3Block(likelySkills, projectFacts, manifest, cwd));
+        parts.push(buildTier3Block(likelySkills, projectFacts, skillEntries));
       }
 
       if (isGreenfield) {
@@ -298,6 +404,18 @@ function main(): void {
     }
 
     if (parts.length === 0) return;
+
+    log.summary("session-start-engine-context:complete", {
+      sessionId,
+      tier,
+      likelySkills,
+      resolvedSkills: skillEntries.map((entry) => ({
+        skill: entry.skill,
+        eligible: entry.sessionStartEligible,
+        source: entry.bodySource ?? entry.summarySource,
+      })),
+      emittedBytes: Buffer.byteLength(parts.join("\n\n"), "utf8"),
+    });
 
     process.stdout.write(parts.join("\n\n"));
   } catch (error) {

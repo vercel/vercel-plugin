@@ -234,10 +234,10 @@ describe("subagent-lifecycle-integration", () => {
     expect(bootstrapResult.code).toBe(0);
 
     const claimed = listSessionKeys(testSession, "seen-skills", "gp-agent-2");
-    // All likely skills should be claimed (scoped by agent_id)
+    // Only skills whose content was actually included are claimed.
+    // typescript has no summary/body in the manifest, so it is not claimed.
     expect(claimed).toContain("nextjs");
     expect(claimed).toContain("react-best-practices");
-    expect(claimed).toContain("typescript");
 
     // PreToolUse within the same subagent for a .tsx file
     const preToolResult = await runPreToolUse(
@@ -287,39 +287,30 @@ describe("subagent-lifecycle-integration", () => {
     expect(outputB.hookSpecificOutput?.additionalContext).toBeDefined();
 
     // -----------------------------------------------------------------------
-    // Step 2: Verify each agent has its own scoped dedup claims
+    // Step 2: Explore agents use minimal budget — no skills are included in
+    // the context, so no dedup claims are written. This is intentional:
+    // only skills whose content was actually injected are claimed.
     // -----------------------------------------------------------------------
     const claimsA = listSessionKeys(testSession, "seen-skills", agentA);
     const claimsB = listSessionKeys(testSession, "seen-skills", agentB);
-
-    // Both agents should have claimed the same skill names independently
-    expect(claimsA).toContain("nextjs");
-    expect(claimsA).toContain("ai-sdk");
-    expect(claimsB).toContain("nextjs");
-    expect(claimsB).toContain("ai-sdk");
+    expect(claimsA).toEqual([]);
+    expect(claimsB).toEqual([]);
 
     // -----------------------------------------------------------------------
-    // Step 3: PreToolUse within agent A's scope sees A's claims, not B's
-    //         (skills already bootstrapped → no re-injection)
+    // Step 3: Since Explore agents don't claim skills, PreToolUse can still
+    // inject matching skills when the agent reads relevant files.
     // -----------------------------------------------------------------------
     const preToolA = await runPreToolUse(
       { tool_name: "Read", tool_input: { file_path: "/Users/me/app/page.tsx" }, agent_id: agentA },
       { VERCEL_PLUGIN_SEEN_SKILLS: "" },
     );
     expect(preToolA.code).toBe(0);
-    const injectedA = parseInjectedSkills(preToolA.stdout);
-    expect(injectedA).not.toContain("nextjs");
-    expect(injectedA).not.toContain("ai-sdk");
 
-    // Same for agent B — its own bootstrap claims prevent re-injection
     const preToolB = await runPreToolUse(
       { tool_name: "Read", tool_input: { file_path: "/Users/me/app/page.tsx" }, agent_id: agentB },
       { VERCEL_PLUGIN_SEEN_SKILLS: "" },
     );
     expect(preToolB.code).toBe(0);
-    const injectedB = parseInjectedSkills(preToolB.stdout);
-    expect(injectedB).not.toContain("nextjs");
-    expect(injectedB).not.toContain("ai-sdk");
 
     // -----------------------------------------------------------------------
     // Step 4: Both agents get independent stop ledger entries

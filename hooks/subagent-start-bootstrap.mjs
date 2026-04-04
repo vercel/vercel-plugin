@@ -142,11 +142,12 @@ function buildMinimalContext(agentType, likelySkills) {
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="minimal" -->`);
   parts.push(profileLine(agentType, likelySkills));
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
-  return parts.join("\n");
+  return { context: parts.join("\n"), includedSkills: [] };
 }
 function buildLightContext(agentType, likelySkills, budgetBytes, sessionId) {
   const projectRoot = resolveBootstrapProjectRoot(sessionId);
   const parts = [];
+  const includedSkills = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="light" -->`);
   parts.push(profileLine(agentType, likelySkills));
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
@@ -161,6 +162,7 @@ function buildLightContext(agentType, likelySkills, budgetBytes, sessionId) {
       const lineBytes = Buffer.byteLength(line, "utf8");
       if (usedBytes + lineBytes + 1 > budgetBytes) break;
       parts.push(line);
+      includedSkills.push(skill);
       usedBytes += lineBytes + 1;
     }
   }
@@ -175,11 +177,12 @@ function buildLightContext(agentType, likelySkills, budgetBytes, sessionId) {
     usedBytes += lineBytes + 1;
   }
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
-  return parts.join("\n");
+  return { context: parts.join("\n"), includedSkills };
 }
 function buildStandardContext(agentType, likelySkills, budgetBytes, sessionId) {
   const projectRoot = resolveBootstrapProjectRoot(sessionId);
   const parts = [];
+  const includedSkills = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="standard" -->`);
   parts.push(profileLine(agentType, likelySkills));
   let usedBytes = Buffer.byteLength(parts.join("\n"), "utf8");
@@ -190,7 +193,7 @@ function buildStandardContext(agentType, likelySkills, budgetBytes, sessionId) {
     includeRulesManifest: process.env.VERCEL_PLUGIN_DISABLE_BUNDLED_FALLBACK !== "1"
   });
   for (const skill of likelySkills) {
-    const resolved = store.resolveSkillPayload(skill);
+    const resolved = store.resolveSkillPayload(skill, log);
     if (resolved?.mode === "body" && resolved.body) {
       const content = resolved.body;
       const wrapped = `<!-- skill:${skill} -->
@@ -199,6 +202,7 @@ ${content}
       const byteLen = Buffer.byteLength(wrapped, "utf8");
       if (usedBytes + byteLen + 1 <= budgetBytes) {
         parts.push(wrapped);
+        includedSkills.push(skill);
         usedBytes += byteLen + 1;
         continue;
       }
@@ -211,12 +215,13 @@ ${summary}
       const lineBytes = Buffer.byteLength(line, "utf8");
       if (usedBytes + lineBytes + 1 <= budgetBytes) {
         parts.push(line);
+        includedSkills.push(skill);
         usedBytes += lineBytes + 1;
       }
     }
   }
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
-  return parts.join("\n");
+  return { context: parts.join("\n"), includedSkills };
 }
 function main() {
   const input = parseInput();
@@ -237,25 +242,40 @@ function main() {
   );
   const category = resolveBudgetCategory(agentType);
   const maxBytes = budgetBytesForCategory(category);
-  let context;
+  let built;
   switch (category) {
     case "minimal":
-      context = buildMinimalContext(agentType, likelySkills);
+      built = buildMinimalContext(agentType, likelySkills);
       break;
     case "light":
-      context = buildLightContext(agentType, likelySkills, maxBytes, sessionId);
+      built = buildLightContext(agentType, likelySkills, maxBytes, sessionId);
       break;
     case "standard":
-      context = buildStandardContext(agentType, likelySkills, maxBytes, sessionId);
+      built = buildStandardContext(agentType, likelySkills, maxBytes, sessionId);
       break;
   }
+  let context = built.context;
+  const includedSkills = built.includedSkills;
   if (Buffer.byteLength(context, "utf8") > maxBytes) {
+    log.debug("subagent-start-bootstrap:context-truncated", {
+      agentId,
+      agentType,
+      budgetMax: maxBytes,
+      budgetActual: Buffer.byteLength(context, "utf8")
+    });
     context = Buffer.from(context, "utf8").subarray(0, maxBytes).toString("utf8");
   }
+  log.debug("subagent-start-bootstrap:included-skills", {
+    agentId,
+    agentType,
+    budgetCategory: category,
+    likelySkills,
+    includedSkills
+  });
   const scopeId = agentId !== "unknown" ? agentId : void 0;
-  if (sessionId && likelySkills.length > 0) {
+  if (sessionId && includedSkills.length > 0) {
     const claimed = [];
-    for (const skill of likelySkills) {
+    for (const skill of includedSkills) {
       if (tryClaimSessionKey(sessionId, "seen-skills", skill, scopeId)) {
         claimed.push(skill);
       }
@@ -269,7 +289,9 @@ function main() {
   log.summary("subagent-start-bootstrap:complete", {
     agent_id: agentId,
     agent_type: agentType,
-    claimed_skills: likelySkills.length,
+    claimed_skills: includedSkills.length,
+    included_skills: includedSkills,
+    likely_skills: likelySkills,
     budget_used: budgetUsed,
     budget_max: maxBytes,
     budget_category: category,

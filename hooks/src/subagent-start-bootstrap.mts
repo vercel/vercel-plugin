@@ -232,6 +232,11 @@ function resolveLikelySkillsFromPendingLaunch(
 // Context assembly
 // ---------------------------------------------------------------------------
 
+interface BootstrapContextResult {
+  context: string;
+  includedSkills: string[];
+}
+
 function profileLine(agentType: string, likelySkills: string[]): string {
   return "Vercel plugin active. Project likely uses: " + (likelySkills.length > 0 ? likelySkills.join(", ") : "unknown stack") + ".";
 }
@@ -240,21 +245,22 @@ function profileLine(agentType: string, likelySkills: string[]): string {
  * Build minimal context (~1KB): project profile + skill name list.
  * Used for Explore agents that only need orientation.
  */
-function buildMinimalContext(agentType: string, likelySkills: string[]): string {
+function buildMinimalContext(agentType: string, likelySkills: string[]): BootstrapContextResult {
   const parts: string[] = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="minimal" -->`);
   parts.push(profileLine(agentType, likelySkills));
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
-  return parts.join("\n");
+  return { context: parts.join("\n"), includedSkills: [] };
 }
 
 /**
  * Build light context (~3KB): profile + skill summaries + deployment constraints.
  * Used for Plan agents that need enough context to architect solutions.
  */
-function buildLightContext(agentType: string, likelySkills: string[], budgetBytes: number, sessionId?: string): string {
+function buildLightContext(agentType: string, likelySkills: string[], budgetBytes: number, sessionId?: string): BootstrapContextResult {
   const projectRoot = resolveBootstrapProjectRoot(sessionId);
   const parts: string[] = [];
+  const includedSkills: string[] = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="light" -->`);
   parts.push(profileLine(agentType, likelySkills));
 
@@ -273,6 +279,7 @@ function buildLightContext(agentType: string, likelySkills: string[], budgetByte
       const lineBytes = Buffer.byteLength(line, "utf8");
       if (usedBytes + lineBytes + 1 > budgetBytes) break;
       parts.push(line);
+      includedSkills.push(skill);
       usedBytes += lineBytes + 1;
     }
   }
@@ -290,16 +297,17 @@ function buildLightContext(agentType: string, likelySkills: string[], budgetByte
   }
 
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
-  return parts.join("\n");
+  return { context: parts.join("\n"), includedSkills };
 }
 
 /**
  * Build standard context (~8KB): profile + top skill full bodies.
  * Used for general-purpose agents that need actionable skill content.
  */
-function buildStandardContext(agentType: string, likelySkills: string[], budgetBytes: number, sessionId?: string): string {
+function buildStandardContext(agentType: string, likelySkills: string[], budgetBytes: number, sessionId?: string): BootstrapContextResult {
   const projectRoot = resolveBootstrapProjectRoot(sessionId);
   const parts: string[] = [];
+  const includedSkills: string[] = [];
   parts.push(`<!-- vercel-plugin:subagent-bootstrap agent_type="${agentType}" budget="standard" -->`);
   parts.push(profileLine(agentType, likelySkills));
 
@@ -315,7 +323,7 @@ function buildStandardContext(agentType: string, likelySkills: string[], budgetB
 
   // Inject full skill bodies for likely skills, falling back to summaries
   for (const skill of likelySkills) {
-    const resolved = store.resolveSkillPayload(skill);
+    const resolved = store.resolveSkillPayload(skill, log);
     if (resolved?.mode === "body" && resolved.body) {
       const content = resolved.body;
       const wrapped = `<!-- skill:${skill} -->\n${content}\n<!-- /skill:${skill} -->`;
@@ -323,6 +331,7 @@ function buildStandardContext(agentType: string, likelySkills: string[], budgetB
 
       if (usedBytes + byteLen + 1 <= budgetBytes) {
         parts.push(wrapped);
+        includedSkills.push(skill);
         usedBytes += byteLen + 1;
         continue;
       }
@@ -335,13 +344,14 @@ function buildStandardContext(agentType: string, likelySkills: string[], budgetB
       const lineBytes = Buffer.byteLength(line, "utf8");
       if (usedBytes + lineBytes + 1 <= budgetBytes) {
         parts.push(line);
+        includedSkills.push(skill);
         usedBytes += lineBytes + 1;
       }
     }
   }
 
   parts.push("<!-- /vercel-plugin:subagent-bootstrap -->");
-  return parts.join("\n");
+  return { context: parts.join("\n"), includedSkills };
 }
 
 // ---------------------------------------------------------------------------
@@ -372,30 +382,47 @@ function main(): void {
   const category = resolveBudgetCategory(agentType);
   const maxBytes = budgetBytesForCategory(category);
 
-  let context: string;
+  let built: BootstrapContextResult;
   switch (category) {
     case "minimal":
-      context = buildMinimalContext(agentType, likelySkills);
+      built = buildMinimalContext(agentType, likelySkills);
       break;
     case "light":
-      context = buildLightContext(agentType, likelySkills, maxBytes, sessionId);
+      built = buildLightContext(agentType, likelySkills, maxBytes, sessionId);
       break;
     case "standard":
-      context = buildStandardContext(agentType, likelySkills, maxBytes, sessionId);
+      built = buildStandardContext(agentType, likelySkills, maxBytes, sessionId);
       break;
   }
+
+  let context = built.context;
+  const includedSkills = built.includedSkills;
 
   // Hard-truncate if over budget (safety net)
   if (Buffer.byteLength(context, "utf8") > maxBytes) {
+    log.debug("subagent-start-bootstrap:context-truncated", {
+      agentId,
+      agentType,
+      budgetMax: maxBytes,
+      budgetActual: Buffer.byteLength(context, "utf8"),
+    });
     context = Buffer.from(context, "utf8").subarray(0, maxBytes).toString("utf8");
   }
 
-  // Persist dedup claims so PreToolUse won't re-inject the same skills.
+  log.debug("subagent-start-bootstrap:included-skills", {
+    agentId,
+    agentType,
+    budgetCategory: category,
+    likelySkills,
+    includedSkills,
+  });
+
+  // Persist dedup claims only for skills whose content was actually included.
   // Scope claims by agentId so sibling subagents don't cross-contaminate.
   const scopeId = agentId !== "unknown" ? agentId : undefined;
-  if (sessionId && likelySkills.length > 0) {
+  if (sessionId && includedSkills.length > 0) {
     const claimed: string[] = [];
-    for (const skill of likelySkills) {
+    for (const skill of includedSkills) {
       if (tryClaimSessionKey(sessionId, "seen-skills", skill, scopeId)) {
         claimed.push(skill);
       }
@@ -414,7 +441,9 @@ function main(): void {
   log.summary("subagent-start-bootstrap:complete", {
     agent_id: agentId,
     agent_type: agentType,
-    claimed_skills: likelySkills.length,
+    claimed_skills: includedSkills.length,
+    included_skills: includedSkills,
+    likely_skills: likelySkills,
     budget_used: budgetUsed,
     budget_max: maxBytes,
     budget_category: category,
@@ -451,4 +480,4 @@ export {
   resolveBootstrapProjectRoot,
   main,
 };
-export type { SubagentStartInput, ProfileCache, BudgetCategory };
+export type { SubagentStartInput, ProfileCache, BudgetCategory, BootstrapContextResult };

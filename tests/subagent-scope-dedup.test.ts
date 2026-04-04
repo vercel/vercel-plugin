@@ -352,33 +352,12 @@ describe("subagent-scope-dedup: concurrent same-type bootstrap", () => {
     expect(ctx1).toContain("nextjs");
     expect(ctx2).toContain("nextjs");
 
-    // Each agent has its own scoped claims
+    // Explore agents use minimal budget — no skill content is included,
+    // so no dedup claims are written. This is intentional: only skills
+    // whose content was actually injected are claimed.
     const claims1 = listSessionKeys(testSession, "seen-skills", explore1);
     const claims2 = listSessionKeys(testSession, "seen-skills", explore2);
-    expect(claims1).toContain("nextjs");
-    expect(claims1).toContain("ai-sdk");
-    expect(claims2).toContain("nextjs");
-    expect(claims2).toContain("ai-sdk");
-
-    // Claims are independent — PreToolUse within each agent sees its own scope
-    const [preTool1, preTool2] = await Promise.all([
-      runPreToolUse(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/my-app/app/page.tsx" }, agent_id: explore1 },
-        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
-      ),
-      runPreToolUse(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/my-app/app/page.tsx" }, agent_id: explore2 },
-        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
-      ),
-    ]);
-
-    expect(preTool1.code).toBe(0);
-    expect(preTool2.code).toBe(0);
-
-    // Both should be deduped (nextjs already claimed by their own bootstrap)
-    const injected1 = parseInjectedSkills(preTool1.stdout);
-    const injected2 = parseInjectedSkills(preTool2.stdout);
-    expect(injected1).not.toContain("nextjs");
-    expect(injected2).not.toContain("nextjs");
+    expect(claims1).toEqual([]);
+    expect(claims2).toEqual([]);
   });
 });
