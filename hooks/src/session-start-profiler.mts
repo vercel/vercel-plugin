@@ -56,8 +56,10 @@ import {
   type VercelCliRunResult,
 } from "./vercel-cli-delegator.mjs";
 import { formatOrchestratorActionPalette } from "./orchestrator-action-palette.mjs";
-import { getOrchestratorActionSpecs } from "./orchestrator-action-spec.mjs";
-import { buildOrchestratorRunnerCommand } from "./orchestrator-action-command.mjs";
+import {
+  buildProfileNextActions,
+  type ProfileNextAction,
+} from "./profile-next-actions.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,77 +93,7 @@ export type ProjectFact =
   | "no-env-files"
   | "no-ai-gateway-dep";
 
-export interface ProfileNextAction {
-  id:
-    | "bootstrap-project"
-    | "install-missing"
-    | "vercel-link"
-    | "vercel-env-pull"
-    | "vercel-deploy";
-  title: string;
-  reason: string;
-  command: string | null;
-  priority: number;
-}
-
-const PROFILE_NEXT_ACTION_PRIORITY: Record<ProfileNextAction["id"], number> = {
-  "bootstrap-project": 100,
-  "vercel-link": 95,
-  "vercel-env-pull": 90,
-  "install-missing": 85,
-  "vercel-deploy": 70,
-};
-
-interface BuildProfileNextActionsParams {
-  pluginRoot: string;
-  projectRoot: string;
-  installPlan: SkillInstallPlan;
-}
-
-export function buildProfileNextActions({
-  pluginRoot: pluginRootPath,
-  projectRoot,
-  installPlan,
-}: BuildProfileNextActionsParams): ProfileNextAction[] {
-  const actionMap = new Map<string, SkillInstallPlan["actions"][number]>(
-    installPlan.actions.map((action) => [action.id, action]),
-  );
-
-  return getOrchestratorActionSpecs(installPlan)
-    .filter((spec) => spec.visible)
-    .map((spec): ProfileNextAction | null => {
-      if (
-        spec.id !== "bootstrap-project" &&
-        spec.id !== "install-missing" &&
-        spec.id !== "vercel-link" &&
-        spec.id !== "vercel-env-pull" &&
-        spec.id !== "vercel-deploy"
-      ) {
-        return null;
-      }
-      const planAction = actionMap.get(spec.id);
-      return {
-        id: spec.id,
-        title: spec.label,
-        reason: spec.description,
-        command:
-          spec.id === "bootstrap-project"
-            ? buildOrchestratorRunnerCommand({
-                pluginRoot: pluginRootPath,
-                projectRoot,
-                actionId: "bootstrap-project",
-                json: false,
-              })
-            : (typeof planAction?.command === "string" &&
-                planAction.command.trim() !== ""
-                ? planAction.command
-                : null),
-        priority: PROFILE_NEXT_ACTION_PRIORITY[spec.id],
-      };
-    })
-    .filter((action): action is ProfileNextAction => action !== null)
-    .sort((left, right) => right.priority - left.priority);
-}
+export type { ProfileNextAction } from "./profile-next-actions.mjs";
 
 /**
  * Shape of the JSON snapshot written to profileCachePath(sessionId).
@@ -1554,15 +1486,13 @@ async function main(): Promise<void> {
     installPlan,
   });
 
-  log.debug("session-start-profiler:next-actions-built", {
+  log.debug("session-start-profiler-next-actions", {
     projectRoot,
-    nextActionCount: nextActions.length,
-    nextActionIds: nextActions.map((action) => action.id),
-  });
-
-  log.debug("session-start-profiler:next-actions-normalized", {
-    projectRoot,
-    nextActionIds: nextActions.map((action) => action.id),
+    nextActions: nextActions.map((action) => ({
+      id: action.id,
+      priority: action.priority,
+      command: action.command,
+    })),
   });
 
   // Write profile cache so SubagentStart hooks can read it without re-profiling

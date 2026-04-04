@@ -651,7 +651,11 @@ function main(): void {
       log.debug("session-start-engine-context:fast-lane-rendered", {
         sessionId,
         actionCount: snapshot.nextActions.length,
-        actionIds: snapshot.nextActions.map((action) => action.id),
+        actions: snapshot.nextActions.map((action) => ({
+          id: action.id,
+          priority: action.priority,
+          command: action.command,
+        })),
       });
     }
 

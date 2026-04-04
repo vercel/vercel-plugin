@@ -36,42 +36,9 @@ import {
   createVercelCliDelegator
 } from "./vercel-cli-delegator.mjs";
 import { formatOrchestratorActionPalette } from "./orchestrator-action-palette.mjs";
-import { getOrchestratorActionSpecs } from "./orchestrator-action-spec.mjs";
-import { buildOrchestratorRunnerCommand } from "./orchestrator-action-command.mjs";
-var PROFILE_NEXT_ACTION_PRIORITY = {
-  "bootstrap-project": 100,
-  "vercel-link": 95,
-  "vercel-env-pull": 90,
-  "install-missing": 85,
-  "vercel-deploy": 70
-};
-function buildProfileNextActions({
-  pluginRoot: pluginRootPath,
-  projectRoot,
-  installPlan
-}) {
-  const actionMap = new Map(
-    installPlan.actions.map((action) => [action.id, action])
-  );
-  return getOrchestratorActionSpecs(installPlan).filter((spec) => spec.visible).map((spec) => {
-    if (spec.id !== "bootstrap-project" && spec.id !== "install-missing" && spec.id !== "vercel-link" && spec.id !== "vercel-env-pull" && spec.id !== "vercel-deploy") {
-      return null;
-    }
-    const planAction = actionMap.get(spec.id);
-    return {
-      id: spec.id,
-      title: spec.label,
-      reason: spec.description,
-      command: spec.id === "bootstrap-project" ? buildOrchestratorRunnerCommand({
-        pluginRoot: pluginRootPath,
-        projectRoot,
-        actionId: "bootstrap-project",
-        json: false
-      }) : typeof planAction?.command === "string" && planAction.command.trim() !== "" ? planAction.command : null,
-      priority: PROFILE_NEXT_ACTION_PRIORITY[spec.id]
-    };
-  }).filter((action) => action !== null).sort((left, right) => right.priority - left.priority);
-}
+import {
+  buildProfileNextActions
+} from "./profile-next-actions.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -1023,14 +990,13 @@ async function main() {
     projectRoot,
     installPlan
   });
-  log.debug("session-start-profiler:next-actions-built", {
+  log.debug("session-start-profiler-next-actions", {
     projectRoot,
-    nextActionCount: nextActions.length,
-    nextActionIds: nextActions.map((action) => action.id)
-  });
-  log.debug("session-start-profiler:next-actions-normalized", {
-    projectRoot,
-    nextActionIds: nextActions.map((action) => action.id)
+    nextActions: nextActions.map((action) => ({
+      id: action.id,
+      priority: action.priority,
+      command: action.command
+    }))
   });
   if (sessionId) {
     try {
@@ -1103,7 +1069,6 @@ export {
   autoPullProjectEnv,
   buildAutoInstallResultBlock,
   buildAutoInstallStartBlock,
-  buildProfileNextActions,
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   checkAgentBrowser,
