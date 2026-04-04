@@ -29,6 +29,9 @@ async function runProfiler(env: Record<string, string | undefined>): Promise<{
 }> {
   const mergedEnv: Record<string, string> = {
     ...(process.env as Record<string, string>),
+    // Disable auto-install by default so tests don't trigger real `npx skills add`
+    // calls. Tests that specifically verify auto-install set the env var explicitly.
+    VERCEL_PLUGIN_SKILL_AUTO_INSTALL: "0",
   };
 
   for (const [key, value] of Object.entries(env)) {
@@ -111,7 +114,7 @@ describe("session-start-profiler", () => {
     expect(result.code).toBe(0);
   });
 
-  test("detects empty project as greenfield (seeds default skills)", async () => {
+  test("detects empty project as greenfield (no profiler detections)", async () => {
     const projectDir = join(tempDir, "empty-project");
     mkdirSync(projectDir);
 
@@ -123,13 +126,10 @@ describe("session-start-profiler", () => {
 
     expect(result.code).toBe(0);
     expect(readGreenfieldState()).toBe("true");
-    // Greenfield projects get seeded with default skills but NOT observability
+    // Greenfield projects get zero profiler detections — the UserPromptSubmit
+    // hook handles skill discovery based on the user's actual request.
     const skills = parseLikelySkills();
-    expect(skills).toContain("nextjs");
-    expect(skills).toContain("ai-sdk");
-    expect(skills).toContain("vercel-cli");
-    expect(skills).toContain("env-vars");
-    expect(skills).not.toContain("observability");
+    expect(skills).toEqual([]);
   });
 
   test("detects Next.js project via next.config.ts", async () => {
@@ -575,8 +575,10 @@ describe("session-start-profiler", () => {
   });
 
   test("persists likely skills and greenfield in session files without exporting them", async () => {
+    // Use a non-greenfield project so detections produce likely-skills
     const projectDir = join(tempDir, "session-file-project");
     mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
 
     const result = await runProfiler({
       CLAUDE_ENV_FILE: envFile,
@@ -585,7 +587,8 @@ describe("session-start-profiler", () => {
 
     expect(result.code).toBe(0);
     expect(readSessionFile(testSessionId, "likely-skills")).toContain("nextjs");
-    expect(readGreenfieldState()).toBe("true");
+    // Non-greenfield project
+    expect(readGreenfieldState()).toBe("");
   });
 
   test("hooks.json registers profiler after seen-skills init", () => {
@@ -767,6 +770,15 @@ metadata:
           "next-best-practices": { source: "vercel/vercel-skills" },
         },
       }),
+      "utf-8",
+    );
+    // The profiler requires actual SKILL.md files on disk (not just lockfile
+    // entries) to count a skill as installed. Create the file under the
+    // registrySlug name — canonicalization maps it to the engine skill name.
+    mkdirSync(join(statePaths.skillsDir, "next-best-practices"), { recursive: true });
+    writeFileSync(
+      join(statePaths.skillsDir, "next-best-practices", "SKILL.md"),
+      "---\nname: next-best-practices\ndescription: Next.js\nsummary: Next.js\nmetadata:\n  priority: 7\n---\n# Next.js\n",
       "utf-8",
     );
 

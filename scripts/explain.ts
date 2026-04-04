@@ -5,7 +5,6 @@
  */
 
 import { resolve } from "node:path";
-import { existsSync } from "node:fs";
 import { explain, formatExplainResult, type ExplainOptions } from "../src/cli/explain.ts";
 
 const args = process.argv.slice(2);
@@ -62,11 +61,6 @@ if (!target) {
 }
 
 const projectRoot = resolve(import.meta.dir, "..");
-const skillsDir = resolve(projectRoot, "skills");
-if (!existsSync(skillsDir)) {
-  console.error(`Error: no skills/ directory found at ${projectRoot}`);
-  process.exit(2);
-}
 
 try {
   const options: ExplainOptions = {};

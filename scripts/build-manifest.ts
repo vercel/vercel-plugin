@@ -14,7 +14,7 @@
 
 import { resolve, join } from "node:path";
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { globToRegex, importPatternToRegex } from "../hooks/patterns.mjs";
+import { globToRegex, importPatternToRegex } from "../hooks/src/patterns.mts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ENGINE_DIR = join(ROOT, "engine");

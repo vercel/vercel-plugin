@@ -5,7 +5,7 @@ import { homedir } from "os";
 import { join, normalize, resolve } from "path";
 function resolveVercelPluginHome(homeDir) {
   return resolve(
-    process.env.VERCEL_PLUGIN_HOME_DIR && process.env.VERCEL_PLUGIN_HOME_DIR.trim() !== "" ? process.env.VERCEL_PLUGIN_HOME_DIR : homeDir ?? homedir(),
+    homeDir ?? (process.env.VERCEL_PLUGIN_HOME_DIR && process.env.VERCEL_PLUGIN_HOME_DIR.trim() !== "" ? process.env.VERCEL_PLUGIN_HOME_DIR : homedir()),
     ".vercel-plugin"
   );
 }

@@ -1,12 +1,12 @@
 /**
- * Shared helper that builds and validates the skill map from the skills/ directory.
+ * Shared helper that builds and validates the skill map from a directory of SKILL.md files.
  * Eliminates duplicated buildSkillMap→validateSkillMap sequences across CLI scripts.
  */
 
 import {
   buildSkillMap,
   validateSkillMap,
-} from "../../hooks/skill-map-frontmatter.mjs";
+} from "../../hooks/src/skill-map-frontmatter.mts";
 
 export interface ValidatedSkillMapResult {
   /** Raw output from buildSkillMap (includes diagnostics, raw skills) */

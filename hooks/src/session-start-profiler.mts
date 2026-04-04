@@ -983,6 +983,7 @@ export function shouldAutoInstall(args: {
   // Never auto-install in greenfield (empty) projects — wait for the user
   // to scaffold something so detections are based on actual project content.
   if (args.greenfield) return false;
+  if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "0") return false;
   if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1") return true;
   // First session: no skills are cached yet
   if (args.installedSkillCount === 0 && args.missingSkillCount > 0) return true;

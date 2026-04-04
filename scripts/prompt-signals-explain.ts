@@ -8,11 +8,10 @@
  *   bun run scripts/prompt-signals-explain.ts --prompt '...' --json --seen-skills nextjs,ai-sdk
  */
 
-import { resolve } from "node:path";
-import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { analyzePrompt } from "../hooks/src/prompt-analysis.mjs";
 import type { PromptAnalysisReport, PerSkillResult } from "../hooks/src/prompt-analysis.mjs";
-import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 // ---------------------------------------------------------------------------
 // Arg parsing
@@ -109,13 +108,15 @@ if (!Number.isFinite(maxSkills) || maxSkills <= 0) {
 // ---------------------------------------------------------------------------
 
 const projectRoot = resolve(import.meta.dir, "..");
-const skillsDir = resolve(projectRoot, "skills");
-if (!existsSync(skillsDir)) {
-  console.error(`Error: no skills/ directory found at ${projectRoot}`);
+const manifestPath = join(projectRoot, "generated", "skill-rules.json");
+let skills: Record<string, any>;
+try {
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  skills = manifest.skills ?? {};
+} catch {
+  console.error(`Error: cannot read generated/skill-rules.json at ${manifestPath}`);
   process.exit(2);
 }
-
-const { skills } = loadValidatedSkillMap(skillsDir);
 
 // ---------------------------------------------------------------------------
 // Analyze

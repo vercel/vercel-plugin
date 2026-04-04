@@ -2,7 +2,7 @@
  * `vercel-plugin explain` — show which skills match a given file or command,
  * with priority scores, match reasons, byte budget simulation, and collision detection.
  *
- * Mirrors the runtime selection pipeline in hooks/pretooluse-skill-inject.mjs:
+ * Mirrors the runtime selection pipeline in hooks/src/pretooluse-skill-inject.mts:
  *   path/bash/import matching → vercel.json routing → profiler boost → rank → budget+cap
  *
  * Skill metadata is resolved through the same skill-store contract used by
@@ -23,7 +23,7 @@ import {
   matchBashWithReason,
   matchImportWithReason,
   rankEntries,
-} from "../../hooks/patterns.mjs";
+} from "../../hooks/src/patterns.mts";
 import {
   createSkillStore,
   type SkillStore,
@@ -34,7 +34,7 @@ import {
   resolveVercelJsonSkills,
   isVercelJsonPath,
   VERCEL_JSON_SKILLS,
-} from "../../hooks/vercel-config.mjs";
+} from "../../hooks/src/vercel-config.mts";
 
 const MAX_SKILLS = 3;
 const DEFAULT_INJECTION_BUDGET_BYTES = 12_000;

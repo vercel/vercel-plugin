@@ -633,6 +633,7 @@ function mergeInstallResults(results) {
 }
 function shouldAutoInstall(args) {
   if (args.greenfield) return false;
+  if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "0") return false;
   if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1") return true;
   if (args.installedSkillCount === 0 && args.missingSkillCount > 0) return true;
   return false;

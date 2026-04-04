@@ -18,9 +18,10 @@ export interface ProjectStatePaths {
 
 export function resolveVercelPluginHome(homeDir?: string): string {
   return resolve(
-    process.env.VERCEL_PLUGIN_HOME_DIR && process.env.VERCEL_PLUGIN_HOME_DIR.trim() !== ""
-      ? process.env.VERCEL_PLUGIN_HOME_DIR
-      : (homeDir ?? homedir()),
+    homeDir
+      ?? (process.env.VERCEL_PLUGIN_HOME_DIR && process.env.VERCEL_PLUGIN_HOME_DIR.trim() !== ""
+        ? process.env.VERCEL_PLUGIN_HOME_DIR
+        : homedir()),
     ".vercel-plugin",
   );
 }
