@@ -8,10 +8,11 @@
   "scripts": {
     "build:hooks": "tsup --config hooks/tsup.config.ts",
     "build:manifest": "bun run scripts/build-manifest.ts",
+    "build:registry": "bun run scripts/build-registry.ts",
     "build": "bun run build:hooks && bun run build:manifest",
     "doctor": "bun run src/cli/index.ts doctor",
     "typecheck": "tsc -p hooks/tsconfig.json --noEmit",
-    "test": "bun run typecheck && bun test",
+    "test": "export VERCEL_PLUGIN_SYNC_INSTALL=0 && bun run typecheck && bun test",
     "test:smoke": "bun test smoke-tests/",
     "test:all": "bun run typecheck && bun test tests/ hooks/ smoke-tests/",
     "test:update-snapshots": "UPDATE_SNAPSHOTS=1 bun test tests/snapshot-runner.test.ts",

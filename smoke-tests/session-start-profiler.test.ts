@@ -597,22 +597,22 @@ describe("session-start-profiler", () => {
       (h: { command: string }) => h.command,
     );
 
-    // Profiler must come after seen-skills and before inject-claude-md
+    // Profiler must come after seen-skills and before engine-context
     const seenIdx = commands.findIndex((c: string) =>
       c.includes("session-start-seen-skills.mjs"),
     );
     const profilerIdx = commands.findIndex((c: string) =>
       c.includes("session-start-profiler.mjs"),
     );
-    const injectIdx = commands.findIndex((c: string) =>
-      c.includes("inject-claude-md.mjs"),
+    const engineCtxIdx = commands.findIndex((c: string) =>
+      c.includes("session-start-engine-context.mjs"),
     );
 
     expect(seenIdx).toBeGreaterThanOrEqual(0);
     expect(profilerIdx).toBeGreaterThanOrEqual(0);
-    expect(injectIdx).toBeGreaterThanOrEqual(0);
+    expect(engineCtxIdx).toBeGreaterThanOrEqual(0);
     expect(profilerIdx).toBeGreaterThan(seenIdx);
-    expect(profilerIdx).toBeLessThan(injectIdx);
+    expect(profilerIdx).toBeLessThan(engineCtxIdx);
   });
 
   test("treats 1.9.0 as older than 1.10.0 when checking Vercel CLI", async () => {

@@ -1,5 +1,6 @@
 ---
 name: ai-gateway
+greenfield: true
 priority: 7
 docs:
   - https://vercel.com/docs/ai-gateway
@@ -12,7 +13,6 @@ bashPatterns:
   - "\\bbun\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b"
   - "\\byarn\\s+add\\s+[^\\n]*@ai-sdk/gateway\\b"
 importPatterns:
-  - "ai"
   - "@ai-sdk/gateway"
 validate:
   - pattern: "\\d+-\\d+[)'\"]"
@@ -84,6 +84,67 @@ chainTo:
     targetSkill: ai-sdk
     message: "Gemini 2.x models are outdated — use gemini-3.1-flash-image-preview for images or current Gemini 3.x models; loading AI SDK guidance."
     skipIfFileContains: "gemini-3"
+pathPatterns:
+  - ".env"
+  - ".env.*"
+  - "**/.env"
+  - "**/.env.*"
 ---
 
-Guidance for ai-gateway. Install from registry for full content.
+# Vercel AI Gateway
+
+## Setup (MUST do before writing AI code)
+
+1. **`vercel link`** — connect your project to Vercel
+2. **`vercel env pull`** — pulls OIDC credentials to `.env.local` automatically
+3. No `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or other provider keys needed
+
+This gives you `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically.
+
+## Usage
+
+```typescript
+import { streamText } from "ai";
+
+const result = streamText({
+  model: "anthropic/claude-sonnet-4.6",  // provider/model format
+  messages,
+});
+```
+
+**Do NOT import provider SDKs directly:**
+```typescript
+// ❌ WRONG — bypasses gateway, requires manual API keys
+import { anthropic } from "@ai-sdk/anthropic";
+const result = streamText({ model: anthropic("claude-sonnet-4.6"), ... });
+
+// ✅ CORRECT — routes through gateway, uses OIDC auth
+import { streamText } from "ai";
+const result = streamText({ model: "anthropic/claude-sonnet-4.6", ... });
+```
+
+## Model strings
+
+Use `provider/model` format:
+- `anthropic/claude-sonnet-4.6`
+- `openai/gpt-5.4`
+- `google/gemini-3.1-flash-image-preview` (for image generation)
+
+Use dots (not hyphens) for version numbers: `claude-sonnet-4.6` not `claude-sonnet-4-5`.
+
+## Why gateway?
+
+- **No API keys to manage** — OIDC tokens auto-refresh
+- **Model routing** — switch providers without code changes
+- **Cost tracking** — built-in usage analytics
+- **Failover** — automatic provider fallback
+- **Security** — no secrets in `.env.local`
+
+## .env.local
+
+After `vercel env pull`, your `.env.local` should contain OIDC credentials only:
+```
+VERCEL_OIDC_TOKEN=...
+```
+
+Do NOT add `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or other provider keys.

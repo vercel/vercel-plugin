@@ -139,6 +139,15 @@ interface LoadedRootSkillSet {
   usedManifest: boolean;
 }
 
+function hasCompiledMatchers(entry: CompiledSkillEntry | undefined): boolean {
+  if (!entry) return false;
+  return (
+    entry.compiledPaths.length > 0 ||
+    entry.compiledBash.length > 0 ||
+    entry.compiledImports.length > 0
+  );
+}
+
 function toStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter(
@@ -172,7 +181,22 @@ export function defaultSkillStoreRoots(
   );
   const pluginRoot = resolve(options.pluginRoot);
 
+  // The skills CLI installs into <projectRoot>/.claude/skills/ where the
+  // Skill() tool can find them. Check there first, then fall back to the
+  // hashed state root for legacy compatibility.
+  const projectClaudeSkillsDir = join(
+    resolve(options.projectRoot),
+    ".claude",
+    "skills",
+  );
+
   const roots: SkillStoreRoot[] = [
+    {
+      source: "project-cache",
+      rootDir: resolve(options.projectRoot),
+      skillsDir: projectClaudeSkillsDir,
+      manifestPath: join(projectClaudeSkillsDir, "manifest.json"),
+    },
     {
       source: "project-cache",
       rootDir: statePaths.stateRoot,
@@ -222,6 +246,12 @@ function normalizeManifestSkill(raw: RawManifestSkill): SkillConfig {
   if (Array.isArray(raw.chainTo) && raw.chainTo.length > 0) {
     skill.chainTo = raw.chainTo as SkillConfig["chainTo"];
   }
+  if (Array.isArray(raw.coInject) && raw.coInject.length > 0) {
+    skill.coInject = raw.coInject as SkillConfig["coInject"];
+  }
+  if (raw.greenfield === true || raw.greenfield === "true") {
+    skill.greenfield = true;
+  }
   if (
     raw.promptSignals &&
     typeof raw.promptSignals === "object" &&
@@ -235,6 +265,12 @@ function normalizeManifestSkill(raw: RawManifestSkill): SkillConfig {
     !Array.isArray(raw.retrieval)
   ) {
     skill.retrieval = raw.retrieval as SkillConfig["retrieval"];
+  }
+  if (raw.hasRealBody === true) {
+    skill.hasRealBody = true;
+  }
+  if (typeof raw.sessionStartEligible === "string") {
+    skill.sessionStartEligible = raw.sessionStartEligible as SkillConfig["sessionStartEligible"];
   }
 
   return skill;
@@ -520,7 +556,8 @@ export function createSkillStore(
         }
       }
       for (const entry of result.compiledSkills) {
-        if (!compiledBySkill.has(entry.skill)) {
+        const existing = compiledBySkill.get(entry.skill);
+        if (!existing || (!hasCompiledMatchers(existing) && hasCompiledMatchers(entry))) {
           compiledBySkill.set(entry.skill, entry);
         }
       }

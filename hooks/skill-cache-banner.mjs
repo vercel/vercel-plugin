@@ -1,4 +1,5 @@
 // hooks/src/skill-cache-banner.mts
+import { join, normalize, resolve } from "path";
 import { logCaughtError } from "./logger.mjs";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import {
@@ -7,7 +8,6 @@ import {
 import {
   readProjectSkillState
 } from "./project-skill-manifest.mjs";
-import { resolveProjectStatePaths } from "./project-state-paths.mjs";
 import { createSkillStore } from "./skill-store.mjs";
 import { pluginRoot as resolvePluginRoot } from "./hook-env.mjs";
 import { canonicalizeInstalledSkillNames } from "./registry-skill-metadata.mjs";
@@ -96,7 +96,7 @@ function buildResolvedSkillCacheBanner(args) {
     installResult?.installed.length ? `- Installed now: ${installResult.installed.join(", ")}` : null,
     installResult?.reused.length ? `- Already cached: ${installResult.reused.join(", ")}` : null,
     status.missingSkills.length > 0 ? `- Missing: ${status.missingSkills.join(", ")}` : null,
-    status.missingSkills.length > 0 || outcome === "installed" || outcome === "partial" || outcome === "failed" ? `- Project cache: ${resolveProjectStatePaths(projectRoot).skillsDir}` : null,
+    status.missingSkills.length > 0 || outcome === "installed" || outcome === "partial" || outcome === "failed" ? `- Project skill dir: ${join(normalize(resolve(projectRoot)), ".claude", "skills")}` : null,
     installQuestion ? `- Ask once: "${installQuestion}"` : null,
     installCommand ? `- Install: \`${installCommand}\`` : null
   ].filter(Boolean).join("\n");

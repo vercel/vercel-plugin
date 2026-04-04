@@ -13,6 +13,10 @@ import {
   compileSkillPatterns
 } from "./patterns.mjs";
 import { safeReadFile, safeReadJson } from "./hook-env.mjs";
+function hasCompiledMatchers(entry) {
+  if (!entry) return false;
+  return entry.compiledPaths.length > 0 || entry.compiledBash.length > 0 || entry.compiledImports.length > 0;
+}
 function toStringArray(value) {
   return Array.isArray(value) ? value.filter(
     (entry) => typeof entry === "string" && entry.length > 0
@@ -33,7 +37,18 @@ function defaultSkillStoreRoots(options) {
     options.globalCacheDir ?? join(resolveVercelPluginHome(), "skills")
   );
   const pluginRoot = resolve(options.pluginRoot);
+  const projectClaudeSkillsDir = join(
+    resolve(options.projectRoot),
+    ".claude",
+    "skills"
+  );
   const roots = [
+    {
+      source: "project-cache",
+      rootDir: resolve(options.projectRoot),
+      skillsDir: projectClaudeSkillsDir,
+      manifestPath: join(projectClaudeSkillsDir, "manifest.json")
+    },
     {
       source: "project-cache",
       rootDir: statePaths.stateRoot,
@@ -73,11 +88,23 @@ function normalizeManifestSkill(raw) {
   if (Array.isArray(raw.chainTo) && raw.chainTo.length > 0) {
     skill.chainTo = raw.chainTo;
   }
+  if (Array.isArray(raw.coInject) && raw.coInject.length > 0) {
+    skill.coInject = raw.coInject;
+  }
+  if (raw.greenfield === true || raw.greenfield === "true") {
+    skill.greenfield = true;
+  }
   if (raw.promptSignals && typeof raw.promptSignals === "object" && !Array.isArray(raw.promptSignals)) {
     skill.promptSignals = raw.promptSignals;
   }
   if (raw.retrieval && typeof raw.retrieval === "object" && !Array.isArray(raw.retrieval)) {
     skill.retrieval = raw.retrieval;
+  }
+  if (raw.hasRealBody === true) {
+    skill.hasRealBody = true;
+  }
+  if (typeof raw.sessionStartEligible === "string") {
+    skill.sessionStartEligible = raw.sessionStartEligible;
   }
   return skill;
 }
@@ -293,7 +320,8 @@ function createSkillStore(options, logger) {
         }
       }
       for (const entry of result.compiledSkills) {
-        if (!compiledBySkill.has(entry.skill)) {
+        const existing = compiledBySkill.get(entry.skill);
+        if (!existing || !hasCompiledMatchers(existing) && hasCompiledMatchers(entry)) {
           compiledBySkill.set(entry.skill, entry);
         }
       }

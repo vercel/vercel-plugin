@@ -134,8 +134,8 @@ describe("readProjectSkillState", () => {
 
     expect(state.source).toBe("skills-lock.json");
     expect(state.projectSkillStatePath).toBe(LOCKFILE_PATH);
-    // Canonical: slugs come from lockfile keys, sorted
-    expect(state.installedSlugs).toEqual(["ai-sdk", "nextjs"]);
+    // installedSlugs reflects disk state — only nextjs has a SKILL.md
+    expect(state.installedSlugs).toEqual(["nextjs"]);
     expect(state.lockVersion).toBe(3);
     expect(state.lockSkills).toEqual({
       nextjs: expect.objectContaining({ source: "vercel/vercel-skills" }),
@@ -158,8 +158,9 @@ describe("readProjectSkillState", () => {
     const state = readProjectSkillState(PROJECT_ROOT);
 
     expect(state.source).toBe("skills-lock.json");
-    // Slugs come from lockfile, not directory
-    expect(state.installedSlugs).toEqual(["ai-sdk", "nextjs"]);
+    // installedSlugs reflects disk state — only nextjs is on disk
+    // (payments is on disk but ai-sdk from lockfile is not)
+    expect(state.installedSlugs).toEqual(["nextjs", "payments"]);
     expect(state.lockVersion).toBe(1);
   });
 
@@ -230,7 +231,8 @@ describe("readProjectSkillState", () => {
 
     const state = readProjectSkillState(PROJECT_ROOT);
 
-    expect(state.installedSlugs).toEqual(["nextjs", "zod"]);
+    // No SKILL.md files on disk — lockfile entries don't count as installed
+    expect(state.installedSlugs).toEqual([]);
     expect(state.lockSkills).toEqual({
       nextjs: expect.objectContaining({ source: "vercel/vercel-skills" }),
       zod: expect.objectContaining({ source: "vercel/vercel-skills" }),

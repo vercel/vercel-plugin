@@ -126,9 +126,9 @@ describe("lexical prompt matching (VERCEL_PLUGIN_LEXICAL_PROMPT)", () => {
     if (result.hookSpecificOutput) {
       const meta = extractSkillInjection(result.hookSpecificOutput);
       expect(meta).toBeDefined();
-      // At most 2 skills injected (MAX_SKILLS=2 for UserPromptSubmit)
-      expect(meta.injectedSkills.length).toBeLessThanOrEqual(2);
-      // matchedSkills may exceed 2 but injected is capped
+      // At most 10 skills injected (MAX_SKILLS=10 for UserPromptSubmit)
+      expect(meta.injectedSkills.length).toBeLessThanOrEqual(10);
+      // matchedSkills should have at least 1
       expect(meta.matchedSkills.length).toBeGreaterThanOrEqual(1);
     }
   });

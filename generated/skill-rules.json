@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-02T12:21:10.273Z",
+  "generatedAt": "2026-04-04T00:07:13.720Z",
   "version": 3,
   "skills": {
     "agent-browser-verify": {
@@ -159,7 +159,9 @@
           "visual check",
           "gut-check"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "agent-browser": {
       "priority": 3,
@@ -221,7 +223,7 @@
       "docs": [
         "https://docs.anthropic.com/en/docs/claude-code/sub-agents"
       ],
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel-labs/agent-browser",
       "chainTo": [
         {
           "pattern": "localhost:\\d+|127\\.0\\.0\\.1:\\d+",
@@ -255,7 +257,9 @@
           "browser",
           "headless"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "ai-elements": {
       "priority": 5,
@@ -336,7 +340,7 @@
         "https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling"
       ],
       "sitemap": "https://sdk.vercel.ai/sitemap.xml",
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel/ai-elements",
       "validate": [
         {
           "pattern": "part\\.text\\b",
@@ -487,13 +491,25 @@
           "ReasoningPanel",
           "shadcn"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "ai-gateway": {
       "priority": 7,
-      "summary": "Guidance for ai-gateway. Install from registry for full content.",
-      "pathPatterns": [],
-      "pathRegexSources": [],
+      "summary": "# Vercel AI Gateway\n\n## Setup (MUST do before writing AI code)\n\n1. **`vercel link`** — connect your project to Vercel\n2. **`vercel env pull`** — pulls OIDC credentials to `.env.local` automatically\n3. No `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or other provider keys needed\n\nThis gives you `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically.\n\n## Usage\n\n```typescript\nimport { streamText } from \"ai\";\n\nconst result = streamText({\n  model: \"anthropic/claude-sonnet-4.6\",  // provider/model format\n  messages,\n});\n```\n\n**Do NOT import provider SDKs directly:**\n```typescript\n// ❌ WRONG — bypasses gateway, requires manual API keys\nimport { anthropic } from \"@ai-sdk/anthropic\";\nconst result = streamText({ model: anthropic(\"claude-sonnet-4.6\"), ... });\n\n// ✅ CORRECT — routes through gateway, uses OIDC auth\nimport { streamText } from \"ai\";\nconst result = streamText({ model: \"anthropic/claude-sonnet-4.6\", ... });\n```\n\n## Model strings\n\nUse `provider/model` format:\n- `anthropic/claude-sonnet-4.6`\n- `openai/gpt-5.4`\n- `google/gemini-3.1-flash-image-preview` (for image generation)\n\nUse dots (not hyphens) for version numbers: `claude-sonnet-4.6` not `claude-sonnet-4-5`.\n\n## Why gateway?\n\n- **No API keys to manage** — OIDC tokens auto-refresh\n- **Model routing** — switch providers without code changes\n- **Cost tracking** — built-in usage analytics\n- **Failover** — automatic provider fallback\n- **Security** — no secrets in `.env.local`\n\n## .env.local\n\nAfter `vercel env pull`, your `.env.local` should contain OIDC credentials only:\n```\nVERCEL_OIDC_TOKEN=...\n```\n\nDo NOT add `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or other provider keys.",
+      "pathPatterns": [
+        ".env",
+        ".env.*",
+        "**/.env",
+        "**/.env.*"
+      ],
+      "pathRegexSources": [
+        "^\\.env$",
+        "^\\.env\\.[^/]*$",
+        "^(?:[^/]+\\/)*\\.env$",
+        "^(?:[^/]+\\/)*\\.env\\.[^/]*$"
+      ],
       "bashPatterns": [
         "\\bvercel\\s+env\\s+pull\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
@@ -509,14 +525,9 @@
         "\\byarn\\s+add\\s+[^\\n]*@ai-sdk/gateway\\b"
       ],
       "importPatterns": [
-        "ai",
         "@ai-sdk/gateway"
       ],
       "importRegexSources": [
-        {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]ai(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
         {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@ai-sdk\\/gateway(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
@@ -530,6 +541,7 @@
           "https": "//sdk.vercel.ai/docs/ai-sdk-core/settings"
         }
       ],
+      "greenfield": true,
       "sitemap": "https://vercel.com/sitemap/docs.xml",
       "validate": [
         {
@@ -656,7 +668,9 @@
           "failover",
           "cost tracking"
         ]
-      }
+      },
+      "hasRealBody": true,
+      "sessionStartEligible": "body"
     },
     "ai-sdk": {
       "priority": 8,
@@ -767,8 +781,9 @@
           "https": "//sdk.vercel.ai/docs/reference"
         }
       ],
+      "greenfield": true,
       "sitemap": "https://sdk.vercel.ai/sitemap.xml",
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel/ai",
       "validate": [
         {
           "pattern": "from\\s+['\"]openai['\"]",
@@ -1178,6 +1193,37 @@
           "skipIfFileContains": "toUIMessageStreamResponse|@ai-sdk/gateway|gateway\\("
         }
       ],
+      "coInject": [
+        {
+          "targetSkill": "ai-gateway",
+          "mode": "force",
+          "when": {
+            "allProjectFacts": [
+              "greenfield"
+            ]
+          }
+        },
+        {
+          "targetSkill": "ai-gateway",
+          "mode": "prefer",
+          "when": {
+            "allProjectFacts": [
+              "setup-mode",
+              "no-env-files",
+              "no-ai-gateway-dep"
+            ]
+          }
+        },
+        {
+          "targetSkill": "ai-elements",
+          "mode": "force",
+          "when": {
+            "allRuntimeFacts": [
+              "client-react-file"
+            ]
+          }
+        }
+      ],
       "promptSignals": {
         "phrases": [
           "ai sdk",
@@ -1230,7 +1276,9 @@
           "ToolLoopAgent",
           "AI Gateway"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "auth": {
       "priority": 6,
@@ -1403,7 +1451,9 @@
           "middleware",
           "getServerSession"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "bootstrap": {
       "priority": 8,
@@ -1538,7 +1588,9 @@
           "database setup",
           "first run"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "chat-sdk": {
       "priority": 8,
@@ -1688,6 +1740,7 @@
         }
       ],
       "sitemap": "https://sdk.vercel.ai/sitemap.xml",
+      "registry": "vercel/chat",
       "chainTo": [
         {
           "pattern": "from\\s+[''\"\"]openai[''\"\"]",
@@ -1771,7 +1824,9 @@
           "StreamingMessage",
           "chat-sdk"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "cron-jobs": {
       "priority": 6,
@@ -1828,7 +1883,9 @@
           "schedule",
           "cron expression"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "deployments-cicd": {
       "priority": 6,
@@ -1878,7 +1935,7 @@
         }
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel-labs/agent-skills",
       "registrySlug": "vercel-deploy",
       "validate": [
         {
@@ -1918,7 +1975,9 @@
           "promote",
           "CI workflow"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "env-vars": {
       "priority": 7,
@@ -1964,6 +2023,7 @@
       "docs": [
         "https://vercel.com/docs/environment-variables"
       ],
+      "greenfield": true,
       "sitemap": "https://vercel.com/sitemap/docs.xml",
       "chainTo": [
         {
@@ -1991,7 +2051,9 @@
           "OIDC",
           "environment variable"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "investigation-mode": {
       "priority": 8,
@@ -2344,7 +2406,9 @@
           "browser verify",
           "triage"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "json-render": {
       "priority": 4,
@@ -2408,7 +2472,9 @@
           "streaming",
           "message parts"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "knowledge-update": {
       "priority": 10,
@@ -2434,7 +2500,9 @@
           "vercel.ts"
         ],
         "minScore": 6
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "marketplace": {
       "priority": 3,
@@ -2492,7 +2560,9 @@
           "vercel integration",
           "unified billing"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "micro": {
       "priority": 5,
@@ -2522,7 +2592,9 @@
       ],
       "docs": [
         "https://webpack.js.org/concepts/module-federation/"
-      ]
+      ],
+      "hasRealBody": true,
+      "sessionStartEligible": "body"
     },
     "next-cache-components": {
       "priority": 6,
@@ -2564,7 +2636,7 @@
           "https": "//nextjs.org/docs/app/api-reference/directives/use-cache"
         }
       ],
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel-labs/next-skills",
       "chainTo": [
         {
           "pattern": "use cache",
@@ -2627,7 +2699,9 @@
           "revalidateTag",
           "PPR"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "next-forge": {
       "priority": 6,
@@ -2837,6 +2911,7 @@
           "https": "//github.com/haydenbleasel/next-forge"
         }
       ],
+      "registry": "vercel/next-forge",
       "validate": [
         {
           "pattern": "\"pipeline\"\\s*:",
@@ -2933,7 +3008,9 @@
           "monorepo",
           "SaaS starter"
         ]
-      }
+      },
+      "hasRealBody": true,
+      "sessionStartEligible": "body"
     },
     "next-upgrade": {
       "priority": 6,
@@ -2970,7 +3047,7 @@
           "https": "//nextjs.org/docs/app/guides/upgrading/codemods"
         }
       ],
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel-labs/next-skills",
       "chainTo": [
         {
           "pattern": "getServerSideProps|getStaticProps|next/router|next/head|next/document",
@@ -3027,7 +3104,9 @@
           "upgrade",
           "breaking changes"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "nextjs": {
       "priority": 5,
@@ -3094,8 +3173,9 @@
           "https": "//nextjs.org/docs/app"
         }
       ],
+      "greenfield": true,
       "sitemap": "https://nextjs.org/sitemap.xml",
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel-labs/next-skills",
       "registrySlug": "next-best-practices",
       "validate": [
         {
@@ -3480,7 +3560,9 @@
           "proxy",
           "next.config"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "observability": {
       "priority": 6,
@@ -3756,7 +3838,9 @@
           "Drains",
           "runtime logs"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "react-best-practices": {
       "priority": 4,
@@ -3805,7 +3889,7 @@
           "https": "//react.dev/learn"
         }
       ],
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel-labs/agent-skills",
       "registrySlug": "vercel-react-best-practices",
       "validate": [
         {
@@ -3844,7 +3928,9 @@
           "TSX",
           "component"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "routing-middleware": {
       "priority": 6,
@@ -3985,7 +4071,9 @@
           "personalization",
           "Edge"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "runtime-cache": {
       "priority": 6,
@@ -4061,7 +4149,9 @@
           "key-value",
           "cache"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "shadcn": {
       "priority": 6,
@@ -4110,6 +4200,7 @@
           "https": "//ui.shadcn.com/docs/components"
         }
       ],
+      "registry": "vercel-labs/json-render",
       "validate": [
         {
           "pattern": "\"base\"\\s*:\\s*\"base-ui\"",
@@ -4161,7 +4252,9 @@
           "theme",
           "components.json"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "sign-in-with-vercel": {
       "priority": 6,
@@ -4220,7 +4313,9 @@
           "Sign in with Vercel",
           "identity provider"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "turbopack": {
       "priority": 4,
@@ -4281,7 +4376,9 @@
           "bundler",
           "next dev --turbopack"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "turborepo": {
       "priority": 5,
@@ -4310,7 +4407,7 @@
         "https://turborepo.dev/docs"
       ],
       "sitemap": "https://turborepo.dev/sitemap.xml",
-      "registry": "vercel/vercel-skills",
+      "registry": "vercel/turborepo",
       "validate": [
         {
           "pattern": "\"pipeline\"\\s*:",
@@ -4354,7 +4451,9 @@
           "--affected",
           "pipeline"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "v0-dev": {
       "priority": 5,
@@ -4443,7 +4542,9 @@
           "v0 SDK",
           "AI code generation"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-agent": {
       "priority": 4,
@@ -4512,7 +4613,9 @@
           "incident investigation",
           "SDK"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-api": {
       "priority": 7,
@@ -4579,7 +4682,9 @@
           "deployments",
           "domains"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-cli": {
       "priority": 4,
@@ -4621,9 +4726,9 @@
       "docs": [
         "https://vercel.com/docs/cli"
       ],
+      "greenfield": true,
       "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "registry": "vercel-labs/agent-skills",
-      "registrySlug": "vercel-cli-with-tokens",
+      "registry": "vercel/vercel",
       "chainTo": [
         {
           "pattern": "\"crons\"\\s*:",
@@ -4724,7 +4829,9 @@
           "vercel link",
           "vercel logs"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-flags": {
       "priority": 6,
@@ -4831,6 +4938,8 @@
         }
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "registry": "vercel/flags",
+      "registrySlug": "flags-sdk",
       "chainTo": [
         {
           "pattern": "process\\.env\\.(FEATURE_|FLAG_|ENABLE_|DISABLE_)\\w+",
@@ -4863,7 +4972,9 @@
           "rollout",
           "provider adapter"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-functions": {
       "priority": 8,
@@ -5097,7 +5208,9 @@
           "streaming",
           "Cron Jobs"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-queues": {
       "priority": 5,
@@ -5205,7 +5318,9 @@
           "delayed delivery",
           "Workflow DevKit"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-sandbox": {
       "priority": 4,
@@ -5237,6 +5352,7 @@
         "https://vercel.com/docs/sandbox"
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "registry": "vercel-labs/agent-browser",
       "chainTo": [
         {
           "pattern": "from\\s+[''\"\"]vm2[''\"\"]|require\\s*\\(\\s*[''\"\"]vm2[''\"\"\\)]|new\\s+VM\\(",
@@ -5401,7 +5517,9 @@
           "microVM",
           "isolated execution"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-services": {
       "priority": 7,
@@ -5549,7 +5667,9 @@
           "Services API",
           "vercel.json services"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "vercel-storage": {
       "priority": 7,
@@ -5893,7 +6013,9 @@
           "Upstash Redis",
           "Vercel Storage"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "verification": {
       "priority": 7,
@@ -6040,7 +6162,9 @@
           "end-to-end",
           "verification"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     },
     "workflow": {
       "priority": 9,
@@ -6152,6 +6276,7 @@
         }
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "registry": "vercel/workflow",
       "validate": [
         {
           "pattern": "experimental_createWorkflow",
@@ -6888,7 +7013,9 @@
           "pause/resume",
           "durable"
         ]
-      }
+      },
+      "hasRealBody": false,
+      "sessionStartEligible": "none"
     }
   }
 }

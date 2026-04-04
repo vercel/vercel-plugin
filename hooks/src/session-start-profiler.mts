@@ -83,6 +83,12 @@ interface GreenfieldResult {
   entries: string[];
 }
 
+export type ProjectFact =
+  | "greenfield"
+  | "setup-mode"
+  | "no-env-files"
+  | "no-ai-gateway-dep";
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -167,12 +173,22 @@ const SETUP_RESOURCE_DEPENDENCIES: Record<string, string> = {
 };
 
 const SETUP_MODE_THRESHOLD = 3;
-const GREENFIELD_DEFAULT_SKILLS: string[] = [
-  "nextjs",
-  "ai-sdk",
-  "vercel-cli",
-  "env-vars",
-];
+/**
+ * Read greenfield default skills from the manifest — skills with
+ * `greenfield: true` in their engine rule frontmatter.
+ */
+function getGreenfieldDefaultSkills(): string[] {
+  try {
+    const manifestPath = join(pluginRoot(), "generated", "skill-rules.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { skills?: Record<string, { greenfield?: boolean }> };
+    return Object.entries(manifest.skills ?? {})
+      .filter(([, s]) => s.greenfield === true)
+      .map(([name]) => name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
 const GREENFIELD_SETUP_SIGNALS: BootstrapSignals = {
   bootstrapHints: ["greenfield"],
   resourceHints: [],
@@ -192,6 +208,45 @@ const log: Logger = createLogger();
  */
 function readPackageJson(projectRoot: string): PackageJson | null {
   return safeReadJson<PackageJson>(join(projectRoot, "package.json"));
+}
+
+function hasEnvFiles(projectRoot: string): boolean {
+  try {
+    const entries = readdirSync(projectRoot);
+    return entries.some((entry) => entry === ".env" || (entry.startsWith(".env.") && entry.length > 5));
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:env-file-scan-failed", error, { projectRoot });
+    return false;
+  }
+}
+
+function hasAiGatewayDependency(pkg: PackageJson | null): boolean {
+  if (!pkg) return false;
+  return Boolean(pkg.dependencies?.["@ai-sdk/gateway"] || pkg.devDependencies?.["@ai-sdk/gateway"]);
+}
+
+export function collectProjectFacts(args: {
+  greenfield: boolean;
+  setupSignals: BootstrapSignals;
+  projectRoot: string;
+  packageJson?: PackageJson | null;
+}): ProjectFact[] {
+  const facts = new Set<ProjectFact>();
+
+  if (args.greenfield) {
+    facts.add("greenfield");
+  }
+  if (args.setupSignals.setupMode) {
+    facts.add("setup-mode");
+  }
+  if (!hasEnvFiles(args.projectRoot)) {
+    facts.add("no-env-files");
+  }
+  if (!hasAiGatewayDependency(args.packageJson ?? null)) {
+    facts.add("no-ai-gateway-dep");
+  }
+
+  return [...facts].sort();
 }
 
 // ---------------------------------------------------------------------------
@@ -701,6 +756,7 @@ export function buildSessionStartProfilerEnvVars(args: {
   agentBrowserAvailable: boolean;
   greenfield: boolean;
   likelySkills: string[];
+  projectFacts?: string[];
   installedSkills?: string[];
   missingSkills?: string[];
   zeroBundleReady?: boolean;
@@ -716,6 +772,9 @@ export function buildSessionStartProfilerEnvVars(args: {
   }
   if (args.likelySkills.length > 0) {
     envVars.VERCEL_PLUGIN_LIKELY_SKILLS = args.likelySkills.join(",");
+  }
+  if (args.projectFacts && args.projectFacts.length > 0) {
+    envVars.VERCEL_PLUGIN_PROJECT_FACTS = args.projectFacts.join(",");
   }
   if (args.installedSkills && args.installedSkills.length > 0) {
     envVars.VERCEL_PLUGIN_INSTALLED_SKILLS = args.installedSkills.join(",");
@@ -919,7 +978,11 @@ function mergeInstallResults(
 export function shouldAutoInstall(args: {
   installedSkillCount: number;
   missingSkillCount: number;
+  greenfield?: boolean;
 }): boolean {
+  // Never auto-install in greenfield (empty) projects — wait for the user
+  // to scaffold something so detections are based on actual project content.
+  if (args.greenfield) return false;
   if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1") return true;
   // First session: no skills are cached yet
   if (args.installedSkillCount === 0 && args.missingSkillCount > 0) return true;
@@ -1093,14 +1156,17 @@ async function main(): Promise<void> {
   const cliStatus: VercelCliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
 
+  // Greenfield projects detect skills marked with `greenfield: true` in
+  // their engine rule frontmatter. No auto-install — just detection for
+  // profiler boost so these skills match on first tool call.
   const detections: SkillDetection[] = greenfield
-    ? GREENFIELD_DEFAULT_SKILLS.map((skill) => ({
+    ? getGreenfieldDefaultSkills().map((skill) => ({
         skill,
         reasons: [
           {
             kind: "greenfield" as const,
             source: "project-root",
-            detail: "seeded from greenfield defaults",
+            detail: "engine rule has greenfield: true",
           },
         ],
       }))
@@ -1124,9 +1190,16 @@ async function main(): Promise<void> {
     });
   }
   likelySkills.sort();
+  const packageJson = readPackageJson(projectRoot);
   const setupSignals: BootstrapSignals = greenfield
     ? GREENFIELD_SETUP_SIGNALS
     : profileBootstrapSignals(projectRoot);
+  const projectFacts = collectProjectFacts({
+    greenfield: greenfield !== null,
+    setupSignals,
+    projectRoot,
+    packageJson,
+  });
   const greenfieldValue = greenfield ? "true" : "";
   const likelySkillsValue = likelySkills.join(",");
 
@@ -1151,6 +1224,7 @@ async function main(): Promise<void> {
   const autoInstallEnabled = shouldAutoInstall({
     installedSkillCount: installedSkills.length,
     missingSkillCount: missingBeforeInstall.length,
+    greenfield: greenfield !== null,
   });
 
   const registryMetadata = loadRegistrySkillMetadata(pluginRoot());
@@ -1323,6 +1397,7 @@ async function main(): Promise<void> {
     agentBrowserAvailable,
     greenfield: greenfield !== null,
     likelySkills,
+    projectFacts,
     installedSkills,
     missingSkills: skillCacheStatus.missingSkills,
     zeroBundleReady: skillCacheStatus.zeroBundleReady,
@@ -1343,9 +1418,6 @@ async function main(): Promise<void> {
   try {
     if (platform === "claude-code") {
       for (const [key, value] of Object.entries(envVars)) {
-        if (key === "VERCEL_PLUGIN_GREENFIELD") {
-          continue;
-        }
         setSessionEnv(platform, key, value);
       }
     }

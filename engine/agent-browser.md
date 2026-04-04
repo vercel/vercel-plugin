@@ -1,7 +1,7 @@
 ---
 name: agent-browser
+registry: vercel-labs/agent-browser
 priority: 3
-registry: vercel/vercel-skills
 docs: https://docs.anthropic.com/en/docs/claude-code/sub-agents
 pathPatterns:
   - "agent-browser.json"

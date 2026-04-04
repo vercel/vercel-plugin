@@ -1,5 +1,6 @@
 ---
 name: next-forge
+registry: vercel/next-forge
 priority: 6
 docs:
   - https://next-forge.com/docs

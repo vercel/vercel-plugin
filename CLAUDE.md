@@ -51,6 +51,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 **Entry-point hooks** (wired in hooks.json):
 - `session-start-seen-skills.mts` — initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in `CLAUDE_ENV_FILE`
 - `session-start-profiler.mts` — scans config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost); detects greenfield mode; auto-installs registry-backed skills
+  - Also emits `VERCEL_PLUGIN_PROJECT_FACTS` for rule-based co-injection (`greenfield`, `setup-mode`, `no-env-files`, `no-ai-gateway-dep`)
 - `inject-claude-md.mts` — outputs `vercel.md` ecosystem graph (52KB) as SessionStart additionalContext
 - `pretooluse-skill-inject.mts` — main injection engine: pattern matching → ranking → dedup → budget enforcement (max 3 skills, 18KB)
 - `user-prompt-submit-skill-inject.mts` — prompt signal scoring engine (max 2 skills, 8KB budget)
@@ -110,6 +111,12 @@ validate:                        # PostToolUse validation rules
     message: "Error description"
     severity: "error|recommended|warn"
     skipIfFileContains: "regex"  # Optional conditional skip
+coInject:                        # Optional skill relationship rules
+  - targetSkill: ai-elements
+    mode: force                  # force survives cap; prefer only adds if slots allow
+    when:
+      allProjectFacts: ["greenfield"]
+      allRuntimeFacts: ["client-react-file"]
 docs:                            # Fallback doc URLs when not in registry
   - https://example.com/docs
 ---
@@ -173,6 +180,7 @@ Snapshot updates: `bun run test:update-snapshots` (sets `UPDATE_SNAPSHOTS=1`).
 | `VERCEL_PLUGIN_HOOK_DEDUP` | — | `off` to disable dedup entirely |
 | `VERCEL_PLUGIN_LIKELY_SKILLS` | — | Profiler-set comma-delimited skills (+5 boost) |
 | `VERCEL_PLUGIN_GREENFIELD` | — | `true` if project is empty (profiler sets) |
+| `VERCEL_PLUGIN_PROJECT_FACTS` | — | Comma-delimited project facts used by `coInject` rules |
 | `VERCEL_PLUGIN_INJECTION_BUDGET` | `18000` | PreToolUse byte budget |
 | `VERCEL_PLUGIN_PROMPT_INJECTION_BUDGET` | `8000` | UserPromptSubmit byte budget |
 | `VERCEL_PLUGIN_REVIEW_THRESHOLD` | `3` | TSX edits before react-best-practices injection |

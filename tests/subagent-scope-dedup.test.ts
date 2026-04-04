@@ -121,7 +121,7 @@ describe("subagent-scope-dedup: isolated dedup scopes", () => {
       { VERCEL_PLUGIN_SEEN_SKILLS: leadSeen },
     );
     expect(leadSecond.code).toBe(0);
-    expect(JSON.parse(leadSecond.stdout)).toEqual({});
+    expect(parseInjectedSkills(leadSecond.stdout)).toEqual([]);
 
     // Step 3: Subagent with its own agent_id and NO inherited seen-skills
     // should still get nextjs injected (isolated scope)
@@ -200,7 +200,7 @@ describe("subagent-scope-dedup: isolated dedup scopes", () => {
       { VERCEL_PLUGIN_SEEN_SKILLS: firstInjected.join(",") },
     );
     expect(second.code).toBe(0);
-    expect(JSON.parse(second.stdout)).toEqual({});
+    expect(parseInjectedSkills(second.stdout)).toEqual([]);
   });
 });
 

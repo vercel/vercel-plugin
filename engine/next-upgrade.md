@@ -1,7 +1,7 @@
 ---
 name: next-upgrade
+registry: vercel-labs/next-skills
 priority: 6
-registry: vercel/vercel-skills
 docs:
   - https://nextjs.org/docs/app/guides/upgrading
   - https://nextjs.org/docs/app/guides/upgrading/codemods

@@ -10,10 +10,16 @@ const ROOT = resolve(import.meta.dirname, "..");
 const TMP = join(tmpdir(), `vercel-plugin-skill-store-${Date.now()}`);
 const HOME = join(TMP, "home");
 const PROJECT = join(TMP, "project");
-const PROJECT_STATE = resolveProjectStatePaths(PROJECT, HOME);
-const PROJECT_SKILLS = PROJECT_STATE.skillsDir;
 const GLOBAL = join(TMP, "global-skills");
 const PLUGIN = join(TMP, "plugin");
+
+function projectState() {
+  return resolveProjectStatePaths(PROJECT);
+}
+
+function projectSkillsDir() {
+  return projectState().skillsDir;
+}
 
 function writeSkill(
   skillsRoot: string,
@@ -104,7 +110,7 @@ function writeRulesManifest(
 
 beforeEach(() => {
   rmSync(TMP, { recursive: true, force: true });
-  mkdirSync(PROJECT_SKILLS, { recursive: true });
+  mkdirSync(projectSkillsDir(), { recursive: true });
   mkdirSync(GLOBAL, { recursive: true });
   mkdirSync(join(PLUGIN, "generated"), { recursive: true });
 
@@ -118,17 +124,21 @@ afterAll(() => {
 });
 
 describe("skill-store", () => {
-  test("project-cache root uses hashed state path", () => {
+  test("project-cache root uses project .claude/skills path", () => {
+    const state = projectState();
     const store = createSkillStore({
       projectRoot: PROJECT,
       pluginRoot: PLUGIN,
     });
-    expect(store.roots[0].rootDir).toBe(PROJECT_STATE.stateRoot);
-    expect(store.roots[0].skillsDir).toBe(PROJECT_STATE.skillsDir);
+    expect(store.roots[0].rootDir).toBe(resolve(PROJECT));
+    expect(store.roots[0].skillsDir).toBe(join(resolve(PROJECT), ".claude", "skills"));
+    // Second project-cache root is the hashed state path
+    expect(store.roots[1].rootDir).toBe(state.stateRoot);
+    expect(store.roots[1].skillsDir).toBe(state.skillsDir);
   });
 
   test("merges project, global, and rules-manifest roots with project precedence", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
     writeSkill(GLOBAL, "ai-sdk", 7, "app/api/**/*.ts");
     writeRulesManifest(PLUGIN, "vercel-cli", 5, "vercel.json");
 
@@ -150,7 +160,7 @@ describe("skill-store", () => {
   });
 
   test("project-cache skill takes precedence over rules-manifest with same slug", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 10, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 10, "app/**/*.tsx");
     writeRulesManifest(PLUGIN, "nextjs", 5, "pages/**/*.tsx");
 
     const store = createSkillStore({
@@ -167,9 +177,70 @@ describe("skill-store", () => {
     expect(store.resolveSkillBody("nextjs")!.source).toBe("project-cache");
   });
 
+  test("falls back to lower-precedence compiled matchers when project manifest entry has none", () => {
+    mkdirSync(join(projectSkillsDir(), "next-cache-components"), { recursive: true });
+    writeFileSync(
+      join(projectSkillsDir(), "next-cache-components", "SKILL.md"),
+      `---
+name: next-cache-components
+description: next-cache-components
+summary: next-cache-components summary
+metadata:
+  priority: 10
+---
+# next-cache-components
+
+Use next-cache-components.
+`,
+      "utf-8",
+    );
+    writeFileSync(
+      join(projectSkillsDir(), "manifest.json"),
+      JSON.stringify(
+        {
+          version: 2,
+          generatedAt: new Date().toISOString(),
+          skills: {
+            "next-cache-components": {
+              priority: 10,
+              summary: "next-cache-components summary",
+              docs: [],
+              pathPatterns: [],
+              bashPatterns: [],
+              importPatterns: [],
+              pathRegexSources: [],
+              bashRegexSources: [],
+              importRegexSources: [],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+    writeRulesManifest(PLUGIN, "next-cache-components", 5, "app/**");
+
+    const store = createSkillStore({
+      projectRoot: PROJECT,
+      pluginRoot: PLUGIN,
+      globalCacheDir: GLOBAL,
+    });
+
+    const loaded = store.loadSkillSet();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.skillMap["next-cache-components"].priority).toBe(10);
+    expect(loaded!.origins["next-cache-components"].source).toBe("project-cache");
+    const entry = loaded!.compiledSkills.find((candidate) => candidate.skill === "next-cache-components");
+    expect(entry).toBeDefined();
+    expect(entry!.compiledPaths.length).toBeGreaterThan(0);
+    expect(entry!.compiledPaths[0].regex.test("app/page.tsx")).toBe(true);
+    expect(store.resolveSkillBody("next-cache-components")!.source).toBe("project-cache");
+  });
+
   test("uses cache manifest when present", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
-    writeCacheManifest(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
+    writeCacheManifest(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
 
     const store = createSkillStore({
       projectRoot: PROJECT,
@@ -186,7 +257,7 @@ describe("skill-store", () => {
   });
 
   test("listInstalledSkills excludes rules-manifest fallback", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
     writeSkill(GLOBAL, "ai-sdk", 7, "app/api/**/*.ts");
     writeRulesManifest(PLUGIN, "vercel-cli", 5, "vercel.json");
 
@@ -211,7 +282,7 @@ describe("skill-store", () => {
   });
 
   test("resolveSkillBody returns body without frontmatter", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
 
     const store = createSkillStore({
       projectRoot: PROJECT,
@@ -245,8 +316,8 @@ describe("skill-store", () => {
       globalCacheDir: GLOBAL,
     });
 
-    expect(store.roots.length).toBe(3);
-    expect(store.roots[2].source).toBe("rules-manifest");
+    expect(store.roots.length).toBe(4);
+    expect(store.roots[3].source).toBe("rules-manifest");
     const loaded = store.loadSkillSet();
     expect(loaded).not.toBeNull();
     expect(loaded!.skillMap["vercel-cli"]).toBeDefined();
@@ -262,7 +333,7 @@ describe("skill-store", () => {
       includeRulesManifest: false,
     });
 
-    expect(store.roots.length).toBe(2);
+    expect(store.roots.length).toBe(3);
     expect(store.roots.every((r) => r.source !== "rules-manifest")).toBe(true);
     // No cached skills exist, so loadSkillSet returns null
     expect(store.loadSkillSet()).toBeNull();
@@ -280,7 +351,7 @@ describe("skill-store", () => {
         globalCacheDir: GLOBAL,
       });
 
-      expect(store.roots.length).toBe(2);
+      expect(store.roots.length).toBe(3);
       expect(store.roots.every((r) => r.source !== "rules-manifest")).toBe(true);
       expect(store.loadSkillSet()).toBeNull();
     } finally {
@@ -292,7 +363,7 @@ describe("skill-store", () => {
   test("uncached skill not resolved when includeRulesManifest is false", () => {
     writeRulesManifest(PLUGIN, "vercel-cli", 5, "vercel.json");
     // Put a real skill in project cache so loadSkillSet isn't null
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
 
     const store = createSkillStore({
       projectRoot: PROJECT,
@@ -312,7 +383,7 @@ describe("skill-store", () => {
 
   test("uncached skill resolves to summary when includeRulesManifest is true", () => {
     writeRulesManifest(PLUGIN, "vercel-cli", 5, "vercel.json");
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
 
     const store = createSkillStore({
       projectRoot: PROJECT,
@@ -331,7 +402,7 @@ describe("skill-store", () => {
   });
 
   test("resolveSkillPayload returns mode:body when cached body exists", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
 
     const store = createSkillStore({
       projectRoot: PROJECT,
@@ -378,7 +449,7 @@ describe("skill-store", () => {
   });
 
   test("compiled skills include correct regex patterns", () => {
-    writeSkill(PROJECT_SKILLS, "nextjs", 9, "app/**/*.tsx");
+    writeSkill(projectSkillsDir(), "nextjs", 9, "app/**/*.tsx");
 
     const store = createSkillStore({
       projectRoot: PROJECT,

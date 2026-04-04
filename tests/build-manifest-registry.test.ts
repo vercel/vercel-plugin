@@ -32,42 +32,45 @@ const REGISTRY_EXPECTATIONS: Record<
   { registry: string; registrySlug?: string }
 > = {
   // Direct matches — engine slug === registry package name
-  "agent-browser": { registry: "vercel/vercel-skills" },
-  "ai-elements": { registry: "vercel/vercel-skills" },
-  "ai-sdk": { registry: "vercel/vercel-skills" },
-  "next-cache-components": { registry: "vercel/vercel-skills" },
-  "next-upgrade": { registry: "vercel/vercel-skills" },
-  turborepo: { registry: "vercel/vercel-skills" },
+  "agent-browser": { registry: "vercel-labs/agent-browser" },
+  "ai-elements": { registry: "vercel/ai-elements" },
+  "ai-sdk": { registry: "vercel/ai" },
+  "chat-sdk": { registry: "vercel/chat" },
+  "next-cache-components": { registry: "vercel-labs/next-skills" },
+  "next-upgrade": { registry: "vercel-labs/next-skills" },
+  turborepo: { registry: "vercel/turborepo" },
+  "vercel-sandbox": { registry: "vercel-labs/agent-browser" },
+  workflow: { registry: "vercel/workflow" },
 
   // Slug mismatches — engine slug differs from registry package name
   nextjs: {
-    registry: "vercel/vercel-skills",
+    registry: "vercel-labs/next-skills",
     registrySlug: "next-best-practices",
   },
   "react-best-practices": {
-    registry: "vercel/vercel-skills",
+    registry: "vercel-labs/agent-skills",
     registrySlug: "vercel-react-best-practices",
   },
   "deployments-cicd": {
-    registry: "vercel/vercel-skills",
+    registry: "vercel-labs/agent-skills",
     registrySlug: "vercel-deploy",
   },
-  "vercel-cli": {
-    registry: "vercel-labs/agent-skills",
-    registrySlug: "vercel-cli-with-tokens",
+  "vercel-cli": { registry: "vercel/vercel" },
+  "vercel-flags": {
+    registry: "vercel/flags",
+    registrySlug: "flags-sdk",
   },
+  shadcn: { registry: "vercel-labs/json-render" },
+  "next-forge": { registry: "vercel/next-forge" },
 };
 
 /** Representative non-registry skills that must have no registry fields. */
 const NO_REGISTRY: string[] = [
-  "shadcn",
-  "workflow",
   "auth",
   "env-vars",
   "vercel-storage",
   "observability",
   "ai-gateway",
-  "chat-sdk",
   "vercel-functions",
   "routing-middleware",
 ];

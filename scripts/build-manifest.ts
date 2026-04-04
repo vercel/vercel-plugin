@@ -111,7 +111,22 @@ function parseArray(lines: string[], baseIndent: number): any[] {
       // First key on the dash line
       const firstMatch = afterDash.match(/^([a-zA-Z_][\w]*)\s*:\s*(.*)/);
       if (firstMatch) {
-        obj[firstMatch[1]] = unquote(firstMatch[2].trim());
+        const firstKey = firstMatch[1];
+        const firstValue = firstMatch[2].trim();
+        if (firstValue === "") {
+          const nested = collectNestedBlock(lines, i + 1, baseIndent + 2);
+          if (nested.lines.length > 0) {
+            obj[firstKey] = nested.lines[0].trimStart().startsWith("-")
+              ? parseArray(nested.lines, baseIndent + 2)
+              : parseNestedObject(nested.lines, baseIndent + 2);
+          } else {
+            obj[firstKey] = "";
+          }
+        } else if (firstValue.startsWith("[")) {
+          obj[firstKey] = parseInlineArray(firstValue);
+        } else {
+          obj[firstKey] = unquote(firstValue);
+        }
       }
       // Subsequent indented keys
       i++;
@@ -122,7 +137,23 @@ function parseArray(lines: string[], baseIndent: number): any[] {
         if (nextIndent <= baseIndent || nextTrimmed.startsWith("-")) break;
         const kvMatch = nextTrimmed.match(/^([a-zA-Z_][\w]*)\s*:\s*(.*)/);
         if (kvMatch) {
-          obj[kvMatch[1]] = unquote(kvMatch[2].trim());
+          const key = kvMatch[1];
+          const value = kvMatch[2].trim();
+          if (value === "") {
+            const nested = collectNestedBlock(lines, i + 1, nextIndent + 2);
+            if (nested.lines.length > 0) {
+              obj[key] = nested.lines[0].trimStart().startsWith("-")
+                ? parseArray(nested.lines, nextIndent + 2)
+                : parseNestedObject(nested.lines, nextIndent + 2);
+              i = nested.nextIndex;
+              continue;
+            }
+            obj[key] = "";
+          } else if (value.startsWith("[")) {
+            obj[key] = parseInlineArray(value);
+          } else {
+            obj[key] = unquote(value);
+          }
         }
         i++;
       }
@@ -356,13 +387,21 @@ function buildFromEngine(engineDir: string): { manifest: any; warnings: string[]
     if (config.docs) {
       entry.docs = Array.isArray(config.docs) ? config.docs : [config.docs];
     }
+    if (config.greenfield) entry.greenfield = true;
     if (config.sitemap) entry.sitemap = config.sitemap;
     if (config.registry) entry.registry = config.registry;
     if (config.registrySlug) entry.registrySlug = config.registrySlug;
     if (config.validate?.length) entry.validate = config.validate;
     if (config.chainTo?.length) entry.chainTo = config.chainTo;
+    if (config.coInject?.length) entry.coInject = config.coInject;
     if (config.promptSignals) entry.promptSignals = config.promptSignals;
     if (config.retrieval) entry.retrieval = config.retrieval;
+
+    // Body metadata for session-start eligibility
+    const bodyText = (config._body as string)?.trim() || "";
+    const isPlaceholder = bodyText.includes("Install from registry for full content") || bodyText === "";
+    entry.hasRealBody = !isPlaceholder && bodyText.length > 100;
+    entry.sessionStartEligible = entry.hasRealBody ? "body" : (config.summary && !(config.summary as string).includes("Install from registry") ? "summary" : "none");
 
     skills[slug] = entry;
   }

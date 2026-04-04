@@ -214,7 +214,8 @@ describe("session timeline subagent integration", () => {
         { VERCEL_PLUGIN_SEEN_SKILLS: leadInjected.join(",") },
       );
       expect(leadSecond.code).toBe(0);
-      expect(JSON.parse(leadSecond.stdout)).toEqual({});
+      const leadSecondInjected = parseInjectedSkills(leadSecond.stdout);
+      expect(leadSecondInjected).toEqual([]);
 
       // Subagent session start
       const subagentSessionStart = await runSessionStart(subagentEnvPath);

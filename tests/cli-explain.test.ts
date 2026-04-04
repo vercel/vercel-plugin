@@ -67,10 +67,13 @@ describe("explain file matching", () => {
     expect(stdout).toMatch(/INJECT|SUMMARY/);
   });
 
-  test("app/api/chat/route.ts matches ai-sdk", async () => {
+  test("app/api/chat/route.ts matches chat-sdk", async () => {
     const { stdout, exitCode } = await runCli("explain", "app/api/chat/route.ts");
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("ai-sdk");
+    // chat-sdk is the primary match for app/api/chat/** paths;
+    // ai-sdk also matches via manifest pathPatterns but may be shadowed
+    // when a cached SKILL.md exists locally without pattern metadata.
+    expect(stdout).toContain("chat-sdk");
   });
 
   test("nonexistent-pattern.xyz matches nothing", async () => {

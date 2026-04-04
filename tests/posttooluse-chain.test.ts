@@ -529,6 +529,10 @@ describe("real-world chain and validate scenarios", () => {
 
   let data: NonNullable<ReturnType<typeof loadValidateRules>>;
 
+  // Use a clean temp dir as project root so locally-cached skills in
+  // .claude/skills/ don't shadow the rules manifest entries.
+  const cleanProjectRoot = join(tmpdir(), `chain-test-project-${Date.now()}`);
+
   beforeEach(async () => {
     const mod = await import("../hooks/posttooluse-validate.mjs");
     loadValidateRules = mod.loadValidateRules;
@@ -536,7 +540,7 @@ describe("real-world chain and validate scenarios", () => {
     runValidation = mod.runValidation;
     runChainInjection = mod.runChainInjection;
 
-    const loaded = loadValidateRules(ROOT);
+    const loaded = loadValidateRules(ROOT, cleanProjectRoot);
     if (!loaded) throw new Error("loadValidateRules returned null — no skills with validate/chainTo rules");
     data = loaded;
   });
@@ -1128,7 +1132,7 @@ describe("real-world chain and validate scenarios", () => {
   // Additional chainTo coverage: ai-gateway chains
   // -------------------------------------------------------------------
 
-  test("ai-gateway file with direct provider SDK import — chains may fire with summary fallback", () => {
+  test("direct provider SDK import matches ai-sdk and may chain without ai-gateway direct match", () => {
     const filePath = "/project/lib/ai.ts";
     const fileContent = [
       `import { anthropic } from '@ai-sdk/anthropic';`,
@@ -1141,7 +1145,8 @@ describe("real-world chain and validate scenarios", () => {
     ].join("\n");
 
     const matched = matchFileToSkills(filePath, fileContent, data.compiledSkills, data.rulesMap, undefined, data.chainMap);
-    expect(matched).toContain("ai-gateway");
+    expect(matched).toContain("ai-sdk");
+    expect(matched).not.toContain("ai-gateway");
 
     const cleanEnv: any = { VERCEL_PLUGIN_SEEN_SKILLS: "" };
     const chainResult = runChainInjection(fileContent, matched, data.chainMap, null, ROOT, undefined, cleanEnv, data.skillStore);
@@ -1944,7 +1949,7 @@ describe("real-world chain and validate scenarios", () => {
   // ai-gateway chainTo rules
   // -------------------------------------------------------------------------
 
-  test("ai-gateway file with provider API key chains to ai-sdk", () => {
+  test("provider API key does not trigger ai-gateway chain without direct gateway import", () => {
     const filePath = "/project/lib/ai.ts";
     const fileContent = [
       `import { gateway } from 'ai';`,
@@ -1956,10 +1961,10 @@ describe("real-world chain and validate scenarios", () => {
     const chainResult = runChainInjection(fileContent, matched, data.chainMap, null, ROOT, undefined, cleanEnv, data.skillStore);
 
     const aiSdkChain = chainResult.injected.find((i) => i.targetSkill === "ai-sdk");
-    expect(aiSdkChain).toBeDefined();
+    expect(aiSdkChain).toBeUndefined();
   });
 
-  test("ai-gateway file with cost tracking tags — chains may fire with summary fallback", () => {
+  test("cost tracking tags do not match ai-gateway without direct gateway import", () => {
     const filePath = "/project/lib/ai.ts";
     const fileContent = [
       `import { gateway } from 'ai';`,
@@ -1967,11 +1972,11 @@ describe("real-world chain and validate scenarios", () => {
     ].join("\n");
 
     const matched = matchFileToSkills(filePath, fileContent, data.compiledSkills, data.rulesMap, undefined, data.chainMap);
-    expect(matched).toContain("ai-gateway");
+    expect(matched).not.toContain("ai-gateway");
     const cleanEnv: any = { VERCEL_PLUGIN_SEEN_SKILLS: "" };
     const chainResult = runChainInjection(fileContent, matched, data.chainMap, null, ROOT, undefined, cleanEnv, data.skillStore);
-    // With summary fallback, chains may resolve via skill metadata
-    expect(chainResult.injected.length).toBeGreaterThanOrEqual(0);
+    const observabilityChain = chainResult.injected.find((i) => i.targetSkill === "observability");
+    expect(observabilityChain).toBeUndefined();
   });
 
   test("ai-gateway observability chain is skipped when @vercel/analytics present", () => {
@@ -3666,7 +3671,7 @@ describe("real-world chain and validate scenarios", () => {
   // AI Gateway model deprecation chain rules (ai-gateway chainTo)
   // -------------------------------------------------------------------------
 
-  test("ai-gateway file with gpt-4o model string chains to ai-sdk", () => {
+  test("gpt-4o model string does not trigger ai-gateway chain without direct gateway import", () => {
     const filePath = "/project/lib/ai.ts";
     const fileContent = [
       `import { generateText } from 'ai';`,
@@ -3678,7 +3683,7 @@ describe("real-world chain and validate scenarios", () => {
     ].join("\n");
 
     const matched = matchFileToSkills(filePath, fileContent, data.compiledSkills, data.rulesMap, undefined, data.chainMap);
-    expect(matched).toContain("ai-gateway");
+    expect(matched).not.toContain("ai-gateway");
 
     const cleanEnv: any = { VERCEL_PLUGIN_SEEN_SKILLS: "" };
     const chainResult = runChainInjection(fileContent, matched, data.chainMap, null, ROOT, undefined, cleanEnv, data.skillStore);
@@ -3686,8 +3691,7 @@ describe("real-world chain and validate scenarios", () => {
     const gpt4oChain = chainResult.injected.find(
       (i) => i.sourceSkill === "ai-gateway" && i.message?.includes("gpt-4o"),
     );
-    expect(gpt4oChain).toBeDefined();
-    expect(gpt4oChain!.message).toContain("gpt-5.4");
+    expect(gpt4oChain).toBeUndefined();
   });
 
   test("ai-gateway gpt-4o chain is skipped when gpt-5 already present", () => {
@@ -3708,7 +3712,7 @@ describe("real-world chain and validate scenarios", () => {
     expect(gpt4oChain).toBeUndefined();
   });
 
-  test("ai-gateway file with DALL-E reference chains to ai-sdk", () => {
+  test("DALL-E reference does not trigger ai-gateway chain without direct gateway import", () => {
     const filePath = "/project/app/api/image/route.ts";
     const fileContent = [
       `import { generateText } from 'ai';`,
@@ -3720,7 +3724,7 @@ describe("real-world chain and validate scenarios", () => {
     ].join("\n");
 
     const matched = matchFileToSkills(filePath, fileContent, data.compiledSkills, data.rulesMap, undefined, data.chainMap);
-    expect(matched).toContain("ai-gateway");
+    expect(matched).not.toContain("ai-gateway");
 
     const cleanEnv: any = { VERCEL_PLUGIN_SEEN_SKILLS: "" };
     const chainResult = runChainInjection(fileContent, matched, data.chainMap, null, ROOT, undefined, cleanEnv, data.skillStore);
@@ -3728,8 +3732,7 @@ describe("real-world chain and validate scenarios", () => {
     const dalleChain = chainResult.injected.find(
       (i) => i.sourceSkill === "ai-gateway" && i.message?.includes("DALL-E"),
     );
-    expect(dalleChain).toBeDefined();
-    expect(dalleChain!.message).toContain("gemini-3.1-flash-image-preview");
+    expect(dalleChain).toBeUndefined();
   });
 
   test("ai-gateway DALL-E chain is skipped when gemini-3 present", () => {
@@ -3750,7 +3753,7 @@ describe("real-world chain and validate scenarios", () => {
     expect(dalleChain).toBeUndefined();
   });
 
-  test("ai-gateway file with gemini-2.x model chains to ai-sdk", () => {
+  test("gemini-2.x model does not trigger ai-gateway chain without direct gateway import", () => {
     const filePath = "/project/app/api/image/route.ts";
     const fileContent = [
       `import { generateText } from 'ai';`,
@@ -3762,7 +3765,7 @@ describe("real-world chain and validate scenarios", () => {
     ].join("\n");
 
     const matched = matchFileToSkills(filePath, fileContent, data.compiledSkills, data.rulesMap, undefined, data.chainMap);
-    expect(matched).toContain("ai-gateway");
+    expect(matched).not.toContain("ai-gateway");
 
     const cleanEnv: any = { VERCEL_PLUGIN_SEEN_SKILLS: "" };
     const chainResult = runChainInjection(fileContent, matched, data.chainMap, null, ROOT, undefined, cleanEnv, data.skillStore);
@@ -3770,8 +3773,7 @@ describe("real-world chain and validate scenarios", () => {
     const gemini2Chain = chainResult.injected.find(
       (i) => i.sourceSkill === "ai-gateway" && i.message?.includes("Gemini 2.x"),
     );
-    expect(gemini2Chain).toBeDefined();
-    expect(gemini2Chain!.message).toContain("gemini-3");
+    expect(gemini2Chain).toBeUndefined();
   });
 
   test("ai-gateway gemini-2.x chain is skipped when gemini-3 present", () => {

@@ -160,7 +160,7 @@ describe("buildSkillCacheBanner", () => {
     expect(banner).toContain("Detected: ai-sdk, nextjs, shadcn");
     expect(banner).toContain("Cached: nextjs");
     expect(banner).toContain("Missing: ai-sdk, shadcn");
-    expect(banner).toContain(`Project cache: ${resolveProjectStatePaths("/work/app").skillsDir}`);
+    expect(banner).toContain(`Project skill dir: /work/app/.claude/skills`);
     expect(banner).toContain(
       'Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into this project\'s skill cache?"',
     );
@@ -203,7 +203,7 @@ describe("buildSkillCacheBanner", () => {
         "- Detected: ai-sdk, nextjs, shadcn",
         "- Cached: nextjs",
         "- Missing: ai-sdk, shadcn",
-        `- Project cache: ${resolveProjectStatePaths("/work/app").skillsDir}`,
+        `- Project skill dir: /work/app/.claude/skills`,
         '- Ask once: "I detected Vercel skills for ai-sdk, shadcn. Want me to install them into this project\'s skill cache?"',
         "- Install: `npx skills add vercel/vercel-skills --skill ai-sdk --skill shadcn --agent claude-code -y --copy`",
       ].join("\n"),

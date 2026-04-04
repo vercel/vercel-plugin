@@ -7,6 +7,7 @@
  * palette in SessionStart output.
  */
 
+import { normalize, resolve, join } from "node:path";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import {
   buildVercelCliCommand,
@@ -128,7 +129,7 @@ export function buildSkillInstallPlan(args: {
           ? "All detected skills are already cached."
           : `Install ${missingSkills.length} missing skill${missingSkills.length === 1 ? "" : "s"} into ${statePaths.skillsDir}.`,
       command: installCommand,
-      cwd: installCommand ? statePaths.stateRoot : null,
+      cwd: installCommand ? args.projectRoot : null,
       default: !args.zeroBundleReady,
     },
     {
@@ -195,7 +196,7 @@ export function buildSkillInstallPlan(args: {
     createdAt: (args.now ? args.now() : new Date()).toISOString(),
     projectRoot: args.projectRoot,
     projectStateRoot: statePaths.stateRoot,
-    skillsCacheDir: statePaths.skillsDir,
+    skillsCacheDir: join(normalize(resolve(args.projectRoot)), ".claude", "skills"),
     installPlanPath: statePaths.installPlanPath,
     likelySkills,
     installedSkills,

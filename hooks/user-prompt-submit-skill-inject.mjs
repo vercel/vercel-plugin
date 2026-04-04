@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 // hooks/src/user-prompt-submit-skill-inject.mts
+import { execFileSync } from "child_process";
 import { readFileSync, realpathSync } from "fs";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
@@ -13,7 +14,9 @@ import {
   tryClaimSessionKey,
   writeSessionFile
 } from "./hook-env.mjs";
-import { loadSkills, injectSkills } from "./pretooluse-skill-inject.mjs";
+import { loadSkills, injectSkills, applyCoInjectRules, parseFactSet } from "./pretooluse-skill-inject.mjs";
+import { loadRegistrySkillMetadata } from "./registry-skill-metadata.mjs";
+import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import {
   COMPACTION_REINJECT_MIN_PRIORITY,
   parseSeenSkills,
@@ -26,8 +29,8 @@ import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
-var MAX_SKILLS = 2;
-var DEFAULT_INJECTION_BUDGET_BYTES = 8e3;
+var MAX_SKILLS = 10;
+var DEFAULT_INJECTION_BUDGET_BYTES = 1e5;
 var MIN_PROMPT_LENGTH = 10;
 var PLUGIN_ROOT = resolvePluginRoot();
 var SKILL_INJECTION_VERSION = 1;
@@ -678,7 +681,220 @@ function run() {
       durationMs: log.active ? log.elapsed() : void 0
     });
   }
+  const allMatchedPromptSkills = Object.entries(report.perSkillResults).filter(([, r]) => r.matched).map(([skill]) => skill);
+  const promptCoInject = applyCoInjectRules({
+    rankedSkills: report.selectedSkills,
+    allMatchedSkills: allMatchedPromptSkills,
+    skillMap: skills.skillMap,
+    projectFacts: parseFactSet(process.env.VERCEL_PLUGIN_PROJECT_FACTS),
+    runtimeFacts: /* @__PURE__ */ new Set(),
+    injectedSkills: dedupOff ? /* @__PURE__ */ new Set() : parseSeenSkills(seenState),
+    maxSkills: MAX_SKILLS,
+    dedupOff,
+    logger: log
+  });
+  report.selectedSkills.length = 0;
+  report.selectedSkills.push(...promptCoInject.rankedSkills);
   const allMatched = Object.entries(report.perSkillResults).filter(([, r]) => r.matched).map(([skill]) => skill);
+  const isGreenfield = sessionId ? readSessionFile(sessionId, "greenfield") === "true" : false;
+  if (isGreenfield && cwd && sessionId) {
+    const alreadyRecommended = readSessionFile(sessionId, "skills-recommended");
+    if (!alreadyRecommended) {
+      writeSessionFile(sessionId, "skills-recommended", "true");
+      const registryMeta = loadRegistrySkillMetadata();
+      const bundles = [
+        {
+          name: "AI & Chat",
+          description: "AI SDK, Chat SDK, AI Elements, Workflow \u2014 build AI-powered features with Vercel AI Gateway (use `vercel link` + `vercel env pull` for automatic OIDC auth \u2014 no API keys needed)",
+          skills: []
+        },
+        {
+          name: "Next.js & React",
+          description: "Next.js best practices, React patterns, cache components, shadcn/ui",
+          skills: []
+        },
+        {
+          name: "Platform & DevOps",
+          description: "Vercel CLI, deployments, workflow, feature flags, turborepo",
+          skills: []
+        }
+      ];
+      const bundleMap = {
+        "ai-sdk": 0,
+        "ai-gateway": 0,
+        "ai-elements": 0,
+        "chat-sdk": 0,
+        "workflow": 0,
+        "nextjs": 1,
+        "next-cache-components": 1,
+        "next-upgrade": 1,
+        "next-forge": 1,
+        "react-best-practices": 1,
+        "shadcn": 1,
+        "vercel-cli": 2,
+        "deployments-cicd": 2,
+        "turborepo": 2,
+        "vercel-flags": 2,
+        "vercel-sandbox": 2,
+        "agent-browser": 2
+      };
+      for (const [name] of Object.entries(skills.skillMap)) {
+        const meta = registryMeta.get(name);
+        if (!meta?.registry) continue;
+        const bundleIdx = bundleMap[name];
+        if (bundleIdx === void 0) continue;
+        bundles[bundleIdx].skills.push({
+          name,
+          registry: meta.registry,
+          installSlug: meta.registrySlug ?? name
+        });
+      }
+      const bundleLines = bundles.filter((b) => b.skills.length > 0).map((b, i) => {
+        const skillNames = b.skills.map((s) => s.name).join(", ");
+        return `${i + 1}. **${b.name}** \u2014 ${b.description}
+   Skills: ${skillNames}`;
+      }).join("\n");
+      const bundleCommands = bundles.filter((b) => b.skills.length > 0).map((b, i) => {
+        const groups = /* @__PURE__ */ new Map();
+        for (const s of b.skills) {
+          const group = groups.get(s.registry) ?? [];
+          group.push(s.installSlug);
+          groups.set(s.registry, group);
+        }
+        const cmds = [];
+        for (const [registry, slugs] of groups) {
+          const cmd = buildSkillsAddCommand(registry, slugs, "claude-code");
+          if (cmd) cmds.push(cmd.printable);
+        }
+        return `Bundle ${i + 1} (${b.name}): ${cmds.join(" && ")}`;
+      }).join("\n");
+      const nonInteractive = process.env.VERCEL_PLUGIN_NONINTERACTIVE === "1";
+      const setupNote = `
+RECOMMENDED SETUP: After installing skills, run \`vercel link\` to connect to a Vercel project, then \`vercel env pull\` to get OIDC credentials. This enables AI Gateway routing with automatic auth \u2014 no API keys needed.
+`;
+      const discoveryPrompt = nonInteractive ? `<CRITICAL>
+STOP. This is a new project. Before writing any code, install the relevant Vercel skill bundles.
+
+${bundleLines}
+
+Install commands:
+${bundleCommands}
+
+Based on what the user is asking for, run the install commands for ALL relevant bundles from the project root.
+Do not skip this step. Do not continue without installing.
+After installing, skill guidance will be loaded automatically.
+${setupNote}</CRITICAL>` : `<CRITICAL>
+STOP. This is a new project. Present these Vercel skill bundles to the user:
+
+${bundleLines}
+
+Ask the user exactly: "Which skill bundles would you like to install? Type the numbers (e.g. 1,2), or 'all' to install everything."
+
+Install commands per bundle:
+${bundleCommands}
+
+After the user picks, run the install commands for the selected bundles from the project root.
+Do not skip this step.
+After installing, skill guidance will be loaded automatically.
+${setupNote}</CRITICAL>`;
+      const output = {
+        hookSpecificOutput: {
+          hookEventName: "UserPromptSubmit",
+          additionalContext: discoveryPrompt
+        }
+      };
+      return JSON.stringify(output);
+    }
+  }
+  function buildInstallCommandForSlugs(slugs) {
+    const meta = loadRegistrySkillMetadata();
+    const groups = /* @__PURE__ */ new Map();
+    for (const slug of slugs) {
+      const m = meta.get(slug);
+      if (!m?.registry) continue;
+      const installName = m.registrySlug ?? slug;
+      const group = groups.get(m.registry) ?? [];
+      group.push(installName);
+      groups.set(m.registry, group);
+    }
+    if (groups.size === 0) return null;
+    const commands = [];
+    for (const [registry, installNames] of groups) {
+      const cmd = buildSkillsAddCommand(registry, installNames, "claude-code");
+      if (cmd) commands.push(cmd.printable);
+    }
+    return commands.join(" && ");
+  }
+  if (allMatched.length > 0 && cwd && sessionId && process.env.VERCEL_PLUGIN_SYNC_INSTALL !== "0") {
+    const registryMeta = loadRegistrySkillMetadata();
+    const installedSkills = skills.skillStore?.listInstalledSkills() ?? [];
+    const installedSet = new Set(installedSkills);
+    const recommendable = allMatched.filter(
+      (s) => registryMeta.has(s) && !installedSet.has(s)
+    );
+    if (recommendable.length > 0) {
+      const alreadyRecommended = readSessionFile(sessionId, "skills-recommended");
+      if (!alreadyRecommended) {
+        writeSessionFile(sessionId, "skills-recommended", recommendable.join(","));
+        const nonInteractive = process.env.VERCEL_PLUGIN_NONINTERACTIVE === "1";
+        if (nonInteractive) {
+          const groups = /* @__PURE__ */ new Map();
+          for (const slug of recommendable) {
+            const meta = registryMeta.get(slug);
+            if (!meta?.registry) continue;
+            const installName = meta.registrySlug ?? slug;
+            const group = groups.get(meta.registry) ?? [];
+            group.push(installName);
+            groups.set(meta.registry, group);
+          }
+          for (const [registry, installNames] of groups) {
+            const cmd = buildSkillsAddCommand(registry, installNames, "claude-code");
+            if (!cmd) continue;
+            try {
+              log.debug("prompt-skill-auto-install-start", { registry, skills: installNames, cwd });
+              execFileSync(cmd.file, cmd.args, {
+                cwd,
+                timeout: 3e4,
+                env: { ...process.env, CI: "1" },
+                maxBuffer: 1024 * 1024,
+                stdio: "pipe"
+              });
+              log.debug("prompt-skill-auto-install-success", { registry, skills: installNames });
+            } catch (error) {
+              log.debug("prompt-skill-auto-install-failed", { registry, error: String(error) });
+            }
+          }
+        } else {
+          const skillList = recommendable.map((s, i) => {
+            const meta = registryMeta.get(s);
+            const desc = skills.skillMap[s]?.summary || "";
+            return `${i + 1}. **${s}**${desc ? ` \u2014 ${desc}` : ""}`;
+          }).join("\n");
+          const installCmd = buildInstallCommandForSlugs(recommendable);
+          const recommendPrompt = `<CRITICAL>
+I detected Vercel skills that match your request. Before proceeding, ask the user:
+
+"I found ${recommendable.length} relevant Vercel skill${recommendable.length > 1 ? "s" : ""} for this task:
+
+${skillList}
+
+Would you like me to install them? (yes for all, or pick by number)"
+
+If they agree, run from the project root:
+${installCmd}
+Do not skip this step.
+</CRITICAL>`;
+          const output = {
+            hookSpecificOutput: {
+              hookEventName: "UserPromptSubmit",
+              additionalContext: recommendPrompt
+            }
+          };
+          return JSON.stringify(output);
+        }
+      }
+    }
+  }
   if (allMatched.length === 0) {
     log.debug("prompt-analysis-issue", {
       issue: "no_prompt_matches",

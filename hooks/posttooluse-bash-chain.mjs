@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 // hooks/src/posttooluse-bash-chain.mts
-import { readFileSync, realpathSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, realpathSync, writeFileSync } from "fs";
+import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { detectPlatform } from "./compat.mjs";
 import {
@@ -191,6 +191,46 @@ var PACKAGE_SKILL_MAP = {
 };
 var log = createLogger();
 var INSTALL_CMD_RE = /(?:npm\s+(?:install|i|add)|yarn\s+add|pnpm\s+(?:add|install)|bun\s+(?:add|install))\s+(.+)/;
+var SKILLS_ADD_RE = /npx\s+skills\s+add\b/;
+var SKILL_FLAG_RE = /--skill\s+(\S+)/g;
+function parseAndInjectSkillsAdd(command, cwd, platform) {
+  if (!command || !SKILLS_ADD_RE.test(command)) return null;
+  const slugs = [];
+  let match;
+  const re = new RegExp(SKILL_FLAG_RE.source, "g");
+  while ((match = re.exec(command)) !== null) {
+    slugs.push(match[1]);
+  }
+  if (slugs.length === 0) return null;
+  const projectRoot = cwd || process.cwd();
+  const parts = [];
+  for (const slug of slugs) {
+    const skillPath = join(projectRoot, ".claude", "skills", slug, "SKILL.md");
+    try {
+      const raw = readFileSync(skillPath, "utf-8");
+      parts.push(`Loaded Skill(${slug}) from ${skillPath}:
+${raw}`);
+    } catch {
+    }
+  }
+  if (parts.length === 0) return null;
+  const additionalContext = parts.join("\n\n");
+  if (platform === "cursor") {
+    return {
+      output: JSON.stringify({ additional_context: additionalContext, continue: true }),
+      injectedCount: parts.length
+    };
+  }
+  return {
+    output: JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext
+      }
+    }),
+    injectedCount: parts.length
+  };
+}
 function parseInstallCommand(command) {
   if (!command || typeof command !== "string") return [];
   const match = INSTALL_CMD_RE.exec(command);
@@ -693,6 +733,21 @@ async function run() {
   const parsed = parseBashInput(raw, log);
   if (!parsed) return "{}";
   const { command, sessionId, platform, cwd } = parsed;
+  try {
+    writeFileSync("/tmp/posttooluse-debug.log", `[${(/* @__PURE__ */ new Date()).toISOString()}] command=${command.substring(0, 200)} cwd=${cwd ?? "(null)"} hasSkillsAdd=${/npx\s+skills\s+add\b/.test(command)}
+`, { flag: "a" });
+  } catch {
+  }
+  const skillsInstallResult = parseAndInjectSkillsAdd(command, cwd, platform);
+  if (skillsInstallResult) {
+    log.debug("posttooluse-skills-add-detected", { command, injectedCount: skillsInstallResult.injectedCount });
+    try {
+      writeFileSync("/tmp/posttooluse-debug.log", `[${(/* @__PURE__ */ new Date()).toISOString()}] INJECTED ${skillsInstallResult.injectedCount} skills
+`, { flag: "a" });
+    } catch {
+    }
+    return skillsInstallResult.output;
+  }
   const packages = parseInstallCommand(command);
   if (packages.length === 0) {
     log.debug("posttooluse-bash-chain-skip", { reason: "no_packages_detected", command });
@@ -738,6 +793,7 @@ export {
   buildDelegatedInstallOutcomeBanner,
   buildPostInstallActionPalette,
   formatBashChainOutput,
+  parseAndInjectSkillsAdd,
   parseBashInput,
   parseInstallCommand,
   run,

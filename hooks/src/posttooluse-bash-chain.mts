@@ -13,7 +13,7 @@
  */
 
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectPlatform, type HookPlatform } from "./compat.mjs";
@@ -257,6 +257,73 @@ const log: Logger = createLogger();
  */
 const INSTALL_CMD_RE =
   /(?:npm\s+(?:install|i|add)|yarn\s+add|pnpm\s+(?:add|install)|bun\s+(?:add|install))\s+(.+)/;
+
+// ---------------------------------------------------------------------------
+// npx skills add detection
+// ---------------------------------------------------------------------------
+
+const SKILLS_ADD_RE = /npx\s+skills\s+add\b/;
+const SKILL_FLAG_RE = /--skill\s+(\S+)/g;
+
+/**
+ * Detect `npx skills add` commands, parse --skill flags, read installed
+ * SKILL.md files, and inject them as `Loaded Skill()` additionalContext.
+ */
+export function parseAndInjectSkillsAdd(
+  command: string,
+  cwd: string | undefined,
+  platform: HookPlatform,
+): { output: string; injectedCount: number } | null {
+  if (!command || !SKILLS_ADD_RE.test(command)) return null;
+
+  // Parse all --skill flags from the command (may span multiple && chains)
+  const slugs: string[] = [];
+  let match: RegExpExecArray | null;
+  const re = new RegExp(SKILL_FLAG_RE.source, "g");
+  while ((match = re.exec(command)) !== null) {
+    slugs.push(match[1]);
+  }
+
+  if (slugs.length === 0) return null;
+
+  // Read SKILL.md bodies from <cwd>/.claude/skills/<slug>/SKILL.md
+  const projectRoot = cwd || process.cwd();
+  const parts: string[] = [];
+  for (const slug of slugs) {
+    const skillPath = join(projectRoot, ".claude", "skills", slug, "SKILL.md");
+    try {
+      const raw = readFileSync(skillPath, "utf-8");
+      parts.push(`Loaded Skill(${slug}) from ${skillPath}:\n${raw}`);
+    } catch {
+      // Skill file may not exist yet if install failed or used a different slug
+    }
+  }
+
+  if (parts.length === 0) return null;
+
+  const additionalContext = parts.join("\n\n");
+
+  if (platform === "cursor") {
+    return {
+      output: JSON.stringify({ additional_context: additionalContext, continue: true }),
+      injectedCount: parts.length,
+    };
+  }
+
+  return {
+    output: JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse" as const,
+        additionalContext,
+      },
+    }),
+    injectedCount: parts.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Package install detection
+// ---------------------------------------------------------------------------
 
 /**
  * Parse a bash command string and extract installed package names.
@@ -1040,6 +1107,15 @@ export async function run(): Promise<string> {
   if (!parsed) return "{}";
 
   const { command, sessionId, platform, cwd } = parsed;
+
+  // Check for `npx skills add` commands — inject installed skill bodies
+  try { writeFileSync("/tmp/posttooluse-debug.log", `[${new Date().toISOString()}] command=${command.substring(0, 200)} cwd=${cwd ?? "(null)"} hasSkillsAdd=${/npx\s+skills\s+add\b/.test(command)}\n`, { flag: "a" }); } catch {}
+  const skillsInstallResult = parseAndInjectSkillsAdd(command, cwd, platform);
+  if (skillsInstallResult) {
+    log.debug("posttooluse-skills-add-detected", { command, injectedCount: skillsInstallResult.injectedCount });
+    try { writeFileSync("/tmp/posttooluse-debug.log", `[${new Date().toISOString()}] INJECTED ${skillsInstallResult.injectedCount} skills\n`, { flag: "a" }); } catch {}
+    return skillsInstallResult.output;
+  }
 
   const packages = parseInstallCommand(command);
   if (packages.length === 0) {

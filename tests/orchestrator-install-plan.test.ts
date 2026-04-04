@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join, resolve } from "node:path";
 import {
   buildSkillInstallPlan,
   formatSkillInstallPalette,
@@ -187,7 +188,7 @@ describe("buildSkillInstallPlan", () => {
 
     const statePaths = resolveProjectStatePaths("/repo");
     expect(plan.projectStateRoot).toBe(statePaths.stateRoot);
-    expect(plan.skillsCacheDir).toBe(statePaths.skillsDir);
+    expect(plan.skillsCacheDir).toBe(join(resolve("/repo"), ".claude", "skills"));
     expect(plan.installPlanPath).toBe(statePaths.installPlanPath);
   });
 
@@ -439,7 +440,7 @@ describe("formatSkillInstallPalette", () => {
     });
 
     const palette = formatSkillInstallPalette(plan)!;
-    expect(palette).toContain(`[1] Install now: cd '${plan.projectStateRoot}' && npx skills add vercel/vercel-skills --skill ai-sdk --agent claude-code -y --copy`);
+    expect(palette).toContain(`[1] Install now: cd '${plan.projectRoot}' && npx skills add vercel/vercel-skills --skill ai-sdk --agent claude-code -y --copy`);
   });
 
   test("omits install line when all skills cached", () => {

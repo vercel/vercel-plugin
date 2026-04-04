@@ -96,7 +96,7 @@ describe("installSkills", () => {
           "--agent", "claude-code",
           "-y", "--copy",
         ],
-        cwd: state.stateRoot,
+        cwd: PROJECT,
       },
     ]);
     expect(result.installed).toEqual(["nextjs"]);
@@ -276,13 +276,15 @@ describe("installSkills", () => {
     expect(result.command).toContain("vercel/vercel-skills");
   });
 
-  test("recognises installed skills from skills-lock.json when directory is absent", async () => {
+  test("recognises installed skills from skills-lock.json when SKILL.md exists on disk", async () => {
     const PROJECT = join(TMP, "project");
     mkdirSync(PROJECT, { recursive: true });
     const state = ensureStateRoot(PROJECT);
 
     const exec = mockExecFile(() => {
-      // CLI writes lockfile but has NOT yet materialised .skills/nextjs/SKILL.md
+      // CLI writes lockfile and materialises SKILL.md
+      mkdirSync(join(state.skillsDir, "nextjs"), { recursive: true });
+      writeFileSync(join(state.skillsDir, "nextjs", "SKILL.md"), "# Next.js", "utf-8");
       writeFileSync(
         state.lockfilePath,
         JSON.stringify({
@@ -308,10 +310,45 @@ describe("installSkills", () => {
     expect(result.missing).toEqual([]);
   });
 
-  test("reports reused from lockfile when skill exists in lockfile before CLI call", async () => {
+  test("lockfile-only entry without SKILL.md on disk is reported as missing", async () => {
+    const PROJECT = join(TMP, "project");
+    mkdirSync(PROJECT, { recursive: true });
+    const state = ensureStateRoot(PROJECT);
+
+    const exec = mockExecFile(() => {
+      // CLI writes lockfile but has NOT materialised .skills/nextjs/SKILL.md
+      writeFileSync(
+        state.lockfilePath,
+        JSON.stringify({
+          version: 1,
+          skills: { nextjs: { source: "vercel/vercel-skills" } },
+        }),
+        "utf-8",
+      );
+    });
+
+    const client = createRegistryClient({
+      source: "my-org/skills",
+      execFileImpl: exec.impl,
+    });
+
+    const result = await client.installSkills({
+      projectRoot: PROJECT,
+      skillNames: ["nextjs"],
+    });
+
+    // No SKILL.md on disk — stale lockfile entries don't count as installed
+    expect(result.installed).toEqual([]);
+    expect(result.reused).toEqual([]);
+    expect(result.missing).toEqual(["nextjs"]);
+  });
+
+  test("reports reused from lockfile when skill exists on disk before CLI call", async () => {
     const PROJECT = join(TMP, "project");
     const state = ensureStateRoot(PROJECT);
-    // Pre-seed lockfile with skill already present
+    // Pre-seed lockfile and SKILL.md with skill already present
+    mkdirSync(join(state.skillsDir, "nextjs"), { recursive: true });
+    writeFileSync(join(state.skillsDir, "nextjs", "SKILL.md"), "# Next.js", "utf-8");
     writeFileSync(
       state.lockfilePath,
       JSON.stringify({
@@ -370,9 +407,9 @@ describe("installSkills", () => {
       skillNames: ["nextjs", "ai-sdk"],
     });
 
-    // Both should be installed (lockfile is canonical)
-    expect(result.installed).toEqual(["ai-sdk", "nextjs"]);
-    expect(result.missing).toEqual([]);
+    // Only nextjs has SKILL.md on disk; ai-sdk is lockfile-only → missing
+    expect(result.installed).toEqual(["nextjs"]);
+    expect(result.missing).toEqual(["ai-sdk"]);
   });
 
   test("mixed install/reused/missing results", async () => {
@@ -409,6 +446,9 @@ describe("installSkills", () => {
     const state = ensureStateRoot(PROJECT);
 
     const exec = mockExecFile(() => {
+      // CLI installs under registry slug and writes lockfile + SKILL.md
+      mkdirSync(join(state.skillsDir, "next-best-practices"), { recursive: true });
+      writeFileSync(join(state.skillsDir, "next-best-practices", "SKILL.md"), "# Next.js", "utf-8");
       writeFileSync(
         state.lockfilePath,
         JSON.stringify({

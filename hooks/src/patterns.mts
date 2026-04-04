@@ -34,6 +34,17 @@ export interface ChainToRule {
   skipIfFileContains?: string;
 }
 
+export interface CoInjectWhen {
+  allProjectFacts?: string[];
+  allRuntimeFacts?: string[];
+}
+
+export interface CoInjectRule {
+  targetSkill: string;
+  mode: "force" | "prefer";
+  when?: CoInjectWhen;
+}
+
 export interface SkillEntry {
   priority: number;
   summary?: string;
@@ -43,6 +54,7 @@ export interface SkillEntry {
   importPatterns: string[];
   validate?: ValidationRule[];
   chainTo?: ChainToRule[];
+  coInject?: CoInjectRule[];
   retrieval?: RetrievalMetadata;
 }
 

@@ -74,6 +74,6 @@ describe("notion clone patterns", () => {
 
   test("notion-clone next.config.ts injects nextjs then turbopack", async () => {
     const injectedSkills = await matchFile("/Users/me/notion-clone/next.config.ts");
-    expect(injectedSkills).toEqual(["next-cache-components", "next-upgrade", "nextjs"]);
+    expect(injectedSkills).toEqual(["next-cache-components", "next-upgrade", "nextjs", "turbopack"]);
   });
 });

@@ -14,7 +14,7 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-engine-context.mjs\""
           }
         ]
       }

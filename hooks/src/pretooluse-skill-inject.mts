@@ -19,7 +19,7 @@
  */
 
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -64,8 +64,8 @@ import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
 
-const MAX_SKILLS = 3;
-const DEFAULT_INJECTION_BUDGET_BYTES = 18_000;
+const MAX_SKILLS = 10;
+const DEFAULT_INJECTION_BUDGET_BYTES = 100_000;
 const SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
 const SETUP_MODE_PRIORITY_BOOST = 50;
 const PLUGIN_ROOT = resolvePluginRoot();
@@ -88,10 +88,6 @@ const DEV_VERIFY_COUNT_SESSION_KEY = "dev-verify-count";
 // Companion skills co-injected alongside agent-browser-verify on dev server detection.
 // These share the same iteration guard and loop-guard bypass logic.
 const DEV_SERVER_COMPANION_SKILLS: string[] = ["verification"];
-
-// Companion skills co-injected alongside ai-sdk when the tool call targets a client-side React file.
-const AI_SDK_SKILL = "ai-sdk";
-const AI_SDK_COMPANION_SKILLS: string[] = ["ai-elements"];
 const DEV_SERVER_UNAVAILABLE_WARNING = `<!-- agent-browser-unavailable -->
 **Recommendation: Install agent-browser for automatic verification**
 
@@ -251,6 +247,33 @@ type RuntimeEnvKey = (typeof RUNTIME_ENV_KEYS)[number];
 export type RuntimeEnvSnapshot = Record<RuntimeEnvKey, string | undefined>;
 export type RuntimeEnvUpdates = Partial<Record<RuntimeEnvKey, string>>;
 
+export interface CoInjectApplication {
+  sourceSkill: string;
+  targetSkill: string;
+  mode: "force" | "prefer";
+}
+
+export interface ApplyCoInjectRulesOptions {
+  rankedSkills: string[];
+  /** All skills that matched patterns, including those capped/deduped out of rankedSkills. */
+  allMatchedSkills?: string[];
+  skillMap: Record<string, SkillConfig>;
+  projectFacts: Set<string>;
+  runtimeFacts: Set<string>;
+  injectedSkills: Set<string>;
+  matched?: Set<string>;
+  forceSummarySkills?: Set<string>;
+  maxSkills?: number;
+  dedupOff?: boolean;
+  logger?: Logger;
+}
+
+export interface ApplyCoInjectRulesResult {
+  rankedSkills: string[];
+  applied: CoInjectApplication[];
+  evictedSkills: string[];
+}
+
 export function captureRuntimeEnvSnapshot(env: NodeJS.ProcessEnv = process.env): RuntimeEnvSnapshot {
   return {
     VERCEL_PLUGIN_CONTEXT_COMPACTED: env.VERCEL_PLUGIN_CONTEXT_COMPACTED,
@@ -274,6 +297,128 @@ export function collectRuntimeEnvUpdates(
   }
 
   return updates;
+}
+
+export function parseFactSet(value: string | undefined): Set<string> {
+  if (!value) return new Set<string>();
+  return new Set(
+    value
+      .split(",")
+      .map((fact) => fact.trim())
+      .filter((fact) => fact !== ""),
+  );
+}
+
+function matchesCoInjectWhen(
+  when: NonNullable<NonNullable<SkillConfig["coInject"]>[number]["when"]> | undefined,
+  projectFacts: Set<string>,
+  runtimeFacts: Set<string>,
+): boolean {
+  if (!when) return true;
+  if (when.allProjectFacts && !when.allProjectFacts.every((fact) => projectFacts.has(fact))) {
+    return false;
+  }
+  if (when.allRuntimeFacts && !when.allRuntimeFacts.every((fact) => runtimeFacts.has(fact))) {
+    return false;
+  }
+  return true;
+}
+
+export function applyCoInjectRules({
+  rankedSkills,
+  allMatchedSkills,
+  skillMap,
+  projectFacts,
+  runtimeFacts,
+  injectedSkills,
+  matched,
+  forceSummarySkills,
+  maxSkills = MAX_SKILLS,
+  dedupOff = false,
+  logger,
+}: ApplyCoInjectRulesOptions): ApplyCoInjectRulesResult {
+  const l = logger || log;
+  const nextRanked = [...rankedSkills];
+  const forcedSkills = new Set<string>();
+  const applied: CoInjectApplication[] = [];
+  const evictedSkills: string[] = [];
+
+  const moveAdjacentToSource = (sourceSkill: string, targetSkill: string): void => {
+    const existingIndex = nextRanked.indexOf(targetSkill);
+    if (existingIndex !== -1) {
+      nextRanked.splice(existingIndex, 1);
+    }
+    const sourceIndex = nextRanked.indexOf(sourceSkill);
+    nextRanked.splice(sourceIndex === -1 ? nextRanked.length : sourceIndex + 1, 0, targetSkill);
+  };
+
+  // Check coInject rules for ALL matched skills (including those capped out
+  // of rankedSkills). A skill like ai-sdk may match via import pattern but
+  // get capped — its coInject rules should still fire to bring in ai-gateway.
+  const skillsToCheck = allMatchedSkills && allMatchedSkills.length > 0
+    ? [...new Set([...nextRanked, ...allMatchedSkills])]
+    : nextRanked;
+
+  for (const sourceSkill of skillsToCheck) {
+    const rules = skillMap[sourceSkill]?.coInject;
+    if (!rules || rules.length === 0) continue;
+
+    for (const rule of rules) {
+      if (!matchesCoInjectWhen(rule.when, projectFacts, runtimeFacts)) continue;
+
+      const targetSkill = rule.targetSkill;
+      const alreadyPresent = nextRanked.includes(targetSkill);
+      if (alreadyPresent && rule.mode === "prefer") continue;
+
+      if (!dedupOff && injectedSkills.has(targetSkill) && forceSummarySkills) {
+        forceSummarySkills.add(targetSkill);
+      }
+
+      if (rule.mode === "force") {
+        forcedSkills.add(targetSkill);
+      }
+
+      if (!alreadyPresent) {
+        moveAdjacentToSource(sourceSkill, targetSkill);
+        matched?.add(targetSkill);
+      } else if (rule.mode === "force") {
+        moveAdjacentToSource(sourceSkill, targetSkill);
+      }
+
+      if (rule.mode === "prefer" && nextRanked.length > maxSkills) {
+        const insertedIndex = nextRanked.indexOf(targetSkill);
+        if (insertedIndex !== -1 && !alreadyPresent) {
+          nextRanked.splice(insertedIndex, 1);
+        }
+        l.debug("coinject-prefer-skipped-cap", { sourceSkill, targetSkill, maxSkills });
+        continue;
+      }
+
+      applied.push({ sourceSkill, targetSkill, mode: rule.mode });
+      l.debug("coinject-applied", { sourceSkill, targetSkill, mode: rule.mode });
+
+      while (nextRanked.length > maxSkills) {
+        let evictIndex = -1;
+        for (let candidateIndex = nextRanked.length - 1; candidateIndex >= 0; candidateIndex -= 1) {
+          const candidate = nextRanked[candidateIndex];
+          if (forcedSkills.has(candidate)) continue;
+          evictIndex = candidateIndex;
+          break;
+        }
+        if (evictIndex === -1) {
+          break;
+        }
+        const [evicted] = nextRanked.splice(evictIndex, 1);
+        evictedSkills.push(evicted);
+        if (!dedupOff && injectedSkills.has(evicted) && forceSummarySkills) {
+          forceSummarySkills.add(evicted);
+        }
+        l.debug("coinject-evicted", { sourceSkill, targetSkill, evictedSkill: evicted, mode: rule.mode });
+      }
+    }
+  }
+
+  return { rankedSkills: nextRanked, applied, evictedSkills };
 }
 
 function finalizeRuntimeEnvUpdates(
@@ -1315,7 +1460,8 @@ function run(): string {
     setupMode,
   }, log);
 
-  const { newEntries, rankedSkills, profilerBoosted } = dedupResult;
+  const { newEntries, rankedSkills: dedupRankedSkills, profilerBoosted } = dedupResult;
+  let rankedSkills = dedupRankedSkills;
 
   // Stage 4.5: Synthetically inject react-best-practices if TSX review triggered
   let tsxReviewInjected = false;
@@ -1437,29 +1583,42 @@ function run(): string {
     }
   }
 
-  // Stage 4.9: Co-inject ai-elements alongside ai-sdk on client React files.
-  // AI Elements is mandatory for rendering AI-generated text in browser UIs,
-  // but only relevant for client components (not API routes or server actions).
-  let aiSdkCompanionInjected = false;
-  if (rankedSkills.includes(AI_SDK_SKILL) && isClientReactFile(toolName, toolInput)) {
-    for (const companion of AI_SDK_COMPANION_SKILLS) {
-      if (rankedSkills.includes(companion)) continue;
-      const companionAlreadySeen = !dedupOff && injectedSkills.has(companion);
-      if (companionAlreadySeen) {
-        forceSummarySkills.add(companion);
-        log.debug("ai-sdk-companion-dedup-bypass", { skill: companion, mode: "summary" });
-      }
-      const sdkIdx = rankedSkills.indexOf(AI_SDK_SKILL);
-      if (sdkIdx !== -1) {
-        rankedSkills.splice(sdkIdx + 1, 0, companion);
-      } else {
-        rankedSkills.unshift(companion);
-      }
-      matched.add(companion);
-      aiSdkCompanionInjected = true;
-      log.debug("ai-sdk-companion-inject", { skill: companion });
+  // Read project facts from env var (set by profiler) or compute from
+  // session files and filesystem when env var isn't propagated to hooks.
+  const projectFacts = parseFactSet(process.env.VERCEL_PLUGIN_PROJECT_FACTS);
+  if (projectFacts.size === 0) {
+    // Env var not propagated — read from session file + filesystem
+    if (sessionId) {
+      const gf = readSessionFile(sessionId, "greenfield");
+      if (gf === "true") projectFacts.add("greenfield");
+    }
+    if (cwd) {
+      try {
+        const entries = readdirSync(cwd);
+        if (!entries.some(e => e === ".env" || e.startsWith(".env."))) {
+          projectFacts.add("no-env-files");
+        }
+      } catch {}
     }
   }
+  const runtimeFacts = new Set<string>();
+  if (isClientReactFile(toolName, toolInput)) {
+    runtimeFacts.add("client-react-file");
+  }
+  const coInjectResult = applyCoInjectRules({
+    rankedSkills,
+    allMatchedSkills: [...matched],
+    skillMap: skills.skillMap,
+    projectFacts,
+    runtimeFacts,
+    injectedSkills,
+    matched,
+    forceSummarySkills,
+    maxSkills: MAX_SKILLS,
+    dedupOff,
+    logger: log,
+  });
+  rankedSkills = coInjectResult.rankedSkills;
 
   let vercelEnvHelpInjected = false;
   if (vercelEnvHelp.triggered) {
@@ -1602,14 +1761,12 @@ function run(): string {
       reasonCode: "tsx-review-trigger",
     };
   }
-  if (aiSdkCompanionInjected) {
-    for (const companion of AI_SDK_COMPANION_SKILLS) {
-      if (loaded.includes(companion) || (summaryOnly && summaryOnly.includes(companion))) {
-        reasons[companion] = {
-          trigger: "ai-sdk-companion",
-          reasonCode: "ai-sdk-client-component",
-        };
-      }
+  for (const application of coInjectResult.applied) {
+    if (loaded.includes(application.targetSkill) || (summaryOnly && summaryOnly.includes(application.targetSkill))) {
+      reasons[application.targetSkill] = {
+        trigger: "co-inject",
+        reasonCode: `${application.sourceSkill}:${application.mode}`,
+      };
     }
   }
   // Add pattern-match reasons for remaining skills
@@ -1803,7 +1960,7 @@ export {
   run, validateSkillMap,
   TSX_REVIEW_SKILL, REVIEW_MARKER, DEFAULT_REVIEW_THRESHOLD, isTsxEditTool, getTsxEditCount, resetTsxEditCount,
   DEV_SERVER_VERIFY_SKILL, DEV_SERVER_VERIFY_MARKER, DEV_SERVER_VERIFY_MAX_ITERATIONS, DEV_SERVER_COMPANION_SKILLS,
-  AI_SDK_SKILL, AI_SDK_COMPANION_SKILLS, isClientReactFile,
+  isClientReactFile,
   checkVercelEnvHelp,
   DEV_SERVER_UNAVAILABLE_WARNING,
 };

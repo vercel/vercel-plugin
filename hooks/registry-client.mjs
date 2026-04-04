@@ -1,5 +1,6 @@
 // hooks/src/registry-client.mts
 import { execFile } from "child_process";
+import { resolve } from "path";
 import { promisify } from "util";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import { readProjectSkillState } from "./project-skill-manifest.mjs";
@@ -59,9 +60,10 @@ function createRegistryClient(options = {}) {
           commandCwd: null
         };
       }
+      const installCwd = resolve(args.projectRoot);
       try {
         await execFileImpl(command.file, command.args, {
-          cwd: statePaths.stateRoot,
+          cwd: installCwd,
           timeout: timeoutMs,
           env: { ...process.env, CI: "1" },
           maxBuffer: 1024 * 1024
@@ -79,7 +81,7 @@ function createRegistryClient(options = {}) {
         ),
         missing: requested.filter((skill) => !after.has(skill)),
         command: command.printable,
-        commandCwd: statePaths.stateRoot
+        commandCwd: installCwd
       };
     }
   };

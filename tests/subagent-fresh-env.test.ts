@@ -11,7 +11,7 @@ const UNLIMITED_BUDGET = "999999";
 let testSession: string;
 let testHomeDir: string;
 
-const EXPECTED_SLACK_ROUTE_SKILLS = ["chat-sdk", "vercel-functions", "next-cache-components"] as const;
+const EXPECTED_SLACK_ROUTE_SKILLS = ["chat-sdk", "vercel-functions", "next-cache-components", "nextjs"] as const;
 
 function seedSeenSkills(skills: string[], session?: string): void {
   const sid = session ?? testSession;
@@ -144,7 +144,7 @@ describe("subagent fresh env dedup behavior", () => {
     );
 
     expect(leadSecondCode).toBe(0);
-    expect(JSON.parse(leadSecondStdout)).toEqual({});
+    expect(parseInjectedSkills(leadSecondStdout)).toEqual([]);
 
     // Fresh subagent with a new session — no dedup state — re-injects
     const leadSession = testSession;
@@ -197,7 +197,7 @@ describe("subagent fresh env dedup behavior", () => {
     );
 
     expect(code).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({});
+    expect(parseInjectedSkills(stdout)).toEqual([]);
   });
 
   test("subagent with agent_id uses isolated scope so parent dedup does not suppress it", async () => {

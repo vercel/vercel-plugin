@@ -220,14 +220,13 @@ describe("vercel.json key-aware routing (collision scenarios)", () => {
       tool_name: "Edit",
       tool_input: { file_path: filePath },
     });
-    // Max 3 skills injected
-    expect(injectedSkills.length).toBeLessThanOrEqual(3);
+    // Max 10 skills injected
+    expect(injectedSkills.length).toBeLessThanOrEqual(10);
     // No duplicates
     expect(new Set(injectedSkills).size).toBe(injectedSkills.length);
-    // All 4 vercel.json skills are relevant, but cap limits to 3
-    // The ones that ARE injected should all be vercel.json skills
-    for (const skill of injectedSkills) {
-      expect(["cron-jobs", "deployments-cicd", "routing-middleware", "vercel-functions"]).toContain(skill);
+    // All 4 vercel.json skills should be present (cap is now 10, so none are dropped)
+    for (const vSkill of ["cron-jobs", "deployments-cicd", "routing-middleware", "vercel-functions"]) {
+      expect(injectedSkills).toContain(vSkill);
     }
   });
 

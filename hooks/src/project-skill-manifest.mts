@@ -13,7 +13,7 @@
  */
 
 import { existsSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, normalize, resolve } from "node:path";
 import { safeReadJson } from "./hook-env.mjs";
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
 
@@ -58,8 +58,12 @@ export interface ProjectSkillState {
 // Helpers
 // ---------------------------------------------------------------------------
 
+function uniqueMergedSlugs(...lists: string[][]): string[] {
+  return [...new Set(lists.flat())].sort();
+}
+
 /**
- * List skill slugs present in a `.skills/` directory by looking for
+ * List skill slugs present in a skills directory by looking for
  * subdirectories that contain a `SKILL.md` file.
  */
 function listSkillSlugs(skillsDir: string): string[] {
@@ -133,21 +137,24 @@ export function readProjectSkillState(projectRoot: string): ProjectSkillState {
   const statePaths = resolveProjectStatePaths(projectRoot);
   const skillsDir = statePaths.skillsDir;
   const lockfilePath = statePaths.lockfilePath;
+  // The skills CLI installs into <projectRoot>/.claude/skills/ where the
+  // Skill() tool can find them. Scan both locations and union the results.
+  const projectClaudeSkillsDir = join(normalize(resolve(projectRoot)), ".claude", "skills");
 
   // 1. skills-lock.json (canonical CLI output)
   if (existsSync(lockfilePath)) {
     const parsedLock = readProjectSkillLock(lockfilePath);
-    const scannedSlugs = listSkillSlugs(skillsDir);
+    const scannedSlugs = uniqueMergedSlugs(listSkillSlugs(skillsDir), listSkillSlugs(projectClaudeSkillsDir));
 
+    // Use directory scan for installedSlugs — only skills with actual
+    // SKILL.md files on disk count as installed. A stale lockfile (from a
+    // failed or incomplete install) must not suppress auto-install by
+    // inflating the installed count. Lock metadata is still exposed via
+    // lockSkills for consumers that need registry provenance.
     return {
       projectSkillStatePath: lockfilePath,
       source: "skills-lock.json",
-      // Canonical: derive slugs from lockfile keys when valid and non-empty,
-      // fall back to directory scan when lockfile is malformed or empty.
-      installedSlugs:
-        parsedLock && Object.keys(parsedLock.skills).length > 0
-          ? Object.keys(parsedLock.skills).sort()
-          : scannedSlugs,
+      installedSlugs: scannedSlugs,
       skillsDir,
       lockVersion: parsedLock?.version ?? null,
       lockSkills: parsedLock?.skills ?? {},
@@ -155,7 +162,7 @@ export function readProjectSkillState(projectRoot: string): ProjectSkillState {
   }
 
   // 2. .skills/manifest.json (CLI-written or legacy)
-  const installedSlugs = listSkillSlugs(skillsDir);
+  const installedSlugs = uniqueMergedSlugs(listSkillSlugs(skillsDir), listSkillSlugs(projectClaudeSkillsDir));
   const manifestPath = join(skillsDir, "manifest.json");
   if (existsSync(manifestPath)) {
     return {

@@ -312,9 +312,39 @@ function parseChainToRules(raw) {
   }
   return rules;
 }
+function parseCoInjectRules(raw) {
+  if (!Array.isArray(raw)) return [];
+  const rules = [];
+  for (const item of raw) {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) continue;
+    const obj = item;
+    if (typeof obj.targetSkill !== "string" || obj.targetSkill === "") continue;
+    if (obj.mode !== "force" && obj.mode !== "prefer") continue;
+    const rule = {
+      targetSkill: obj.targetSkill,
+      mode: obj.mode
+    };
+    if (obj.when != null && typeof obj.when === "object" && !Array.isArray(obj.when)) {
+      const whenObj = obj.when;
+      const allProjectFacts = Array.isArray(whenObj.allProjectFacts) ? whenObj.allProjectFacts.filter((fact) => typeof fact === "string" && fact !== "") : [];
+      const allRuntimeFacts = Array.isArray(whenObj.allRuntimeFacts) ? whenObj.allRuntimeFacts.filter((fact) => typeof fact === "string" && fact !== "") : [];
+      if (allProjectFacts.length > 0 || allRuntimeFacts.length > 0) {
+        rule.when = {};
+        if (allProjectFacts.length > 0) {
+          rule.when.allProjectFacts = allProjectFacts;
+        }
+        if (allRuntimeFacts.length > 0) {
+          rule.when.allRuntimeFacts = allRuntimeFacts;
+        }
+      }
+    }
+    rules.push(rule);
+  }
+  return rules;
+}
 function parseSkillFrontmatter(yamlStr) {
   if (!yamlStr || !yamlStr.trim()) {
-    return { name: "", description: "", summary: "", metadata: {}, validate: [], chainTo: [] };
+    return { name: "", description: "", summary: "", metadata: {}, validate: [], chainTo: [], coInject: [] };
   }
   const doc = parseSimpleYaml(yamlStr);
   return {
@@ -324,6 +354,7 @@ function parseSkillFrontmatter(yamlStr) {
     metadata: doc.metadata != null && typeof doc.metadata === "object" && !Array.isArray(doc.metadata) ? doc.metadata : {},
     validate: parseValidateRules(doc.validate),
     chainTo: parseChainToRules(doc.chainTo),
+    coInject: parseCoInjectRules(doc.coInject),
     ...doc.retrieval != null && typeof doc.retrieval === "object" && !Array.isArray(doc.retrieval) ? { retrieval: parseRetrievalBlock(doc.retrieval) } : {}
   };
 }
@@ -379,6 +410,7 @@ function scanSkillsDir(rootDir) {
       metadata: parsed.metadata,
       validate: parsed.validate,
       chainTo: parsed.chainTo,
+      coInject: parsed.coInject,
       ...parsed.retrieval ? { retrieval: parsed.retrieval } : {}
     });
   }
@@ -631,6 +663,9 @@ function buildSkillMap(rootDir) {
     if (skill.chainTo.length > 0) {
       entry.chainTo = skill.chainTo;
     }
+    if (skill.coInject.length > 0) {
+      entry.coInject = skill.coInject;
+    }
     if (promptSignals) {
       entry.promptSignals = promptSignals;
     }
@@ -656,6 +691,7 @@ var KNOWN_KEYS = /* @__PURE__ */ new Set([
   "importPatterns",
   "validate",
   "chainTo",
+  "coInject",
   "promptSignals",
   "retrieval"
 ]);
@@ -806,6 +842,7 @@ function validateSkillMap(raw) {
     });
     const sitemap = typeof cfg.sitemap === "string" && cfg.sitemap.length > 0 ? cfg.sitemap : void 0;
     const chainTo = parseChainToRules(cfg.chainTo);
+    const coInject = parseCoInjectRules(cfg.coInject);
     const normalizedEntry = {
       priority,
       summary,
@@ -820,6 +857,9 @@ function validateSkillMap(raw) {
     }
     if (chainTo.length > 0) {
       normalizedEntry.chainTo = chainTo;
+    }
+    if (coInject.length > 0) {
+      normalizedEntry.coInject = coInject;
     }
     if (promptSignals) {
       normalizedEntry.promptSignals = promptSignals;
@@ -840,6 +880,23 @@ function validateSkillMap(raw) {
             code: "CHAIN_TO_MISSING_TARGET",
             skill,
             field: "chainTo.targetSkill",
+            valueType: "string",
+            hint: `Ensure "${rule.targetSkill}" exists as a skill directory`
+          }
+        );
+      }
+    }
+  }
+  for (const [skill, config] of Object.entries(normalizedSkills)) {
+    if (!config.coInject) continue;
+    for (const rule of config.coInject) {
+      if (!allSlugs.has(rule.targetSkill)) {
+        addError(
+          `skill "${skill}": coInject references non-existent skill "${rule.targetSkill}"`,
+          {
+            code: "COINJECT_MISSING_TARGET",
+            skill,
+            field: "coInject.targetSkill",
             valueType: "string",
             hint: `Ensure "${rule.targetSkill}" exists as a skill directory`
           }

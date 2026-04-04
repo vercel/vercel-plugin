@@ -68,7 +68,7 @@ describe("session-start-seen-skills hook", () => {
     );
     expect(sessionStart.hooks[2].type).toBe("command");
     expect(sessionStart.hooks[2].command).toBe(
-      'node "${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs"',
+      'node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start-engine-context.mjs"',
     );
   });
 

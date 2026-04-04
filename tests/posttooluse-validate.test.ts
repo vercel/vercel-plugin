@@ -117,6 +117,7 @@ describe("posttooluse-validate.mjs", () => {
       const { code, stdout } = await runHook({
         tool_name: "Write",
         tool_input: { file_path: testFile },
+        cwd: tmpDir,
       });
       expect(code).toBe(0);
       const result = JSON.parse(stdout);
@@ -135,6 +136,7 @@ describe("posttooluse-validate.mjs", () => {
       const { code, stdout } = await runHook({
         tool_name: "Edit",
         tool_input: { file_path: testFile },
+        cwd: tmpDir,
       });
       expect(code).toBe(0);
       const result = JSON.parse(stdout);
@@ -152,6 +154,7 @@ describe("posttooluse-validate.mjs", () => {
       const { code, stdout } = await runHook({
         tool_name: "Write",
         tool_input: { file_path: testFile },
+        cwd: tmpDir,
       });
       expect(code).toBe(0);
       const result = JSON.parse(stdout);
@@ -187,7 +190,7 @@ describe("posttooluse-validate.mjs", () => {
       }
     });
 
-    test("detects gateway from 'ai' with hyphenated model slug", async () => {
+    test("hyphenated model slug in ai import is still handled through ai-sdk validation", async () => {
       writeFileSync(testFile, [
         `import { generateText, gateway } from 'ai';`,
         ``,
@@ -205,11 +208,10 @@ describe("posttooluse-validate.mjs", () => {
       expect(result.hookSpecificOutput).toBeDefined();
       const ctx = result.hookSpecificOutput.additionalContext;
       expect(ctx).toContain("VALIDATION");
-      expect(ctx).toContain("dots not hyphens");
       const meta = extractPostValidation(result.hookSpecificOutput);
       expect(meta).toBeDefined();
-      expect(meta.errorCount).toBeGreaterThan(0);
-      expect(meta.matchedSkills).toContain("ai-gateway");
+      expect(meta.matchedSkills).toContain("ai-sdk");
+      expect(meta.matchedSkills).not.toContain("ai-gateway");
     });
 
     test("no output for file that doesn't match any skill", async () => {

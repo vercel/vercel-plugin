@@ -61,6 +61,7 @@ describe("AI SDK companion injection (ai-elements)", () => {
         file_path: "/project/src/components/editor-ai.tsx",
         content: 'import { useChat } from "@ai-sdk/react";\nexport default function EditorAI() {}',
       },
+      cwd: "/nonexistent-clean-project",
     });
 
     expect(parsed).not.toBeNull();
@@ -68,6 +69,10 @@ describe("AI SDK companion injection (ai-elements)", () => {
     expect(meta).toBeDefined();
     expect(meta.injectedSkills).toContain("ai-sdk");
     expect(meta.injectedSkills).toContain("ai-elements");
+    expect(meta.reasons["ai-elements"]).toEqual({
+      trigger: "co-inject",
+      reasonCode: "ai-sdk:force",
+    });
   });
 
   test("ai-elements is injected on .jsx files too", async () => {
@@ -78,6 +83,7 @@ describe("AI SDK companion injection (ai-elements)", () => {
         old_string: "old",
         new_string: 'import { useChat } from "@ai-sdk/react";\nnew',
       },
+      cwd: "/nonexistent-clean-project",
     });
 
     expect(parsed).not.toBeNull();
@@ -85,6 +91,10 @@ describe("AI SDK companion injection (ai-elements)", () => {
     expect(meta).toBeDefined();
     expect(meta.injectedSkills).toContain("ai-sdk");
     expect(meta.injectedSkills).toContain("ai-elements");
+    expect(meta.reasons["ai-elements"]).toEqual({
+      trigger: "co-inject",
+      reasonCode: "ai-sdk:force",
+    });
   });
 
   test("does NOT co-inject ai-elements on API route files", async () => {
@@ -100,7 +110,7 @@ describe("AI SDK companion injection (ai-elements)", () => {
     const meta = extractSkillInjection(parsed.hookSpecificOutput);
     // ai-elements should not have ai-sdk-companion trigger on server routes
     if (meta?.reasons?.["ai-elements"]) {
-      expect(meta.reasons["ai-elements"].trigger).not.toBe("ai-sdk-companion");
+      expect(meta.reasons["ai-elements"].trigger).not.toBe("co-inject");
     }
   });
 
@@ -116,7 +126,7 @@ describe("AI SDK companion injection (ai-elements)", () => {
     expect(parsed).not.toBeNull();
     const meta = extractSkillInjection(parsed.hookSpecificOutput);
     if (meta?.reasons?.["ai-elements"]) {
-      expect(meta.reasons["ai-elements"].trigger).not.toBe("ai-sdk-companion");
+      expect(meta.reasons["ai-elements"].trigger).not.toBe("co-inject");
     }
   });
 
@@ -132,6 +142,7 @@ describe("AI SDK companion injection (ai-elements)", () => {
           file_path: "/project/src/components/editor-ai.tsx",
           content: 'import { useChat } from "@ai-sdk/react";\nexport default function EditorAI() {}',
         },
+        cwd: "/nonexistent-clean-project",
       },
       { VERCEL_PLUGIN_SEEN_SKILLS: "ai-elements" },
     );
@@ -175,7 +186,7 @@ describe("AI SDK companion injection (ai-elements)", () => {
     // Read tool should not trigger companion injection
     const meta = extractSkillInjection(parsed?.hookSpecificOutput);
     if (meta?.reasons?.["ai-elements"]) {
-      expect(meta.reasons["ai-elements"].trigger).not.toBe("ai-sdk-companion");
+      expect(meta.reasons["ai-elements"].trigger).not.toBe("co-inject");
     }
   });
 });

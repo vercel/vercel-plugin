@@ -1,7 +1,7 @@
 ---
 name: turborepo
+registry: vercel/turborepo
 priority: 5
-registry: vercel/vercel-skills
 docs: https://turborepo.dev/docs
 sitemap: https://turborepo.dev/sitemap.xml
 pathPatterns:

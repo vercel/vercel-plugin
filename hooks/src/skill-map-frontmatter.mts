@@ -43,6 +43,17 @@ export interface ChainToRule {
   skipIfFileContains?: string;
 }
 
+export interface CoInjectWhen {
+  allProjectFacts?: string[];
+  allRuntimeFacts?: string[];
+}
+
+export interface CoInjectRule {
+  targetSkill: string;
+  mode: "force" | "prefer";
+  when?: CoInjectWhen;
+}
+
 export interface RetrievalMetadata {
   aliases?: string[];
   intents?: string[];
@@ -57,6 +68,7 @@ export interface SkillFrontmatter {
   metadata: Record<string, unknown>;
   validate: ValidationRule[];
   chainTo: ChainToRule[];
+  coInject: CoInjectRule[];
   retrieval?: RetrievalMetadata;
 }
 
@@ -68,6 +80,7 @@ export interface ScannedSkill {
   metadata: Record<string, unknown>;
   validate: ValidationRule[];
   chainTo: ChainToRule[];
+  coInject: CoInjectRule[];
   retrieval?: RetrievalMetadata;
 }
 
@@ -95,13 +108,17 @@ export interface SkillConfig {
   summary: string;
   docs: string[];
   sitemap?: string;
+  greenfield?: boolean;
   pathPatterns: string[];
   bashPatterns: string[];
   importPatterns: string[];
   validate: ValidationRule[];
   chainTo?: ChainToRule[];
+  coInject?: CoInjectRule[];
   promptSignals?: PromptSignals;
   retrieval?: RetrievalMetadata;
+  hasRealBody?: boolean;
+  sessionStartEligible?: "body" | "summary" | "none";
 }
 
 export interface WarningDetail {
@@ -556,9 +573,47 @@ function parseChainToRules(raw: unknown): ChainToRule[] {
   return rules;
 }
 
+function parseCoInjectRules(raw: unknown): CoInjectRule[] {
+  if (!Array.isArray(raw)) return [];
+  const rules: CoInjectRule[] = [];
+  for (const item of raw) {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) continue;
+    const obj = item as Record<string, unknown>;
+    if (typeof obj.targetSkill !== "string" || obj.targetSkill === "") continue;
+    if (obj.mode !== "force" && obj.mode !== "prefer") continue;
+
+    const rule: CoInjectRule = {
+      targetSkill: obj.targetSkill,
+      mode: obj.mode,
+    };
+
+    if (obj.when != null && typeof obj.when === "object" && !Array.isArray(obj.when)) {
+      const whenObj = obj.when as Record<string, unknown>;
+      const allProjectFacts = Array.isArray(whenObj.allProjectFacts)
+        ? whenObj.allProjectFacts.filter((fact): fact is string => typeof fact === "string" && fact !== "")
+        : [];
+      const allRuntimeFacts = Array.isArray(whenObj.allRuntimeFacts)
+        ? whenObj.allRuntimeFacts.filter((fact): fact is string => typeof fact === "string" && fact !== "")
+        : [];
+      if (allProjectFacts.length > 0 || allRuntimeFacts.length > 0) {
+        rule.when = {};
+        if (allProjectFacts.length > 0) {
+          rule.when.allProjectFacts = allProjectFacts;
+        }
+        if (allRuntimeFacts.length > 0) {
+          rule.when.allRuntimeFacts = allRuntimeFacts;
+        }
+      }
+    }
+
+    rules.push(rule);
+  }
+  return rules;
+}
+
 export function parseSkillFrontmatter(yamlStr: string): SkillFrontmatter {
   if (!yamlStr || !yamlStr.trim()) {
-    return { name: "", description: "", summary: "", metadata: {}, validate: [], chainTo: [] };
+    return { name: "", description: "", summary: "", metadata: {}, validate: [], chainTo: [], coInject: [] };
   }
   const doc = parseSimpleYaml(yamlStr);
   return {
@@ -573,6 +628,7 @@ export function parseSkillFrontmatter(yamlStr: string): SkillFrontmatter {
         : {},
     validate: parseValidateRules(doc.validate),
     chainTo: parseChainToRules(doc.chainTo),
+    coInject: parseCoInjectRules(doc.coInject),
     ...(doc.retrieval != null &&
       typeof doc.retrieval === "object" &&
       !Array.isArray(doc.retrieval)
@@ -649,6 +705,7 @@ export function scanSkillsDir(rootDir: string): ScanResult {
       metadata: parsed.metadata,
       validate: parsed.validate,
       chainTo: parsed.chainTo,
+      coInject: parsed.coInject,
       ...(parsed.retrieval ? { retrieval: parsed.retrieval } : {}),
     });
   }
@@ -1017,6 +1074,9 @@ export function buildSkillMap(rootDir: string): SkillMapResult {
     if (skill.chainTo.length > 0) {
       entry.chainTo = skill.chainTo;
     }
+    if (skill.coInject.length > 0) {
+      entry.coInject = skill.coInject;
+    }
     if (promptSignals) {
       entry.promptSignals = promptSignals;
     }
@@ -1048,6 +1108,7 @@ const KNOWN_KEYS = new Set([
   "importPatterns",
   "validate",
   "chainTo",
+  "coInject",
   "promptSignals",
   "retrieval",
 ]);
@@ -1241,6 +1302,7 @@ export function validateSkillMap(raw: unknown): ValidationResult {
 
     // Normalize chainTo (optional array of ChainToRule, default [])
     const chainTo = parseChainToRules(cfg.chainTo);
+    const coInject = parseCoInjectRules(cfg.coInject);
 
     const normalizedEntry: SkillConfig = {
       priority,
@@ -1256,6 +1318,9 @@ export function validateSkillMap(raw: unknown): ValidationResult {
     }
     if (chainTo.length > 0) {
       normalizedEntry.chainTo = chainTo;
+    }
+    if (coInject.length > 0) {
+      normalizedEntry.coInject = coInject;
     }
     if (promptSignals) {
       normalizedEntry.promptSignals = promptSignals;
@@ -1278,6 +1343,24 @@ export function validateSkillMap(raw: unknown): ValidationResult {
             code: "CHAIN_TO_MISSING_TARGET",
             skill,
             field: "chainTo.targetSkill",
+            valueType: "string",
+            hint: `Ensure "${rule.targetSkill}" exists as a skill directory`,
+          },
+        );
+      }
+    }
+  }
+
+  for (const [skill, config] of Object.entries(normalizedSkills)) {
+    if (!config.coInject) continue;
+    for (const rule of config.coInject) {
+      if (!allSlugs.has(rule.targetSkill)) {
+        addError(
+          `skill "${skill}": coInject references non-existent skill "${rule.targetSkill}"`,
+          {
+            code: "COINJECT_MISSING_TARGET",
+            skill,
+            field: "coInject.targetSkill",
             valueType: "string",
             hint: `Ensure "${rule.targetSkill}" exists as a skill directory`,
           },

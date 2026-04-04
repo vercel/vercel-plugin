@@ -1,4 +1,5 @@
 // hooks/src/orchestrator-install-plan.mts
+import { normalize, resolve, join } from "path";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import {
   buildVercelCliCommand
@@ -35,7 +36,7 @@ function buildSkillInstallPlan(args) {
       label: "Install detected skills",
       description: missingSkills.length === 0 ? "All detected skills are already cached." : `Install ${missingSkills.length} missing skill${missingSkills.length === 1 ? "" : "s"} into ${statePaths.skillsDir}.`,
       command: installCommand,
-      cwd: installCommand ? statePaths.stateRoot : null,
+      cwd: installCommand ? args.projectRoot : null,
       default: !args.zeroBundleReady
     },
     {
@@ -84,7 +85,7 @@ function buildSkillInstallPlan(args) {
     createdAt: (args.now ? args.now() : /* @__PURE__ */ new Date()).toISOString(),
     projectRoot: args.projectRoot,
     projectStateRoot: statePaths.stateRoot,
-    skillsCacheDir: statePaths.skillsDir,
+    skillsCacheDir: join(normalize(resolve(args.projectRoot)), ".claude", "skills"),
     installPlanPath: statePaths.installPlanPath,
     likelySkills,
     installedSkills,

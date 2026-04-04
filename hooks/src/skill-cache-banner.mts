@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { join, normalize, resolve } from "node:path";
 import { logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import {
@@ -218,7 +218,7 @@ export function buildResolvedSkillCacheBanner(args: {
     outcome === "installed" ||
     outcome === "partial" ||
     outcome === "failed"
-      ? `- Project cache: ${resolveProjectStatePaths(projectRoot).skillsDir}`
+      ? `- Project skill dir: ${join(normalize(resolve(projectRoot)), ".claude", "skills")}`
       : null,
     installQuestion ? `- Ask once: "${installQuestion}"` : null,
     installCommand ? `- Install: \`${installCommand}\`` : null,

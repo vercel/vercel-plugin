@@ -1,7 +1,8 @@
 ---
 name: ai-sdk
+greenfield: true
 priority: 8
-registry: vercel/vercel-skills
+registry: vercel/ai
 docs:
   - https://sdk.vercel.ai/docs
   - https://sdk.vercel.ai/docs/reference
@@ -49,6 +50,19 @@ bashPatterns:
 importPatterns:
   - "ai"
   - "@ai-sdk/*"
+coInject:
+  - targetSkill: ai-gateway
+    mode: force
+    when:
+      allProjectFacts: ["greenfield"]
+  - targetSkill: ai-gateway
+    mode: prefer
+    when:
+      allProjectFacts: ["setup-mode", "no-env-files", "no-ai-gateway-dep"]
+  - targetSkill: ai-elements
+    mode: force
+    when:
+      allRuntimeFacts: ["client-react-file"]
 promptSignals:
   phrases:
     - "ai sdk"

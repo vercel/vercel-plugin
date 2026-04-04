@@ -1,7 +1,7 @@
 ---
 name: ai-elements
+registry: vercel/ai-elements
 priority: 5
-registry: vercel/vercel-skills
 docs: https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling
 sitemap: https://sdk.vercel.ai/sitemap.xml
 pathPatterns:

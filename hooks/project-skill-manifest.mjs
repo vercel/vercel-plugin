@@ -1,8 +1,11 @@
 // hooks/src/project-skill-manifest.mts
 import { existsSync, readdirSync } from "fs";
-import { join } from "path";
+import { join, normalize, resolve } from "path";
 import { safeReadJson } from "./hook-env.mjs";
 import { resolveProjectStatePaths } from "./project-state-paths.mjs";
+function uniqueMergedSlugs(...lists) {
+  return [...new Set(lists.flat())].sort();
+}
 function listSkillSlugs(skillsDir) {
   try {
     return readdirSync(skillsDir, { withFileTypes: true }).filter(
@@ -32,21 +35,20 @@ function readProjectSkillState(projectRoot) {
   const statePaths = resolveProjectStatePaths(projectRoot);
   const skillsDir = statePaths.skillsDir;
   const lockfilePath = statePaths.lockfilePath;
+  const projectClaudeSkillsDir = join(normalize(resolve(projectRoot)), ".claude", "skills");
   if (existsSync(lockfilePath)) {
     const parsedLock = readProjectSkillLock(lockfilePath);
-    const scannedSlugs = listSkillSlugs(skillsDir);
+    const scannedSlugs = uniqueMergedSlugs(listSkillSlugs(skillsDir), listSkillSlugs(projectClaudeSkillsDir));
     return {
       projectSkillStatePath: lockfilePath,
       source: "skills-lock.json",
-      // Canonical: derive slugs from lockfile keys when valid and non-empty,
-      // fall back to directory scan when lockfile is malformed or empty.
-      installedSlugs: parsedLock && Object.keys(parsedLock.skills).length > 0 ? Object.keys(parsedLock.skills).sort() : scannedSlugs,
+      installedSlugs: scannedSlugs,
       skillsDir,
       lockVersion: parsedLock?.version ?? null,
       lockSkills: parsedLock?.skills ?? {}
     };
   }
-  const installedSlugs = listSkillSlugs(skillsDir);
+  const installedSlugs = uniqueMergedSlugs(listSkillSlugs(skillsDir), listSkillSlugs(projectClaudeSkillsDir));
   const manifestPath = join(skillsDir, "manifest.json");
   if (existsSync(manifestPath)) {
     return {

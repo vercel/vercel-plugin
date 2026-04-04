@@ -11,6 +11,7 @@
  */
 
 import { execFile } from "node:child_process";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { buildSkillsAddCommand } from "./skills-cli-command.mjs";
 import { readProjectSkillState } from "./project-skill-manifest.mjs";
@@ -152,9 +153,13 @@ export function createRegistryClient(
         };
       }
 
+      // Run from the project root so `npx skills add --copy` installs into
+      // <projectRoot>/.claude/skills/ where the Skill() tool can find them.
+      const installCwd = resolve(args.projectRoot);
+
       try {
         await execFileImpl(command.file, command.args, {
-          cwd: statePaths.stateRoot,
+          cwd: installCwd,
           timeout: timeoutMs,
           env: { ...process.env, CI: "1" },
           maxBuffer: 1024 * 1024,
@@ -175,7 +180,7 @@ export function createRegistryClient(
         ),
         missing: requested.filter((skill) => !after.has(skill)),
         command: command.printable,
-        commandCwd: statePaths.stateRoot,
+        commandCwd: installCwd,
       };
     },
   };

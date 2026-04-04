@@ -104,12 +104,15 @@ var SETUP_RESOURCE_DEPENDENCIES = {
   "@vercel/edge-config": "edge-config"
 };
 var SETUP_MODE_THRESHOLD = 3;
-var GREENFIELD_DEFAULT_SKILLS = [
-  "nextjs",
-  "ai-sdk",
-  "vercel-cli",
-  "env-vars"
-];
+function getGreenfieldDefaultSkills() {
+  try {
+    const manifestPath = join(pluginRoot(), "generated", "skill-rules.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    return Object.entries(manifest.skills ?? {}).filter(([, s]) => s.greenfield === true).map(([name]) => name).sort();
+  } catch {
+    return [];
+  }
+}
 var GREENFIELD_SETUP_SIGNALS = {
   bootstrapHints: ["greenfield"],
   resourceHints: [],
@@ -120,6 +123,35 @@ var SESSION_LIKELY_SKILLS_KIND = "likely-skills";
 var log = createLogger();
 function readPackageJson(projectRoot) {
   return safeReadJson(join(projectRoot, "package.json"));
+}
+function hasEnvFiles(projectRoot) {
+  try {
+    const entries = readdirSync(projectRoot);
+    return entries.some((entry) => entry === ".env" || entry.startsWith(".env.") && entry.length > 5);
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:env-file-scan-failed", error, { projectRoot });
+    return false;
+  }
+}
+function hasAiGatewayDependency(pkg) {
+  if (!pkg) return false;
+  return Boolean(pkg.dependencies?.["@ai-sdk/gateway"] || pkg.devDependencies?.["@ai-sdk/gateway"]);
+}
+function collectProjectFacts(args) {
+  const facts = /* @__PURE__ */ new Set();
+  if (args.greenfield) {
+    facts.add("greenfield");
+  }
+  if (args.setupSignals.setupMode) {
+    facts.add("setup-mode");
+  }
+  if (!hasEnvFiles(args.projectRoot)) {
+    facts.add("no-env-files");
+  }
+  if (!hasAiGatewayDependency(args.packageJson ?? null)) {
+    facts.add("no-ai-gateway-dep");
+  }
+  return [...facts].sort();
 }
 function upsertSkillDetection(map, skill, reason) {
   const existing = map.get(skill);
@@ -480,6 +512,9 @@ function buildSessionStartProfilerEnvVars(args) {
   if (args.likelySkills.length > 0) {
     envVars.VERCEL_PLUGIN_LIKELY_SKILLS = args.likelySkills.join(",");
   }
+  if (args.projectFacts && args.projectFacts.length > 0) {
+    envVars.VERCEL_PLUGIN_PROJECT_FACTS = args.projectFacts.join(",");
+  }
   if (args.installedSkills && args.installedSkills.length > 0) {
     envVars.VERCEL_PLUGIN_INSTALLED_SKILLS = args.installedSkills.join(",");
   }
@@ -606,6 +641,7 @@ function mergeInstallResults(results) {
   };
 }
 function shouldAutoInstall(args) {
+  if (args.greenfield) return false;
   if (process.env.VERCEL_PLUGIN_SKILL_AUTO_INSTALL === "1") return true;
   if (args.installedSkillCount === 0 && args.missingSkillCount > 0) return true;
   return false;
@@ -726,13 +762,13 @@ async function main() {
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
-  const detections = greenfield ? GREENFIELD_DEFAULT_SKILLS.map((skill) => ({
+  const detections = greenfield ? getGreenfieldDefaultSkills().map((skill) => ({
     skill,
     reasons: [
       {
         kind: "greenfield",
         source: "project-root",
-        detail: "seeded from greenfield defaults"
+        detail: "engine rule has greenfield: true"
       }
     ]
   })) : profileProjectDetections(projectRoot);
@@ -751,7 +787,14 @@ async function main() {
     });
   }
   likelySkills.sort();
+  const packageJson = readPackageJson(projectRoot);
   const setupSignals = greenfield ? GREENFIELD_SETUP_SIGNALS : profileBootstrapSignals(projectRoot);
+  const projectFacts = collectProjectFacts({
+    greenfield: greenfield !== null,
+    setupSignals,
+    projectRoot,
+    packageJson
+  });
   const greenfieldValue = greenfield ? "true" : "";
   const likelySkillsValue = likelySkills.join(",");
   const agentBrowserAvailable = checkAgentBrowser();
@@ -769,7 +812,8 @@ async function main() {
   const missingBeforeInstall = [...skillCacheStatus.missingSkills];
   const autoInstallEnabled = shouldAutoInstall({
     installedSkillCount: installedSkills.length,
-    missingSkillCount: missingBeforeInstall.length
+    missingSkillCount: missingBeforeInstall.length,
+    greenfield: greenfield !== null
   });
   const registryMetadata = loadRegistrySkillMetadata(pluginRoot());
   const registryMap = new Map(
@@ -907,6 +951,7 @@ async function main() {
     agentBrowserAvailable,
     greenfield: greenfield !== null,
     likelySkills,
+    projectFacts,
     installedSkills,
     missingSkills: skillCacheStatus.missingSkills,
     zeroBundleReady: skillCacheStatus.zeroBundleReady,
@@ -922,9 +967,6 @@ async function main() {
   try {
     if (platform === "claude-code") {
       for (const [key, value] of Object.entries(envVars)) {
-        if (key === "VERCEL_PLUGIN_GREENFIELD") {
-          continue;
-        }
         setSessionEnv(platform, key, value);
       }
     }
@@ -1011,6 +1053,7 @@ export {
   buildSessionStartProfilerUserMessages,
   checkAgentBrowser,
   checkGreenfield,
+  collectProjectFacts,
   detectSessionStartPlatform,
   emitProgressBlock,
   formatSessionStartProfilerCursorOutput,

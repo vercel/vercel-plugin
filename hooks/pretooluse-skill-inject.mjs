@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // hooks/src/pretooluse-skill-inject.mts
-import { readFileSync, realpathSync } from "fs";
+import { readFileSync, readdirSync, realpathSync } from "fs";
 import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import {
@@ -35,8 +35,8 @@ import { resolveProjectStatePaths, resolveVercelPluginHome } from "./project-sta
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import { trackBaseEvents } from "./telemetry.mjs";
-var MAX_SKILLS = 3;
-var DEFAULT_INJECTION_BUDGET_BYTES = 18e3;
+var MAX_SKILLS = 10;
+var DEFAULT_INJECTION_BUDGET_BYTES = 1e5;
 var SETUP_MODE_BOOTSTRAP_SKILL = "bootstrap";
 var SETUP_MODE_PRIORITY_BOOST = 50;
 var PLUGIN_ROOT = resolvePluginRoot();
@@ -52,8 +52,6 @@ var DEV_SERVER_VERIFY_MAX_ITERATIONS = 2;
 var DEV_SERVER_VERIFY_MARKER = "<!-- marker:dev-server-verify -->";
 var DEV_VERIFY_COUNT_SESSION_KEY = "dev-verify-count";
 var DEV_SERVER_COMPANION_SKILLS = ["verification"];
-var AI_SDK_SKILL = "ai-sdk";
-var AI_SDK_COMPANION_SKILLS = ["ai-elements"];
 var DEV_SERVER_UNAVAILABLE_WARNING = `<!-- agent-browser-unavailable -->
 **Recommendation: Install agent-browser for automatic verification**
 
@@ -173,6 +171,101 @@ function collectRuntimeEnvUpdates(before, env = process.env) {
     }
   }
   return updates;
+}
+function parseFactSet(value) {
+  if (!value) return /* @__PURE__ */ new Set();
+  return new Set(
+    value.split(",").map((fact) => fact.trim()).filter((fact) => fact !== "")
+  );
+}
+function matchesCoInjectWhen(when, projectFacts, runtimeFacts) {
+  if (!when) return true;
+  if (when.allProjectFacts && !when.allProjectFacts.every((fact) => projectFacts.has(fact))) {
+    return false;
+  }
+  if (when.allRuntimeFacts && !when.allRuntimeFacts.every((fact) => runtimeFacts.has(fact))) {
+    return false;
+  }
+  return true;
+}
+function applyCoInjectRules({
+  rankedSkills,
+  allMatchedSkills,
+  skillMap,
+  projectFacts,
+  runtimeFacts,
+  injectedSkills,
+  matched,
+  forceSummarySkills,
+  maxSkills = MAX_SKILLS,
+  dedupOff = false,
+  logger
+}) {
+  const l = logger || log;
+  const nextRanked = [...rankedSkills];
+  const forcedSkills = /* @__PURE__ */ new Set();
+  const applied = [];
+  const evictedSkills = [];
+  const moveAdjacentToSource = (sourceSkill, targetSkill) => {
+    const existingIndex = nextRanked.indexOf(targetSkill);
+    if (existingIndex !== -1) {
+      nextRanked.splice(existingIndex, 1);
+    }
+    const sourceIndex = nextRanked.indexOf(sourceSkill);
+    nextRanked.splice(sourceIndex === -1 ? nextRanked.length : sourceIndex + 1, 0, targetSkill);
+  };
+  const skillsToCheck = allMatchedSkills && allMatchedSkills.length > 0 ? [.../* @__PURE__ */ new Set([...nextRanked, ...allMatchedSkills])] : nextRanked;
+  for (const sourceSkill of skillsToCheck) {
+    const rules = skillMap[sourceSkill]?.coInject;
+    if (!rules || rules.length === 0) continue;
+    for (const rule of rules) {
+      if (!matchesCoInjectWhen(rule.when, projectFacts, runtimeFacts)) continue;
+      const targetSkill = rule.targetSkill;
+      const alreadyPresent = nextRanked.includes(targetSkill);
+      if (alreadyPresent && rule.mode === "prefer") continue;
+      if (!dedupOff && injectedSkills.has(targetSkill) && forceSummarySkills) {
+        forceSummarySkills.add(targetSkill);
+      }
+      if (rule.mode === "force") {
+        forcedSkills.add(targetSkill);
+      }
+      if (!alreadyPresent) {
+        moveAdjacentToSource(sourceSkill, targetSkill);
+        matched?.add(targetSkill);
+      } else if (rule.mode === "force") {
+        moveAdjacentToSource(sourceSkill, targetSkill);
+      }
+      if (rule.mode === "prefer" && nextRanked.length > maxSkills) {
+        const insertedIndex = nextRanked.indexOf(targetSkill);
+        if (insertedIndex !== -1 && !alreadyPresent) {
+          nextRanked.splice(insertedIndex, 1);
+        }
+        l.debug("coinject-prefer-skipped-cap", { sourceSkill, targetSkill, maxSkills });
+        continue;
+      }
+      applied.push({ sourceSkill, targetSkill, mode: rule.mode });
+      l.debug("coinject-applied", { sourceSkill, targetSkill, mode: rule.mode });
+      while (nextRanked.length > maxSkills) {
+        let evictIndex = -1;
+        for (let candidateIndex = nextRanked.length - 1; candidateIndex >= 0; candidateIndex -= 1) {
+          const candidate = nextRanked[candidateIndex];
+          if (forcedSkills.has(candidate)) continue;
+          evictIndex = candidateIndex;
+          break;
+        }
+        if (evictIndex === -1) {
+          break;
+        }
+        const [evicted] = nextRanked.splice(evictIndex, 1);
+        evictedSkills.push(evicted);
+        if (!dedupOff && injectedSkills.has(evicted) && forceSummarySkills) {
+          forceSummarySkills.add(evicted);
+        }
+        l.debug("coinject-evicted", { sourceSkill, targetSkill, evictedSkill: evicted, mode: rule.mode });
+      }
+    }
+  }
+  return { rankedSkills: nextRanked, applied, evictedSkills };
 }
 function finalizeRuntimeEnvUpdates(platform, before, env = process.env) {
   if (platform !== "cursor") return void 0;
@@ -797,7 +890,8 @@ function run() {
     compiledSkills,
     setupMode
   }, log);
-  const { newEntries, rankedSkills, profilerBoosted } = dedupResult;
+  const { newEntries, rankedSkills: dedupRankedSkills, profilerBoosted } = dedupResult;
+  let rankedSkills = dedupRankedSkills;
   let tsxReviewInjected = false;
   if (tsxReview.triggered && !rankedSkills.includes(TSX_REVIEW_SKILL)) {
     const reviewTemplate = compiledSkills.find((e) => e.skill === TSX_REVIEW_SKILL);
@@ -893,26 +987,40 @@ function run() {
       log.debug("dev-server-companion-inject-past-guard", { skill: companion, iterationCount: devServerVerify.iterationCount, max: DEV_SERVER_VERIFY_MAX_ITERATIONS });
     }
   }
-  let aiSdkCompanionInjected = false;
-  if (rankedSkills.includes(AI_SDK_SKILL) && isClientReactFile(toolName, toolInput)) {
-    for (const companion of AI_SDK_COMPANION_SKILLS) {
-      if (rankedSkills.includes(companion)) continue;
-      const companionAlreadySeen = !dedupOff && injectedSkills.has(companion);
-      if (companionAlreadySeen) {
-        forceSummarySkills.add(companion);
-        log.debug("ai-sdk-companion-dedup-bypass", { skill: companion, mode: "summary" });
+  const projectFacts = parseFactSet(process.env.VERCEL_PLUGIN_PROJECT_FACTS);
+  if (projectFacts.size === 0) {
+    if (sessionId) {
+      const gf = readSessionFile(sessionId, "greenfield");
+      if (gf === "true") projectFacts.add("greenfield");
+    }
+    if (cwd) {
+      try {
+        const entries = readdirSync(cwd);
+        if (!entries.some((e) => e === ".env" || e.startsWith(".env."))) {
+          projectFacts.add("no-env-files");
+        }
+      } catch {
       }
-      const sdkIdx = rankedSkills.indexOf(AI_SDK_SKILL);
-      if (sdkIdx !== -1) {
-        rankedSkills.splice(sdkIdx + 1, 0, companion);
-      } else {
-        rankedSkills.unshift(companion);
-      }
-      matched.add(companion);
-      aiSdkCompanionInjected = true;
-      log.debug("ai-sdk-companion-inject", { skill: companion });
     }
   }
+  const runtimeFacts = /* @__PURE__ */ new Set();
+  if (isClientReactFile(toolName, toolInput)) {
+    runtimeFacts.add("client-react-file");
+  }
+  const coInjectResult = applyCoInjectRules({
+    rankedSkills,
+    allMatchedSkills: [...matched],
+    skillMap: skills.skillMap,
+    projectFacts,
+    runtimeFacts,
+    injectedSkills,
+    matched,
+    forceSummarySkills,
+    maxSkills: MAX_SKILLS,
+    dedupOff,
+    logger: log
+  });
+  rankedSkills = coInjectResult.rankedSkills;
   let vercelEnvHelpInjected = false;
   if (vercelEnvHelp.triggered) {
     let helpClaimed = true;
@@ -1040,14 +1148,12 @@ function run() {
       reasonCode: "tsx-review-trigger"
     };
   }
-  if (aiSdkCompanionInjected) {
-    for (const companion of AI_SDK_COMPANION_SKILLS) {
-      if (loaded.includes(companion) || summaryOnly && summaryOnly.includes(companion)) {
-        reasons[companion] = {
-          trigger: "ai-sdk-companion",
-          reasonCode: "ai-sdk-client-component"
-        };
-      }
+  for (const application of coInjectResult.applied) {
+    if (loaded.includes(application.targetSkill) || summaryOnly && summaryOnly.includes(application.targetSkill)) {
+      reasons[application.targetSkill] = {
+        trigger: "co-inject",
+        reasonCode: `${application.sourceSkill}:${application.mode}`
+      };
     }
   }
   for (const skill of loaded) {
@@ -1194,8 +1300,6 @@ if (isMainModule()) {
   }
 }
 export {
-  AI_SDK_COMPANION_SKILLS,
-  AI_SDK_SKILL,
   DEFAULT_REVIEW_THRESHOLD,
   DEV_SERVER_COMPANION_SKILLS,
   DEV_SERVER_UNAVAILABLE_WARNING,
@@ -1204,6 +1308,7 @@ export {
   DEV_SERVER_VERIFY_SKILL,
   REVIEW_MARKER,
   TSX_REVIEW_SKILL,
+  applyCoInjectRules,
   captureRuntimeEnvSnapshot,
   checkDevServerVerify,
   checkTsxReviewTrigger,
@@ -1221,6 +1326,7 @@ export {
   isTsxEditTool,
   loadSkills,
   matchSkills,
+  parseFactSet,
   parseInput,
   redactCommand,
   resetDevServerVerifyCount,

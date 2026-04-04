@@ -1,5 +1,6 @@
 ---
 name: workflow
+registry: vercel/workflow
 priority: 9
 docs:
   - https://vercel.com/docs/workflow
