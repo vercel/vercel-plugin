@@ -1103,18 +1103,18 @@ export function run(): string {
 
       const bundles: SkillBundle[] = [
         {
-          name: "AI & Chat",
-          description: "AI SDK, Chat SDK, AI Elements, Workflow — build AI-powered features with Vercel AI Gateway (use `vercel link` + `vercel env pull` for automatic OIDC auth — no API keys needed)",
+          name: "AI App",
+          description: "AI SDK, Chat SDK, AI Elements, Workflow — AI-powered features with automatic auth via Vercel AI Gateway",
           skills: [],
         },
         {
-          name: "Next.js & React",
-          description: "Next.js best practices, React patterns, cache components, shadcn/ui",
+          name: "Web App",
+          description: "Next.js best practices, React patterns, caching, shadcn/ui components",
           skills: [],
         },
         {
-          name: "Platform & DevOps",
-          description: "Vercel CLI, deployments, workflow, feature flags, turborepo",
+          name: "Backend / API",
+          description: "Vercel CLI, deployments, feature flags, turborepo",
           skills: [],
         },
       ];
@@ -1163,7 +1163,7 @@ export function run(): string {
             const cmd = buildSkillsAddCommand(registry, slugs, "claude-code");
             if (cmd) cmds.push(cmd.printable);
           }
-          return `Bundle ${i + 1} (${b.name}): ${cmds.join(" && ")}`;
+          return `Starter ${i + 1} (${b.name}): ${cmds.join(" && ")}`;
         })
         .join("\n");
 
@@ -1172,25 +1172,18 @@ export function run(): string {
       const setupNote = `\nRECOMMENDED SETUP: After installing skills, run \`vercel link\` to connect to a Vercel project, then \`vercel env pull\` to get OIDC credentials. This enables AI Gateway routing with automatic auth — no API keys needed.\n`;
 
       const discoveryPrompt = nonInteractive
-        ? `<CRITICAL>\n` +
-          `STOP. This is a new project. Before writing any code, install the relevant Vercel skill bundles.\n\n` +
+        ? `Vercel plugin is active. Recommended starters for this task:\n\n` +
           `${bundleLines}\n\n` +
           `Install commands:\n${bundleCommands}\n\n` +
-          `Based on what the user is asking for, run the install commands for ALL relevant bundles from the project root.\n` +
-          `Do not skip this step. Do not continue without installing.\n` +
+          `Install the most relevant starters from the project root before writing code.\n` +
           `After installing, skill guidance will be loaded automatically.\n` +
-          `${setupNote}` +
-          `</CRITICAL>`
-        : `<CRITICAL>\n` +
-          `STOP. This is a new project. Present these Vercel skill bundles to the user:\n\n` +
-          `${bundleLines}\n\n` +
-          `Ask the user exactly: "Which skill bundles would you like to install? Type the numbers (e.g. 1,2), or 'all' to install everything."\n\n` +
-          `Install commands per bundle:\n${bundleCommands}\n\n` +
-          `After the user picks, run the install commands for the selected bundles from the project root.\n` +
-          `Do not skip this step.\n` +
-          `After installing, skill guidance will be loaded automatically.\n` +
-          `${setupNote}` +
-          `</CRITICAL>`;
+          `${setupNote}`
+        : `Vercel plugin is active. I can preload relevant guidance for this project.\n\n` +
+          `Recommended starters:\n${bundleLines}\n\n` +
+          `Ask the user: "Which starters would you like? Type the numbers (e.g. 1,2), 'all', or just keep going and I'll stay lightweight."\n\n` +
+          `Install commands:\n${bundleCommands}\n\n` +
+          `After the user picks, run the install commands from the project root.\n` +
+          `${setupNote}`;
 
       const output: Record<string, unknown> = {
         hookSpecificOutput: {
