@@ -697,8 +697,10 @@ function run() {
   report.selectedSkills.push(...promptCoInject.rankedSkills);
   const allMatched = Object.entries(report.perSkillResults).filter(([, r]) => r.matched).map(([skill]) => skill);
   const isGreenfield = sessionId ? readSessionFile(sessionId, "greenfield") === "true" : false;
-  const hasVercelPromptMatch = allMatched.length > 0;
-  if (isGreenfield && hasVercelPromptMatch && cwd && sessionId) {
+  const hasStrongPromptMatch = Object.entries(report.perSkillResults).some(
+    ([, r]) => r.matched && r.score >= 6
+  );
+  if (isGreenfield && hasStrongPromptMatch && cwd && sessionId) {
     const alreadyRecommended = readSessionFile(sessionId, "skills-recommended");
     if (!alreadyRecommended) {
       writeSessionFile(sessionId, "skills-recommended", "true");

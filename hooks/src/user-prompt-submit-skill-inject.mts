@@ -1074,11 +1074,14 @@ export function run(): string {
   const isGreenfield = sessionId ? readSessionFile(sessionId, "greenfield") === "true" : false;
 
   // Stage 3b: Greenfield skill discovery
-  // On a new project where the prompt matches at least one Vercel skill,
-  // inject a CRITICAL block with bundles. If no skills match the prompt
-  // (e.g., "build a Python Flask API"), don't pollute with Vercel bundles.
-  const hasVercelPromptMatch = allMatched.length > 0;
-  if (isGreenfield && hasVercelPromptMatch && cwd && sessionId) {
+  // On a new project where the prompt strongly matches a Vercel skill
+  // (phrase/allOf match, score >= 6), inject bundle prompt. Lexical-only
+  // matches are too broad (e.g., "API" matching vercel-api) and would
+  // pollute non-Vercel projects like Python Flask.
+  const hasStrongPromptMatch = Object.entries(report.perSkillResults).some(
+    ([, r]) => r.matched && r.score >= 6
+  );
+  if (isGreenfield && hasStrongPromptMatch && cwd && sessionId) {
     const alreadyRecommended = readSessionFile(sessionId, "skills-recommended");
     if (!alreadyRecommended) {
       writeSessionFile(sessionId, "skills-recommended", "true");
