@@ -110,7 +110,8 @@ describe("bootstrap cache fidelity", () => {
     expect(entries[0]?.bodySource).toBe("project-cache");
 
     const block = buildTier3Block(["ai-sdk"], [], entries);
-    expect(block).toContain("### Loaded Skill(ai-sdk)");
+    expect(block).toContain("### Loaded now");
+    expect(block).toContain("`ai-sdk` from project-cache");
     expect(block).toContain("Use streamText()");
   });
 

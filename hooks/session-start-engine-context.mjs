@@ -97,81 +97,176 @@ function resolveSessionStartSkillEntries(projectRoot, skills) {
   });
   return entries;
 }
-function appendSkillSummaries(lines, skillEntries) {
-  for (const entry of skillEntries) {
-    if (entry.summary === "" || entry.sessionStartEligible === "none") {
-      continue;
-    }
-    lines.push(`- ${entry.skill}: ${entry.summary}`);
-  }
+function presentableSkillEntries(skillEntries) {
+  return skillEntries.filter(
+    (entry) => entry !== null
+  );
 }
-function buildTier1Block(skills) {
+function formatSkillTags(skills) {
+  return skills.length === 0 ? "_none_" : skills.map((skill) => `\`${skill}\``).join(" ");
+}
+function formatProjectFactTags(projectFacts) {
+  return projectFacts.length === 0 ? null : projectFacts.map((fact) => `\`${fact}\``).join(" ");
+}
+function selectBodyCandidate(skillEntries) {
+  return presentableSkillEntries(skillEntries).find(
+    (entry) => entry.sessionStartEligible === "body" && entry.body !== null && entry.body.trim() !== ""
+  ) ?? null;
+}
+function buildSummaryTeasers(skillEntries, limit = 3) {
+  return presentableSkillEntries(skillEntries).filter((entry) => entry.summary !== null && entry.summary.trim() !== "").slice(0, limit).map((entry) => `- \`${entry.skill}\` \u2014 ${entry.summary.trim()}`);
+}
+function trimBodyPreview(body, maxBytes = 2200) {
+  const trimmed = body.trim();
+  const buffer = Buffer.from(trimmed, "utf8");
+  if (buffer.byteLength <= maxBytes) return trimmed;
+  return buffer.subarray(0, maxBytes).toString("utf8").trimEnd() + "\n[...truncated]";
+}
+function buildPresentationHeader(likelySkills, projectFacts, state) {
+  const lines = [
+    "## Vercel context ready",
+    state === "body-selected" ? "High-confidence project signals detected. One foundational guide is loaded now." : state === "summary-only" ? "High-confidence project signals detected. Summaries are ready now; fuller guidance loads on first touch." : "Fresh project detected. Start building immediately.",
+    `Skills in play: ${formatSkillTags(likelySkills)}`
+  ];
+  const factTags = formatProjectFactTags(projectFacts);
+  if (factTags) {
+    lines.push(`Project facts: ${factTags}`);
+  }
+  return lines;
+}
+function buildPresentationFooter(state) {
+  if (state === "greenfield") {
+    return [
+      "### Next best move",
+      "- Start with real tool calls.",
+      "- Prefer sensible defaults.",
+      "- Use non-interactive scaffolding commands (`--yes`) where available.",
+      "- Only ask follow-up questions for credentials or irreversible decisions."
+    ];
+  }
+  if (state === "body-selected") {
+    return [
+      "### What happens next",
+      "- Keep moving. Matching files and prompts will pull in more guidance automatically."
+    ];
+  }
   return [
-    `<!-- vercel-plugin:session-start tier="1" -->`,
-    `Vercel project detected.`,
-    `Detected skills: ${skills.join(", ")}`,
-    `Policy: Detailed guidance loads automatically when you work with matching files.`,
+    "### What happens next",
+    "- The plugin will load fuller guidance automatically when you touch matching files or prompts."
+  ];
+}
+function buildTier1Block(likelySkills, projectFacts, skillEntries) {
+  const teaserLines = buildSummaryTeasers(skillEntries, 2);
+  const lines = [
+    `<!-- vercel-plugin:session-start tier="1" state="summary-only" -->`,
+    ...buildPresentationHeader(likelySkills, projectFacts, "summary-only"),
+    "",
+    "### Ready now",
+    ...teaserLines.length > 0 ? teaserLines : [
+      "- Matching skills were detected, but no startup summaries were available."
+    ],
+    "",
+    ...buildPresentationFooter("summary-only"),
     `<!-- /vercel-plugin:session-start -->`
-  ].join("\n");
+  ];
+  return lines.join("\n");
 }
 function buildTier2Block(likelySkills, projectFacts, skillEntries) {
-  const displayedSkills = skillEntries.length > 0 ? skillEntries.map((entry) => entry.skill) : likelySkills;
+  const teaserLines = buildSummaryTeasers(skillEntries, 3);
   const lines = [
-    `<!-- vercel-plugin:session-start tier="2" -->`,
-    `Vercel project detected.`,
-    `Detected skills: ${displayedSkills.join(", ")}`
+    `<!-- vercel-plugin:session-start tier="2" state="summary-only" -->`,
+    ...buildPresentationHeader(likelySkills, projectFacts, "summary-only"),
+    "",
+    "### Ready now",
+    ...teaserLines.length > 0 ? teaserLines : [
+      "- Matching skills were detected, but no startup summaries were available."
+    ],
+    "",
+    ...buildPresentationFooter("summary-only"),
+    `<!-- /vercel-plugin:session-start -->`
   ];
-  if (projectFacts.length > 0) {
-    lines.push(`Project facts: ${projectFacts.join(", ")}`);
-  }
-  appendSkillSummaries(lines, skillEntries);
-  lines.push(`Policy: Detailed guidance loads automatically when you work with matching files.`);
-  lines.push(`<!-- /vercel-plugin:session-start -->`);
   return lines.join("\n");
 }
 function buildTier3Block(likelySkills, projectFacts, skillEntries) {
-  const displayedSkills = skillEntries.length > 0 ? skillEntries.map((entry) => entry.skill) : likelySkills;
+  const bodyCandidate = selectBodyCandidate(skillEntries);
+  const state = bodyCandidate ? "body-selected" : "summary-only";
   const lines = [
-    `<!-- vercel-plugin:session-start tier="3" -->`,
-    `Vercel project detected.`,
-    `Detected skills: ${displayedSkills.join(", ")}`
+    `<!-- vercel-plugin:session-start tier="3" state="${state}" -->`,
+    ...buildPresentationHeader(likelySkills, projectFacts, state),
+    ""
   ];
-  if (projectFacts.length > 0) {
-    lines.push(`Project facts: ${projectFacts.join(", ")}`);
-  }
-  appendSkillSummaries(lines, skillEntries);
-  const aiSkills = ["ai-sdk", "ai-elements", "ai-gateway"];
-  const preferredOrder = [
-    ...aiSkills.filter((skill) => displayedSkills.includes(skill)),
-    ...displayedSkills.filter((skill) => !aiSkills.includes(skill))
-  ];
-  const bodyCandidate = preferredOrder.map((skill) => skillEntries.find((entry) => entry.skill === skill) ?? null).find(
-    (entry) => entry !== null && entry.sessionStartEligible === "body" && entry.body !== null && entry.body.trim() !== ""
+  const teaserLines = buildSummaryTeasers(
+    skillEntries,
+    bodyCandidate ? 2 : 4
   );
+  if (teaserLines.length > 0) {
+    lines.push(
+      bodyCandidate ? "### Also relevant" : "### Ready now",
+      ...teaserLines,
+      ""
+    );
+  }
   if (bodyCandidate) {
     log.summary("session-start-engine-context:body-selected", {
       skill: bodyCandidate.skill,
       bodySource: bodyCandidate.bodySource,
       bodyBytes: Buffer.byteLength(bodyCandidate.body, "utf8")
     });
-    lines.push("");
-    lines.push(`### Loaded Skill(${bodyCandidate.skill})`);
-    const MAX_BODY = 4096;
     lines.push(
-      bodyCandidate.body.length > MAX_BODY ? `${bodyCandidate.body.slice(0, MAX_BODY)}
-[...truncated]` : bodyCandidate.body
+      "### Loaded now",
+      `- \`${bodyCandidate.skill}\` from ${bodyCandidate.bodySource ?? "unknown-source"}`,
+      "",
+      trimBodyPreview(bodyCandidate.body),
+      ""
     );
   } else {
     log.summary("session-start-engine-context:no-body-selected", {
-      eligibleSkills: skillEntries.filter((entry) => entry.sessionStartEligible === "body").map((entry) => ({
+      eligibleSkills: presentableSkillEntries(skillEntries).filter((entry) => entry.sessionStartEligible !== "none").map((entry) => ({
         skill: entry.skill,
+        sessionStartEligible: entry.sessionStartEligible,
+        summarySource: entry.summarySource,
         bodySource: entry.bodySource
       }))
     });
+    lines.push(
+      "### Full guide not loaded yet",
+      "- No cached skill body was selected for startup preview.",
+      "- That is okay: the plugin will still inject the right guide when you open matching files.",
+      ""
+    );
   }
-  lines.push(`Policy: Detailed guidance loads automatically when you work with matching files.`);
+  lines.push(...buildPresentationFooter(state));
   lines.push(`<!-- /vercel-plugin:session-start -->`);
   return lines.join("\n");
+}
+function buildGreenfieldBlock(likelySkills, projectFacts) {
+  const lines = [
+    `<!-- vercel-plugin:session-start tier="0" state="greenfield" -->`,
+    ...buildPresentationHeader(likelySkills, projectFacts, "greenfield"),
+    "",
+    "### Starter posture",
+    "- Do not stop in planning mode.",
+    "- Pick sensible defaults and execute immediately.",
+    "- Use real tool calls instead of read-only analysis.",
+    "- Only ask follow-up questions for credentials or irreversible product choices.",
+    "",
+    ...buildPresentationFooter("greenfield"),
+    `<!-- /vercel-plugin:session-start -->`
+  ];
+  return lines.join("\n");
+}
+function logPresentationState(args) {
+  const bodyCandidate = selectBodyCandidate(args.skillEntries);
+  const state = args.projectFacts.includes("greenfield") && args.tier === 0 ? "greenfield" : bodyCandidate ? "body-selected" : "summary-only";
+  log.summary("session-start-engine-context:presentation-state", {
+    tier: args.tier,
+    state,
+    likelySkills: args.likelySkills,
+    projectFacts: args.projectFacts,
+    displayedSkillCount: presentableSkillEntries(args.skillEntries).length,
+    selectedBodySkill: bodyCandidate?.skill ?? null,
+    emittedBytes: Buffer.byteLength(args.emittedText, "utf8")
+  });
 }
 function parseInput(raw) {
   try {
@@ -181,15 +276,6 @@ function parseInput(raw) {
     return null;
   }
 }
-var GREENFIELD_CONTEXT = `<!-- vercel-plugin:greenfield-execution -->
-## Greenfield execution mode
-
-This directory is empty.
-Do not stop in planning mode or spin up a read-only planning subagent.
-Choose sensible defaults immediately.
-Start executing with real tool calls.
-Use non-interactive scaffolding commands (--yes) where available.
-Only ask follow-up questions when blocked by missing credentials or irreversible decisions.`;
 function main() {
   try {
     const input = parseInput(readFileSync(0, "utf8"));
@@ -221,21 +307,25 @@ function main() {
     const parts = [];
     if (tier === 0) {
       if (isGreenfield) {
-        parts.push(GREENFIELD_CONTEXT);
+        log.summary("session-start-engine-context:greenfield-rendered", {
+          tier,
+          isGreenfield,
+          likelySkills,
+          projectFacts
+        });
+        parts.push(buildGreenfieldBlock(likelySkills, projectFacts));
       }
     } else {
       if (tier === 1) {
-        parts.push(buildTier1Block(likelySkills));
+        parts.push(buildTier1Block(likelySkills, projectFacts, skillEntries));
       } else if (tier === 2) {
         parts.push(buildTier2Block(likelySkills, projectFacts, skillEntries));
       } else {
         parts.push(buildTier3Block(likelySkills, projectFacts, skillEntries));
       }
-      if (isGreenfield) {
-        parts.push(GREENFIELD_CONTEXT);
-      }
     }
     if (parts.length === 0) return;
+    const output = parts.join("\n\n");
     log.summary("session-start-engine-context:assembled", {
       tier,
       likelySkills,
@@ -246,9 +336,16 @@ function main() {
         summarySource: entry.summarySource,
         bodySource: entry.bodySource
       })),
-      emittedBytes: Buffer.byteLength(parts.join("\n\n"), "utf8")
+      emittedBytes: Buffer.byteLength(output, "utf8")
     });
-    process.stdout.write(parts.join("\n\n"));
+    logPresentationState({
+      tier,
+      likelySkills,
+      projectFacts,
+      skillEntries,
+      emittedText: output
+    });
+    process.stdout.write(output);
   } catch (error) {
     logCaughtError(log, "session-start-engine-context:main-crash", error, {});
   }
