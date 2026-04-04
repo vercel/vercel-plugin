@@ -69,6 +69,10 @@ promptSignals:
     - "vercel ai"
     - "generatetext"
     - "streamtext"
+    - "chatbot"
+    - "chat bot"
+    - "chatbox"
+    - "ai chat"
   allOf:
     - ["streaming", "generation"]
     - ["structured", "output"]

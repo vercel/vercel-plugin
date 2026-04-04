@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-04T13:31:32.395Z",
+  "generatedAt": "2026-04-04T18:28:43.895Z",
   "version": 3,
   "skills": {
     "agent-browser-verify": {
@@ -1229,7 +1229,11 @@
           "ai sdk",
           "vercel ai",
           "generatetext",
-          "streamtext"
+          "streamtext",
+          "chatbot",
+          "chat bot",
+          "chatbox",
+          "ai chat"
         ],
         "allOf": [
           [
