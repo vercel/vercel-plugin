@@ -104,15 +104,6 @@ var SETUP_RESOURCE_DEPENDENCIES = {
   "@vercel/edge-config": "edge-config"
 };
 var SETUP_MODE_THRESHOLD = 3;
-function getGreenfieldDefaultSkills() {
-  try {
-    const manifestPath = join(pluginRoot(), "generated", "skill-rules.json");
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-    return Object.entries(manifest.skills ?? {}).filter(([, s]) => s.greenfield === true).map(([name]) => name).sort();
-  } catch {
-    return [];
-  }
-}
 var GREENFIELD_SETUP_SIGNALS = {
   bootstrapHints: ["greenfield"],
   resourceHints: [],
@@ -762,16 +753,7 @@ async function main() {
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
-  const detections = greenfield ? getGreenfieldDefaultSkills().map((skill) => ({
-    skill,
-    reasons: [
-      {
-        kind: "greenfield",
-        source: "project-root",
-        detail: "engine rule has greenfield: true"
-      }
-    ]
-  })) : profileProjectDetections(projectRoot);
+  const detections = greenfield ? [] : profileProjectDetections(projectRoot);
   const likelySkills = detections.map((detection) => detection.skill);
   if (!greenfield && !likelySkills.includes("observability")) {
     likelySkills.push("observability");

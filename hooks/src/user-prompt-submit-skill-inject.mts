@@ -1074,9 +1074,11 @@ export function run(): string {
   const isGreenfield = sessionId ? readSessionFile(sessionId, "greenfield") === "true" : false;
 
   // Stage 3b: Greenfield skill discovery
-  // On a new project, inject a CRITICAL block telling the model to compare
-  // the user's request against available skills and ask which to install.
-  if (isGreenfield && cwd && sessionId) {
+  // On a new project where the prompt matches at least one Vercel skill,
+  // inject a CRITICAL block with bundles. If no skills match the prompt
+  // (e.g., "build a Python Flask API"), don't pollute with Vercel bundles.
+  const hasVercelPromptMatch = allMatched.length > 0;
+  if (isGreenfield && hasVercelPromptMatch && cwd && sessionId) {
     const alreadyRecommended = readSessionFile(sessionId, "skills-recommended");
     if (!alreadyRecommended) {
       writeSessionFile(sessionId, "skills-recommended", "true");

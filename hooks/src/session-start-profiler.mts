@@ -1156,20 +1156,12 @@ async function main(): Promise<void> {
   const cliStatus: VercelCliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
 
-  // Greenfield projects detect skills marked with `greenfield: true` in
-  // their engine rule frontmatter. No auto-install — just detection for
-  // profiler boost so these skills match on first tool call.
+  // Greenfield (empty) projects get zero profiler detections. The
+  // UserPromptSubmit hook handles skill discovery based on the user's
+  // actual request via the bundle prompt. This prevents Vercel skill
+  // noise on non-Vercel projects (e.g., Python Flask in an empty dir).
   const detections: SkillDetection[] = greenfield
-    ? getGreenfieldDefaultSkills().map((skill) => ({
-        skill,
-        reasons: [
-          {
-            kind: "greenfield" as const,
-            source: "project-root",
-            detail: "engine rule has greenfield: true",
-          },
-        ],
-      }))
+    ? []
     : profileProjectDetections(projectRoot);
 
   const likelySkills: string[] = detections.map((detection) => detection.skill);
