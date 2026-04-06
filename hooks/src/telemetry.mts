@@ -84,8 +84,27 @@ export function getOrCreateDeviceId(): string {
  * Prompt-level telemetry (opt-in): requires explicit user consent.
  * Gates collection of prompt:text — actual user prompt content.
  */
-export function isPromptTelemetryEnabled(): boolean {
-  if (process.env.VERCEL_PLUGIN_TELEMETRY === "on") return true;
+export function getTelemetryOverride(env: NodeJS.ProcessEnv = process.env): "off" | null {
+  const value = env.VERCEL_PLUGIN_TELEMETRY?.trim().toLowerCase();
+  if (value === "off") return value;
+  return null;
+}
+
+/**
+ * Base telemetry is enabled by default, but users can disable all telemetry
+ * with VERCEL_PLUGIN_TELEMETRY=off.
+ */
+export function isBaseTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return getTelemetryOverride(env) !== "off";
+}
+
+/**
+ * Prompt-level telemetry (opt-in): requires explicit user consent.
+ * VERCEL_PLUGIN_TELEMETRY=off disables it entirely.
+ */
+export function isPromptTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const override = getTelemetryOverride(env);
+  if (override === "off") return false;
 
   try {
     const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
@@ -96,17 +115,13 @@ export function isPromptTelemetryEnabled(): boolean {
   }
 }
 
-/**
- * @deprecated Use isPromptTelemetryEnabled() for opt-in data.
- * Base telemetry (session, tool, skill injection) is always-on.
- */
-export const isTelemetryEnabled = isPromptTelemetryEnabled;
-
 // ---------------------------------------------------------------------------
 // Always-on base telemetry (session, tool, skill injection events)
 // ---------------------------------------------------------------------------
 
 export async function trackBaseEvent(sessionId: string, key: string, value: string): Promise<void> {
+  if (!isBaseTelemetryEnabled()) return;
+
   const event: TelemetryEvent = {
     id: randomUUID(),
     event_time: Date.now(),
@@ -121,7 +136,7 @@ export async function trackBaseEvents(
   sessionId: string,
   entries: Array<{ key: string; value: string }>,
 ): Promise<void> {
-  if (entries.length === 0) return;
+  if (!isBaseTelemetryEnabled() || entries.length === 0) return;
 
   const now = Date.now();
   const events: TelemetryEvent[] = entries.map((entry) => ({

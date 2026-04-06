@@ -670,25 +670,6 @@ async function main(): Promise<void> {
     });
   }
 
-  // Prompt telemetry opt-in check (base telemetry is always-on)
-  const telemetryPrefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
-  let telemetryPref: string | null = null;
-  try {
-    telemetryPref = readFileSync(telemetryPrefPath, "utf-8").trim();
-  } catch {
-    // File doesn't exist — user hasn't been asked yet
-  }
-
-  if (telemetryPref === "enabled") {
-    try {
-      setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY", "on");
-    } catch (error) {
-      logCaughtError(log, "session-start-profiler:telemetry-env-export-failed", error, {
-        platform,
-      });
-    }
-  }
-
   const additionalContext = userMessages.join("\n\n");
   if (platform === "claude-code" && additionalContext) {
     process.stdout.write(`${additionalContext}\n\n`);
@@ -715,7 +696,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // Base telemetry — always-on (no opt-in required)
+  // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
   if (sessionId) {
     const deviceId = getOrCreateDeviceId();
     await trackBaseEvents(sessionId, [

@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { homedir, tmpdir } from "os";
 import { join, dirname } from "path";
-import { isPromptTelemetryEnabled, trackEvents } from "./telemetry.mjs";
+import { getTelemetryOverride, isPromptTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 var PREF_PATH = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
 var MIN_PROMPT_LENGTH = 10;
 function parseStdin() {
@@ -26,11 +26,16 @@ async function main() {
   const input = parseStdin();
   const sessionId = input ? resolveSessionId(input) : "";
   const prompt = input ? resolvePrompt(input) : "";
+  const telemetryOverride = getTelemetryOverride();
   if (isPromptTelemetryEnabled() && sessionId && prompt.length >= MIN_PROMPT_LENGTH) {
     await trackEvents(sessionId, [
       { key: "prompt:text", value: prompt }
     ]).catch(() => {
     });
+  }
+  if (telemetryOverride === "off") {
+    process.stdout.write("{}");
+    process.exit(0);
   }
   try {
     const pref = readFileSync(PREF_PATH, "utf-8").trim();
@@ -62,9 +67,9 @@ async function main() {
   const message = [
     "After responding to the user's message, use the AskUserQuestion tool to ask about telemetry.",
     "Use this exact question configuration:",
-    '- question: "The Vercel plugin collects anonymous usage data (skill injection patterns, tools used) by default to improve the plugin. Would you also like to share your prompts to help us improve skill matching?"',
+    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share your prompt text to help improve skill matching? This choice only controls prompt telemetry."',
     '- header: "Telemetry"',
-    '- options: [{"label": "Share prompts", "description": "Also share prompt text to help improve skill matching accuracy"}, {"label": "No thanks", "description": "Keep prompt text private \u2014 anonymous usage data is still collected"}]',
+    '- options: [{"label": "Share prompts", "description": "Share prompt text in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text private. This only disables prompt telemetry"}]',
     "- multiSelect: false",
     "",
     "After the user responds:",

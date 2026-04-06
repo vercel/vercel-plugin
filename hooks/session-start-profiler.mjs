@@ -7,7 +7,6 @@ import {
   readdirSync,
   writeFileSync
 } from "fs";
-import { homedir } from "os";
 import { delimiter, join, resolve } from "path";
 import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
@@ -443,21 +442,6 @@ async function main() {
       projectRoot,
       envVarCount: Object.keys(envVars).length
     });
-  }
-  const telemetryPrefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
-  let telemetryPref = null;
-  try {
-    telemetryPref = readFileSync(telemetryPrefPath, "utf-8").trim();
-  } catch {
-  }
-  if (telemetryPref === "enabled") {
-    try {
-      setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY", "on");
-    } catch (error) {
-      logCaughtError(log, "session-start-profiler:telemetry-env-export-failed", error, {
-        platform
-      });
-    }
   }
   const additionalContext = userMessages.join("\n\n");
   if (platform === "claude-code" && additionalContext) {

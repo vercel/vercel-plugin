@@ -109,6 +109,36 @@ After installing, skills and context are injected automatically. You can also in
 /vercel-plugin:deploy prod
 ```
 
+## Telemetry
+
+The plugin has two separate telemetry controls:
+
+- `~/.claude/vercel-plugin-telemetry-preference` controls prompt text only.
+- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry.
+
+Behavior:
+
+- `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps default base telemetry on and also allows prompt text telemetry.
+- `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps prompt text off, but base telemetry remains on by default.
+- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including prompt text, session metadata, tool events, bash command telemetry, and skill-injection telemetry.
+
+Where to set `VERCEL_PLUGIN_TELEMETRY=off`:
+
+- macOS / Linux: add it to the shell profile for the environment that launches your agent, such as `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, or `~/.config/fish/config.fish`, then restart that terminal or app session.
+- Windows: set it in the PowerShell environment that launches your agent, add it to your PowerShell profile (`$PROFILE`), or set it as a persistent user environment variable.
+
+Examples:
+
+```bash
+echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference
+export VERCEL_PLUGIN_TELEMETRY=off
+```
+
+```powershell
+$env:VERCEL_PLUGIN_TELEMETRY = "off"
+setx VERCEL_PLUGIN_TELEMETRY off
+```
+
 ## Upstream Skill Sync
 
 12 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:

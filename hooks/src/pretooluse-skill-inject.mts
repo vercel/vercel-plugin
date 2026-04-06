@@ -963,7 +963,7 @@ function run(): string {
   const { toolName, toolInput, sessionId, cwd, platform, toolTarget, scopeId } = parsed;
   const runtimeEnvBefore = captureRuntimeEnvSnapshot();
 
-  // Base telemetry — always-on (no opt-in required)
+  // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
   if (sessionId) {
     const toolEntries: Array<{ key: string; value: string }> = [
       { key: "tool_call:tool_name", value: toolName },
@@ -1202,7 +1202,7 @@ function run(): string {
       droppedByBudget,
     }, cwd);
 
-    // Base telemetry — always-on (no opt-in required)
+    // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
     if (sessionId) {
       const telemetryEntries: Array<{ key: string; value: string }> = [];
       for (const skill of loaded) {

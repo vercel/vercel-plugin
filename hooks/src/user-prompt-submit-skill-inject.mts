@@ -1052,7 +1052,7 @@ export function run(): string {
     }, cwd);
   }
 
-  // Base telemetry — always-on (no opt-in required)
+  // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
   if (sessionId && loaded.length > 0) {
     const telemetryEntries: Array<{ key: string; value: string }> = [];
     for (const skill of loaded) {

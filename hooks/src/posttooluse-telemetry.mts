@@ -15,7 +15,7 @@ function parseStdin(): Record<string, unknown> | null {
 }
 
 async function main(): Promise<void> {
-  // Base telemetry — always-on (no opt-in required)
+  // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
 
   const input = parseStdin();
   if (!input) {
