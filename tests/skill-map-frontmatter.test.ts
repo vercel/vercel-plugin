@@ -258,6 +258,14 @@ describe("parseSkillFrontmatter", () => {
       minScore: 6,
     });
   });
+
+  test("quotes @repo/* in next-forge YAML frontmatter for standard YAML parser compatibility", () => {
+    const overlay = readFileSync(join(SKILLS_DIR, "next-forge", "overlay.yaml"), "utf-8");
+    const frontmatter = readSkillFrontmatter("next-forge");
+
+    expect(overlay).toContain(`- '@repo/*'`);
+    expect(frontmatter).toContain(`- '@repo/*'`);
+  });
 });
 
 // ─── scanSkillsDir ────────────────────────────────────────────────

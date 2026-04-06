@@ -125,7 +125,7 @@ retrieval:
     - use next-forge
   entities:
     - next-forge
-    - @repo/*
+    - '@repo/*'
     - Turborepo
     - monorepo
     - SaaS starter
@@ -139,7 +139,6 @@ chainTo:
     targetSkill: auth
     message: 'Clerk auth patterns in next-forge — loading Auth guidance for middleware auth, sign-in/sign-up flows, and organization handling.'
     skipIfFileContains: '@auth0/|@descope/'
-
 ---
 
 # next-forge

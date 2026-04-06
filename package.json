@@ -1,6 +1,6 @@
 {
   "name": "vercel-plugin",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "private": true,
   "bin": {
     "vercel-plugin": "src/cli/index.ts"
