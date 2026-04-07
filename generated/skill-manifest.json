@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-06T17:43:11.165Z",
+  "generatedAt": "2026-04-07T18:27:39.398Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -2829,6 +2829,69 @@
           "configure caching for this data fetch",
           "set up server rendering for my pages"
         ]
+      }
+    },
+    "microfrontends": {
+      "priority": 7,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/microfrontends"
+      ],
+      "pathPatterns": [
+        "microfrontends.json",
+        "microfrontends.jsonc",
+        "apps/*/microfrontends.json",
+        "apps/*/microfrontends.jsonc"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+microfrontends\\b",
+        "\\bvercel\\s+mf\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/microfrontends/SKILL.md",
+      "pathRegexSources": [
+        "^microfrontends\\.json$",
+        "^microfrontends\\.jsonc$",
+        "^apps\\/[^/]*\\/microfrontends\\.json$",
+        "^apps\\/[^/]*\\/microfrontends\\.jsonc$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+microfrontends\\b",
+        "\\bvercel\\s+mf\\b"
+      ],
+      "importRegexSources": [],
+      "chainTo": [
+        {
+          "pattern": "runMicrofrontendsMiddleware|flag.*microfrontend|microfrontend.*flag",
+          "targetSkill": "routing-middleware",
+          "message": "Flag-controlled microfrontend routing requires middleware in the default app — loading Routing Middleware guidance."
+        }
+      ],
+      "retrieval": {
+        "aliases": [
+          "microfrontends",
+          "multi-zones",
+          "multi zones",
+          "mfe",
+          "microfrontend routing",
+          "cross-zone navigation"
+        ],
+        "intents": [
+          "split app into microfrontends",
+          "set up microfrontends",
+          "configure microfrontends.json",
+          "add path routing between projects",
+          "share layout across microfrontends"
+        ],
+        "entities": [
+          "microfrontends.json",
+          "@vercel/microfrontends",
+          "default app",
+          "child app",
+          "asset prefix",
+          "microfrontends group"
+        ],
+        "examples": []
       }
     },
     "vercel-sandbox": {
