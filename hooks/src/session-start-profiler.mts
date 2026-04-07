@@ -32,6 +32,7 @@ import {
 import {
   pluginRoot,
   profileCachePath,
+  removeSessionVercelProjectLinkState,
   resolveVercelProjectLink,
   safeReadJson,
   writeSessionFile,
@@ -660,6 +661,9 @@ async function main(): Promise<void> {
   if (sessionId) {
     writeSessionFile(sessionId, SESSION_GREENFIELD_KIND, greenfieldValue);
     writeSessionFile(sessionId, SESSION_LIKELY_SKILLS_KIND, likelySkillsValue);
+    if (!vercelProjectLink) {
+      removeSessionVercelProjectLinkState(sessionId);
+    }
   }
 
   try {

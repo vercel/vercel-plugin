@@ -14,6 +14,7 @@ import {
   readSessionFile,
   readSessionVercelProjectLinkState,
   resolveVercelProjectLink,
+  writeSessionVercelProjectLinkState,
 } from "../hooks/src/hook-env.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -599,6 +600,26 @@ describe("session-start-profiler", () => {
     expect(readVercelProjectLinkState()?.lastResolvedAt).toEqual(expect.any(Number));
   });
 
+  test("clears stale linked Vercel project state when current project is unlinked", async () => {
+    const projectDir = join(tempDir, "unlinked-project");
+    mkdirSync(projectDir);
+    writeSessionVercelProjectLinkState(testSessionId, {
+      lastResolvedAt: Date.now(),
+      projectId: "prj_stale",
+      orgId: "team_stale",
+      lastSentProjectId: "prj_stale",
+      lastSentOrgId: "team_stale",
+    });
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+    expect(readVercelProjectLinkState()).toBeNull();
+  });
+
   test("hooks.json registers profiler after seen-skills init", () => {
     const hooksJson = JSON.parse(
       readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8"),
@@ -872,6 +893,32 @@ describe("resolveVercelProjectLink (unit)", () => {
       projectId: "prj_web",
       orgId: "team_repo",
       source: "repo.json",
+    });
+  });
+
+  test("falls back to an ancestor link when a nested repo.json has no matching project", () => {
+    const repoRoot = join(tempDir, "unit-repo-nested-fallback");
+    const webDir = join(repoRoot, "apps", "web");
+    const nestedDir = join(webDir, "src");
+    mkdirSync(join(repoRoot, ".vercel"), { recursive: true });
+    mkdirSync(join(webDir, ".vercel"), { recursive: true });
+    mkdirSync(nestedDir, { recursive: true });
+    writeFileSync(
+      join(repoRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_ancestor", orgId: "team_ancestor" }),
+    );
+    writeFileSync(
+      join(webDir, ".vercel", "repo.json"),
+      JSON.stringify({
+        orgId: "team_nested",
+        projects: [{ id: "prj_other", directory: "apps/other" }],
+      }),
+    );
+
+    expect(resolveVercelProjectLink(nestedDir)).toEqual({
+      projectId: "prj_ancestor",
+      orgId: "team_ancestor",
+      source: "project.json",
     });
   });
 

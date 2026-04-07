@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   parseSessionVercelProjectLinkState,
+  readSessionVercelProjectLinkState,
   resolveHookProjectRoot,
   shouldRefreshSessionVercelProjectLink,
+  writeSessionVercelProjectLinkState,
 } from "../hooks/src/hook-env.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -103,6 +106,94 @@ async function runPromptHook(env: Record<string, string | undefined>): Promise<{
   const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();
   return { code, stdout, stderr };
+}
+
+async function runPromptHookWithCapture(args: {
+  env?: Record<string, string | undefined>;
+  payload?: Record<string, unknown>;
+}): Promise<{
+  code: number;
+  stdout: string;
+  stderr: string;
+  requests: Array<{ url: string; body: string | null; headers: Record<string, string> | null }>;
+}> {
+  const captureFile = join(tempHome, `prompt-hook-capture-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`);
+  const preloadFile = join(tempHome, `prompt-hook-preload-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`);
+  writeFileSync(
+    preloadFile,
+    [
+      'import { appendFileSync } from "node:fs";',
+      'const captureFile = process.env.VERCEL_PLUGIN_CAPTURE_FILE;',
+      'globalThis.fetch = async (url, options = {}) => {',
+      '  if (captureFile) {',
+      '    appendFileSync(captureFile, JSON.stringify({',
+      '      url: String(url),',
+      '      body: typeof options.body === "string" ? options.body : null,',
+      '      headers: options.headers && typeof options.headers === "object" ? options.headers : null,',
+      '    }) + "\\n", "utf-8");',
+      '  }',
+      '  return new Response(null, { status: 204 });',
+      '};',
+    ].join("\n"),
+    "utf-8",
+  );
+
+  const mergedEnv: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    VERCEL_PLUGIN_CAPTURE_FILE: captureFile,
+    NODE_OPTIONS: [
+      process.env.NODE_OPTIONS,
+      `--import=${pathToFileURL(preloadFile).href}`,
+    ].filter(Boolean).join(" "),
+  };
+
+  for (const [key, value] of Object.entries(args.env ?? {})) {
+    if (value === undefined) {
+      delete mergedEnv[key];
+      continue;
+    }
+    mergedEnv[key] = value;
+  }
+
+  const proc = Bun.spawn([NODE_BIN, USER_PROMPT_HOOK], {
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: mergedEnv,
+  });
+
+  proc.stdin.write(JSON.stringify(args.payload ?? {
+    session_id: "telemetry-session",
+    prompt: "show me the telemetry behavior",
+  }));
+  proc.stdin.end();
+
+  const code = await proc.exited;
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  const requests = existsSync(captureFile)
+    ? readFileSync(captureFile, "utf-8")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as { url: string; body: string | null; headers: Record<string, string> | null })
+    : [];
+
+  rmSync(captureFile, { force: true });
+  rmSync(preloadFile, { force: true });
+
+  return { code, stdout, stderr, requests };
+}
+
+function writePromptTelemetryPreference(value: "enabled" | "disabled"): void {
+  const claudeDir = join(tempHome, ".claude");
+  mkdirSync(claudeDir, { recursive: true });
+  writeFileSync(join(claudeDir, "vercel-plugin-telemetry-preference"), value, "utf-8");
+}
+
+function parseTrackedEntries(body: string | null): Array<{ key: string; value: string }> {
+  return (JSON.parse(body ?? "[]") as Array<{ key: string; value: string }>)
+    .map((entry) => ({ key: entry.key, value: entry.value }));
 }
 
 beforeEach(() => {
@@ -211,5 +302,136 @@ describe("Vercel project link refresh", () => {
         3_600_000,
       ),
     ).toBe(true);
+  });
+
+  test("prompt hook re-emits linked project ids when cwd resolves to a different linked project", async () => {
+    const sessionId = `telemetry-project-link-change-${Date.now()}`;
+    const staleRoot = join(tempHome, "stale-root");
+    const currentRoot = join(tempHome, "apps", "web");
+    mkdirSync(join(staleRoot, ".vercel"), { recursive: true });
+    mkdirSync(join(currentRoot, ".vercel"), { recursive: true });
+    writeFileSync(
+      join(staleRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_stale", orgId: "team_stale" }),
+      "utf-8",
+    );
+    writeFileSync(
+      join(currentRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_current", orgId: "team_current" }),
+      "utf-8",
+    );
+    writeSessionVercelProjectLinkState(sessionId, {
+      lastResolvedAt: Date.now() - 3_600_000,
+      projectId: "prj_stale",
+      orgId: "team_stale",
+      lastSentProjectId: "prj_stale",
+      lastSentOrgId: "team_stale",
+    });
+    writePromptTelemetryPreference("disabled");
+
+    const result = await runPromptHookWithCapture({
+      env: {
+        HOME: tempHome,
+        CLAUDE_PROJECT_ROOT: staleRoot,
+      },
+      payload: {
+        session_id: sessionId,
+        prompt: "refresh project telemetry",
+        cwd: currentRoot,
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("{}");
+    expect(result.requests).toHaveLength(1);
+    expect(parseTrackedEntries(result.requests[0].body)).toEqual([
+      { key: "session:vercel_project_id", value: "prj_current" },
+      { key: "session:vercel_org_id", value: "team_current" },
+    ]);
+    expect(readSessionVercelProjectLinkState(sessionId)).toMatchObject({
+      projectId: "prj_current",
+      orgId: "team_current",
+      lastSentProjectId: "prj_current",
+      lastSentOrgId: "team_current",
+    });
+  });
+
+  test("prompt hook clears cached project ids when the current project is no longer linked", async () => {
+    const sessionId = `telemetry-project-link-removed-${Date.now()}`;
+    const staleRoot = join(tempHome, "old-linked-root");
+    const unlinkedRoot = join(tempHome, "plain-project");
+    mkdirSync(join(staleRoot, ".vercel"), { recursive: true });
+    mkdirSync(unlinkedRoot, { recursive: true });
+    writeFileSync(
+      join(staleRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_old", orgId: "team_old" }),
+      "utf-8",
+    );
+    writeSessionVercelProjectLinkState(sessionId, {
+      lastResolvedAt: Date.now() - 3_600_000,
+      projectId: "prj_old",
+      orgId: "team_old",
+      lastSentProjectId: "prj_old",
+      lastSentOrgId: "team_old",
+    });
+    writePromptTelemetryPreference("disabled");
+
+    const result = await runPromptHookWithCapture({
+      env: {
+        HOME: tempHome,
+        CLAUDE_PROJECT_ROOT: staleRoot,
+      },
+      payload: {
+        session_id: sessionId,
+        prompt: "refresh project telemetry",
+        cwd: unlinkedRoot,
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("{}");
+    expect(result.requests).toHaveLength(0);
+    const state = readSessionVercelProjectLinkState(sessionId);
+    expect(state?.projectId).toBeUndefined();
+    expect(state?.orgId).toBeUndefined();
+    expect(state?.lastSentProjectId).toBe("prj_old");
+    expect(state?.lastSentOrgId).toBe("team_old");
+    expect(state?.lastResolvedAt).toEqual(expect.any(Number));
+  });
+
+  test("prompt hook does not re-emit linked project ids within the refresh window", async () => {
+    const sessionId = `telemetry-project-link-unchanged-${Date.now()}`;
+    const linkedRoot = join(tempHome, "steady-linked-root");
+    mkdirSync(join(linkedRoot, ".vercel"), { recursive: true });
+    writeFileSync(
+      join(linkedRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_same", orgId: "team_same" }),
+      "utf-8",
+    );
+    const initialState = {
+      lastResolvedAt: Date.now(),
+      projectId: "prj_same",
+      orgId: "team_same",
+      lastSentProjectId: "prj_same",
+      lastSentOrgId: "team_same",
+    };
+    writeSessionVercelProjectLinkState(sessionId, initialState);
+    writePromptTelemetryPreference("disabled");
+
+    const result = await runPromptHookWithCapture({
+      env: {
+        HOME: tempHome,
+      },
+      payload: {
+        session_id: sessionId,
+        prompt: "refresh project telemetry",
+        cwd: linkedRoot,
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("{}");
+    expect(result.requests).toHaveLength(0);
+    expect(readSessionVercelProjectLinkState(sessionId)).toEqual(initialState);
   });
 });

@@ -95,6 +95,13 @@ function writeSessionFile(sessionId, kind, value, scopeId) {
     logCaughtError(log, "hook-env:write-session-file-failed", error, { sessionId, kind, scopeId });
   }
 }
+function removeSessionFile(sessionId, kind, scopeId) {
+  try {
+    rmSync(dedupFilePath(sessionId, kind, scopeId), { force: true });
+  } catch (error) {
+    logCaughtError(log, "hook-env:remove-session-file-failed", error, { sessionId, kind, scopeId });
+  }
+}
 function tryClaimSessionKey(sessionId, kind, key, scopeId) {
   try {
     const claimDir = dedupClaimDirPath(sessionId, kind, scopeId);
@@ -132,7 +139,8 @@ function removeSessionClaimDir(sessionId, kind, scopeId) {
 }
 var CLEARABLE_SESSION_KINDS = /* @__PURE__ */ new Set([
   "seen-skills",
-  "seen-context-chunks"
+  "seen-context-chunks",
+  "vercel-project-link"
 ]);
 function removeAllSessionDedupArtifacts(sessionId) {
   const result = { removedFiles: 0, removedDirs: 0 };
@@ -278,7 +286,8 @@ function resolveRepoJsonLink(repoRoot, startPath) {
   };
 }
 function resolveVercelProjectLink(startPath) {
-  let current = resolve(startPath);
+  const resolvedStartPath = resolve(startPath);
+  let current = resolvedStartPath;
   while (true) {
     const projectLink = resolveProjectJsonLink(current);
     if (projectLink) {
@@ -286,7 +295,10 @@ function resolveVercelProjectLink(startPath) {
     }
     const repoJsonPath = join(current, ".vercel", "repo.json");
     if (existsSync(repoJsonPath)) {
-      return resolveRepoJsonLink(current, resolve(startPath));
+      const repoLink = resolveRepoJsonLink(current, resolvedStartPath);
+      if (repoLink) {
+        return repoLink;
+      }
     }
     const parent = dirname(current);
     if (parent === current) {
@@ -337,6 +349,9 @@ function readSessionVercelProjectLinkState(sessionId) {
 function writeSessionVercelProjectLinkState(sessionId, state) {
   writeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND, JSON.stringify(state));
 }
+function removeSessionVercelProjectLinkState(sessionId) {
+  removeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND);
+}
 function hasUnsentSessionVercelProjectLink(state) {
   if (!state?.projectId || !state.orgId) {
     return false;
@@ -361,6 +376,8 @@ export {
   readSessionVercelProjectLinkState,
   removeAllSessionDedupArtifacts,
   removeSessionClaimDir,
+  removeSessionFile,
+  removeSessionVercelProjectLinkState,
   resolveHookProjectRoot,
   resolveVercelProjectLink,
   safeReadFile,

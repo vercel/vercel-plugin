@@ -159,6 +159,14 @@ export function writeSessionFile(sessionId: string, kind: string, value: string,
   }
 }
 
+export function removeSessionFile(sessionId: string, kind: string, scopeId?: string): void {
+  try {
+    rmSync(dedupFilePath(sessionId, kind, scopeId), { force: true });
+  } catch (error) {
+    logCaughtError(log, "hook-env:remove-session-file-failed", error, { sessionId, kind, scopeId });
+  }
+}
+
 export function tryClaimSessionKey(sessionId: string, kind: string, key: string, scopeId?: string): boolean {
   try {
     const claimDir = dedupClaimDirPath(sessionId, kind, scopeId);
@@ -220,6 +228,7 @@ export interface RemoveArtifactsResult {
 const CLEARABLE_SESSION_KINDS = new Set([
   "seen-skills",
   "seen-context-chunks",
+  "vercel-project-link",
 ]);
 
 export function removeAllSessionDedupArtifacts(sessionId: string): RemoveArtifactsResult {
@@ -468,7 +477,8 @@ function resolveRepoJsonLink(repoRoot: string, startPath: string): VercelProject
 }
 
 export function resolveVercelProjectLink(startPath: string): VercelProjectLink | null {
-  let current = resolve(startPath);
+  const resolvedStartPath = resolve(startPath);
+  let current = resolvedStartPath;
 
   while (true) {
     const projectLink = resolveProjectJsonLink(current);
@@ -478,7 +488,10 @@ export function resolveVercelProjectLink(startPath: string): VercelProjectLink |
 
     const repoJsonPath = join(current, ".vercel", "repo.json");
     if (existsSync(repoJsonPath)) {
-      return resolveRepoJsonLink(current, resolve(startPath));
+      const repoLink = resolveRepoJsonLink(current, resolvedStartPath);
+      if (repoLink) {
+        return repoLink;
+      }
     }
 
     const parent = dirname(current);
@@ -541,6 +554,10 @@ export function writeSessionVercelProjectLinkState(
   state: SessionVercelProjectLinkState,
 ): void {
   writeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND, JSON.stringify(state));
+}
+
+export function removeSessionVercelProjectLinkState(sessionId: string): void {
+  removeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND);
 }
 
 function hasUnsentSessionVercelProjectLink(state: SessionVercelProjectLinkState | null): boolean {

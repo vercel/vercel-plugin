@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { dedupFilePath } from "../hooks/src/hook-env.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "session-end-cleanup.mjs");
@@ -72,6 +73,30 @@ describe("session-end-cleanup", () => {
       expect(existsSync(pendingLaunchDir)).toBe(false);
     } finally {
       rmSync(pendingLaunchDir, { recursive: true, force: true });
+    }
+  });
+
+  test("removes linked project telemetry state files for the session", async () => {
+    const sessionId = "cleanup-project-link-state";
+    const projectLinkFile = dedupFilePath(sessionId, "vercel-project-link");
+
+    writeFileSync(
+      projectLinkFile,
+      JSON.stringify({ projectId: "prj_cleanup", orgId: "team_cleanup", lastResolvedAt: Date.now() }),
+      "utf-8",
+    );
+
+    try {
+      expect(existsSync(projectLinkFile)).toBe(true);
+
+      const { code, stdout, stderr } = await runSessionEnd({ session_id: sessionId });
+
+      expect(code).toBe(0);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+      expect(existsSync(projectLinkFile)).toBe(false);
+    } finally {
+      rmSync(projectLinkFile, { force: true });
     }
   });
 });
