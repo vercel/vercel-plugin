@@ -64,36 +64,51 @@ function resolvePrompt(input: Record<string, unknown>): string {
 async function maybeTrackVercelProjectLink(sessionId: string, projectRoot: string): Promise<void> {
   const now = Date.now();
   const previousState = readSessionVercelProjectLinkState(sessionId);
-  if (!shouldRefreshSessionVercelProjectLink(previousState, now, VERCEL_PROJECT_LINK_REFRESH_MS)) {
+  if (!shouldRefreshSessionVercelProjectLink(previousState, projectRoot, now, VERCEL_PROJECT_LINK_REFRESH_MS)) {
     return;
   }
 
   const nextLink = resolveVercelProjectLink(projectRoot);
-  const shouldTrackLink = !!nextLink && (
-    previousState?.lastSentProjectId !== nextLink.projectId
-    || previousState?.lastSentOrgId !== nextLink.orgId
-  );
-  const trackedLink = shouldTrackLink
-    ? await trackBaseEvents(sessionId, [
+  const telemetryEntries: Array<{ key: string; value: string }> = [];
+
+  if (nextLink) {
+    if (
+      previousState?.lastSentProjectId !== nextLink.projectId
+      || previousState?.lastSentOrgId !== nextLink.orgId
+    ) {
+      telemetryEntries.push(
         { key: "session:vercel_project_id", value: nextLink.projectId },
         { key: "session:vercel_org_id", value: nextLink.orgId },
-      ]).catch(() => false)
+      );
+    }
+  } else if (
+    previousState?.lastSentProjectId !== undefined
+    || previousState?.lastSentOrgId !== undefined
+  ) {
+    telemetryEntries.push(
+      { key: "session:vercel_project_id", value: "" },
+      { key: "session:vercel_org_id", value: "" },
+    );
+  }
+
+  const trackedLink = telemetryEntries.length > 0
+    ? await trackBaseEvents(sessionId, telemetryEntries).catch(() => false)
     : false;
 
   const nextState: SessionVercelProjectLinkState = {
     lastResolvedAt: now,
-    lastSentProjectId: previousState?.lastSentProjectId,
-    lastSentOrgId: previousState?.lastSentOrgId,
+    lastResolvedRoot: projectRoot,
+    lastSentProjectId: trackedLink ? undefined : previousState?.lastSentProjectId,
+    lastSentOrgId: trackedLink ? undefined : previousState?.lastSentOrgId,
   };
 
   if (nextLink) {
     nextState.projectId = nextLink.projectId;
     nextState.orgId = nextLink.orgId;
-  }
-
-  if (trackedLink && nextLink) {
-    nextState.lastSentProjectId = nextLink.projectId;
-    nextState.lastSentOrgId = nextLink.orgId;
+    if (trackedLink) {
+      nextState.lastSentProjectId = nextLink.projectId;
+      nextState.lastSentOrgId = nextLink.orgId;
+    }
   }
 
   writeSessionVercelProjectLinkState(sessionId, nextState);

@@ -18,7 +18,7 @@ import {
 import {
   pluginRoot,
   profileCachePath,
-  removeSessionVercelProjectLinkState,
+  readSessionVercelProjectLinkState,
   resolveVercelProjectLink,
   safeReadJson,
   writeSessionFile,
@@ -417,8 +417,9 @@ async function main() {
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
+  const previousVercelProjectLinkState = sessionId ? readSessionVercelProjectLinkState(sessionId) : null;
   const vercelProjectLink = resolveVercelProjectLink(projectRoot);
-  const vercelProjectLinkResolvedAt = vercelProjectLink ? Date.now() : null;
+  const vercelProjectLinkResolvedAt = Date.now();
   logBrokenSkillFrontmatterSummary();
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
@@ -436,9 +437,6 @@ async function main() {
   if (sessionId) {
     writeSessionFile(sessionId, SESSION_GREENFIELD_KIND, greenfieldValue);
     writeSessionFile(sessionId, SESSION_LIKELY_SKILLS_KIND, likelySkillsValue);
-    if (!vercelProjectLink) {
-      removeSessionVercelProjectLinkState(sessionId);
-    }
   }
   try {
     if (platform === "claude-code") {
@@ -496,17 +494,28 @@ async function main() {
         { key: "session:vercel_project_id", value: vercelProjectLink.projectId },
         { key: "session:vercel_org_id", value: vercelProjectLink.orgId }
       );
+    } else if (previousVercelProjectLinkState?.lastSentProjectId !== void 0 || previousVercelProjectLinkState?.lastSentOrgId !== void 0) {
+      telemetryEntries.push(
+        { key: "session:vercel_project_id", value: "" },
+        { key: "session:vercel_org_id", value: "" }
+      );
     }
     const trackedBaseTelemetry = await trackBaseEvents(sessionId, telemetryEntries).catch(() => false);
-    if (vercelProjectLink && vercelProjectLinkResolvedAt !== null) {
-      writeSessionVercelProjectLinkState(sessionId, {
-        lastResolvedAt: vercelProjectLinkResolvedAt,
-        projectId: vercelProjectLink.projectId,
-        orgId: vercelProjectLink.orgId,
-        lastSentProjectId: trackedBaseTelemetry ? vercelProjectLink.projectId : void 0,
-        lastSentOrgId: trackedBaseTelemetry ? vercelProjectLink.orgId : void 0
-      });
+    const nextVercelProjectLinkState = {
+      lastResolvedAt: vercelProjectLinkResolvedAt,
+      lastResolvedRoot: projectRoot,
+      lastSentProjectId: trackedBaseTelemetry ? void 0 : previousVercelProjectLinkState?.lastSentProjectId,
+      lastSentOrgId: trackedBaseTelemetry ? void 0 : previousVercelProjectLinkState?.lastSentOrgId
+    };
+    if (vercelProjectLink) {
+      nextVercelProjectLinkState.projectId = vercelProjectLink.projectId;
+      nextVercelProjectLinkState.orgId = vercelProjectLink.orgId;
+      if (trackedBaseTelemetry) {
+        nextVercelProjectLinkState.lastSentProjectId = vercelProjectLink.projectId;
+        nextVercelProjectLinkState.lastSentOrgId = vercelProjectLink.orgId;
+      }
     }
+    writeSessionVercelProjectLinkState(sessionId, nextVercelProjectLinkState);
   }
   if (cursorOutput) {
     process.stdout.write(cursorOutput);

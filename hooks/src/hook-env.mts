@@ -159,14 +159,6 @@ export function writeSessionFile(sessionId: string, kind: string, value: string,
   }
 }
 
-export function removeSessionFile(sessionId: string, kind: string, scopeId?: string): void {
-  try {
-    rmSync(dedupFilePath(sessionId, kind, scopeId), { force: true });
-  } catch (error) {
-    logCaughtError(log, "hook-env:remove-session-file-failed", error, { sessionId, kind, scopeId });
-  }
-}
-
 export function tryClaimSessionKey(sessionId: string, kind: string, key: string, scopeId?: string): boolean {
   try {
     const claimDir = dedupClaimDirPath(sessionId, kind, scopeId);
@@ -345,6 +337,7 @@ export interface VercelProjectLink {
 
 export interface SessionVercelProjectLinkState {
   lastResolvedAt: number;
+  lastResolvedRoot?: string;
   projectId?: string;
   orgId?: string;
   lastSentProjectId?: string;
@@ -516,11 +509,15 @@ export function parseSessionVercelProjectLinkState(raw: string): SessionVercelPr
     }
 
     const state: SessionVercelProjectLinkState = { lastResolvedAt };
+    const lastResolvedRoot = asNonEmptyString(parsed.lastResolvedRoot);
     const projectId = asNonEmptyString(parsed.projectId);
     const orgId = asNonEmptyString(parsed.orgId);
     const lastSentProjectId = asNonEmptyString(parsed.lastSentProjectId);
     const lastSentOrgId = asNonEmptyString(parsed.lastSentOrgId);
 
+    if (lastResolvedRoot) {
+      state.lastResolvedRoot = lastResolvedRoot;
+    }
     if (projectId) {
       state.projectId = projectId;
     }
@@ -556,22 +553,23 @@ export function writeSessionVercelProjectLinkState(
   writeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND, JSON.stringify(state));
 }
 
-export function removeSessionVercelProjectLinkState(sessionId: string): void {
-  removeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND);
-}
-
 function hasUnsentSessionVercelProjectLink(state: SessionVercelProjectLinkState | null): boolean {
-  if (!state?.projectId || !state.orgId) {
+  if (!state) {
     return false;
   }
 
-  return state.lastSentProjectId !== state.projectId || state.lastSentOrgId !== state.orgId;
+  return (state.projectId ?? null) !== (state.lastSentProjectId ?? null)
+    || (state.orgId ?? null) !== (state.lastSentOrgId ?? null);
 }
 
 export function shouldRefreshSessionVercelProjectLink(
   state: SessionVercelProjectLinkState | null,
+  currentProjectRoot: string,
   now: number,
   refreshMs: number,
 ): boolean {
-  return !state || hasUnsentSessionVercelProjectLink(state) || now - state.lastResolvedAt >= refreshMs;
+  return !state
+    || state.lastResolvedRoot !== currentProjectRoot
+    || hasUnsentSessionVercelProjectLink(state)
+    || now - state.lastResolvedAt >= refreshMs;
 }

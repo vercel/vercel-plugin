@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   readSessionFile,
   readSessionVercelProjectLinkState,
@@ -57,6 +58,84 @@ async function runProfiler(env: Record<string, string | undefined>): Promise<{
   const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();
   return { code, stdout, stderr };
+}
+
+async function runProfilerWithCapture(args: {
+  env: Record<string, string | undefined>;
+  payload?: Record<string, unknown>;
+}): Promise<{
+  code: number;
+  stdout: string;
+  stderr: string;
+  requests: Array<{ url: string; body: string | null }>;
+}> {
+  const captureFile = join(tempDir, `profiler-capture-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`);
+  const preloadFile = join(tempDir, `profiler-preload-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`);
+  writeFileSync(
+    preloadFile,
+    [
+      'import { appendFileSync } from "node:fs";',
+      'const captureFile = process.env.VERCEL_PLUGIN_CAPTURE_FILE;',
+      'globalThis.fetch = async (url, options = {}) => {',
+      '  if (captureFile) {',
+      '    appendFileSync(captureFile, JSON.stringify({',
+      '      url: String(url),',
+      '      body: typeof options.body === "string" ? options.body : null,',
+      '    }) + "\\n", "utf-8");',
+      '  }',
+      '  return new Response(null, { status: 204 });',
+      '};',
+    ].join("\n"),
+    "utf-8",
+  );
+
+  const mergedEnv: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    VERCEL_PLUGIN_CAPTURE_FILE: captureFile,
+    NODE_OPTIONS: [
+      process.env.NODE_OPTIONS,
+      `--import=${pathToFileURL(preloadFile).href}`,
+    ].filter(Boolean).join(" "),
+  };
+
+  for (const [key, value] of Object.entries(args.env)) {
+    if (value === undefined) {
+      delete mergedEnv[key];
+      continue;
+    }
+    mergedEnv[key] = value;
+  }
+
+  const proc = Bun.spawn([NODE_BIN, PROFILER], {
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: mergedEnv,
+  });
+
+  proc.stdin.write(JSON.stringify(args.payload ?? { session_id: testSessionId }));
+  proc.stdin.end();
+
+  const code = await proc.exited;
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  const requests = existsSync(captureFile)
+    ? readFileSync(captureFile, "utf-8")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as { url: string; body: string | null })
+    : [];
+
+  rmSync(captureFile, { force: true });
+  rmSync(preloadFile, { force: true });
+
+  return { code, stdout, stderr, requests };
+}
+
+function parseTrackedEntries(body: string | null): Array<{ key: string; value: string }> {
+  return (JSON.parse(body ?? "[]") as Array<{ key: string; value: string }>)
+    .map((entry) => ({ key: entry.key, value: entry.value }));
 }
 
 function parseLikelySkills(_envFileContent?: string): string[] {
@@ -594,17 +673,19 @@ describe("session-start-profiler", () => {
 
     expect(result.code).toBe(0);
     expect(readVercelProjectLinkState()).toMatchObject({
+      lastResolvedRoot: projectDir,
       projectId: "prj_linked",
       orgId: "team_linked",
     });
     expect(readVercelProjectLinkState()?.lastResolvedAt).toEqual(expect.any(Number));
   });
 
-  test("clears stale linked Vercel project state when current project is unlinked", async () => {
+  test("replaces stale linked Vercel project state when current project is unlinked", async () => {
     const projectDir = join(tempDir, "unlinked-project");
     mkdirSync(projectDir);
     writeSessionVercelProjectLinkState(testSessionId, {
       lastResolvedAt: Date.now(),
+      lastResolvedRoot: join(tempDir, "old-linked-root"),
       projectId: "prj_stale",
       orgId: "team_stale",
       lastSentProjectId: "prj_stale",
@@ -617,7 +698,47 @@ describe("session-start-profiler", () => {
     });
 
     expect(result.code).toBe(0);
-    expect(readVercelProjectLinkState()).toBeNull();
+    expect(readVercelProjectLinkState()).toMatchObject({
+      lastResolvedRoot: projectDir,
+    });
+    expect(readVercelProjectLinkState()?.projectId).toBeUndefined();
+    expect(readVercelProjectLinkState()?.orgId).toBeUndefined();
+    expect(readVercelProjectLinkState()?.lastSentProjectId).toBeUndefined();
+    expect(readVercelProjectLinkState()?.lastSentOrgId).toBeUndefined();
+  });
+
+  test("emits tombstone telemetry when a previously linked session starts unlinked", async () => {
+    const projectDir = join(tempDir, "session-start-unlinked");
+    mkdirSync(projectDir);
+    writeSessionVercelProjectLinkState(testSessionId, {
+      lastResolvedAt: Date.now(),
+      lastResolvedRoot: join(tempDir, "old-linked-root"),
+      projectId: "prj_old",
+      orgId: "team_old",
+      lastSentProjectId: "prj_old",
+      lastSentOrgId: "team_old",
+    });
+
+    const result = await runProfilerWithCapture({
+      env: {
+        CLAUDE_ENV_FILE: envFile,
+        CLAUDE_PROJECT_ROOT: projectDir,
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.requests).toHaveLength(1);
+    expect(parseTrackedEntries(result.requests[0].body)).toContainEqual({
+      key: "session:vercel_project_id",
+      value: "",
+    });
+    expect(parseTrackedEntries(result.requests[0].body)).toContainEqual({
+      key: "session:vercel_org_id",
+      value: "",
+    });
+    expect(readVercelProjectLinkState()?.lastResolvedRoot).toBe(projectDir);
+    expect(readVercelProjectLinkState()?.lastSentProjectId).toBeUndefined();
+    expect(readVercelProjectLinkState()?.lastSentOrgId).toBeUndefined();
   });
 
   test("hooks.json registers profiler after seen-skills init", () => {

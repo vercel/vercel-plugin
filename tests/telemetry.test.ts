@@ -251,6 +251,7 @@ describe("Vercel project link refresh", () => {
     expect(
       parseSessionVercelProjectLinkState(JSON.stringify({
         lastResolvedAt: 123,
+        lastResolvedRoot: "/repo/apps/web",
         projectId: "prj_current",
         orgId: "team_current",
         lastSentProjectId: "prj_sent",
@@ -258,6 +259,7 @@ describe("Vercel project link refresh", () => {
       })),
     ).toEqual({
       lastResolvedAt: 123,
+      lastResolvedRoot: "/repo/apps/web",
       projectId: "prj_current",
       orgId: "team_current",
       lastSentProjectId: "prj_sent",
@@ -265,13 +267,30 @@ describe("Vercel project link refresh", () => {
     });
   });
 
-  test("refreshes when the cached link is missing, unsent, or at least an hour old", () => {
+  test("refreshes when the cached link is missing, root changed, unsent, or at least an hour old", () => {
     const now = Date.now();
+    const currentRoot = "/repo/apps/web";
 
-    expect(shouldRefreshSessionVercelProjectLink(null, now, 3_600_000)).toBe(true);
+    expect(shouldRefreshSessionVercelProjectLink(null, currentRoot, now, 3_600_000)).toBe(true);
     expect(
       shouldRefreshSessionVercelProjectLink(
-        { lastResolvedAt: now - 1, projectId: "prj_unsent", orgId: "team_unsent" },
+        { lastResolvedAt: now - 1, projectId: "prj_unsent", orgId: "team_unsent", lastResolvedRoot: currentRoot },
+        currentRoot,
+        now,
+        3_600_000,
+      ),
+    ).toBe(true);
+    expect(
+      shouldRefreshSessionVercelProjectLink(
+        {
+          lastResolvedAt: now - 1,
+          lastResolvedRoot: "/repo/apps/api",
+          projectId: "prj_sent",
+          orgId: "team_sent",
+          lastSentProjectId: "prj_sent",
+          lastSentOrgId: "team_sent",
+        },
+        currentRoot,
         now,
         3_600_000,
       ),
@@ -280,11 +299,13 @@ describe("Vercel project link refresh", () => {
       shouldRefreshSessionVercelProjectLink(
         {
           lastResolvedAt: now - 3_599_999,
+          lastResolvedRoot: currentRoot,
           projectId: "prj_sent",
           orgId: "team_sent",
           lastSentProjectId: "prj_sent",
           lastSentOrgId: "team_sent",
         },
+        currentRoot,
         now,
         3_600_000,
       ),
@@ -293,18 +314,20 @@ describe("Vercel project link refresh", () => {
       shouldRefreshSessionVercelProjectLink(
         {
           lastResolvedAt: now - 3_600_000,
+          lastResolvedRoot: currentRoot,
           projectId: "prj_sent",
           orgId: "team_sent",
           lastSentProjectId: "prj_sent",
           lastSentOrgId: "team_sent",
         },
+        currentRoot,
         now,
         3_600_000,
       ),
     ).toBe(true);
   });
 
-  test("prompt hook re-emits linked project ids when cwd resolves to a different linked project", async () => {
+  test("prompt hook re-resolves immediately when cwd changes to a different linked project", async () => {
     const sessionId = `telemetry-project-link-change-${Date.now()}`;
     const staleRoot = join(tempHome, "stale-root");
     const currentRoot = join(tempHome, "apps", "web");
@@ -321,7 +344,8 @@ describe("Vercel project link refresh", () => {
       "utf-8",
     );
     writeSessionVercelProjectLinkState(sessionId, {
-      lastResolvedAt: Date.now() - 3_600_000,
+      lastResolvedAt: Date.now(),
+      lastResolvedRoot: staleRoot,
       projectId: "prj_stale",
       orgId: "team_stale",
       lastSentProjectId: "prj_stale",
@@ -349,6 +373,7 @@ describe("Vercel project link refresh", () => {
       { key: "session:vercel_org_id", value: "team_current" },
     ]);
     expect(readSessionVercelProjectLinkState(sessionId)).toMatchObject({
+      lastResolvedRoot: currentRoot,
       projectId: "prj_current",
       orgId: "team_current",
       lastSentProjectId: "prj_current",
@@ -368,7 +393,8 @@ describe("Vercel project link refresh", () => {
       "utf-8",
     );
     writeSessionVercelProjectLinkState(sessionId, {
-      lastResolvedAt: Date.now() - 3_600_000,
+      lastResolvedAt: Date.now(),
+      lastResolvedRoot: staleRoot,
       projectId: "prj_old",
       orgId: "team_old",
       lastSentProjectId: "prj_old",
@@ -390,12 +416,17 @@ describe("Vercel project link refresh", () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("{}");
-    expect(result.requests).toHaveLength(0);
+    expect(result.requests).toHaveLength(1);
+    expect(parseTrackedEntries(result.requests[0].body)).toEqual([
+      { key: "session:vercel_project_id", value: "" },
+      { key: "session:vercel_org_id", value: "" },
+    ]);
     const state = readSessionVercelProjectLinkState(sessionId);
+    expect(state?.lastResolvedRoot).toBe(unlinkedRoot);
     expect(state?.projectId).toBeUndefined();
     expect(state?.orgId).toBeUndefined();
-    expect(state?.lastSentProjectId).toBe("prj_old");
-    expect(state?.lastSentOrgId).toBe("team_old");
+    expect(state?.lastSentProjectId).toBeUndefined();
+    expect(state?.lastSentOrgId).toBeUndefined();
     expect(state?.lastResolvedAt).toEqual(expect.any(Number));
   });
 
@@ -410,6 +441,7 @@ describe("Vercel project link refresh", () => {
     );
     const initialState = {
       lastResolvedAt: Date.now(),
+      lastResolvedRoot: linkedRoot,
       projectId: "prj_same",
       orgId: "team_same",
       lastSentProjectId: "prj_same",

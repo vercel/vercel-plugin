@@ -32,11 +32,12 @@ import {
 import {
   pluginRoot,
   profileCachePath,
-  removeSessionVercelProjectLinkState,
+  readSessionVercelProjectLinkState,
   resolveVercelProjectLink,
   safeReadJson,
   writeSessionFile,
   writeSessionVercelProjectLinkState,
+  type SessionVercelProjectLinkState,
 } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
@@ -627,8 +628,11 @@ async function main(): Promise<void> {
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
+  const previousVercelProjectLinkState = sessionId
+    ? readSessionVercelProjectLinkState(sessionId)
+    : null;
   const vercelProjectLink = resolveVercelProjectLink(projectRoot);
-  const vercelProjectLinkResolvedAt = vercelProjectLink ? Date.now() : null;
+  const vercelProjectLinkResolvedAt = Date.now();
 
   logBrokenSkillFrontmatterSummary();
 
@@ -661,9 +665,6 @@ async function main(): Promise<void> {
   if (sessionId) {
     writeSessionFile(sessionId, SESSION_GREENFIELD_KIND, greenfieldValue);
     writeSessionFile(sessionId, SESSION_LIKELY_SKILLS_KIND, likelySkillsValue);
-    if (!vercelProjectLink) {
-      removeSessionVercelProjectLinkState(sessionId);
-    }
   }
 
   try {
@@ -726,19 +727,34 @@ async function main(): Promise<void> {
         { key: "session:vercel_project_id", value: vercelProjectLink.projectId },
         { key: "session:vercel_org_id", value: vercelProjectLink.orgId },
       );
+    } else if (
+      previousVercelProjectLinkState?.lastSentProjectId !== undefined
+      || previousVercelProjectLinkState?.lastSentOrgId !== undefined
+    ) {
+      telemetryEntries.push(
+        { key: "session:vercel_project_id", value: "" },
+        { key: "session:vercel_org_id", value: "" },
+      );
     }
 
     const trackedBaseTelemetry = await trackBaseEvents(sessionId, telemetryEntries).catch(() => false);
+    const nextVercelProjectLinkState: SessionVercelProjectLinkState = {
+      lastResolvedAt: vercelProjectLinkResolvedAt,
+      lastResolvedRoot: projectRoot,
+      lastSentProjectId: trackedBaseTelemetry ? undefined : previousVercelProjectLinkState?.lastSentProjectId,
+      lastSentOrgId: trackedBaseTelemetry ? undefined : previousVercelProjectLinkState?.lastSentOrgId,
+    };
 
-    if (vercelProjectLink && vercelProjectLinkResolvedAt !== null) {
-      writeSessionVercelProjectLinkState(sessionId, {
-        lastResolvedAt: vercelProjectLinkResolvedAt,
-        projectId: vercelProjectLink.projectId,
-        orgId: vercelProjectLink.orgId,
-        lastSentProjectId: trackedBaseTelemetry ? vercelProjectLink.projectId : undefined,
-        lastSentOrgId: trackedBaseTelemetry ? vercelProjectLink.orgId : undefined,
-      });
+    if (vercelProjectLink) {
+      nextVercelProjectLinkState.projectId = vercelProjectLink.projectId;
+      nextVercelProjectLinkState.orgId = vercelProjectLink.orgId;
+      if (trackedBaseTelemetry) {
+        nextVercelProjectLinkState.lastSentProjectId = vercelProjectLink.projectId;
+        nextVercelProjectLinkState.lastSentOrgId = vercelProjectLink.orgId;
+      }
     }
+
+    writeSessionVercelProjectLinkState(sessionId, nextVercelProjectLinkState);
   }
 
   if (cursorOutput) {

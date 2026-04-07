@@ -95,13 +95,6 @@ function writeSessionFile(sessionId, kind, value, scopeId) {
     logCaughtError(log, "hook-env:write-session-file-failed", error, { sessionId, kind, scopeId });
   }
 }
-function removeSessionFile(sessionId, kind, scopeId) {
-  try {
-    rmSync(dedupFilePath(sessionId, kind, scopeId), { force: true });
-  } catch (error) {
-    logCaughtError(log, "hook-env:remove-session-file-failed", error, { sessionId, kind, scopeId });
-  }
-}
 function tryClaimSessionKey(sessionId, kind, key, scopeId) {
   try {
     const claimDir = dedupClaimDirPath(sessionId, kind, scopeId);
@@ -317,10 +310,14 @@ function parseSessionVercelProjectLinkState(raw) {
       return null;
     }
     const state = { lastResolvedAt };
+    const lastResolvedRoot = asNonEmptyString(parsed.lastResolvedRoot);
     const projectId = asNonEmptyString(parsed.projectId);
     const orgId = asNonEmptyString(parsed.orgId);
     const lastSentProjectId = asNonEmptyString(parsed.lastSentProjectId);
     const lastSentOrgId = asNonEmptyString(parsed.lastSentOrgId);
+    if (lastResolvedRoot) {
+      state.lastResolvedRoot = lastResolvedRoot;
+    }
     if (projectId) {
       state.projectId = projectId;
     }
@@ -349,17 +346,14 @@ function readSessionVercelProjectLinkState(sessionId) {
 function writeSessionVercelProjectLinkState(sessionId, state) {
   writeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND, JSON.stringify(state));
 }
-function removeSessionVercelProjectLinkState(sessionId) {
-  removeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND);
-}
 function hasUnsentSessionVercelProjectLink(state) {
-  if (!state?.projectId || !state.orgId) {
+  if (!state) {
     return false;
   }
-  return state.lastSentProjectId !== state.projectId || state.lastSentOrgId !== state.orgId;
+  return (state.projectId ?? null) !== (state.lastSentProjectId ?? null) || (state.orgId ?? null) !== (state.lastSentOrgId ?? null);
 }
-function shouldRefreshSessionVercelProjectLink(state, now, refreshMs) {
-  return !state || hasUnsentSessionVercelProjectLink(state) || now - state.lastResolvedAt >= refreshMs;
+function shouldRefreshSessionVercelProjectLink(state, currentProjectRoot, now, refreshMs) {
+  return !state || state.lastResolvedRoot !== currentProjectRoot || hasUnsentSessionVercelProjectLink(state) || now - state.lastResolvedAt >= refreshMs;
 }
 export {
   SESSION_VERCEL_PROJECT_LINK_KIND,
@@ -376,8 +370,6 @@ export {
   readSessionVercelProjectLinkState,
   removeAllSessionDedupArtifacts,
   removeSessionClaimDir,
-  removeSessionFile,
-  removeSessionVercelProjectLinkState,
   resolveHookProjectRoot,
   resolveVercelProjectLink,
   safeReadFile,
