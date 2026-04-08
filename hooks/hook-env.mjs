@@ -3,7 +3,6 @@ import { createHash, randomUUID } from "crypto";
 import {
   appendFileSync,
   closeSync,
-  existsSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -12,7 +11,7 @@ import {
   writeFileSync
 } from "fs";
 import { homedir, tmpdir } from "os";
-import { dirname, join, relative, resolve, sep } from "path";
+import { dirname, join, resolve, sep } from "path";
 import { fileURLToPath } from "url";
 import { createLogger, logCaughtError } from "./logger.mjs";
 var log = createLogger();
@@ -198,204 +197,21 @@ function safeReadJson(path) {
     return null;
   }
 }
-var SESSION_VERCEL_PROJECT_LINK_KIND = "vercel-project-link";
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function readJsonIfExists(path) {
-  if (!existsSync(path)) return null;
-  try {
-    return JSON.parse(readFileSync(path, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-function asNonEmptyString(value) {
-  return typeof value === "string" && value.trim() !== "" ? value : null;
-}
-function resolveHookProjectRoot(input, env = process.env) {
-  const workspaceRoot = input && Array.isArray(input.workspace_roots) ? input.workspace_roots.find((entry) => typeof entry === "string" && entry.trim() !== "") : null;
-  const cwd = input && typeof input.cwd === "string" && input.cwd.trim() !== "" ? input.cwd : null;
-  return cwd ?? (typeof workspaceRoot === "string" ? workspaceRoot : null) ?? asNonEmptyString(env.CURSOR_PROJECT_DIR) ?? asNonEmptyString(env.CLAUDE_PROJECT_ROOT) ?? asNonEmptyString(env.CLAUDE_PROJECT_DIR) ?? process.cwd();
-}
-function normalizeRepoPath(pathValue) {
-  const normalized = pathValue.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+$/, "");
-  return normalized === "" ? "." : normalized;
-}
-function pathDepth(pathValue) {
-  return pathValue === "." ? 0 : pathValue.split("/").length;
-}
-function matchesRepoProjectDirectory(projectDirectory, currentPath) {
-  if (projectDirectory === ".") {
-    return true;
-  }
-  return currentPath === projectDirectory || currentPath.startsWith(`${projectDirectory}/`);
-}
-function resolveProjectJsonLink(dir) {
-  const raw = readJsonIfExists(join(dir, ".vercel", "project.json"));
-  if (!isRecord(raw)) return null;
-  const projectId = asNonEmptyString(raw.projectId);
-  const orgId = asNonEmptyString(raw.orgId);
-  if (!projectId || !orgId) return null;
-  return {
-    projectId,
-    orgId,
-    source: "project.json"
-  };
-}
-function resolveRepoJsonLink(repoRoot, startPath) {
-  const raw = readJsonIfExists(join(repoRoot, ".vercel", "repo.json"));
-  if (!isRecord(raw) || !Array.isArray(raw.projects)) {
-    return null;
-  }
-  const repoOrgId = asNonEmptyString(raw.orgId);
-  const currentPath = normalizeRepoPath(relative(repoRoot, startPath));
-  const candidates = raw.projects.filter(isRecord).map((project) => {
-    const projectId = asNonEmptyString(project.id);
-    const orgId = asNonEmptyString(project.orgId) ?? repoOrgId;
-    const directory = normalizeRepoPath(asNonEmptyString(project.directory) ?? ".");
-    if (!projectId || !orgId) {
-      return null;
-    }
-    return {
-      directory,
-      projectId,
-      orgId
-    };
-  }).filter((candidate) => candidate !== null).filter((candidate) => matchesRepoProjectDirectory(candidate.directory, currentPath)).sort((left, right) => pathDepth(right.directory) - pathDepth(left.directory));
-  if (candidates.length === 0) {
-    return null;
-  }
-  const deepestDepth = pathDepth(candidates[0].directory);
-  const deepestCandidates = candidates.filter((candidate) => pathDepth(candidate.directory) === deepestDepth);
-  if (deepestCandidates.length !== 1) {
-    return null;
-  }
-  return {
-    projectId: deepestCandidates[0].projectId,
-    orgId: deepestCandidates[0].orgId,
-    source: "repo.json"
-  };
-}
-function resolveVercelProjectLink(startPath) {
-  const resolvedStartPath = resolve(startPath);
-  let current = resolvedStartPath;
-  while (true) {
-    const projectLink = resolveProjectJsonLink(current);
-    if (projectLink) {
-      return projectLink;
-    }
-    const repoJsonPath = join(current, ".vercel", "repo.json");
-    if (existsSync(repoJsonPath)) {
-      const repoLink = resolveRepoJsonLink(current, resolvedStartPath);
-      if (repoLink) {
-        return repoLink;
-      }
-    }
-    const parent = dirname(current);
-    if (parent === current) {
-      return null;
-    }
-    current = parent;
-  }
-}
-function parseSessionVercelProjectLinkState(raw) {
-  if (raw.trim() === "") return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (!isRecord(parsed)) return null;
-    const lastResolvedAt = parsed.lastResolvedAt;
-    if (typeof lastResolvedAt !== "number" || !Number.isFinite(lastResolvedAt)) {
-      return null;
-    }
-    const state = { lastResolvedAt };
-    const lastResolvedRoot = asNonEmptyString(parsed.lastResolvedRoot);
-    const projectId = asNonEmptyString(parsed.projectId);
-    const orgId = asNonEmptyString(parsed.orgId);
-    const lastSentProjectId = asNonEmptyString(parsed.lastSentProjectId);
-    const lastSentOrgId = asNonEmptyString(parsed.lastSentOrgId);
-    if (lastResolvedRoot) {
-      state.lastResolvedRoot = lastResolvedRoot;
-    }
-    if (projectId) {
-      state.projectId = projectId;
-    }
-    if (orgId) {
-      state.orgId = orgId;
-    }
-    if (lastSentProjectId) {
-      state.lastSentProjectId = lastSentProjectId;
-    }
-    if (lastSentOrgId) {
-      state.lastSentOrgId = lastSentOrgId;
-    }
-    return state;
-  } catch {
-    return null;
-  }
-}
-function readSessionVercelProjectLinkState(sessionId) {
-  try {
-    const raw = readFileSync(dedupFilePath(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND), "utf-8");
-    return parseSessionVercelProjectLinkState(raw);
-  } catch {
-    return null;
-  }
-}
-function writeSessionVercelProjectLinkState(sessionId, state) {
-  writeSessionFile(sessionId, SESSION_VERCEL_PROJECT_LINK_KIND, JSON.stringify(state));
-}
-function buildSessionVercelProjectLinkState(args) {
-  const nextState = {
-    lastResolvedAt: args.resolvedAt,
-    lastResolvedRoot: args.projectRoot
-  };
-  if (args.nextLink) {
-    nextState.projectId = args.nextLink.projectId;
-    nextState.orgId = args.nextLink.orgId;
-  }
-  const lastSentProjectId = args.trackedTelemetry ? args.nextLink?.projectId : args.previousState?.lastSentProjectId;
-  const lastSentOrgId = args.trackedTelemetry ? args.nextLink?.orgId : args.previousState?.lastSentOrgId;
-  if (lastSentProjectId !== void 0) {
-    nextState.lastSentProjectId = lastSentProjectId;
-  }
-  if (lastSentOrgId !== void 0) {
-    nextState.lastSentOrgId = lastSentOrgId;
-  }
-  return nextState;
-}
-function hasUnsentSessionVercelProjectLink(state) {
-  if (!state) {
-    return false;
-  }
-  return (state.projectId ?? null) !== (state.lastSentProjectId ?? null) || (state.orgId ?? null) !== (state.lastSentOrgId ?? null);
-}
-function shouldRefreshSessionVercelProjectLink(state, currentProjectRoot, now, refreshMs) {
-  return !state || state.lastResolvedRoot !== currentProjectRoot || hasUnsentSessionVercelProjectLink(state) || now - state.lastResolvedAt >= refreshMs;
-}
 export {
-  SESSION_VERCEL_PROJECT_LINK_KIND,
   appendAuditLog,
-  buildSessionVercelProjectLinkState,
   dedupClaimDirPath,
   dedupFilePath,
   generateVerificationId,
   getDedupScopeId,
   listSessionKeys,
-  parseSessionVercelProjectLinkState,
   pluginRoot,
   profileCachePath,
   readSessionFile,
-  readSessionVercelProjectLinkState,
   removeAllSessionDedupArtifacts,
   removeSessionClaimDir,
-  resolveHookProjectRoot,
-  resolveVercelProjectLink,
   safeReadFile,
   safeReadJson,
-  shouldRefreshSessionVercelProjectLink,
   syncSessionFileFromClaims,
   tryClaimSessionKey,
-  writeSessionFile,
-  writeSessionVercelProjectLinkState
+  writeSessionFile
 };

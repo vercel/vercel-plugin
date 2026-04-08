@@ -16,11 +16,11 @@ function truncateValue(value) {
   return truncated + TRUNCATION_SUFFIX;
 }
 async function send(sessionId, events) {
-  if (events.length === 0) return false;
+  if (events.length === 0) return;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
   try {
-    const response = await fetch(BRIDGE_ENDPOINT, {
+    await fetch(BRIDGE_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,9 +30,7 @@ async function send(sessionId, events) {
       body: JSON.stringify(events),
       signal: controller.signal
     });
-    return response.ok;
   } catch {
-    return false;
   } finally {
     clearTimeout(timeout);
   }
@@ -71,17 +69,17 @@ function isPromptTelemetryEnabled(env = process.env) {
   }
 }
 async function trackBaseEvent(sessionId, key, value) {
-  if (!isBaseTelemetryEnabled()) return false;
+  if (!isBaseTelemetryEnabled()) return;
   const event = {
     id: randomUUID(),
     event_time: Date.now(),
     key,
     value: truncateValue(value)
   };
-  return send(sessionId, [event]);
+  await send(sessionId, [event]);
 }
 async function trackBaseEvents(sessionId, entries) {
-  if (!isBaseTelemetryEnabled() || entries.length === 0) return false;
+  if (!isBaseTelemetryEnabled() || entries.length === 0) return;
   const now = Date.now();
   const events = entries.map((entry) => ({
     id: randomUUID(),
@@ -89,7 +87,7 @@ async function trackBaseEvents(sessionId, entries) {
     key: entry.key,
     value: truncateValue(entry.value)
   }));
-  return send(sessionId, events);
+  await send(sessionId, events);
 }
 async function trackEvent(sessionId, key, value) {
   if (!isPromptTelemetryEnabled()) return;

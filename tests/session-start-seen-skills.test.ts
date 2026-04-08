@@ -6,6 +6,7 @@ import { join, resolve, sep } from "node:path";
 import {
   dedupClaimDirPath,
   dedupFilePath,
+  removeAllSessionDedupArtifacts,
   removeSessionClaimDir,
   tryClaimSessionKey,
 } from "../hooks/src/hook-env.mts";
@@ -113,7 +114,7 @@ describe("session-start-seen-skills hook", () => {
     });
   });
 
-  test("test_clear_event_wipes_dedup_state_but_preserves_project_link_state", async () => {
+  test("test_clear_event_wipes_claim_dir_and_session_file", async () => {
     const sessionId = `test-clear-${Date.now()}`;
 
     try {
@@ -123,17 +124,11 @@ describe("session-start-seen-skills hook", () => {
       expect(tryClaimSessionKey(sessionId, "seen-context-chunks", "nextjs-platform")).toBe(true);
       writeFileSync(dedupFilePath(sessionId, "seen-skills"), "nextjs,ai-sdk", "utf-8");
       writeFileSync(dedupFilePath(sessionId, "seen-context-chunks"), "nextjs-platform", "utf-8");
-      writeFileSync(
-        dedupFilePath(sessionId, "vercel-project-link"),
-        JSON.stringify({ projectId: "prj_clear", orgId: "team_clear", lastResolvedAt: Date.now() }),
-        "utf-8",
-      );
 
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(true);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(true);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(true);
       expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks"))).toBe(true);
-      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(true);
 
       // Fire the hook with a "clear" event
       const result = await runSessionStart(
@@ -144,32 +139,25 @@ describe("session-start-seen-skills hook", () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toBe("");
 
-      // Dedup claim dirs/files should be gone, but project link state should remain
+      // Both claim dir and session file should be gone
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks"))).toBe(false);
-      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(true);
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
       rmSync(dedupClaimDirPath(sessionId, "seen-context-chunks"), { recursive: true, force: true });
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}
       try { rmSync(dedupFilePath(sessionId, "seen-context-chunks")); } catch {}
-      try { rmSync(dedupFilePath(sessionId, "vercel-project-link")); } catch {}
     }
   });
 
-  test("test_compact_event_wipes_dedup_state_but_preserves_project_link_state", async () => {
+  test("test_compact_event_wipes_claim_dir_and_session_file", async () => {
     const sessionId = `test-compact-${Date.now()}`;
 
     try {
       expect(tryClaimSessionKey(sessionId, "seen-skills", "swr")).toBe(true);
       writeFileSync(dedupFilePath(sessionId, "seen-skills"), "swr", "utf-8");
-      writeFileSync(
-        dedupFilePath(sessionId, "vercel-project-link"),
-        JSON.stringify({ projectId: "prj_compact", orgId: "team_compact", lastResolvedAt: Date.now() }),
-        "utf-8",
-      );
 
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
@@ -179,11 +167,9 @@ describe("session-start-seen-skills hook", () => {
       expect(result.code).toBe(0);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(false);
-      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(true);
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}
-      try { rmSync(dedupFilePath(sessionId, "vercel-project-link")); } catch {}
     }
   });
 

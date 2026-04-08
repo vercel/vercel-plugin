@@ -15,20 +15,10 @@ import {
   normalizeInput,
   setSessionEnv
 } from "./compat.mjs";
-import {
-  buildSessionVercelProjectLinkState,
-  pluginRoot,
-  profileCachePath,
-  readSessionVercelProjectLinkState,
-  resolveHookProjectRoot,
-  resolveVercelProjectLink,
-  safeReadJson,
-  writeSessionFile,
-  writeSessionVercelProjectLinkState
-} from "./hook-env.mjs";
+import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { getOrCreateDeviceId, isBaseTelemetryEnabled, trackBaseEvents } from "./telemetry.mjs";
+import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -307,6 +297,39 @@ function checkVercelCli() {
   const needsUpdate = versionComparison === null ? !!(currentVersion && latestVersion && currentVersion !== latestVersion) : versionComparison < 0;
   return { installed: true, currentVersion, latestVersion, needsUpdate };
 }
+function readLinkedVercelProject(projectRoot) {
+  const projectJsonPath = join(projectRoot, ".vercel", "project.json");
+  if (!existsSync(projectJsonPath)) {
+    return null;
+  }
+  const project = safeReadJson(projectJsonPath);
+  if (!project) {
+    return null;
+  }
+  const projectId = typeof project.projectId === "string" && project.projectId.trim() !== "" ? project.projectId : null;
+  const orgId = typeof project.orgId === "string" && project.orgId.trim() !== "" ? project.orgId : null;
+  if (!projectId || !orgId) {
+    return null;
+  }
+  return { projectId, orgId };
+}
+function buildSessionStartTelemetryEntries(args) {
+  const entries = [
+    { key: "session:device_id", value: args.deviceId },
+    { key: "session:platform", value: process.platform },
+    { key: "session:likely_skills", value: args.likelySkills.join(",") },
+    { key: "session:greenfield", value: String(args.greenfield) },
+    { key: "session:vercel_cli_installed", value: String(args.cliStatus.installed) },
+    { key: "session:vercel_cli_version", value: args.cliStatus.currentVersion || "" }
+  ];
+  if (args.vercelProjectLink) {
+    entries.push(
+      { key: "session:vercel_project_id", value: args.vercelProjectLink.projectId },
+      { key: "session:vercel_org_id", value: args.vercelProjectLink.orgId }
+    );
+  }
+  return entries;
+}
 function parseSessionStartInput(raw) {
   try {
     if (!raw.trim()) return null;
@@ -330,7 +353,7 @@ function normalizeSessionStartSessionId(input) {
   return sessionId || null;
 }
 function resolveSessionStartProjectRoot(env = process.env) {
-  return resolveHookProjectRoot(null, env);
+  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 function collectBrokenSkillFrontmatterNames(files) {
   return [...new Set(
@@ -418,8 +441,7 @@ async function main() {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
-  const projectRoot = resolveHookProjectRoot(hookInput);
-  const telemetryEnabled = isBaseTelemetryEnabled();
+  const projectRoot = resolveSessionStartProjectRoot();
   logBrokenSkillFrontmatterSummary();
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
@@ -479,36 +501,17 @@ async function main() {
       });
     }
   }
-  if (sessionId && telemetryEnabled) {
-    const previousVercelProjectLinkState = readSessionVercelProjectLinkState(sessionId);
-    const vercelProjectLink = resolveVercelProjectLink(projectRoot);
-    const telemetryEntries = [
-      { key: "session:device_id", value: getOrCreateDeviceId() },
-      { key: "session:platform", value: process.platform },
-      { key: "session:likely_skills", value: likelySkills.join(",") },
-      { key: "session:greenfield", value: String(greenfield !== null) },
-      { key: "session:vercel_cli_installed", value: String(cliStatus.installed) },
-      { key: "session:vercel_cli_version", value: cliStatus.currentVersion || "" }
-    ];
-    if (vercelProjectLink) {
-      telemetryEntries.push(
-        { key: "session:vercel_project_id", value: vercelProjectLink.projectId },
-        { key: "session:vercel_org_id", value: vercelProjectLink.orgId }
-      );
-    } else if (previousVercelProjectLinkState?.lastSentProjectId !== void 0 || previousVercelProjectLinkState?.lastSentOrgId !== void 0) {
-      telemetryEntries.push(
-        { key: "session:vercel_project_id", value: "" },
-        { key: "session:vercel_org_id", value: "" }
-      );
-    }
-    const trackedBaseTelemetry = await trackBaseEvents(sessionId, telemetryEntries).catch(() => false);
-    writeSessionVercelProjectLinkState(sessionId, buildSessionVercelProjectLinkState({
-      previousState: previousVercelProjectLinkState,
-      projectRoot,
-      resolvedAt: Date.now(),
-      nextLink: vercelProjectLink,
-      trackedTelemetry: trackedBaseTelemetry
-    }));
+  if (sessionId) {
+    const deviceId = getOrCreateDeviceId();
+    const vercelProjectLink = readLinkedVercelProject(projectRoot);
+    await trackBaseEvents(sessionId, buildSessionStartTelemetryEntries({
+      deviceId,
+      likelySkills,
+      greenfield: greenfield !== null,
+      cliStatus,
+      vercelProjectLink
+    })).catch(() => {
+    });
   }
   if (cursorOutput) {
     process.stdout.write(cursorOutput);
@@ -523,6 +526,7 @@ if (isSessionStartProfilerEntrypoint) {
 export {
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
+  buildSessionStartTelemetryEntries,
   checkGreenfield,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
@@ -531,5 +535,6 @@ export {
   parseSessionStartInput,
   profileBootstrapSignals,
   profileProject,
+  readLinkedVercelProject,
   resolveSessionStartProjectRoot
 };

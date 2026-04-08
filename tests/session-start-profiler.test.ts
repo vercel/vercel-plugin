@@ -10,13 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import {
-  readSessionFile,
-  readSessionVercelProjectLinkState,
-  resolveVercelProjectLink,
-  writeSessionVercelProjectLinkState,
-} from "../hooks/src/hook-env.mts";
+import { readSessionFile } from "../hooks/src/hook-env.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const PROFILER = join(ROOT, "hooks", "session-start-profiler.mjs");
@@ -60,84 +54,6 @@ async function runProfiler(env: Record<string, string | undefined>): Promise<{
   return { code, stdout, stderr };
 }
 
-async function runProfilerWithCapture(args: {
-  env: Record<string, string | undefined>;
-  payload?: Record<string, unknown>;
-}): Promise<{
-  code: number;
-  stdout: string;
-  stderr: string;
-  requests: Array<{ url: string; body: string | null }>;
-}> {
-  const captureFile = join(tempDir, `profiler-capture-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`);
-  const preloadFile = join(tempDir, `profiler-preload-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`);
-  writeFileSync(
-    preloadFile,
-    [
-      'import { appendFileSync } from "node:fs";',
-      'const captureFile = process.env.VERCEL_PLUGIN_CAPTURE_FILE;',
-      'globalThis.fetch = async (url, options = {}) => {',
-      '  if (captureFile) {',
-      '    appendFileSync(captureFile, JSON.stringify({',
-      '      url: String(url),',
-      '      body: typeof options.body === "string" ? options.body : null,',
-      '    }) + "\\n", "utf-8");',
-      '  }',
-      '  return new Response(null, { status: 204 });',
-      '};',
-    ].join("\n"),
-    "utf-8",
-  );
-
-  const mergedEnv: Record<string, string> = {
-    ...(process.env as Record<string, string>),
-    VERCEL_PLUGIN_CAPTURE_FILE: captureFile,
-    NODE_OPTIONS: [
-      process.env.NODE_OPTIONS,
-      `--import=${pathToFileURL(preloadFile).href}`,
-    ].filter(Boolean).join(" "),
-  };
-
-  for (const [key, value] of Object.entries(args.env)) {
-    if (value === undefined) {
-      delete mergedEnv[key];
-      continue;
-    }
-    mergedEnv[key] = value;
-  }
-
-  const proc = Bun.spawn([NODE_BIN, PROFILER], {
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-    env: mergedEnv,
-  });
-
-  proc.stdin.write(JSON.stringify(args.payload ?? { session_id: testSessionId }));
-  proc.stdin.end();
-
-  const code = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  const requests = existsSync(captureFile)
-    ? readFileSync(captureFile, "utf-8")
-        .trim()
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => JSON.parse(line) as { url: string; body: string | null })
-    : [];
-
-  rmSync(captureFile, { force: true });
-  rmSync(preloadFile, { force: true });
-
-  return { code, stdout, stderr, requests };
-}
-
-function parseTrackedEntries(body: string | null): Array<{ key: string; value: string }> {
-  return (JSON.parse(body ?? "[]") as Array<{ key: string; value: string }>)
-    .map((entry) => ({ key: entry.key, value: entry.value }));
-}
-
 function parseLikelySkills(_envFileContent?: string): string[] {
   return readSessionFile(testSessionId, "likely-skills").split(",").filter(Boolean);
 }
@@ -151,10 +67,6 @@ function parseCsvEnvVar(envFileContent: string, key: string): string[] {
 
 function readGreenfieldState(): string {
   return readSessionFile(testSessionId, "greenfield");
-}
-
-function readVercelProjectLinkState() {
-  return readSessionVercelProjectLinkState(testSessionId);
 }
 
 function makeMockCommand(binDir: string, commandName: string, body: string): void {
@@ -658,159 +570,6 @@ describe("session-start-profiler", () => {
     expect(readGreenfieldState()).toBe("true");
   });
 
-  test("persists linked Vercel project IDs in session state when project.json is present", async () => {
-    const projectDir = join(tempDir, "linked-project");
-    mkdirSync(join(projectDir, ".vercel"), { recursive: true });
-    writeFileSync(
-      join(projectDir, ".vercel", "project.json"),
-      JSON.stringify({ projectId: "prj_linked", orgId: "team_linked" }),
-    );
-
-    const result = await runProfiler({
-      CLAUDE_ENV_FILE: envFile,
-      CLAUDE_PROJECT_ROOT: projectDir,
-    });
-
-    expect(result.code).toBe(0);
-    expect(readVercelProjectLinkState()).toMatchObject({
-      lastResolvedRoot: projectDir,
-      projectId: "prj_linked",
-      orgId: "team_linked",
-    });
-    expect(readVercelProjectLinkState()?.lastResolvedAt).toEqual(expect.any(Number));
-  });
-
-  test("skips linked project resolution and state writes when base telemetry is disabled", async () => {
-    const projectDir = join(tempDir, "telemetry-off-linked-project");
-    mkdirSync(join(projectDir, ".vercel"), { recursive: true });
-    writeFileSync(
-      join(projectDir, ".vercel", "project.json"),
-      JSON.stringify({ projectId: "prj_linked", orgId: "team_linked" }),
-    );
-
-    const result = await runProfilerWithCapture({
-      env: {
-        CLAUDE_ENV_FILE: envFile,
-        CLAUDE_PROJECT_ROOT: projectDir,
-        VERCEL_PLUGIN_TELEMETRY: "off",
-      },
-    });
-
-    expect(result.code).toBe(0);
-    expect(result.requests).toHaveLength(0);
-    expect(readVercelProjectLinkState()).toBeNull();
-  });
-
-  test("prefers payload cwd over stale env roots when resolving linked Vercel project telemetry", async () => {
-    const staleRoot = join(tempDir, "stale-linked-root");
-    const currentRoot = join(tempDir, "current-linked-root");
-    mkdirSync(join(staleRoot, ".vercel"), { recursive: true });
-    mkdirSync(join(currentRoot, ".vercel"), { recursive: true });
-    writeFileSync(
-      join(staleRoot, ".vercel", "project.json"),
-      JSON.stringify({ projectId: "prj_stale", orgId: "team_stale" }),
-    );
-    writeFileSync(
-      join(currentRoot, ".vercel", "project.json"),
-      JSON.stringify({ projectId: "prj_current", orgId: "team_current" }),
-    );
-
-    const result = await runProfilerWithCapture({
-      env: {
-        CLAUDE_ENV_FILE: envFile,
-        CLAUDE_PROJECT_ROOT: staleRoot,
-      },
-      payload: {
-        session_id: testSessionId,
-        cwd: currentRoot,
-      },
-    });
-
-    expect(result.code).toBe(0);
-    expect(result.requests).toHaveLength(1);
-    const trackedEntries = parseTrackedEntries(result.requests[0].body);
-    expect(trackedEntries).toContainEqual({
-      key: "session:vercel_project_id",
-      value: "prj_current",
-    });
-    expect(trackedEntries).toContainEqual({
-      key: "session:vercel_org_id",
-      value: "team_current",
-    });
-    expect(trackedEntries).not.toContainEqual({
-      key: "session:vercel_project_id",
-      value: "prj_stale",
-    });
-    expect(readVercelProjectLinkState()).toMatchObject({
-      lastResolvedRoot: currentRoot,
-      projectId: "prj_current",
-      orgId: "team_current",
-      lastSentProjectId: "prj_current",
-      lastSentOrgId: "team_current",
-    });
-  });
-
-  test("replaces stale linked Vercel project state when current project is unlinked", async () => {
-    const projectDir = join(tempDir, "unlinked-project");
-    mkdirSync(projectDir);
-    writeSessionVercelProjectLinkState(testSessionId, {
-      lastResolvedAt: Date.now(),
-      lastResolvedRoot: join(tempDir, "old-linked-root"),
-      projectId: "prj_stale",
-      orgId: "team_stale",
-      lastSentProjectId: "prj_stale",
-      lastSentOrgId: "team_stale",
-    });
-
-    const result = await runProfiler({
-      CLAUDE_ENV_FILE: envFile,
-      CLAUDE_PROJECT_ROOT: projectDir,
-    });
-
-    expect(result.code).toBe(0);
-    expect(readVercelProjectLinkState()).toMatchObject({
-      lastResolvedRoot: projectDir,
-    });
-    expect(readVercelProjectLinkState()?.projectId).toBeUndefined();
-    expect(readVercelProjectLinkState()?.orgId).toBeUndefined();
-    expect(readVercelProjectLinkState()?.lastSentProjectId).toBeUndefined();
-    expect(readVercelProjectLinkState()?.lastSentOrgId).toBeUndefined();
-  });
-
-  test("emits tombstone telemetry when a previously linked session starts unlinked", async () => {
-    const projectDir = join(tempDir, "session-start-unlinked");
-    mkdirSync(projectDir);
-    writeSessionVercelProjectLinkState(testSessionId, {
-      lastResolvedAt: Date.now(),
-      lastResolvedRoot: join(tempDir, "old-linked-root"),
-      projectId: "prj_old",
-      orgId: "team_old",
-      lastSentProjectId: "prj_old",
-      lastSentOrgId: "team_old",
-    });
-
-    const result = await runProfilerWithCapture({
-      env: {
-        CLAUDE_ENV_FILE: envFile,
-        CLAUDE_PROJECT_ROOT: projectDir,
-      },
-    });
-
-    expect(result.code).toBe(0);
-    expect(result.requests).toHaveLength(1);
-    expect(parseTrackedEntries(result.requests[0].body)).toContainEqual({
-      key: "session:vercel_project_id",
-      value: "",
-    });
-    expect(parseTrackedEntries(result.requests[0].body)).toContainEqual({
-      key: "session:vercel_org_id",
-      value: "",
-    });
-    expect(readVercelProjectLinkState()?.lastResolvedRoot).toBe(projectDir);
-    expect(readVercelProjectLinkState()?.lastSentProjectId).toBeUndefined();
-    expect(readVercelProjectLinkState()?.lastSentOrgId).toBeUndefined();
-  });
-
   test("hooks.json registers profiler after seen-skills init", () => {
     const hooksJson = JSON.parse(
       readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8"),
@@ -1025,109 +784,75 @@ describe("profileProject (unit)", () => {
   });
 });
 
-describe("resolveVercelProjectLink (unit)", () => {
-  test("reads .vercel/project.json from the nearest parent", () => {
-    const projectDir = join(tempDir, "unit-linked-project");
-    const nestedDir = join(projectDir, "src", "app");
+describe("session-start telemetry helpers (unit)", () => {
+  test("reads linked Vercel project IDs from .vercel/project.json", async () => {
+    const { readLinkedVercelProject } = await import("../hooks/session-start-profiler.mjs");
+    const projectDir = join(tempDir, "unit-vercel-link");
     mkdirSync(join(projectDir, ".vercel"), { recursive: true });
-    mkdirSync(nestedDir, { recursive: true });
     writeFileSync(
       join(projectDir, ".vercel", "project.json"),
-      JSON.stringify({ projectId: "prj_parent", orgId: "team_parent" }),
+      JSON.stringify({ projectId: "prj_123", orgId: "team_456" }),
+      "utf-8",
     );
 
-    expect(resolveVercelProjectLink(nestedDir)).toEqual({
-      projectId: "prj_parent",
-      orgId: "team_parent",
-      source: "project.json",
+    expect(readLinkedVercelProject(projectDir)).toEqual({
+      projectId: "prj_123",
+      orgId: "team_456",
     });
   });
 
-  test("reads matching subproject from repo.json", () => {
-    const repoRoot = join(tempDir, "unit-repo-linked");
-    const webDir = join(repoRoot, "apps", "web");
-    mkdirSync(join(repoRoot, ".vercel"), { recursive: true });
-    mkdirSync(webDir, { recursive: true });
+  test("ignores incomplete linked Vercel project metadata", async () => {
+    const { readLinkedVercelProject } = await import("../hooks/session-start-profiler.mjs");
+    const projectDir = join(tempDir, "unit-vercel-link-incomplete");
+    mkdirSync(join(projectDir, ".vercel"), { recursive: true });
     writeFileSync(
-      join(repoRoot, ".vercel", "repo.json"),
-      JSON.stringify({
-        orgId: "team_repo",
-        projects: [
-          { id: "prj_root", directory: "." },
-          { id: "prj_web", directory: "apps/web" },
-        ],
-      }),
+      join(projectDir, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_123" }),
+      "utf-8",
     );
 
-    expect(resolveVercelProjectLink(webDir)).toEqual({
-      projectId: "prj_web",
-      orgId: "team_repo",
-      source: "repo.json",
-    });
+    expect(readLinkedVercelProject(projectDir)).toBeNull();
   });
 
-  test("falls back from settings-only project.json to repo.json", () => {
-    const repoRoot = join(tempDir, "unit-repo-settings-only");
-    const webDir = join(repoRoot, "apps", "web");
-    mkdirSync(join(repoRoot, ".vercel"), { recursive: true });
-    mkdirSync(join(webDir, ".vercel"), { recursive: true });
-    writeFileSync(
-      join(repoRoot, ".vercel", "repo.json"),
-      JSON.stringify({
-        orgId: "team_repo",
-        projects: [{ id: "prj_web", directory: "apps/web" }],
-      }),
-    );
-    writeFileSync(join(webDir, ".vercel", "project.json"), JSON.stringify({ settings: {} }));
+  test("includes linked Vercel project IDs in session telemetry only when present", async () => {
+    const { buildSessionStartTelemetryEntries } = await import("../hooks/session-start-profiler.mjs");
 
-    expect(resolveVercelProjectLink(webDir)).toEqual({
-      projectId: "prj_web",
-      orgId: "team_repo",
-      source: "repo.json",
+    const withLink = buildSessionStartTelemetryEntries({
+      deviceId: "device_123",
+      likelySkills: ["nextjs", "vercel-cli"],
+      greenfield: false,
+      cliStatus: {
+        installed: true,
+        currentVersion: "44.7.3",
+        needsUpdate: false,
+      },
+      vercelProjectLink: {
+        projectId: "prj_123",
+        orgId: "team_456",
+      },
     });
-  });
-
-  test("falls back to an ancestor link when a nested repo.json has no matching project", () => {
-    const repoRoot = join(tempDir, "unit-repo-nested-fallback");
-    const webDir = join(repoRoot, "apps", "web");
-    const nestedDir = join(webDir, "src");
-    mkdirSync(join(repoRoot, ".vercel"), { recursive: true });
-    mkdirSync(join(webDir, ".vercel"), { recursive: true });
-    mkdirSync(nestedDir, { recursive: true });
-    writeFileSync(
-      join(repoRoot, ".vercel", "project.json"),
-      JSON.stringify({ projectId: "prj_ancestor", orgId: "team_ancestor" }),
-    );
-    writeFileSync(
-      join(webDir, ".vercel", "repo.json"),
-      JSON.stringify({
-        orgId: "team_nested",
-        projects: [{ id: "prj_other", directory: "apps/other" }],
-      }),
-    );
-
-    expect(resolveVercelProjectLink(nestedDir)).toEqual({
-      projectId: "prj_ancestor",
-      orgId: "team_ancestor",
-      source: "project.json",
+    expect(withLink).toContainEqual({
+      key: "session:vercel_project_id",
+      value: "prj_123",
     });
-  });
+    expect(withLink).toContainEqual({
+      key: "session:vercel_org_id",
+      value: "team_456",
+    });
 
-  test("returns null for an ambiguous repo root with multiple linked subprojects", () => {
-    const repoRoot = join(tempDir, "unit-repo-ambiguous");
-    mkdirSync(join(repoRoot, ".vercel"), { recursive: true });
-    writeFileSync(
-      join(repoRoot, ".vercel", "repo.json"),
-      JSON.stringify({
-        orgId: "team_repo",
-        projects: [
-          { id: "prj_web", directory: "apps/web" },
-          { id: "prj_api", directory: "apps/api" },
-        ],
-      }),
-    );
-
-    expect(resolveVercelProjectLink(repoRoot)).toBeNull();
+    const withoutLink = buildSessionStartTelemetryEntries({
+      deviceId: "device_123",
+      likelySkills: ["nextjs", "vercel-cli"],
+      greenfield: false,
+      cliStatus: {
+        installed: true,
+        currentVersion: "44.7.3",
+        needsUpdate: false,
+      },
+      vercelProjectLink: null,
+    });
+    expect(withoutLink.find((entry) => entry.key === "session:vercel_project_id")).toBeUndefined();
+    expect(withoutLink.find((entry) => entry.key === "session:vercel_org_id")).toBeUndefined();
   });
 });
 

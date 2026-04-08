@@ -52,6 +52,7 @@ describe("session hook platform compatibility", () => {
       {},
     );
     const envVars = buildSessionStartProfilerEnvVars({
+      agentBrowserAvailable: true,
       greenfield: true,
       likelySkills: ["ai-sdk", "nextjs"],
       setupSignals: {
@@ -67,6 +68,7 @@ describe("session hook platform compatibility", () => {
     );
     expect(JSON.parse(formatSessionStartProfilerCursorOutput(envVars, ["profile ready"]))).toEqual({
       env: {
+        VERCEL_PLUGIN_AGENT_BROWSER_AVAILABLE: "1",
         VERCEL_PLUGIN_GREENFIELD: "true",
         VERCEL_PLUGIN_LIKELY_SKILLS: "ai-sdk,nextjs",
         VERCEL_PLUGIN_BOOTSTRAP_HINTS: "greenfield",

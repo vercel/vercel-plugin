@@ -8,11 +8,7 @@
  *    when prompt telemetry is enabled. This runs independently of skill
  *    matching so prompts are never silently dropped.
  *
- * 2. Refresh linked Vercel project metadata no more than once per hour.
- *    This is best-effort and only re-emits telemetry when the linked
- *    project/org IDs changed or were previously missing.
- *
- * 3. On the first message of a session where the user hasn't recorded a
+ * 2. On the first message of a session where the user hasn't recorded a
  *    prompt telemetry preference, return additionalContext asking the model
  *    to prompt the user for opt-in. Writes "asked" immediately so the user
  *    is never re-prompted. session-end-cleanup converts "asked" → "disabled".
@@ -29,19 +25,10 @@ import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import {
-  buildSessionVercelProjectLinkState,
-  readSessionVercelProjectLinkState,
-  resolveHookProjectRoot,
-  resolveVercelProjectLink,
-  shouldRefreshSessionVercelProjectLink,
-  writeSessionVercelProjectLinkState,
-} from "./hook-env.mjs";
-import { getTelemetryOverride, isPromptTelemetryEnabled, trackBaseEvents, trackEvents } from "./telemetry.mjs";
+import { getTelemetryOverride, isPromptTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 
 const PREF_PATH = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
 const MIN_PROMPT_LENGTH = 10;
-const VERCEL_PROJECT_LINK_REFRESH_MS = 60 * 60 * 1000;
 
 function parseStdin(): Record<string, unknown> | null {
   try {
@@ -61,58 +48,11 @@ function resolvePrompt(input: Record<string, unknown>): string {
   return (input.prompt as string) || (input.message as string) || "";
 }
 
-async function maybeTrackVercelProjectLink(sessionId: string, projectRoot: string): Promise<void> {
-  const now = Date.now();
-  const previousState = readSessionVercelProjectLinkState(sessionId);
-  if (!shouldRefreshSessionVercelProjectLink(previousState, projectRoot, now, VERCEL_PROJECT_LINK_REFRESH_MS)) {
-    return;
-  }
-
-  const nextLink = resolveVercelProjectLink(projectRoot);
-  const telemetryEntries: Array<{ key: string; value: string }> = [];
-
-  if (nextLink) {
-    if (
-      previousState?.lastSentProjectId !== nextLink.projectId
-      || previousState?.lastSentOrgId !== nextLink.orgId
-    ) {
-      telemetryEntries.push(
-        { key: "session:vercel_project_id", value: nextLink.projectId },
-        { key: "session:vercel_org_id", value: nextLink.orgId },
-      );
-    }
-  } else if (
-    previousState?.lastSentProjectId !== undefined
-    || previousState?.lastSentOrgId !== undefined
-  ) {
-    telemetryEntries.push(
-      { key: "session:vercel_project_id", value: "" },
-      { key: "session:vercel_org_id", value: "" },
-    );
-  }
-
-  const trackedLink = telemetryEntries.length > 0
-    ? await trackBaseEvents(sessionId, telemetryEntries).catch(() => false)
-    : false;
-
-  writeSessionVercelProjectLinkState(sessionId, buildSessionVercelProjectLinkState({
-    previousState,
-    projectRoot,
-    resolvedAt: now,
-    nextLink,
-    trackedTelemetry: trackedLink,
-  }));
-}
-
 async function main(): Promise<void> {
   const input = parseStdin();
   const sessionId = input ? resolveSessionId(input) : "";
   const prompt = input ? resolvePrompt(input) : "";
   const telemetryOverride = getTelemetryOverride();
-
-  if (telemetryOverride !== "off" && sessionId) {
-    await maybeTrackVercelProjectLink(sessionId, resolveHookProjectRoot(input));
-  }
 
   // Prompt text tracking — opt-in only
   if (isPromptTelemetryEnabled() && sessionId && prompt.length >= MIN_PROMPT_LENGTH) {

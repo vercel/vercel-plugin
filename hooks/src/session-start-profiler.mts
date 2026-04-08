@@ -29,20 +29,10 @@ import {
   setSessionEnv,
   type HookPlatform,
 } from "./compat.mjs";
-import {
-  buildSessionVercelProjectLinkState,
-  pluginRoot,
-  profileCachePath,
-  readSessionVercelProjectLinkState,
-  resolveHookProjectRoot,
-  resolveVercelProjectLink,
-  safeReadJson,
-  writeSessionFile,
-  writeSessionVercelProjectLinkState,
-} from "./hook-env.mjs";
+import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { getOrCreateDeviceId, isBaseTelemetryEnabled, trackBaseEvents } from "./telemetry.mjs";
+import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,6 +58,11 @@ interface BootstrapSignals {
 
 interface GreenfieldResult {
   entries: string[];
+}
+
+interface VercelProjectLink {
+  projectId: string;
+  orgId: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -466,6 +461,58 @@ function checkVercelCli(): VercelCliStatus {
   return { installed: true, currentVersion, latestVersion, needsUpdate };
 }
 
+export function readLinkedVercelProject(projectRoot: string): VercelProjectLink | null {
+  const projectJsonPath = join(projectRoot, ".vercel", "project.json");
+  if (!existsSync(projectJsonPath)) {
+    return null;
+  }
+
+  const project = safeReadJson<Record<string, unknown>>(projectJsonPath);
+  if (!project) {
+    return null;
+  }
+
+  const projectId = typeof project.projectId === "string" && project.projectId.trim() !== ""
+    ? project.projectId
+    : null;
+  const orgId = typeof project.orgId === "string" && project.orgId.trim() !== ""
+    ? project.orgId
+    : null;
+
+  if (!projectId || !orgId) {
+    return null;
+  }
+
+  return { projectId, orgId };
+}
+
+export function buildSessionStartTelemetryEntries(args: {
+  deviceId: string;
+  likelySkills: string[];
+  greenfield: boolean;
+  cliStatus: VercelCliStatus;
+  vercelProjectLink?: VercelProjectLink | null;
+}): Array<{ key: string; value: string }> {
+  const entries = [
+    { key: "session:device_id", value: args.deviceId },
+    { key: "session:platform", value: process.platform },
+    { key: "session:likely_skills", value: args.likelySkills.join(",") },
+    { key: "session:greenfield", value: String(args.greenfield) },
+    { key: "session:vercel_cli_installed", value: String(args.cliStatus.installed) },
+    { key: "session:vercel_cli_version", value: args.cliStatus.currentVersion || "" },
+  ];
+
+  if (args.vercelProjectLink) {
+    entries.push(
+      { key: "session:vercel_project_id", value: args.vercelProjectLink.projectId },
+      { key: "session:vercel_org_id", value: args.vercelProjectLink.orgId },
+    );
+  }
+
+  return entries;
+}
+
+
 // ---------------------------------------------------------------------------
 // Main entry point — profile the project and write env vars.
 // ---------------------------------------------------------------------------
@@ -511,7 +558,7 @@ export function normalizeSessionStartSessionId(input: SessionStartInput | null):
 }
 
 export function resolveSessionStartProjectRoot(env: NodeJS.ProcessEnv = process.env): string {
-  return resolveHookProjectRoot(null, env);
+  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 
 function collectBrokenSkillFrontmatterNames(files: string[]): string[] {
@@ -628,8 +675,7 @@ async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
-  const projectRoot = resolveHookProjectRoot(hookInput as Record<string, unknown> | null);
-  const telemetryEnabled = isBaseTelemetryEnabled();
+  const projectRoot = resolveSessionStartProjectRoot();
 
   logBrokenSkillFrontmatterSummary();
 
@@ -708,41 +754,16 @@ async function main(): Promise<void> {
   }
 
   // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
-  if (sessionId && telemetryEnabled) {
-    const previousVercelProjectLinkState = readSessionVercelProjectLinkState(sessionId);
-    const vercelProjectLink = resolveVercelProjectLink(projectRoot);
-    const telemetryEntries: Array<{ key: string; value: string }> = [
-      { key: "session:device_id", value: getOrCreateDeviceId() },
-      { key: "session:platform", value: process.platform },
-      { key: "session:likely_skills", value: likelySkills.join(",") },
-      { key: "session:greenfield", value: String(greenfield !== null) },
-      { key: "session:vercel_cli_installed", value: String(cliStatus.installed) },
-      { key: "session:vercel_cli_version", value: cliStatus.currentVersion || "" },
-    ];
-
-    if (vercelProjectLink) {
-      telemetryEntries.push(
-        { key: "session:vercel_project_id", value: vercelProjectLink.projectId },
-        { key: "session:vercel_org_id", value: vercelProjectLink.orgId },
-      );
-    } else if (
-      previousVercelProjectLinkState?.lastSentProjectId !== undefined
-      || previousVercelProjectLinkState?.lastSentOrgId !== undefined
-    ) {
-      telemetryEntries.push(
-        { key: "session:vercel_project_id", value: "" },
-        { key: "session:vercel_org_id", value: "" },
-      );
-    }
-
-    const trackedBaseTelemetry = await trackBaseEvents(sessionId, telemetryEntries).catch(() => false);
-    writeSessionVercelProjectLinkState(sessionId, buildSessionVercelProjectLinkState({
-      previousState: previousVercelProjectLinkState,
-      projectRoot,
-      resolvedAt: Date.now(),
-      nextLink: vercelProjectLink,
-      trackedTelemetry: trackedBaseTelemetry,
-    }));
+  if (sessionId) {
+    const deviceId = getOrCreateDeviceId();
+    const vercelProjectLink = readLinkedVercelProject(projectRoot);
+    await trackBaseEvents(sessionId, buildSessionStartTelemetryEntries({
+      deviceId,
+      likelySkills,
+      greenfield: greenfield !== null,
+      cliStatus,
+      vercelProjectLink,
+    })).catch(() => {});
   }
 
   if (cursorOutput) {

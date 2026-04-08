@@ -4,18 +4,9 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { homedir, tmpdir } from "os";
 import { join, dirname } from "path";
-import {
-  buildSessionVercelProjectLinkState,
-  readSessionVercelProjectLinkState,
-  resolveHookProjectRoot,
-  resolveVercelProjectLink,
-  shouldRefreshSessionVercelProjectLink,
-  writeSessionVercelProjectLinkState
-} from "./hook-env.mjs";
-import { getTelemetryOverride, isPromptTelemetryEnabled, trackBaseEvents, trackEvents } from "./telemetry.mjs";
+import { getTelemetryOverride, isPromptTelemetryEnabled, trackEvents } from "./telemetry.mjs";
 var PREF_PATH = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
 var MIN_PROMPT_LENGTH = 10;
-var VERCEL_PROJECT_LINK_REFRESH_MS = 60 * 60 * 1e3;
 function parseStdin() {
   try {
     const raw = readFileSync(0, "utf-8").trim();
@@ -31,44 +22,11 @@ function resolveSessionId(input) {
 function resolvePrompt(input) {
   return input.prompt || input.message || "";
 }
-async function maybeTrackVercelProjectLink(sessionId, projectRoot) {
-  const now = Date.now();
-  const previousState = readSessionVercelProjectLinkState(sessionId);
-  if (!shouldRefreshSessionVercelProjectLink(previousState, projectRoot, now, VERCEL_PROJECT_LINK_REFRESH_MS)) {
-    return;
-  }
-  const nextLink = resolveVercelProjectLink(projectRoot);
-  const telemetryEntries = [];
-  if (nextLink) {
-    if (previousState?.lastSentProjectId !== nextLink.projectId || previousState?.lastSentOrgId !== nextLink.orgId) {
-      telemetryEntries.push(
-        { key: "session:vercel_project_id", value: nextLink.projectId },
-        { key: "session:vercel_org_id", value: nextLink.orgId }
-      );
-    }
-  } else if (previousState?.lastSentProjectId !== void 0 || previousState?.lastSentOrgId !== void 0) {
-    telemetryEntries.push(
-      { key: "session:vercel_project_id", value: "" },
-      { key: "session:vercel_org_id", value: "" }
-    );
-  }
-  const trackedLink = telemetryEntries.length > 0 ? await trackBaseEvents(sessionId, telemetryEntries).catch(() => false) : false;
-  writeSessionVercelProjectLinkState(sessionId, buildSessionVercelProjectLinkState({
-    previousState,
-    projectRoot,
-    resolvedAt: now,
-    nextLink,
-    trackedTelemetry: trackedLink
-  }));
-}
 async function main() {
   const input = parseStdin();
   const sessionId = input ? resolveSessionId(input) : "";
   const prompt = input ? resolvePrompt(input) : "";
   const telemetryOverride = getTelemetryOverride();
-  if (telemetryOverride !== "off" && sessionId) {
-    await maybeTrackVercelProjectLink(sessionId, resolveHookProjectRoot(input));
-  }
   if (isPromptTelemetryEnabled() && sessionId && prompt.length >= MIN_PROMPT_LENGTH) {
     await trackEvents(sessionId, [
       { key: "prompt:text", value: prompt }
