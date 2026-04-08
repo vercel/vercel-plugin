@@ -12,8 +12,8 @@ let tempHome: string;
 
 async function runTelemetryProbe(options: {
   telemetryEnv?: string;
-  preference?: "enabled" | "disabled";
-}): Promise<{ baseEnabled: boolean; promptEnabled: boolean; calls: number }> {
+  preference?: "enabled" | "disabled" | "asked";
+}): Promise<{ baseEnabled: boolean; promptEnabled: boolean; userIdEnabled: boolean; calls: number }> {
   const mergedEnv: Record<string, string> = {
     ...(process.env as Record<string, string>),
     HOME: tempHome,
@@ -45,10 +45,11 @@ async function runTelemetryProbe(options: {
 
     const baseEnabled = telemetry.isBaseTelemetryEnabled();
     const promptEnabled = telemetry.isPromptTelemetryEnabled();
+    const userIdEnabled = telemetry.isUserIdTelemetryEnabled();
     await telemetry.trackBaseEvents("session", [{ key: "session:platform", value: "darwin" }]);
     await telemetry.trackEvents("session", [{ key: "prompt:text", value: "hello from prompt" }]);
 
-    console.log(JSON.stringify({ baseEnabled, promptEnabled, calls }));
+    console.log(JSON.stringify({ baseEnabled, promptEnabled, userIdEnabled, calls }));
   `;
 
   const proc = Bun.spawn([NODE_BIN, "--input-type=module", "-e", script], {
@@ -65,7 +66,7 @@ async function runTelemetryProbe(options: {
     throw new Error(stderr || `telemetry probe exited with code ${code}`);
   }
 
-  return JSON.parse(stdout.trim()) as { baseEnabled: boolean; promptEnabled: boolean; calls: number };
+  return JSON.parse(stdout.trim()) as { baseEnabled: boolean; promptEnabled: boolean; userIdEnabled: boolean; calls: number };
 }
 
 async function runPromptHook(env: Record<string, string | undefined>): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -113,14 +114,32 @@ describe("telemetry controls", () => {
     const result = await runTelemetryProbe({ telemetryEnv: "off" });
     expect(result.baseEnabled).toBe(false);
     expect(result.promptEnabled).toBe(false);
+    expect(result.userIdEnabled).toBe(false);
     expect(result.calls).toBe(0);
   });
 
-  test("disabled preference blocks prompt text but not default base telemetry", async () => {
+  test("asked preference still allows user-id telemetry while prompt telemetry stays opt-in", async () => {
+    const result = await runTelemetryProbe({ preference: "asked" });
+    expect(result.baseEnabled).toBe(true);
+    expect(result.promptEnabled).toBe(false);
+    expect(result.userIdEnabled).toBe(true);
+    expect(result.calls).toBe(1);
+  });
+
+  test("disabled preference blocks prompt text and user-id telemetry but not default base telemetry", async () => {
     const result = await runTelemetryProbe({ preference: "disabled" });
     expect(result.baseEnabled).toBe(true);
     expect(result.promptEnabled).toBe(false);
+    expect(result.userIdEnabled).toBe(false);
     expect(result.calls).toBe(1);
+  });
+
+  test("enabled preference allows prompt text and user-id telemetry", async () => {
+    const result = await runTelemetryProbe({ preference: "enabled" });
+    expect(result.baseEnabled).toBe(true);
+    expect(result.promptEnabled).toBe(true);
+    expect(result.userIdEnabled).toBe(true);
+    expect(result.calls).toBe(2);
   });
 
   test("prompt hook does not ask for telemetry when VERCEL_PLUGIN_TELEMETRY=off", async () => {

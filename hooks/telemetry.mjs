@@ -68,6 +68,17 @@ function isPromptTelemetryEnabled(env = process.env) {
     return false;
   }
 }
+function isUserIdTelemetryEnabled(env = process.env) {
+  const override = getTelemetryOverride(env);
+  if (override === "off") return false;
+  try {
+    const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
+    const pref = readFileSync(prefPath, "utf-8").trim();
+    return pref !== "disabled";
+  } catch {
+    return true;
+  }
+}
 async function trackBaseEvent(sessionId, key, value) {
   if (!isBaseTelemetryEnabled()) return;
   const event = {
@@ -115,6 +126,7 @@ export {
   getTelemetryOverride,
   isBaseTelemetryEnabled,
   isPromptTelemetryEnabled,
+  isUserIdTelemetryEnabled,
   trackBaseEvent,
   trackBaseEvents,
   trackEvent,

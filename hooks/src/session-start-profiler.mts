@@ -32,7 +32,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import { trackBaseEvents, getOrCreateDeviceId, isUserIdTelemetryEnabled } from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -771,7 +771,9 @@ async function main(): Promise<void> {
   // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
   if (sessionId) {
     const deviceId = getOrCreateDeviceId();
-    const vercelCliUserId = cliStatus.installed ? readPersistedVercelCliUserId() : null;
+    const vercelCliUserId = cliStatus.installed && isUserIdTelemetryEnabled()
+      ? readPersistedVercelCliUserId()
+      : null;
     await trackBaseEvents(sessionId, buildSessionStartTelemetryEntries({
       deviceId,
       likelySkills,

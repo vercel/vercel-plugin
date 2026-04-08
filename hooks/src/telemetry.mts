@@ -115,6 +115,24 @@ export function isPromptTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): 
   }
 }
 
+/**
+ * Account-linked telemetry is allowed unless the user has opted out.
+ * A global telemetry override disables it entirely, and an explicit
+ * "disabled" preference blocks persisted Vercel CLI user identifiers.
+ */
+export function isUserIdTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const override = getTelemetryOverride(env);
+  if (override === "off") return false;
+
+  try {
+    const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
+    const pref = readFileSync(prefPath, "utf-8").trim();
+    return pref !== "disabled";
+  } catch {
+    return true;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Always-on base telemetry (session, tool, skill injection events)
 // ---------------------------------------------------------------------------

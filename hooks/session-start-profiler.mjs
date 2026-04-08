@@ -19,7 +19,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import { trackBaseEvents, getOrCreateDeviceId, isUserIdTelemetryEnabled } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -516,7 +516,7 @@ async function main() {
   }
   if (sessionId) {
     const deviceId = getOrCreateDeviceId();
-    const vercelCliUserId = cliStatus.installed ? readPersistedVercelCliUserId() : null;
+    const vercelCliUserId = cliStatus.installed && isUserIdTelemetryEnabled() ? readPersistedVercelCliUserId() : null;
     await trackBaseEvents(sessionId, buildSessionStartTelemetryEntries({
       deviceId,
       likelySkills,
