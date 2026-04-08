@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   chmodSync,
   existsSync,
@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { readSessionFile } from "../hooks/src/hook-env.mts";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -21,7 +21,13 @@ let testSessionId: string;
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function runProfiler(env: Record<string, string | undefined>): Promise<{
+async function runProfiler(
+  env: Record<string, string | undefined>,
+  options?: {
+    input?: Record<string, unknown>;
+    nodeArgs?: string[];
+  },
+): Promise<{
   code: number;
   stdout: string;
   stderr: string;
@@ -38,14 +44,14 @@ async function runProfiler(env: Record<string, string | undefined>): Promise<{
     mergedEnv[key] = value;
   }
 
-  const proc = Bun.spawn([NODE_BIN, PROFILER], {
+  const proc = Bun.spawn([NODE_BIN, ...(options?.nodeArgs ?? []), PROFILER], {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
     env: mergedEnv,
   });
 
-  proc.stdin.write(JSON.stringify({ session_id: testSessionId }));
+  proc.stdin.write(JSON.stringify(options?.input ?? { session_id: testSessionId }));
   proc.stdin.end();
 
   const code = await proc.exited;
@@ -69,10 +75,62 @@ function readGreenfieldState(): string {
   return readSessionFile(testSessionId, "greenfield");
 }
 
-function makeMockCommand(binDir: string, commandName: string, body: string): void {
+function makeMockCommand(
+  binDir: string,
+  commandName: string,
+  options: {
+    stdoutLine?: string;
+    exitCode?: number;
+    sleepSeconds?: number;
+  },
+): void {
+  if (process.platform === "win32") {
+    const commandPath = join(binDir, `${commandName}.cmd`);
+    const lines = ["@echo off"];
+
+    if (options.sleepSeconds) {
+      lines.push(`powershell -NoProfile -Command "Start-Sleep -Seconds ${options.sleepSeconds}"`);
+    }
+    if (options.stdoutLine) {
+      lines.push(`echo ${options.stdoutLine}`);
+    }
+
+    lines.push(`exit /b ${options.exitCode ?? 0}`);
+    writeFileSync(commandPath, `${lines.join("\r\n")}\r\n`, "utf-8");
+    return;
+  }
+
+  const lines = ["#!/bin/sh"];
+
+  if (options.sleepSeconds) {
+    lines.push(`sleep ${options.sleepSeconds}`);
+  }
+  if (options.stdoutLine) {
+    const escapedLine = options.stdoutLine.replace(/'/g, `'\\''`);
+    lines.push(`printf '%s\\n' '${escapedLine}'`);
+  }
+
+  lines.push(`exit ${options.exitCode ?? 0}`);
+
   const commandPath = join(binDir, commandName);
-  writeFileSync(commandPath, `#!/bin/sh\n${body}\n`, "utf-8");
+  writeFileSync(commandPath, `${lines.join("\n")}\n`, "utf-8");
   chmodSync(commandPath, 0o755);
+}
+
+function createTelemetryPreload(capturePath: string): string {
+  const preloadPath = join(tempDir, `mock-fetch-${Math.random().toString(36).slice(2)}.mjs`);
+  writeFileSync(preloadPath, `
+import { writeFileSync } from "node:fs";
+
+globalThis.fetch = async (_url, init) => {
+  writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify({
+    headers: init?.headers,
+    body: typeof init?.body === "string" ? init.body : null,
+  }), "utf-8");
+  return new Response(null, { status: 204 });
+};
+`, "utf-8");
+  return preloadPath;
 }
 
 // ---------------------------------------------------------------------------
@@ -570,6 +628,52 @@ describe("session-start-profiler", () => {
     expect(readGreenfieldState()).toBe("true");
   });
 
+  test("uses the hook payload root for linked project telemetry", async () => {
+    const envProjectDir = join(tempDir, "env-project-root");
+    const payloadProjectDir = join(tempDir, "payload-project-root");
+    const capturePath = join(tempDir, "session-start-telemetry.json");
+    const binDir = join(tempDir, "empty-bin");
+    mkdirSync(join(envProjectDir, ".vercel"), { recursive: true });
+    mkdirSync(join(payloadProjectDir, ".vercel"), { recursive: true });
+    mkdirSync(binDir);
+    writeFileSync(
+      join(envProjectDir, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_env", orgId: "team_env" }),
+      "utf-8",
+    );
+    writeFileSync(
+      join(payloadProjectDir, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_payload", orgId: "team_payload" }),
+      "utf-8",
+    );
+    const preloadPath = createTelemetryPreload(capturePath);
+
+    const result = await runProfiler(
+      {
+        CLAUDE_ENV_FILE: envFile,
+        CLAUDE_PROJECT_ROOT: envProjectDir,
+        PATH: binDir,
+      },
+      {
+        input: {
+          session_id: testSessionId,
+          cwd: payloadProjectDir,
+        },
+        nodeArgs: ["--import", preloadPath],
+      },
+    );
+
+    expect(result.code).toBe(0);
+    const captured = JSON.parse(readFileSync(capturePath, "utf-8")) as {
+      body: string;
+    };
+    const events = JSON.parse(captured.body) as Array<{ key: string; value: string }>;
+    expect(events.some((event) => event.key === "session:vercel_project_id" && event.value === "prj_payload")).toBe(true);
+    expect(events.some((event) => event.key === "session:vercel_org_id" && event.value === "team_payload")).toBe(true);
+    expect(events.some((event) => event.key === "session:vercel_project_id" && event.value === "prj_env")).toBe(false);
+    expect(events.some((event) => event.key === "session:vercel_org_id" && event.value === "team_env")).toBe(false);
+  });
+
   test("hooks.json registers profiler after seen-skills init", () => {
     const hooksJson = JSON.parse(
       readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8"),
@@ -602,13 +706,13 @@ describe("session-start-profiler", () => {
     const binDir = join(tempDir, "mock-bin");
     mkdirSync(projectDir);
     mkdirSync(binDir);
-    makeMockCommand(binDir, "vercel", "printf 'Vercel CLI 1.9.0\\n'");
-    makeMockCommand(binDir, "npm", "printf '1.10.0\\n'");
+    makeMockCommand(binDir, "vercel", { stdoutLine: "Vercel CLI 1.9.0" });
+    makeMockCommand(binDir, "npm", { stdoutLine: "1.10.0" });
 
     const result = await runProfiler({
       CLAUDE_ENV_FILE: envFile,
       CLAUDE_PROJECT_ROOT: projectDir,
-      PATH: `${binDir}:${process.env.PATH || ""}`,
+      PATH: `${binDir}${delimiter}${process.env.PATH || ""}`,
     });
 
     expect(result.code).toBe(0);
@@ -624,7 +728,7 @@ describe("session-start-profiler", () => {
     const binDir = join(tempDir, "missing-npm-bin");
     mkdirSync(projectDir);
     mkdirSync(binDir);
-    makeMockCommand(binDir, "vercel", "printf 'Vercel CLI 44.0.0\\n'");
+    makeMockCommand(binDir, "vercel", { stdoutLine: "Vercel CLI 44.0.0" });
 
     const result = await runProfiler({
       CLAUDE_ENV_FILE: envFile,
@@ -644,13 +748,13 @@ describe("session-start-profiler", () => {
     const binDir = join(tempDir, "slow-vercel-bin");
     mkdirSync(projectDir);
     mkdirSync(binDir);
-    makeMockCommand(binDir, "vercel", "sleep 5");
+    makeMockCommand(binDir, "vercel", { sleepSeconds: 5 });
 
     const startedAt = Date.now();
     const result = await runProfiler({
       CLAUDE_ENV_FILE: envFile,
       CLAUDE_PROJECT_ROOT: projectDir,
-      PATH: `${binDir}:${process.env.PATH || ""}`,
+      PATH: `${binDir}${delimiter}${process.env.PATH || ""}`,
       VERCEL_PLUGIN_LOG_LEVEL: "debug",
     });
     const durationMs = Date.now() - startedAt;
@@ -663,7 +767,7 @@ describe("session-start-profiler", () => {
   test("emits debug logs when swallowed profiler errors occur", async () => {
     const binDir = join(tempDir, "debug-bin");
     mkdirSync(binDir);
-    makeMockCommand(binDir, "vercel", "exit 1");
+    makeMockCommand(binDir, "vercel", { exitCode: 1 });
 
     const result = await runProfiler({
       CLAUDE_ENV_FILE: join(tempDir, "missing-dir", "claude.env"),
@@ -801,6 +905,15 @@ describe("session-start telemetry helpers (unit)", () => {
     });
   });
 
+  test("ignores malformed linked Vercel project metadata", async () => {
+    const { readLinkedVercelProject } = await import("../hooks/session-start-profiler.mjs");
+    const projectDir = join(tempDir, "unit-vercel-link-malformed");
+    mkdirSync(join(projectDir, ".vercel"), { recursive: true });
+    writeFileSync(join(projectDir, ".vercel", "project.json"), "{not valid json", "utf-8");
+
+    expect(readLinkedVercelProject(projectDir)).toBeNull();
+  });
+
   test("ignores incomplete linked Vercel project metadata", async () => {
     const { readLinkedVercelProject } = await import("../hooks/session-start-profiler.mjs");
     const projectDir = join(tempDir, "unit-vercel-link-incomplete");
@@ -853,6 +966,36 @@ describe("session-start telemetry helpers (unit)", () => {
     });
     expect(withoutLink.find((entry) => entry.key === "session:vercel_project_id")).toBeUndefined();
     expect(withoutLink.find((entry) => entry.key === "session:vercel_org_id")).toBeUndefined();
+  });
+
+  test("skips linked project lookup when base telemetry is disabled", async () => {
+    const { trackSessionStartTelemetry } = await import("../hooks/session-start-profiler.mjs");
+    let readProjectLinkCalls = 0;
+    let trackEventsCalls = 0;
+
+    await trackSessionStartTelemetry({
+      sessionId: "session-disabled-telemetry",
+      projectRoot: join(tempDir, "telemetry-off-project"),
+      likelySkills: ["nextjs"],
+      greenfield: false,
+      cliStatus: {
+        installed: true,
+        currentVersion: "44.7.3",
+        needsUpdate: false,
+      },
+      telemetryEnabled: false,
+      getDeviceId: () => "device_123",
+      readProjectLink: () => {
+        readProjectLinkCalls += 1;
+        return { projectId: "prj_123", orgId: "team_456" };
+      },
+      trackEvents: async () => {
+        trackEventsCalls += 1;
+      },
+    });
+
+    expect(readProjectLinkCalls).toBe(0);
+    expect(trackEventsCalls).toBe(0);
   });
 });
 

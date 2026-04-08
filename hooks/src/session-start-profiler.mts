@@ -32,7 +32,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import { getOrCreateDeviceId, isBaseTelemetryEnabled, trackBaseEvents } from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -512,6 +512,35 @@ export function buildSessionStartTelemetryEntries(args: {
   return entries;
 }
 
+export async function trackSessionStartTelemetry(args: {
+  sessionId: string;
+  projectRoot: string;
+  likelySkills: string[];
+  greenfield: boolean;
+  cliStatus: VercelCliStatus;
+  telemetryEnabled?: boolean;
+  getDeviceId?: () => string;
+  readProjectLink?: (projectRoot: string) => VercelProjectLink | null;
+  trackEvents?: typeof trackBaseEvents;
+}): Promise<void> {
+  if (!(args.telemetryEnabled ?? isBaseTelemetryEnabled())) {
+    return;
+  }
+
+  const deviceId = (args.getDeviceId ?? getOrCreateDeviceId)();
+  const vercelProjectLink = (args.readProjectLink ?? readLinkedVercelProject)(args.projectRoot);
+
+  await (args.trackEvents ?? trackBaseEvents)(
+    args.sessionId,
+    buildSessionStartTelemetryEntries({
+      deviceId,
+      likelySkills: args.likelySkills,
+      greenfield: args.greenfield,
+      cliStatus: args.cliStatus,
+      vercelProjectLink,
+    }),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Main entry point — profile the project and write env vars.
@@ -557,8 +586,23 @@ export function normalizeSessionStartSessionId(input: SessionStartInput | null):
   return sessionId || null;
 }
 
-export function resolveSessionStartProjectRoot(env: NodeJS.ProcessEnv = process.env): string {
-  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+function nonEmptySessionStartPath(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+export function resolveSessionStartProjectRoot(
+  input: SessionStartInput | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const workspaceRoot = Array.isArray(input?.workspace_roots)
+    ? input.workspace_roots.find((entry) => typeof entry === "string" && entry.trim() !== "")
+    : null;
+
+  return nonEmptySessionStartPath(input?.cwd)
+    ?? workspaceRoot
+    ?? nonEmptySessionStartPath(env.CLAUDE_PROJECT_ROOT)
+    ?? nonEmptySessionStartPath(env.CURSOR_PROJECT_DIR)
+    ?? process.cwd();
 }
 
 function collectBrokenSkillFrontmatterNames(files: string[]): string[] {
@@ -675,7 +719,7 @@ async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
-  const projectRoot = resolveSessionStartProjectRoot();
+  const projectRoot = resolveSessionStartProjectRoot(hookInput);
 
   logBrokenSkillFrontmatterSummary();
 
@@ -755,15 +799,13 @@ async function main(): Promise<void> {
 
   // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
   if (sessionId) {
-    const deviceId = getOrCreateDeviceId();
-    const vercelProjectLink = readLinkedVercelProject(projectRoot);
-    await trackBaseEvents(sessionId, buildSessionStartTelemetryEntries({
-      deviceId,
+    await trackSessionStartTelemetry({
+      sessionId,
+      projectRoot,
       likelySkills,
       greenfield: greenfield !== null,
       cliStatus,
-      vercelProjectLink,
-    })).catch(() => {});
+    }).catch(() => {});
   }
 
   if (cursorOutput) {

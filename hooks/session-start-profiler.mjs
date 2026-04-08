@@ -18,7 +18,7 @@ import {
 import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import { getOrCreateDeviceId, isBaseTelemetryEnabled, trackBaseEvents } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -330,6 +330,23 @@ function buildSessionStartTelemetryEntries(args) {
   }
   return entries;
 }
+async function trackSessionStartTelemetry(args) {
+  if (!(args.telemetryEnabled ?? isBaseTelemetryEnabled())) {
+    return;
+  }
+  const deviceId = (args.getDeviceId ?? getOrCreateDeviceId)();
+  const vercelProjectLink = (args.readProjectLink ?? readLinkedVercelProject)(args.projectRoot);
+  await (args.trackEvents ?? trackBaseEvents)(
+    args.sessionId,
+    buildSessionStartTelemetryEntries({
+      deviceId,
+      likelySkills: args.likelySkills,
+      greenfield: args.greenfield,
+      cliStatus: args.cliStatus,
+      vercelProjectLink
+    })
+  );
+}
 function parseSessionStartInput(raw) {
   try {
     if (!raw.trim()) return null;
@@ -352,8 +369,12 @@ function normalizeSessionStartSessionId(input) {
   const sessionId = normalizeInput(input).sessionId;
   return sessionId || null;
 }
-function resolveSessionStartProjectRoot(env = process.env) {
-  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+function nonEmptySessionStartPath(value) {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+function resolveSessionStartProjectRoot(input, env = process.env) {
+  const workspaceRoot = Array.isArray(input?.workspace_roots) ? input.workspace_roots.find((entry) => typeof entry === "string" && entry.trim() !== "") : null;
+  return nonEmptySessionStartPath(input?.cwd) ?? workspaceRoot ?? nonEmptySessionStartPath(env.CLAUDE_PROJECT_ROOT) ?? nonEmptySessionStartPath(env.CURSOR_PROJECT_DIR) ?? process.cwd();
 }
 function collectBrokenSkillFrontmatterNames(files) {
   return [...new Set(
@@ -441,7 +462,7 @@ async function main() {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
-  const projectRoot = resolveSessionStartProjectRoot();
+  const projectRoot = resolveSessionStartProjectRoot(hookInput);
   logBrokenSkillFrontmatterSummary();
   const greenfield = checkGreenfield(projectRoot);
   const cliStatus = checkVercelCli();
@@ -502,15 +523,13 @@ async function main() {
     }
   }
   if (sessionId) {
-    const deviceId = getOrCreateDeviceId();
-    const vercelProjectLink = readLinkedVercelProject(projectRoot);
-    await trackBaseEvents(sessionId, buildSessionStartTelemetryEntries({
-      deviceId,
+    await trackSessionStartTelemetry({
+      sessionId,
+      projectRoot,
       likelySkills,
       greenfield: greenfield !== null,
-      cliStatus,
-      vercelProjectLink
-    })).catch(() => {
+      cliStatus
+    }).catch(() => {
     });
   }
   if (cursorOutput) {
@@ -536,5 +555,6 @@ export {
   profileBootstrapSignals,
   profileProject,
   readLinkedVercelProject,
-  resolveSessionStartProjectRoot
+  resolveSessionStartProjectRoot,
+  trackSessionStartTelemetry
 };
