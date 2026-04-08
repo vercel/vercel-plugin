@@ -132,8 +132,7 @@ function removeSessionClaimDir(sessionId, kind, scopeId) {
 }
 var CLEARABLE_SESSION_KINDS = /* @__PURE__ */ new Set([
   "seen-skills",
-  "seen-context-chunks",
-  "vercel-project-link"
+  "seen-context-chunks"
 ]);
 function removeAllSessionDedupArtifacts(sessionId) {
   const result = { removedFiles: 0, removedDirs: 0 };

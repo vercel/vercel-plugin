@@ -6,7 +6,6 @@ import { join, resolve, sep } from "node:path";
 import {
   dedupClaimDirPath,
   dedupFilePath,
-  removeAllSessionDedupArtifacts,
   removeSessionClaimDir,
   tryClaimSessionKey,
 } from "../hooks/src/hook-env.mts";
@@ -114,7 +113,7 @@ describe("session-start-seen-skills hook", () => {
     });
   });
 
-  test("test_clear_event_wipes_claim_dir_and_session_file", async () => {
+  test("test_clear_event_wipes_dedup_state_but_preserves_project_link_state", async () => {
     const sessionId = `test-clear-${Date.now()}`;
 
     try {
@@ -145,12 +144,12 @@ describe("session-start-seen-skills hook", () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toBe("");
 
-      // Both claim dir and session file should be gone
+      // Dedup claim dirs/files should be gone, but project link state should remain
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-context-chunks"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-context-chunks"))).toBe(false);
-      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(false);
+      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(true);
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
       rmSync(dedupClaimDirPath(sessionId, "seen-context-chunks"), { recursive: true, force: true });
@@ -160,7 +159,7 @@ describe("session-start-seen-skills hook", () => {
     }
   });
 
-  test("test_compact_event_wipes_claim_dir_and_session_file", async () => {
+  test("test_compact_event_wipes_dedup_state_but_preserves_project_link_state", async () => {
     const sessionId = `test-compact-${Date.now()}`;
 
     try {
@@ -180,7 +179,7 @@ describe("session-start-seen-skills hook", () => {
       expect(result.code).toBe(0);
       expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(false);
       expect(existsSync(dedupFilePath(sessionId, "seen-skills"))).toBe(false);
-      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(false);
+      expect(existsSync(dedupFilePath(sessionId, "vercel-project-link"))).toBe(true);
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}

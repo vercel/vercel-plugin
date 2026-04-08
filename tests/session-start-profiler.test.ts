@@ -680,6 +680,55 @@ describe("session-start-profiler", () => {
     expect(readVercelProjectLinkState()?.lastResolvedAt).toEqual(expect.any(Number));
   });
 
+  test("prefers payload cwd over stale env roots when resolving linked Vercel project telemetry", async () => {
+    const staleRoot = join(tempDir, "stale-linked-root");
+    const currentRoot = join(tempDir, "current-linked-root");
+    mkdirSync(join(staleRoot, ".vercel"), { recursive: true });
+    mkdirSync(join(currentRoot, ".vercel"), { recursive: true });
+    writeFileSync(
+      join(staleRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_stale", orgId: "team_stale" }),
+    );
+    writeFileSync(
+      join(currentRoot, ".vercel", "project.json"),
+      JSON.stringify({ projectId: "prj_current", orgId: "team_current" }),
+    );
+
+    const result = await runProfilerWithCapture({
+      env: {
+        CLAUDE_ENV_FILE: envFile,
+        CLAUDE_PROJECT_ROOT: staleRoot,
+      },
+      payload: {
+        session_id: testSessionId,
+        cwd: currentRoot,
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.requests).toHaveLength(1);
+    const trackedEntries = parseTrackedEntries(result.requests[0].body);
+    expect(trackedEntries).toContainEqual({
+      key: "session:vercel_project_id",
+      value: "prj_current",
+    });
+    expect(trackedEntries).toContainEqual({
+      key: "session:vercel_org_id",
+      value: "team_current",
+    });
+    expect(trackedEntries).not.toContainEqual({
+      key: "session:vercel_project_id",
+      value: "prj_stale",
+    });
+    expect(readVercelProjectLinkState()).toMatchObject({
+      lastResolvedRoot: currentRoot,
+      projectId: "prj_current",
+      orgId: "team_current",
+      lastSentProjectId: "prj_current",
+      lastSentOrgId: "team_current",
+    });
+  });
+
   test("replaces stale linked Vercel project state when current project is unlinked", async () => {
     const projectDir = join(tempDir, "unlinked-project");
     mkdirSync(projectDir);

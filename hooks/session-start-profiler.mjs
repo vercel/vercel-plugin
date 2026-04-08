@@ -19,6 +19,7 @@ import {
   pluginRoot,
   profileCachePath,
   readSessionVercelProjectLinkState,
+  resolveHookProjectRoot,
   resolveVercelProjectLink,
   safeReadJson,
   writeSessionFile,
@@ -328,7 +329,7 @@ function normalizeSessionStartSessionId(input) {
   return sessionId || null;
 }
 function resolveSessionStartProjectRoot(env = process.env) {
-  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+  return resolveHookProjectRoot(null, env);
 }
 function collectBrokenSkillFrontmatterNames(files) {
   return [...new Set(
@@ -416,7 +417,7 @@ async function main() {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
-  const projectRoot = resolveSessionStartProjectRoot();
+  const projectRoot = resolveHookProjectRoot(hookInput);
   const previousVercelProjectLinkState = sessionId ? readSessionVercelProjectLinkState(sessionId) : null;
   const vercelProjectLink = resolveVercelProjectLink(projectRoot);
   const vercelProjectLinkResolvedAt = Date.now();

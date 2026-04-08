@@ -220,7 +220,6 @@ export interface RemoveArtifactsResult {
 const CLEARABLE_SESSION_KINDS = new Set([
   "seen-skills",
   "seen-context-chunks",
-  "vercel-project-link",
 ]);
 
 export function removeAllSessionDedupArtifacts(sessionId: string): RemoveArtifactsResult {
