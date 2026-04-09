@@ -1,0 +1,29 @@
+{
+  "name": "vercel-labs",
+  "owner": {
+    "name": "Vercel Labs"
+  },
+  "plugins": [
+    {
+      "name": "vercel-plugin",
+      "source": "./",
+      "description": "Build and deploy web apps and agents",
+      "version": "0.32.3",
+      "author": {
+        "name": "Vercel Labs"
+      },
+      "repository": "https://github.com/vercel/vercel-plugin",
+      "license": "Apache-2.0",
+      "keywords": [
+        "vercel",
+        "nextjs",
+        "ai-sdk",
+        "turborepo",
+        "turbopack",
+        "workflow",
+        "deployment",
+        "serverless"
+      ]
+    }
+  ]
+}
