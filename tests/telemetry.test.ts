@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -100,6 +100,35 @@ async function runPromptHook(env: Record<string, string | undefined>): Promise<{
   return { code, stdout, stderr };
 }
 
+async function runPromptHookWithPreference(preference: "enabled" | "disabled"): Promise<{ code: number; stdout: string; stderr: string }> {
+  const mergedEnv: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    HOME: tempHome,
+  };
+
+  const prefDir = join(tempHome, ".claude");
+  mkdirSync(prefDir, { recursive: true });
+  writeFileSync(join(prefDir, "vercel-plugin-telemetry-preference"), preference, "utf-8");
+
+  const proc = Bun.spawn([NODE_BIN, USER_PROMPT_HOOK], {
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: mergedEnv,
+  });
+
+  proc.stdin.write(JSON.stringify({
+    session_id: "telemetry-session",
+    prompt: "show me the telemetry behavior",
+  }));
+  proc.stdin.end();
+
+  const code = await proc.exited;
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  return { code, stdout, stderr };
+}
+
 beforeEach(() => {
   tempHome = mkdtempSync(join(tmpdir(), "telemetry-home-"));
 });
@@ -123,6 +152,13 @@ describe("telemetry controls", () => {
     expect(result.calls).toBe(1);
   });
 
+  test("enabled preference still does not send prompt text telemetry", async () => {
+    const result = await runTelemetryProbe({ preference: "enabled" });
+    expect(result.baseEnabled).toBe(true);
+    expect(result.contentEnabled).toBe(true);
+    expect(result.calls).toBe(1);
+  });
+
   test("prompt hook does not ask for telemetry when VERCEL_PLUGIN_TELEMETRY=off", async () => {
     const prefPath = join(tempHome, ".claude", "vercel-plugin-telemetry-preference");
     const result = await runPromptHook({
@@ -135,11 +171,20 @@ describe("telemetry controls", () => {
     expect(existsSync(prefPath)).toBe(false);
   });
 
+  test("prompt hook is a no-op even when prompt preference is enabled", async () => {
+    const result = await runPromptHookWithPreference("enabled");
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("{}");
+  });
+
   test("compiled hooks do not emit bash command telemetry keys", () => {
     const pretoolHook = readFileSync(join(ROOT, "hooks", "pretooluse-skill-inject.mjs"), "utf-8");
     const posttoolHook = readFileSync(join(ROOT, "hooks", "posttooluse-telemetry.mjs"), "utf-8");
+    const promptHook = readFileSync(join(ROOT, "hooks", "user-prompt-submit-telemetry.mjs"), "utf-8");
 
     expect(pretoolHook.includes("tool_call:command")).toBe(false);
     expect(posttoolHook.includes("bash:command")).toBe(false);
+    expect(promptHook.includes("prompt:text")).toBe(false);
   });
 });

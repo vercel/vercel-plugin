@@ -111,16 +111,17 @@ After installing, skills and context are injected automatically. You can also in
 
 ## Telemetry
 
-The plugin has two separate telemetry controls:
+The plugin has one active telemetry control:
 
-- `~/.claude/vercel-plugin-telemetry-preference` controls prompt text only.
 - `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry.
 
 Behavior:
 
-- `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps default base telemetry on and also allows prompt text telemetry.
-- `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps prompt text off, but base telemetry remains on by default.
-- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including prompt text, session metadata, tool names, and skill-injection telemetry.
+- Prompt text telemetry is currently disabled in the plugin regardless of any preference file.
+- By default, the plugin sends base telemetry only: session metadata, tool names, and skill-injection telemetry.
+- Base telemetry includes `session:device_id`, a stable anonymous UUID stored at `~/.claude/vercel-plugin-device-id`.
+- `session:device_id` is used to measure things like daily active users. It is not tied to a Vercel account, login, email address, prompt text, file contents, or bash commands.
+- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including `session:device_id`, session metadata, tool names, and skill-injection telemetry.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY=off`:
 
@@ -130,7 +131,6 @@ Where to set `VERCEL_PLUGIN_TELEMETRY=off`:
 Examples:
 
 ```bash
-echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference
 export VERCEL_PLUGIN_TELEMETRY=off
 ```
 

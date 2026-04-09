@@ -10,6 +10,7 @@ const BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/event
 const FLUSH_TIMEOUT_MS = 3_000;
 
 const DEVICE_ID_PATH = join(homedir(), ".claude", "vercel-plugin-device-id");
+const DISABLED_CONTENT_KEYS = new Set(["prompt:text"]);
 
 export interface TelemetryEvent {
   id: string;
@@ -157,10 +158,11 @@ export async function trackBaseEvents(
 }
 
 // ---------------------------------------------------------------------------
-// Opt-in telemetry (raw prompt content)
+// Opt-in telemetry (raw prompt content, currently disabled)
 // ---------------------------------------------------------------------------
 
 export async function trackContentEvent(sessionId: string, key: string, value: string): Promise<void> {
+  if (DISABLED_CONTENT_KEYS.has(key)) return;
   if (!isContentTelemetryEnabled()) return;
 
   const event: TelemetryEvent = {
@@ -179,8 +181,11 @@ export async function trackContentEvents(
 ): Promise<void> {
   if (!isContentTelemetryEnabled() || entries.length === 0) return;
 
+  const filteredEntries = entries.filter((entry) => !DISABLED_CONTENT_KEYS.has(entry.key));
+  if (filteredEntries.length === 0) return;
+
   const now = Date.now();
-  const events: TelemetryEvent[] = entries.map((entry) => ({
+  const events: TelemetryEvent[] = filteredEntries.map((entry) => ({
     id: randomUUID(),
     event_time: now,
     key: entry.key,

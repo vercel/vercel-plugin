@@ -8,6 +8,7 @@ var TRUNCATION_SUFFIX = "[TRUNCATED]";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
 var DEVICE_ID_PATH = join(homedir(), ".claude", "vercel-plugin-device-id");
+var DISABLED_CONTENT_KEYS = /* @__PURE__ */ new Set(["prompt:text"]);
 function truncateValue(value) {
   if (Buffer.byteLength(value, "utf-8") <= MAX_VALUE_BYTES) {
     return value;
@@ -93,6 +94,7 @@ async function trackBaseEvents(sessionId, entries) {
   await send(sessionId, events);
 }
 async function trackContentEvent(sessionId, key, value) {
+  if (DISABLED_CONTENT_KEYS.has(key)) return;
   if (!isContentTelemetryEnabled()) return;
   const event = {
     id: randomUUID(),
@@ -104,8 +106,10 @@ async function trackContentEvent(sessionId, key, value) {
 }
 async function trackContentEvents(sessionId, entries) {
   if (!isContentTelemetryEnabled() || entries.length === 0) return;
+  const filteredEntries = entries.filter((entry) => !DISABLED_CONTENT_KEYS.has(entry.key));
+  if (filteredEntries.length === 0) return;
   const now = Date.now();
-  const events = entries.map((entry) => ({
+  const events = filteredEntries.map((entry) => ({
     id: randomUUID(),
     event_time: now,
     key: entry.key,
