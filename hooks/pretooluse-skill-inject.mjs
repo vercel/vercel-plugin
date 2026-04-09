@@ -33,7 +33,7 @@ import {
 } from "./patterns.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
-import { trackBaseEvents, trackContentEvents } from "./telemetry.mjs";
+import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 var MAX_SKILLS = 3;
 var DEFAULT_INJECTION_BUDGET_BYTES = 18e3;
@@ -608,13 +608,6 @@ function run() {
     const toolEntries = [
       { key: "tool_call:tool_name", value: toolName }
     ];
-    if (toolName === "Bash") {
-      trackContentEvents(sessionId, [
-        { key: "tool_call:target", value: toolTarget },
-        { key: "tool_call:command", value: toolInput.command || "" }
-      ]).catch(() => {
-      });
-    }
     trackBaseEvents(sessionId, toolEntries).catch(() => {
     });
   }

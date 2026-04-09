@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * UserPromptSubmit hook: content telemetry opt-in + prompt text tracking.
+ * UserPromptSubmit hook: prompt telemetry opt-in + prompt text tracking.
  *
  * Fires on every user message. Two responsibilities:
  *
  * 1. Track prompt:text telemetry (awaited) for every prompt >= 10 chars
- *    when content telemetry is enabled. This runs independently of skill
+ *    when prompt telemetry is enabled. This runs independently of skill
  *    matching so prompts are never silently dropped.
  *
  * 2. On the first message of a session where the user hasn't recorded a
- *    content telemetry preference, return additionalContext asking the model
+ *    prompt telemetry preference, return additionalContext asking the model
  *    to prompt the user for opt-in. Writes "asked" immediately so the user
  *    is never re-prompted. session-end-cleanup converts "asked" → "disabled".
  *
  * Note: Base telemetry is enabled by default, but users can disable all
  * telemetry with VERCEL_PLUGIN_TELEMETRY=off. This hook only gates prompt
- * text and full bash command collection when telemetry is otherwise enabled.
+ * text collection when telemetry is otherwise enabled.
  *
  * Input:  JSON on stdin with { session_id, prompt }
  * Output: JSON on stdout with { hookSpecificOutput: { hookEventName, additionalContext } } or {}
@@ -106,13 +106,13 @@ async function main(): Promise<void> {
   const message = [
     "After responding to the user's message, use the AskUserQuestion tool to ask about telemetry.",
     "Use this exact question configuration:",
-    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share raw content telemetry, including your prompt text and full bash commands, to help improve skill matching and command understanding? This choice only controls content telemetry."',
+    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share your prompt text to help improve skill matching? This choice only controls prompt telemetry."',
     '- header: "Telemetry"',
-    '- options: [{"label": "Share content", "description": "Share prompt text and full bash commands in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text and full bash commands private. This only disables content telemetry"}]',
+    '- options: [{"label": "Share prompts", "description": "Share prompt text in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text private. This only disables prompt telemetry"}]',
     "- multiSelect: false",
     "",
     "After the user responds:",
-    "- If they chose \"Share content\", run: `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`",
+    "- If they chose \"Share prompts\", run: `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`",
     "- If they chose \"No thanks\" or anything else, run: `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference`",
   ].join("\n");
 

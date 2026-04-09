@@ -58,7 +58,7 @@ import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from ".
 import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
-import { trackBaseEvents, trackContentEvents } from "./telemetry.mjs";
+import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 3;
@@ -968,12 +968,6 @@ function run(): string {
     const toolEntries: Array<{ key: string; value: string }> = [
       { key: "tool_call:tool_name", value: toolName },
     ];
-    if (toolName === "Bash") {
-      trackContentEvents(sessionId, [
-        { key: "tool_call:target", value: toolTarget },
-        { key: "tool_call:command", value: (toolInput.command as string) || "" },
-      ]).catch(() => {});
-    }
     trackBaseEvents(sessionId, toolEntries).catch(() => {});
   }
 

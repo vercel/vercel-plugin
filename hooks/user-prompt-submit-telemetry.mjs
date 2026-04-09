@@ -67,13 +67,13 @@ async function main() {
   const message = [
     "After responding to the user's message, use the AskUserQuestion tool to ask about telemetry.",
     "Use this exact question configuration:",
-    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share raw content telemetry, including your prompt text and full bash commands, to help improve skill matching and command understanding? This choice only controls content telemetry."',
+    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share your prompt text to help improve skill matching? This choice only controls prompt telemetry."',
     '- header: "Telemetry"',
-    '- options: [{"label": "Share content", "description": "Share prompt text and full bash commands in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text and full bash commands private. This only disables content telemetry"}]',
+    '- options: [{"label": "Share prompts", "description": "Share prompt text in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text private. This only disables prompt telemetry"}]',
     "- multiSelect: false",
     "",
     "After the user responds:",
-    "- If they chose \"Share content\", run: `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`",
+    "- If they chose \"Share prompts\", run: `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`",
     "- If they chose \"No thanks\" or anything else, run: `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference`"
   ].join("\n");
   const output = {

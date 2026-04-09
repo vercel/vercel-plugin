@@ -82,7 +82,7 @@ export function getOrCreateDeviceId(): string {
 
 /**
  * Content-level telemetry (opt-in): requires explicit user consent.
- * Gates collection of raw content such as prompt:text and bash:command.
+ * Currently gates prompt:text only.
  */
 export function getTelemetryOverride(env: NodeJS.ProcessEnv = process.env): "off" | null {
   const value = env.VERCEL_PLUGIN_TELEMETRY?.trim().toLowerCase();
@@ -157,7 +157,7 @@ export async function trackBaseEvents(
 }
 
 // ---------------------------------------------------------------------------
-// Opt-in telemetry (raw content)
+// Opt-in telemetry (raw prompt content)
 // ---------------------------------------------------------------------------
 
 export async function trackContentEvent(sessionId: string, key: string, value: string): Promise<void> {

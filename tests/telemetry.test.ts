@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -133,5 +133,13 @@ describe("telemetry controls", () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("{}");
     expect(existsSync(prefPath)).toBe(false);
+  });
+
+  test("compiled hooks do not emit bash command telemetry keys", () => {
+    const pretoolHook = readFileSync(join(ROOT, "hooks", "pretooluse-skill-inject.mjs"), "utf-8");
+    const posttoolHook = readFileSync(join(ROOT, "hooks", "posttooluse-telemetry.mjs"), "utf-8");
+
+    expect(pretoolHook.includes("tool_call:command")).toBe(false);
+    expect(posttoolHook.includes("bash:command")).toBe(false);
   });
 });

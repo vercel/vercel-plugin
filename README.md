@@ -113,14 +113,14 @@ After installing, skills and context are injected automatically. You can also in
 
 The plugin has two separate telemetry controls:
 
-- `~/.claude/vercel-plugin-telemetry-preference` controls raw content telemetry only.
+- `~/.claude/vercel-plugin-telemetry-preference` controls prompt text only.
 - `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry.
 
 Behavior:
 
-- `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps default base telemetry on and also allows raw content telemetry for prompt text and full bash commands.
-- `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps prompt text and full bash commands off, but base telemetry remains on by default.
-- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including prompt text, full bash command telemetry, session metadata, tool names, and skill-injection telemetry.
+- `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps default base telemetry on and also allows prompt text telemetry.
+- `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps prompt text off, but base telemetry remains on by default.
+- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including prompt text, session metadata, tool names, and skill-injection telemetry.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY=off`:
 

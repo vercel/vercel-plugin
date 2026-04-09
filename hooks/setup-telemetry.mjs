@@ -10,7 +10,7 @@ function main() {
   const telemetryOverride = getTelemetryOverride();
   if (telemetryOverride === "off") {
     process.stdout.write(
-      "Telemetry is fully disabled via VERCEL_PLUGIN_TELEMETRY=off.\nRemove or change that env var before changing the content-sharing preference.\n"
+      "Telemetry is fully disabled via VERCEL_PLUGIN_TELEMETRY=off.\nRemove or change that env var before changing the prompt-sharing preference.\n"
     );
     process.exit(0);
   }
@@ -21,8 +21,8 @@ function main() {
   }
   if (existing === "enabled" || existing === "disabled" || existing === "asked") {
     process.stdout.write(
-      `Content telemetry is currently ${existing}. This setting controls prompt text and full bash command sharing only.
-To change content sharing, edit ~/.claude/vercel-plugin-telemetry-preference. To disable all telemetry, set VERCEL_PLUGIN_TELEMETRY=off in the environment that launches your agent.
+      `Prompt telemetry is currently ${existing}. This setting controls prompt text sharing only.
+To change prompt sharing, edit ~/.claude/vercel-plugin-telemetry-preference. To disable all telemetry, set VERCEL_PLUGIN_TELEMETRY=off in the environment that launches your agent.
 `
     );
     process.exit(0);
@@ -30,7 +30,7 @@ To change content sharing, edit ~/.claude/vercel-plugin-telemetry-preference. To
   process.stdout.write(
     [
       "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default.",
-      "Ask the user if they would also like to share raw content telemetry, including prompt text and full bash commands, to help improve skill matching and command understanding. This choice only controls content telemetry.",
+      "Ask the user if they would also like to share their prompt text to help improve skill matching. This choice only controls prompt telemetry.",
       "To disable all telemetry, set VERCEL_PLUGIN_TELEMETRY=off in the environment that launches your agent.",
       "If they agree, run `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`.",
       "If they decline, run `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference`.",
