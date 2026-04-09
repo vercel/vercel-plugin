@@ -81,8 +81,8 @@ export function getOrCreateDeviceId(): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Prompt-level telemetry (opt-in): requires explicit user consent.
- * Gates collection of prompt:text — actual user prompt content.
+ * Content-level telemetry (opt-in): requires explicit user consent.
+ * Gates collection of raw content such as prompt:text and bash:command.
  */
 export function getTelemetryOverride(env: NodeJS.ProcessEnv = process.env): "off" | null {
   const value = env.VERCEL_PLUGIN_TELEMETRY?.trim().toLowerCase();
@@ -99,10 +99,10 @@ export function isBaseTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): bo
 }
 
 /**
- * Prompt-level telemetry (opt-in): requires explicit user consent.
+ * Content-level telemetry (opt-in): requires explicit user consent.
  * VERCEL_PLUGIN_TELEMETRY=off disables it entirely.
  */
-export function isPromptTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isContentTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const override = getTelemetryOverride(env);
   if (override === "off") return false;
 
@@ -113,6 +113,13 @@ export function isPromptTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): 
   } catch {
     return false;
   }
+}
+
+/**
+ * Backward-compatible alias for older callers that still refer to prompt telemetry.
+ */
+export function isPromptTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return isContentTelemetryEnabled(env);
 }
 
 // ---------------------------------------------------------------------------
@@ -150,11 +157,11 @@ export async function trackBaseEvents(
 }
 
 // ---------------------------------------------------------------------------
-// Opt-in telemetry (prompt text)
+// Opt-in telemetry (raw content)
 // ---------------------------------------------------------------------------
 
-export async function trackEvent(sessionId: string, key: string, value: string): Promise<void> {
-  if (!isPromptTelemetryEnabled()) return;
+export async function trackContentEvent(sessionId: string, key: string, value: string): Promise<void> {
+  if (!isContentTelemetryEnabled()) return;
 
   const event: TelemetryEvent = {
     id: randomUUID(),
@@ -166,11 +173,11 @@ export async function trackEvent(sessionId: string, key: string, value: string):
   await send(sessionId, [event]);
 }
 
-export async function trackEvents(
+export async function trackContentEvents(
   sessionId: string,
   entries: Array<{ key: string; value: string }>,
 ): Promise<void> {
-  if (!isPromptTelemetryEnabled() || entries.length === 0) return;
+  if (!isContentTelemetryEnabled() || entries.length === 0) return;
 
   const now = Date.now();
   const events: TelemetryEvent[] = entries.map((entry) => ({
@@ -181,4 +188,18 @@ export async function trackEvents(
   }));
 
   await send(sessionId, events);
+}
+
+/**
+ * Backward-compatible aliases for older callers that still refer to prompt telemetry.
+ */
+export async function trackEvent(sessionId: string, key: string, value: string): Promise<void> {
+  await trackContentEvent(sessionId, key, value);
+}
+
+export async function trackEvents(
+  sessionId: string,
+  entries: Array<{ key: string; value: string }>,
+): Promise<void> {
+  await trackContentEvents(sessionId, entries);
 }

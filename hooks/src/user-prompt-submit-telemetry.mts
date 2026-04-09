@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * UserPromptSubmit hook: prompt telemetry opt-in + prompt text tracking.
+ * UserPromptSubmit hook: content telemetry opt-in + prompt text tracking.
  *
  * Fires on every user message. Two responsibilities:
  *
  * 1. Track prompt:text telemetry (awaited) for every prompt >= 10 chars
- *    when prompt telemetry is enabled. This runs independently of skill
+ *    when content telemetry is enabled. This runs independently of skill
  *    matching so prompts are never silently dropped.
  *
  * 2. On the first message of a session where the user hasn't recorded a
- *    prompt telemetry preference, return additionalContext asking the model
+ *    content telemetry preference, return additionalContext asking the model
  *    to prompt the user for opt-in. Writes "asked" immediately so the user
  *    is never re-prompted. session-end-cleanup converts "asked" → "disabled".
  *
  * Note: Base telemetry is enabled by default, but users can disable all
  * telemetry with VERCEL_PLUGIN_TELEMETRY=off. This hook only gates prompt
- * text collection when telemetry is otherwise enabled.
+ * text and full bash command collection when telemetry is otherwise enabled.
  *
  * Input:  JSON on stdin with { session_id, prompt }
  * Output: JSON on stdout with { hookSpecificOutput: { hookEventName, additionalContext } } or {}
@@ -25,7 +25,7 @@ import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { getTelemetryOverride, isPromptTelemetryEnabled, trackEvents } from "./telemetry.mjs";
+import { getTelemetryOverride, isContentTelemetryEnabled, trackContentEvents } from "./telemetry.mjs";
 
 const PREF_PATH = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
 const MIN_PROMPT_LENGTH = 10;
@@ -55,8 +55,8 @@ async function main(): Promise<void> {
   const telemetryOverride = getTelemetryOverride();
 
   // Prompt text tracking — opt-in only
-  if (isPromptTelemetryEnabled() && sessionId && prompt.length >= MIN_PROMPT_LENGTH) {
-    await trackEvents(sessionId, [
+  if (isContentTelemetryEnabled() && sessionId && prompt.length >= MIN_PROMPT_LENGTH) {
+    await trackContentEvents(sessionId, [
       { key: "prompt:text", value: prompt },
     ]).catch(() => {});
   }
@@ -106,13 +106,13 @@ async function main(): Promise<void> {
   const message = [
     "After responding to the user's message, use the AskUserQuestion tool to ask about telemetry.",
     "Use this exact question configuration:",
-    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share your prompt text to help improve skill matching? This choice only controls prompt telemetry."',
+    '- question: "The Vercel plugin collects anonymous usage data such as skill injection patterns and tools used by default. Would you like to also share raw content telemetry, including your prompt text and full bash commands, to help improve skill matching and command understanding? This choice only controls content telemetry."',
     '- header: "Telemetry"',
-    '- options: [{"label": "Share prompts", "description": "Share prompt text in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text private. This only disables prompt telemetry"}]',
+    '- options: [{"label": "Share content", "description": "Share prompt text and full bash commands in addition to default anonymous usage data"}, {"label": "No thanks", "description": "Keep prompt text and full bash commands private. This only disables content telemetry"}]',
     "- multiSelect: false",
     "",
     "After the user responds:",
-    "- If they chose \"Share prompts\", run: `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`",
+    "- If they chose \"Share content\", run: `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference`",
     "- If they chose \"No thanks\" or anything else, run: `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference`",
   ].join("\n");
 

@@ -57,7 +57,7 @@ function getTelemetryOverride(env = process.env) {
 function isBaseTelemetryEnabled(env = process.env) {
   return getTelemetryOverride(env) !== "off";
 }
-function isPromptTelemetryEnabled(env = process.env) {
+function isContentTelemetryEnabled(env = process.env) {
   const override = getTelemetryOverride(env);
   if (override === "off") return false;
   try {
@@ -67,6 +67,9 @@ function isPromptTelemetryEnabled(env = process.env) {
   } catch {
     return false;
   }
+}
+function isPromptTelemetryEnabled(env = process.env) {
+  return isContentTelemetryEnabled(env);
 }
 async function trackBaseEvent(sessionId, key, value) {
   if (!isBaseTelemetryEnabled()) return;
@@ -89,8 +92,8 @@ async function trackBaseEvents(sessionId, entries) {
   }));
   await send(sessionId, events);
 }
-async function trackEvent(sessionId, key, value) {
-  if (!isPromptTelemetryEnabled()) return;
+async function trackContentEvent(sessionId, key, value) {
+  if (!isContentTelemetryEnabled()) return;
   const event = {
     id: randomUUID(),
     event_time: Date.now(),
@@ -99,8 +102,8 @@ async function trackEvent(sessionId, key, value) {
   };
   await send(sessionId, [event]);
 }
-async function trackEvents(sessionId, entries) {
-  if (!isPromptTelemetryEnabled() || entries.length === 0) return;
+async function trackContentEvents(sessionId, entries) {
+  if (!isContentTelemetryEnabled() || entries.length === 0) return;
   const now = Date.now();
   const events = entries.map((entry) => ({
     id: randomUUID(),
@@ -110,13 +113,22 @@ async function trackEvents(sessionId, entries) {
   }));
   await send(sessionId, events);
 }
+async function trackEvent(sessionId, key, value) {
+  await trackContentEvent(sessionId, key, value);
+}
+async function trackEvents(sessionId, entries) {
+  await trackContentEvents(sessionId, entries);
+}
 export {
   getOrCreateDeviceId,
   getTelemetryOverride,
   isBaseTelemetryEnabled,
+  isContentTelemetryEnabled,
   isPromptTelemetryEnabled,
   trackBaseEvent,
   trackBaseEvents,
+  trackContentEvent,
+  trackContentEvents,
   trackEvent,
   trackEvents
 };

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { trackBaseEvents } from "./telemetry.mjs";
+import { trackContentEvents } from "./telemetry.mjs";
 
 function parseStdin(): Record<string, unknown> | null {
   try {
@@ -15,7 +14,7 @@ function parseStdin(): Record<string, unknown> | null {
 }
 
 async function main(): Promise<void> {
-  // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
+  // Content telemetry — opt-in only unless VERCEL_PLUGIN_TELEMETRY=off disables all telemetry
 
   const input = parseStdin();
   if (!input) {
@@ -65,7 +64,7 @@ async function main(): Promise<void> {
   }
 
   if (entries.length > 0) {
-    await trackBaseEvents(sessionId, entries);
+    await trackContentEvents(sessionId, entries);
   }
 
   process.stdout.write("{}");

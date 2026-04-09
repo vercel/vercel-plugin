@@ -2,7 +2,7 @@
 
 // hooks/src/posttooluse-telemetry.mts
 import { readFileSync } from "fs";
-import { trackBaseEvents } from "./telemetry.mjs";
+import { trackContentEvents } from "./telemetry.mjs";
 function parseStdin() {
   try {
     const raw = readFileSync(0, "utf-8").trim();
@@ -32,7 +32,7 @@ async function main() {
     );
   }
   if (entries.length > 0) {
-    await trackBaseEvents(sessionId, entries);
+    await trackContentEvents(sessionId, entries);
   }
   process.stdout.write("{}");
   process.exit(0);
