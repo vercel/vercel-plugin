@@ -120,7 +120,7 @@ Behavior:
 
 - `echo 'enabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps default base telemetry on and also allows raw content telemetry for prompt text and full bash commands.
 - `echo 'disabled' > ~/.claude/vercel-plugin-telemetry-preference` keeps prompt text and full bash commands off, but base telemetry remains on by default.
-- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including prompt text, full bash command telemetry, session metadata, tool events, and skill-injection telemetry.
+- `VERCEL_PLUGIN_TELEMETRY=off` disables all telemetry, including prompt text, full bash command telemetry, session metadata, tool names, and skill-injection telemetry.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY=off`:
 

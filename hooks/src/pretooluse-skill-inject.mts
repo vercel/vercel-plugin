@@ -973,9 +973,6 @@ function run(): string {
         { key: "tool_call:target", value: toolTarget },
         { key: "tool_call:command", value: (toolInput.command as string) || "" },
       ]).catch(() => {});
-    } else {
-      toolEntries.push({ key: "tool_call:target", value: toolTarget });
-      toolEntries.push({ key: "tool_call:file_path", value: (toolInput.file_path as string) || "" });
     }
     trackBaseEvents(sessionId, toolEntries).catch(() => {});
   }
