@@ -162,13 +162,13 @@ skills/<name>/
 |-------|--------------|
 | `ai-sdk` | [vercel/ai](https://github.com/vercel/ai) |
 | `chat-sdk` | [vercel/chat](https://github.com/vercel/chat) |
-| `next-cache-components` | [vercel/next-skills](https://github.com/vercel/next-skills) |
+| `next-cache-components` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
 | `next-forge` | [vercel/next-forge](https://github.com/vercel/next-forge) |
-| `next-upgrade` | [vercel/next-skills](https://github.com/vercel/next-skills) |
-| `nextjs` | [vercel/next-skills](https://github.com/vercel/next-skills) |
-| `react-best-practices` | [vercel/agent-skills](https://github.com/vercel/agent-skills) |
+| `next-upgrade` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
+| `nextjs` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
+| `react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) |
 | `vercel-cli` | [vercel/vercel](https://github.com/vercel/vercel) |
-| `vercel-sandbox` | [vercel/agent-browser](https://github.com/vercel/agent-browser) |
+| `vercel-sandbox` | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
 | `workflow` | [vercel/workflow](https://github.com/vercel/workflow) |
 
 ### Syncing an Upstream Skill
