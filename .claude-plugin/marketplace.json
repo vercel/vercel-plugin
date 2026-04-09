@@ -1,7 +1,7 @@
 {
   "name": "vercel-labs",
   "owner": {
-    "name": "Vercel Labs"
+    "name": "Vercel"
   },
   "plugins": [
     {
@@ -9,7 +9,7 @@
       "source": "./",
       "description": "Build and deploy web apps and agents",
       "author": {
-        "name": "Vercel Labs"
+        "name": "Vercel"
       },
       "repository": "https://github.com/vercel/vercel-plugin",
       "license": "Apache-2.0",
