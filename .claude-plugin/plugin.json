@@ -1,10 +1,10 @@
 {
   "name": "vercel-plugin",
-  "version": "0.32.3",
+  "version": "0.32.4",
   "description": "Build and deploy web apps and agents",
   "author": {
-    "name": "Vercel Labs",
-    "url": "https://github.com/vercel-labs"
+    "name": "Vercel",
+    "url": "https://github.com/vercel"
   },
   "repository": "https://github.com/vercel/vercel-plugin",
   "license": "Apache-2.0",
