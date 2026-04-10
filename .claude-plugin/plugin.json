@@ -1,10 +1,6 @@
 {
   "name": "vercel-plugin",
-<<<<<<< Updated upstream
-  "version": "0.32.3",
-=======
   "version": "0.32.5",
->>>>>>> Stashed changes
   "description": "Build and deploy web apps and agents",
   "author": {
     "name": "Vercel Labs",
