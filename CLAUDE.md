@@ -30,9 +30,6 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 | SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
 | SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
 | SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — |
-| PostToolUse | `posttooluse-verification-observe.mjs` | `Bash` | 5s |
-| SubagentStart | `subagent-start-bootstrap.mjs` | `.+` | 5s |
-| SubagentStop | `subagent-stop-sync.mjs` | `.+` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
 ### Hook Source Files (`hooks/src/*.mts`)
@@ -43,9 +40,6 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `session-start-seen-skills.mts` — initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in `CLAUDE_ENV_FILE`
 - `session-start-profiler.mts` — scans config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost); detects greenfield mode
 - `inject-claude-md.mts` — outputs the thin session-start Vercel context plus knowledge update guidance
-- `posttooluse-verification-observe.mts` — observer-only Bash verification boundary logging
-- `subagent-start-bootstrap.mts` — bootstraps subagents with budget-aware context
-- `subagent-stop-sync.mts` — records subagent lifecycle metadata
 - `session-end-cleanup.mts` — deletes session-scoped temp files
 
 **Library modules** (imported by entry-point hooks):
@@ -63,7 +57,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 2. **PreToolUse** (on Read/Edit/Write/Bash): Match file paths (glob), bash commands (regex), imports (regex+flags) → apply vercel.json routing → apply profiler boost → rank by priority → dedup → inject up to 3 skills within 18KB budget
 3. **UserPromptSubmit**: Score prompt text against `promptSignals` (phrases/allOf/anyOf/noneOf) → inject up to 2 skills within 8KB budget
    - **3b. Lexical fallback** (when `VERCEL_PLUGIN_LEXICAL_PROMPT=on`): If phrase/allOf/anyOf scoring yields no matches above `minScore`, re-score using a lexical stemmer that normalizes prompt tokens before comparison — catches natural phrasing that exact-substring matching misses
-4. **PostToolUse** (on Bash): Observe verification boundaries only; no default post-tool context injection
+4. **SessionEnd**: Clean up session-scoped temp files
 
 Special triggers in PreToolUse:
 - **TSX review**: After N `.tsx` edits (default 3), injects `react-best-practices`
@@ -152,7 +146,7 @@ Heading extraction is case-insensitive and captures everything from the heading 
 
 32 test files across `tests/`. Key categories:
 
-- **Hook integration**: `session-start-profiler`, `session-start-seen-skills`, `posttooluse-verification-observe`
+- **Hook integration**: `session-start-profiler`, `session-start-seen-skills`
 - **Pattern matching**: `patterns`, `fuzz-glob`, `fuzz-yaml`, `prompt-signals`, `prompt-analysis`
 - **Snapshots**: `snapshot-runner` (golden snapshots of skill injection metadata per vercel.json fixture), `snapshots` (snapshot assertions)
 - **Validation**: `validate`, `validate-rules`, `build-skill-map`

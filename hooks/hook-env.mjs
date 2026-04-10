@@ -1,5 +1,5 @@
 // hooks/src/hook-env.mts
-import { createHash, randomUUID } from "crypto";
+import { createHash } from "crypto";
 import {
   appendFileSync,
   closeSync,
@@ -173,12 +173,6 @@ function removeAllSessionDedupArtifacts(sessionId) {
   }
   return result;
 }
-function profileCachePath(sessionId) {
-  return resolveDedupTempPath(sessionId, "profile.json");
-}
-function generateVerificationId() {
-  return randomUUID();
-}
 function safeReadFile(path) {
   try {
     return readFileSync(path, "utf-8");
@@ -201,11 +195,9 @@ export {
   appendAuditLog,
   dedupClaimDirPath,
   dedupFilePath,
-  generateVerificationId,
   getDedupScopeId,
   listSessionKeys,
   pluginRoot,
-  profileCachePath,
   readSessionFile,
   removeAllSessionDedupArtifacts,
   removeSessionClaimDir,

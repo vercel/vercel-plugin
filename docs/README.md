@@ -82,10 +82,6 @@ Claude reads vercel.json
         ↓
 PreToolUse hook matches file path → injects relevant config skills
         ↓
-Claude writes app/api/cron/route.ts
-        ↓
-PostToolUse hook validates the written file against skill rules
-        ↓
 SessionEnd hook cleans up temp files
 ```
 

@@ -12,15 +12,6 @@ import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadValidatedSkillMap } from "../shared/skill-map-loader.ts";
 
-/** Maximum allowed timeout (seconds) for subagent hooks. */
-const SUBAGENT_HOOK_TIMEOUT_MAX = 5;
-
-/** Expected subagent hook events that must be registered. */
-const REQUIRED_SUBAGENT_EVENTS = ["SubagentStart", "SubagentStop"] as const;
-
-/** Agent types that matchers should cover. */
-const EXPECTED_AGENT_TYPES = ["Explore", "Plan", "general-purpose"];
-
 /** Threshold at which pattern count may threaten the 5-second hook timeout. */
 const PATTERN_COUNT_WARN_THRESHOLD = 200;
 
@@ -57,7 +48,7 @@ export function doctor(projectRoot: string): DoctorResult {
     } catch (err: any) {
       issues.push({
         severity: "error",
-        check: "subagent-hooks",
+        check: "hooks",
         message: `Failed to parse hooks.json: ${err.message}`,
       });
     }
@@ -361,77 +352,12 @@ export function doctor(projectRoot: string): DoctorResult {
     }
   }
 
-  // --- Subagent hook registration ---
-  if (existsSync(hooksJsonPath)) {
-    for (const event of REQUIRED_SUBAGENT_EVENTS) {
-      const entries = registeredHooks[event];
-      if (!entries || !Array.isArray(entries) || entries.length === 0) {
-        issues.push({
-          severity: "error",
-          check: "subagent-hooks",
-          message: `${event} hook is not registered in hooks.json`,
-          hint: `Add a ${event} entry to hooks/hooks.json to enable subagent bootstrap and cleanup`,
-        });
-        continue;
-      }
-
-      // Validate timeout for each hook command in each entry
-      for (const entry of entries) {
-        const hooks = entry.hooks ?? [];
-        for (const hook of hooks) {
-          if (hook.timeout !== undefined && hook.timeout > SUBAGENT_HOOK_TIMEOUT_MAX) {
-            issues.push({
-              severity: "warning",
-              check: "subagent-hooks",
-              message: `${event} hook timeout is ${hook.timeout}s (max recommended: ${SUBAGENT_HOOK_TIMEOUT_MAX}s)`,
-              hint: "High timeouts can slow down subagent launches",
-            });
-          }
-        }
-      }
-
-      // Validate matcher coverage for expected agent types
-      const matchers = entries
-        .map((e: any) => e.matcher)
-        .filter((m: any) => typeof m === "string" && m.length > 0);
-
-      if (matchers.length === 0) {
-        issues.push({
-          severity: "warning",
-          check: "subagent-hooks",
-          message: `${event} has no matcher — will not match any agent types`,
-          hint: "Set matcher to '.+' to match all agent types, or list specific types",
-        });
-      } else {
-        // Check if each expected agent type is covered by at least one matcher
-        const uncovered: string[] = [];
-        for (const agentType of EXPECTED_AGENT_TYPES) {
-          const covered = matchers.some((m: string) => {
-            try {
-              return new RegExp(m).test(agentType);
-            } catch {
-              return false;
-            }
-          });
-          if (!covered) uncovered.push(agentType);
-        }
-
-        if (uncovered.length > 0) {
-          issues.push({
-            severity: "warning",
-            check: "subagent-hooks",
-            message: `${event} matchers don't cover agent types: ${uncovered.join(", ")}`,
-            hint: "Use '.+' to match all types, or add specific matchers for these agent types",
-          });
-        }
-      }
-    }
-  } else {
+  if (!existsSync(hooksJsonPath)) {
     issues.push({
       severity: "error",
-      check: "subagent-hooks",
-      message: "hooks/hooks.json not found — subagent hooks cannot be validated",
-      hint: "Ensure hooks/hooks.json exists with SubagentStart and SubagentStop entries",
+      check: "hooks",
+      message: "hooks/hooks.json not found",
+      hint: "Ensure hooks/hooks.json exists",
     });
   }
 

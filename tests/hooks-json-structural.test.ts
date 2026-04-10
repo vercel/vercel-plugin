@@ -1,6 +1,5 @@
 /**
- * Structural validation: hooks.json contains SubagentStart and SubagentStop
- * entries with the expected matchers and timeouts.
+ * Structural validation: the default hook profile stays lightweight.
  */
 import { describe, test, expect } from "bun:test";
 import { resolve } from "node:path";
@@ -23,40 +22,6 @@ interface HooksJson {
 }
 
 const hooksJson: HooksJson = await import(resolve(ROOT, "hooks/hooks.json"));
-
-describe("hooks.json SubagentStart", () => {
-  const groups = hooksJson.hooks.SubagentStart;
-
-  test("array exists with at least one entry", () => {
-    expect(Array.isArray(groups)).toBe(true);
-    expect(groups.length).toBeGreaterThanOrEqual(1);
-  });
-
-  test("matcher is '.+'", () => {
-    expect(groups[0].matcher).toBe(".+");
-  });
-
-  test("hook has timeout set to 5", () => {
-    expect(groups[0].hooks[0].timeout).toBe(5);
-  });
-});
-
-describe("hooks.json SubagentStop", () => {
-  const groups = hooksJson.hooks.SubagentStop;
-
-  test("array exists with at least one entry", () => {
-    expect(Array.isArray(groups)).toBe(true);
-    expect(groups.length).toBeGreaterThanOrEqual(1);
-  });
-
-  test("matcher is '.+'", () => {
-    expect(groups[0].matcher).toBe(".+");
-  });
-
-  test("hook has timeout set to 5", () => {
-    expect(groups[0].hooks[0].timeout).toBe(5);
-  });
-});
 
 describe("hooks.json lightweight default", () => {
   test("does not register pretool skill injection by default", () => {
@@ -97,5 +62,19 @@ describe("hooks.json lightweight default", () => {
     );
 
     expect(hasPostToolInjection).toBe(false);
+  });
+
+  test("does not register verification observer by default", () => {
+    const groups = hooksJson.hooks.PostToolUse ?? [];
+    const hasVerificationObserver = groups.some((group) =>
+      group.hooks.some((hook) => hook.command.includes("posttooluse-verification-observe.mjs")),
+    );
+
+    expect(hasVerificationObserver).toBe(false);
+  });
+
+  test("does not register subagent bootstrap hooks by default", () => {
+    expect(hooksJson.hooks.SubagentStart ?? []).toEqual([]);
+    expect(hooksJson.hooks.SubagentStop ?? []).toEqual([]);
   });
 });

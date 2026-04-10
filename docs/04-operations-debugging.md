@@ -245,7 +245,7 @@ bun run doctor
 | **Hook timeout risk** | Warns if skill/pattern count is high | >50 skills or >200 patterns may hit 5s timeout |
 | **Dedup strategy** | Validates dedup env var format | Malformed `VERCEL_PLUGIN_SEEN_SKILLS` |
 | **Template staleness** | Checks `.md.tmpl` mtime vs `.md` mtime | Run `bun run build:from-skills` to regenerate |
-| **Subagent hooks** | Validates SubagentStart/Stop registration | Missing or misconfigured subagent hooks |
+| **Hooks config** | Checks that `hooks/hooks.json` exists and is parseable | Hook registry file is missing or malformed |
 
 ### Example Output
 
@@ -260,8 +260,6 @@ $ vercel-plugin doctor
  ✓ 187 total patterns (under 200 threshold)
  ✓ Dedup strategy: env-var (validated)
  ✓ 8 templates up-to-date
- ✓ Subagent hooks registered
-
  ⚠ Warnings:
    - skills/legacy-api: DEPRECATED_FIELD — filePattern is deprecated, use pathPatterns
    - Manifest drift: skills/new-feature missing from manifest

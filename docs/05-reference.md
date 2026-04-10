@@ -28,10 +28,7 @@ Every hook registered in `hooks/hooks.json`. All hooks run via `node "${CLAUDE_P
 | SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — | Initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in the env file for dedup tracking |
 | SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — | Scans project config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost); detects greenfield mode |
 | SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — | Injects thin session-start Vercel context plus the knowledge update skill body |
-| PostToolUse | `posttooluse-verification-observe.mjs` | `Bash` | 5s | **Observer.** Classifies bash commands into verification boundaries (uiRender, clientRequest, serverHandler, environment) |
-| SubagentStart | `subagent-start-bootstrap.mjs` | `.+` | 5s | Budget-aware context injection for subagents — scales by agent type (Explore ~1KB, Plan ~3KB, GP ~8KB) |
-| SubagentStop | `subagent-stop-sync.mjs` | `.+` | 5s | **Observer.** Records subagent lifecycle metadata to JSONL ledger |
-| SessionEnd | `session-end-cleanup.mjs` | *(always)* | — | Best-effort cleanup of all session-scoped temp files (dedup claims, profile cache, ledger) |
+| SessionEnd | `session-end-cleanup.mjs` | *(always)* | — | Best-effort cleanup of session-scoped temp files |
 
 ### Shared Library Modules
 
@@ -86,21 +83,6 @@ type SyncHookJSONOutput = {
   "hookSpecificOutput": {
     "hookEventName": "UserPromptSubmit",
     "additionalContext": "<!-- banner -->\n\n<skill content>\n<!-- promptInjection: {...} -->"
-  }
-}
-```
-
-**PostToolUse** (`posttooluse-verification-observe`):
-```json
-{}
-```
-
-**SubagentStart** (`subagent-start-bootstrap`):
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "SubagentStart",
-    "additionalContext": "<context scaled by agent type>"
   }
 }
 ```
@@ -360,9 +342,6 @@ All 45 skills, sorted by priority (highest first). Each skill lives in `skills/<
 | PreToolUse skill cap | 3 skills | — | Max number of skills injected per PreToolUse |
 | UserPromptSubmit byte budget | 8,000 bytes | `VERCEL_PLUGIN_PROMPT_INJECTION_BUDGET` | Max total skill content per UserPromptSubmit |
 | UserPromptSubmit skill cap | 2 skills | — | Max skills injected per UserPromptSubmit |
-| SubagentStart (Explore) | ~1,000 bytes | — | Skill names + profile summary only |
-| SubagentStart (Plan) | ~3,000 bytes | — | Summaries + deployment constraints |
-| SubagentStart (general-purpose) | ~8,000 bytes | — | Full skill bodies with summary fallback |
 | TSX review threshold | 3 edits | `VERCEL_PLUGIN_REVIEW_THRESHOLD` | `.tsx` edits before injecting `react-best-practices` |
 | Profiler boost | +5 priority | — | Added to skills listed in `VERCEL_PLUGIN_LIKELY_SKILLS` |
 | vercel.json routing | ±10 priority | — | Added/subtracted based on vercel.json key→skill mappings |

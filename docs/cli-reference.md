@@ -213,17 +213,6 @@ Checks whether `.md.tmpl` templates or `SKILL.md` sources are newer than their g
 
 **Fix:** `bun run build:from-skills`
 
-#### 6. `subagent-hooks` — Subagent hook registration
-
-Validates that `hooks/hooks.json` has proper `SubagentStart` and `SubagentStop` entries:
-
-| Check | Severity | Description |
-|-------|----------|-------------|
-| Missing hook entry | error | Required event not registered |
-| Timeout too high | warning | Exceeds recommended 5-second max |
-| No matcher | warning | Hook won't match any agent types |
-| Uncovered agent types | warning | Expected types (Explore, Plan, general-purpose) not covered by matchers |
-
 ### Output format
 
 ```

@@ -95,9 +95,7 @@ A text-form relational graph covering:
 Lifecycle hooks that run automatically during your session:
 
 - **Session start context injection** — Injects a thin Vercel session context plus the knowledge-update guidance
-- **Session start repo profiler** — Scans config files and dependencies to cache likely-skill hints for subagents and targeted workflows
-- **Post-tool verification observer** — Watches relevant Bash activity for verification boundaries without injecting follow-up guidance
-- **Subagent bootstrap** — Gives spawned subagents lightweight project context without re-running the full session setup
+- **Session start repo profiler** — Scans config files and dependencies to set likely-skill hints for the session
 
 ## Usage
 

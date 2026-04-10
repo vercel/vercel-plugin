@@ -4,8 +4,7 @@ import {
   constants as fsConstants,
   existsSync,
   readFileSync,
-  readdirSync,
-  writeFileSync
+  readdirSync
 } from "fs";
 import { delimiter, join, resolve } from "path";
 import { execFileSync } from "child_process";
@@ -15,7 +14,7 @@ import {
   normalizeInput,
   setSessionEnv
 } from "./compat.mjs";
-import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
+import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { trackDauActiveToday } from "./telemetry.mjs";
@@ -448,25 +447,6 @@ async function main() {
     process.stdout.write(`${additionalContext}
 
 `);
-  }
-  if (sessionId) {
-    try {
-      const cache = {
-        projectRoot,
-        likelySkills,
-        greenfield: greenfield !== null,
-        bootstrapHints: setupSignals.bootstrapHints,
-        resourceHints: setupSignals.resourceHints,
-        setupMode: setupSignals.setupMode,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      writeFileSync(profileCachePath(sessionId), JSON.stringify(cache), "utf-8");
-    } catch (error) {
-      logCaughtError(log, "session-start-profiler:write-profile-cache-failed", error, {
-        sessionId,
-        projectRoot
-      });
-    }
   }
   await trackDauActiveToday().catch(() => {
   });

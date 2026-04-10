@@ -254,16 +254,12 @@ graph LR
         A3["session-start-profiler"]
         A4["session-start-seen-skills"]
         A5["session-end-cleanup"]
-        A6["posttooluse-verification-observe"]
     end
 
     subgraph "Subagent Lifecycle"
         B1["subagent-fresh-env"]
-        B2["subagent-lifecycle-integration"]
-        B3["subagent-start-context"]
-        B4["subagent-start-bootstrap-routing"]
-        B5["subagent-scope-dedup"]
-        B7["session-timeline-subagent"]
+        B2["subagent-scope-dedup"]
+        B3["session-timeline-subagent"]
     end
 
     subgraph "Pattern Matching"
@@ -514,7 +510,7 @@ bun run build:hooks
 
 ### Hook timeout (5-second limit)
 
-All PreToolUse, UserPromptSubmit, PostToolUse, SubagentStart, and SubagentStop hooks have a 5-second timeout. If you add many skills or patterns, `doctor` will warn you.
+The default runtime no longer registers PostToolUse or subagent lifecycle hooks. The main timeout risk is the hook-driven injection engines when they are enabled.
 
 **Diagnose:**
 

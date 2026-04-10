@@ -17,7 +17,7 @@ Definitions of project-specific terms used throughout the vercel-plugin codebase
 | **Effective priority** | A skill's final ranking score after all boosts are applied: base `metadata.priority` (4–8) + profiler boost (+5) + vercel.json routing (±10) + special triggers (+40/+50). Higher values are injected first. |
 | **Frontmatter** | The YAML block between `---` delimiters at the top of each `SKILL.md` file. Contains `name`, `description`, `summary`, `metadata` (priority, patterns, prompt signals, validation rules). Parsed by `parseSimpleYaml` — not `js-yaml`. |
 | **Greenfield** | A project state detected by the profiler when the working directory is empty or lacks meaningful source files. Triggers automatic prioritization of the `bootstrap` skill. Signaled via `VERCEL_PLUGIN_GREENFIELD=true`. |
-| **Hook** | A TypeScript function registered in `hooks/hooks.json` that fires on a specific Claude Code lifecycle event (`SessionStart`, `PreToolUse`, `UserPromptSubmit`, `PostToolUse`, `SessionEnd`). Hooks decide what knowledge Claude receives and when. |
+| **Hook** | A TypeScript function registered in `hooks/hooks.json` that fires on a Claude Code lifecycle event such as `SessionStart`, `PreToolUse`, `UserPromptSubmit`, or `SessionEnd`. Hooks decide what knowledge Claude receives and when. |
 | **Injection** | The act of inserting a skill's markdown body into Claude's `additionalContext` during a hook invocation. Gated by pattern matching, priority ranking, dedup checks, and budget limits. |
 | **Invocation ID** | An 8-character hex string (`randomBytes(4).toString("hex")`) shared across all logger instances within a single hook process. Used to correlate log lines from the same hook invocation. |
 | **Lexical index** | A fallback scoring system (`lexical-index.mts`) that tokenizes prompt text and matches against skill keywords when no prompt signals fire. Returns scored results above `VERCEL_PLUGIN_LEXICAL_RESULT_MIN_SCORE` (default 5.0). |
@@ -36,7 +36,7 @@ Definitions of project-specific terms used throughout the vercel-plugin codebase
 | **SyncHookJSONOutput** | The TypeScript type (from `@anthropic-ai/claude-agent-sdk`) defining the JSON structure hooks must return. Key fields: `additionalContext` (injected content), `env` (environment variable updates), `decision` (allow/block). |
 | **Template include** | The `{{include:skill:<name>:<heading>}}` marker syntax used in `.md.tmpl` files. Resolved at build time by `scripts/build-from-skills.ts`, which extracts sections from SKILL.md files and compiles them into the output `.md` files. |
 | **TSX review trigger** | A special PreToolUse behavior: after `VERCEL_PLUGIN_REVIEW_THRESHOLD` (default 3) `.tsx` file edits, the `react-best-practices` skill is injected with a **+40 priority boost**. Counter tracked in `VERCEL_PLUGIN_TSX_EDIT_COUNT`. |
-| **Validation rules** | Per-skill `metadata.validate` entries that run during `PostToolUse` (Write/Edit). Each rule has a `pattern` (regex matched against file content), `message`, `severity` (error/warn), and optional `skipIfFileContains`. |
+| **Validation rules** | Per-skill `metadata.validate` entries stored in skill frontmatter. The current runtime does not register a default post-tool validation hook, so these rules are metadata only unless that path is reintroduced. |
 | **vercel.json routing** | Priority adjustments (±10) applied by `vercel-config.mts` based on keys present in the project's `vercel.json`. For example, `rewrites` boosts `routing-middleware`; `crons` boosts `cron-jobs`. |
 
 ---

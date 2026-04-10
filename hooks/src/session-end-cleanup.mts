@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * SessionEnd hook: best-effort cleanup of session-scoped temp files.
- * Deletes main and all agent-scoped claim dirs, session files, profile cache, and ledgers.
+ * Deletes main and all agent-scoped claim dirs plus session-scoped temp files.
  * Always exits successfully.
  */
 
@@ -73,7 +73,7 @@ function main(): void {
   const tempRoot = tmpdir();
   const prefix = `vercel-plugin-${tempSessionIdSegment(sessionId)}-`;
 
-  // Glob all session-scoped temp entries (main + agent-scoped claim dirs, files, profile cache)
+  // Glob all session-scoped temp entries (main + agent-scoped claim dirs, files)
   let entries: string[] = [];
   try {
     entries = readdirSync(tempRoot).filter((name) => name.startsWith(prefix));

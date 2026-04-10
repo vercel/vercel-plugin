@@ -57,21 +57,11 @@ graph TB
             PROMPT_INJECT["user-prompt-submit-skill-inject.mjs<br/>prompt signal scoring → inject"]
         end
 
-        subgraph "SubagentStart / SubagentStop"
-            SUBAGENT_BOOT["subagent-start-bootstrap.mjs<br/>budget-aware context for subagents"]
-            SUBAGENT_STOP["subagent-stop-sync.mjs<br/>records lifecycle to ledger"]
-        end
-
-        subgraph "PostToolUse"
-            VERIFY_OBS["posttooluse-verification-observe.mjs<br/>verification boundary detection"]
-        end
-
         CLEANUP["session-end-cleanup.mjs<br/>removes temp files"]
     end
 
     MANIFEST -->|"loaded at runtime"| SKILL_INJECT
     MANIFEST -->|"loaded at runtime"| PROMPT_INJECT
-    MANIFEST -->|"loaded at runtime"| SUBAGENT_BOOT
     HOOKS_JSON -->|"registers all hooks"| PROFILER
     HOOKS_JSON --> SKILL_INJECT
     HOOKS_JSON --> PROMPT_INJECT
@@ -79,8 +69,6 @@ graph TB
 
     SKILL_INJECT -->|"additionalContext"| CLAUDE["Claude Code Agent"]
     PROMPT_INJECT -->|"additionalContext"| CLAUDE
-    SUBAGENT_BOOT -->|"additionalContext"| SUBAGENT["Spawned Subagent"]
-
     style SKILL fill:#f9f,stroke:#333
     style MANIFEST fill:#bbf,stroke:#333
     style CLAUDE fill:#bfb,stroke:#333
@@ -102,7 +90,7 @@ Every piece flows through this pipeline. Skills are the single source of truth �
 
 ## Hook Lifecycle
 
-The plugin registers hooks for seven Claude Code lifecycle events. Here's how they execute in sequence during a typical session:
+The plugin registers session-start and session-end hooks by default. Here's how they execute in sequence during a typical session:
 
 ```mermaid
 sequenceDiagram
@@ -111,8 +99,6 @@ sequenceDiagram
     participant SS as SessionStart Hooks
     participant PTU as PreToolUse Hooks
     participant UPS as UserPromptSubmit
-    participant SA as Subagent Hooks
-    participant POU as PostToolUse Hooks
     participant SE as SessionEnd
 
     Dev->>CC: Opens project
@@ -145,32 +131,12 @@ sequenceDiagram
         PTU-->>CC: Inject vercel-config skill
     end
 
-    CC->>CC: Writes app/api/cron/route.ts
-
-    rect rgb(255, 230, 230)
-        Note over POU: Phase 4: PostToolUse observer only
-        CC->>POU: posttooluse-verification-observe (Bash completion)
-        Note over POU: Classify verification boundary<br/>emit structured event only
-        POU-->>CC: "{}"
-    end
-
-    opt If Claude spawns a subagent
-        rect rgb(245, 230, 255)
-            Note over SA: Phase 5: Subagent Context
-            CC->>SA: subagent-start-bootstrap
-            Note over SA: Budget-aware injection<br/>Explore=1KB, Plan=3KB, GP=8KB
-            SA-->>CC: Skill context for subagent
-            CC->>SA: subagent-stop-sync
-            Note over SA: Records lifecycle to ledger
-        end
-    end
-
     Dev->>CC: Ends session
 
     rect rgb(240, 240, 240)
-        Note over SE: Phase 6: Cleanup
+        Note over SE: Phase 4: Cleanup
         CC->>SE: session-end-cleanup
-        Note over SE: Removes temp files:<br/>dedup claims, profile cache,<br/>pending launches, ledger
+        Note over SE: Removes temp files:<br/>dedup claims, session files
     end
 ```
 
@@ -211,29 +177,9 @@ Fires when the user submits a prompt (matches all prompts — empty matcher stri
 |------|--------|---------|
 | `user-prompt-submit-skill-inject.mjs` | `hooks/src/user-prompt-submit-skill-inject.mts` | **Prompt signal scoring engine.** Normalizes prompt text (lowercases, expands contractions), scores against skill `promptSignals` frontmatter (phrases +6, allOf +4, anyOf +1 capped at +2, noneOf suppresses). Classifies troubleshooting intent. Injects up to **2 skills within 8KB budget** |
 
-### SubagentStart
+### PostToolUse / Subagents
 
-Fires when a subagent is spawned (matches any agent type via `.+`).
-
-| Hook | Source | Purpose |
-|------|--------|---------|
-| `subagent-start-bootstrap.mjs` | `hooks/src/subagent-start-bootstrap.mts` | **Budget-aware subagent context injection.** Scales content by agent type: `Explore` gets ~1KB (skill names + profile summary), `Plan` gets ~3KB (summaries + deployment constraints), `general-purpose` gets ~8KB (full skill bodies with summary fallback). Reads profiler cache and marks injected skills in agent-scoped dedup claims |
-
-### SubagentStop
-
-Fires when a subagent completes (matches any agent type via `.+`).
-
-| Hook | Source | Purpose |
-|------|--------|---------|
-| `subagent-stop-sync.mjs` | `hooks/src/subagent-stop-sync.mts` | **Observer.** Records subagent lifecycle metadata (agent ID, type, skill count, timestamp) to a JSONL ledger at `<tmpdir>/vercel-plugin-<sessionId>-subagent-ledger.jsonl` |
-
-### PostToolUse
-
-Fires after tool execution. Two matchers handle different scenarios.
-
-| Hook | Matcher | Source | Purpose |
-|------|---------|--------|---------|
-| `posttooluse-verification-observe.mjs` | `Bash` | `hooks/src/posttooluse-verification-observe.mts` | **Observer.** Classifies bash commands into verification boundaries: `uiRender` (browser/screenshot), `clientRequest` (curl/fetch), `serverHandler` (log tailing), `environment` (env var reads). Infers routes from recent file edits or command URLs. Emits structured log events |
+No default `PostToolUse`, `SubagentStart`, or `SubagentStop` hooks are registered in the current runtime.
 
 ### SessionEnd
 
@@ -241,7 +187,7 @@ Fires when the session ends (no matcher — always fires).
 
 | Hook | Source | Purpose |
 |------|--------|---------|
-| `session-end-cleanup.mjs` | `hooks/src/session-end-cleanup.mts` | **Best-effort cleanup.** Removes all session-scoped temp files: dedup claims, dedup session file, profile cache, subagent ledger. Silently ignores failures |
+| `session-end-cleanup.mjs` | `hooks/src/session-end-cleanup.mts` | **Best-effort cleanup.** Removes session-scoped temp files like dedup claims and session files. Silently ignores failures |
 
 ### Shared Library Modules
 
@@ -249,7 +195,7 @@ These are not hooks themselves but are imported by entry-point hooks:
 
 | Module | Purpose |
 |--------|---------|
-| `hook-env.mts` | Shared runtime helpers: env file parsing, plugin root resolution, dedup claim operations (atomic O_EXCL), audit logging, profile cache paths |
+| `hook-env.mts` | Shared runtime helpers: env file parsing, plugin root resolution, dedup claim operations (atomic O_EXCL), audit logging |
 | `patterns.mts` | Glob→regex conversion, path/bash/import matching with match reasons, ranking engine, dedup state merging |
 | `prompt-patterns.mts` | Prompt text normalization (contraction expansion), signal compilation, scoring, lexical fallback, troubleshooting intent classification |
 | `skill-map-frontmatter.mts` | Inline YAML parser (no js-yaml), frontmatter extraction, `buildSkillMap()`, `validateSkillMap()` with structured warnings |
@@ -332,7 +278,6 @@ When the session starts, three hooks fire in sequence:
    - Checks `vercel --version` → up to date
    - Checks `agent-browser` availability → found on PATH
    - **Result**: `VERCEL_PLUGIN_LIKELY_SKILLS="nextjs,ai-sdk,vercel-cron"`
-   - Caches profile to `<tmpdir>/vercel-plugin-<sessionId>-profile.json`
 
 3. **`inject-claude-md`** loads the thin session-start Vercel context and knowledge update guidance.
 
@@ -375,7 +320,6 @@ Developer closes the session.
 **`session-end-cleanup`** fires:
 - Deletes `<tmpdir>/vercel-plugin-<sessionId>-seen-skills.txt`
 - Deletes `<tmpdir>/vercel-plugin-<sessionId>-seen-skills.d/` (claim dir)
-- Deletes `<tmpdir>/vercel-plugin-<sessionId>-profile.json`
 - All temp state is gone — next session starts fresh
 
 ### What the Developer Experienced
@@ -398,13 +342,13 @@ All of this happened transparently. The developer got expert-level Vercel guidan
 | **Hook** | A Node.js script registered in `hooks/hooks.json` that runs at a specific Claude Code lifecycle event. Hooks receive JSON on stdin and may output JSON on stdout to modify Claude's behavior (e.g., inject additionalContext) |
 | **Manifest** | `generated/skill-manifest.json` — a pre-compiled index of all skill frontmatter with glob patterns converted to regex at build time. Hooks load this at runtime instead of scanning SKILL.md files directly |
 | **Dedup** | The deduplication system that prevents the same skill from being injected twice in a session. Uses three layers: atomic file claims (O_EXCL), a session file (comma-delimited), and an env var (`VERCEL_PLUGIN_SEEN_SKILLS`). All three are merged via `mergeSeenSkillStates()` |
-| **Budget** | Byte limits that cap how much skill content can be injected per hook invocation. PreToolUse: 18KB max, 3 skills. UserPromptSubmit: 8KB max, 2 skills. SubagentStart: varies by agent type (1KB–8KB). Prevents context window bloat |
+| **Budget** | Byte limits that cap how much skill content can be injected per hook invocation. PreToolUse: 18KB max, 3 skills. UserPromptSubmit: 8KB max, 2 skills. Prevents context window bloat |
 | **Profiler** | The `session-start-profiler` hook that scans the project at session start — checking config files, package.json dependencies, and vercel.json keys — to pre-identify likely relevant skills. Profiled skills receive a +5 priority boost |
 | **Claim Dir** | `<tmpdir>/vercel-plugin-<sessionId>-seen-skills.d/` — a directory of empty files, one per claimed skill, created atomically with `O_EXCL` flag to prevent race conditions. The authoritative source of dedup truth. Agent-scoped variants exist for subagent isolation |
 | **Priority** | A numeric score (typically 4–8) that determines injection order. Base priority is set in SKILL.md frontmatter. Modified at runtime by vercel.json routing (±10), profiler boost (+5), and prompt signal scores. Higher priority = injected first |
 | **additionalContext** | The mechanism hooks use to inject content into Claude's context. Returned as part of the hook's JSON output. Claude Code prepends this to the tool result or prompt, so the agent sees it before acting |
 | **Greenfield** | A project with no source files (only dot-directories). The profiler detects this and sets `VERCEL_PLUGIN_GREENFIELD=true`, which triggers a special execution mode: skip planning, use sensible defaults, bootstrap immediately |
-| **Observer Hook** | A hook that records telemetry but does not modify behavior. Returns empty JSON `{}`. Examples: `posttooluse-verification-observe`, `subagent-stop-sync` |
+| **Observer Hook** | A hook that records telemetry but does not modify behavior. Returns empty JSON `{}`. The default runtime no longer registers observer hooks. |
 
 ---
 

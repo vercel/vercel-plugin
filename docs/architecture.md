@@ -80,28 +80,15 @@ flowchart TB
         UPS["user-prompt-submit-skill-inject.mjs<br/>All prompts<br/>Prompt signal scoring"]
     end
 
-    subgraph PostAction ["Post-Action Phase"]
-        PVO["posttooluse-verification-observe.mjs<br/>Bash<br/>Verification boundary observer"]
-    end
-
-    subgraph SubagentLC ["Subagent Lifecycle"]
-        SAB["subagent-start-bootstrap.mjs<br/>Any subagent<br/>Injects context by agent type budget"]
-        SAS["subagent-stop-sync.mjs<br/>Any subagent<br/>Writes ledger + syncs dedup state"]
-    end
-
     subgraph Teardown ["Teardown Phase"]
         SEC["session-end-cleanup.mjs<br/>Deletes all temp files"]
     end
 
     Startup --> Runtime
-    Runtime --> PostAction
-    PostAction --> SubagentLC
-    SubagentLC --> Teardown
+    Runtime --> Teardown
 
     style Startup fill:#1a1a2e,stroke:#16213e,color:#e0e0e0
     style Runtime fill:#16213e,stroke:#0f3460,color:#e0e0e0
-    style PostAction fill:#0f3460,stroke:#533483,color:#e0e0e0
-    style SubagentLC fill:#533483,stroke:#e94560,color:#e0e0e0
     style Teardown fill:#e94560,stroke:#e94560,color:#e0e0e0
 ```
 
@@ -114,10 +101,7 @@ flowchart TB
 | 3 | SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — | Inject thin Vercel session context + knowledge update |
 | 4 | PreToolUse | `pretooluse-skill-inject.mjs` | `Read\|Edit\|Write\|Bash` | 5s | Main skill injection engine |
 | 5 | UserPromptSubmit | `user-prompt-submit-skill-inject.mjs` | _(all prompts)_ | 5s | Prompt signal scoring + injection |
-| 6 | PostToolUse | `posttooluse-verification-observe.mjs` | `Bash` | 5s | Observe verification boundaries |
-| 7 | SubagentStart | `subagent-start-bootstrap.mjs` | `.+` _(any)_ | 5s | Bootstrap subagent with context |
-| 8 | SubagentStop | `subagent-stop-sync.mjs` | `.+` _(any)_ | 5s | Write ledger, sync dedup |
-| 9 | SessionEnd | `session-end-cleanup.mjs` | — | — | Delete temp files |
+| 6 | SessionEnd | `session-end-cleanup.mjs` | — | — | Delete temp files |
 
 ---
 

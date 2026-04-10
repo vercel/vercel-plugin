@@ -141,7 +141,7 @@ bun test        # final verification
 1. **SessionStart** — The profiler scans `package.json`. If `@vercel/edge-config` is a dependency, your skill gets a **+5 priority boost** via `VERCEL_PLUGIN_LIKELY_SKILLS`.
 2. **PreToolUse** — When Claude reads `edge-config.json` or runs `vercel env pull`, your `pathPatterns` and `bashPatterns` match → the skill is ranked, deduped, and injected within the 18KB budget (max 3 skills).
 3. **UserPromptSubmit** — When the developer types "how do I set up edge config?", your `promptSignals.phrases` score +6 → the skill injects within the 8KB budget (max 2 skills).
-4. **PostToolUse** — When Claude writes to a matched file, your `validate` rules run and flag antipatterns.
+4. **Validation metadata** — `validate` rules can still be authored in frontmatter, but the current runtime does not register a default PostToolUse validation hook.
 
 ---
 
