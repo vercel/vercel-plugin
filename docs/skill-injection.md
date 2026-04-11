@@ -2,7 +2,7 @@
 
 > **Audience**: Plugin developers, skill authors, and anyone debugging why a skill did or didn't inject.
 >
-> The automatic `PreToolUse` and `UserPromptSubmit` registrations for this engine are disabled by default in [`hooks/hooks.json`](/Users/melkeydev/Documents/vercel/vercel-plugin/hooks/hooks.json). This document explains the engine that remains in-repo for debugging, testing, and targeted opt-in use.
+> The automatic `PreToolUse` and `UserPromptSubmit` registrations for this engine are disabled by default in `hooks/hooks.json`. This document explains the engine that remains in-repo for debugging, testing, and targeted opt-in use.
 
 This document explains the complete skill injection pipeline — how vercel-plugin decides which skills to surface, when, and why. It covers both injection hooks (PreToolUse and UserPromptSubmit), the ranking system with all boost factors, the dedup state machine, budget enforcement, prompt signal scoring, and special-case triggers.
 

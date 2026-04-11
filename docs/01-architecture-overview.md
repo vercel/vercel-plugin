@@ -2,7 +2,7 @@
 
 > **Audience**: Everyone — developers, skill authors, maintainers, and contributors.
 >
-> The automatic `PreToolUse` and `UserPromptSubmit` skill-injection registrations are no longer enabled in [`hooks/hooks.json`](/Users/melkeydev/Documents/vercel/vercel-plugin/hooks/hooks.json). This document still describes the injection engine because the code remains in-repo for internal testing, targeted workflows, and possible future opt-in use.
+> The automatic `PreToolUse` and `UserPromptSubmit` skill-injection registrations are no longer enabled in `hooks/hooks.json`. This document still describes the injection engine because the code remains in-repo for internal testing, targeted workflows, and possible future opt-in use.
 
 The Vercel Plugin for Claude Code is an **event-driven skill injection system** that automatically delivers relevant context to Claude based on what the developer is doing. When a developer opens a Next.js project, edits a configuration file, or types a prompt about deployments, the plugin detects the intent and injects precisely the right knowledge — without the developer asking for it.
 

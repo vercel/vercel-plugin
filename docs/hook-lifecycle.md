@@ -1,6 +1,6 @@
 # Hook Lifecycle Deep Dive
 
-> Note: the skill-injection engines described here still exist, but their `PreToolUse` and `UserPromptSubmit` registrations are disabled in the default [`hooks/hooks.json`](/Users/melkeydev/Documents/vercel/vercel-plugin/hooks/hooks.json) profile.
+> Note: the skill-injection engines described here still exist, but their `PreToolUse` and `UserPromptSubmit` registrations are disabled in the default `hooks/hooks.json` profile.
 
 This document covers every hook entry point in `hooks/hooks.json`, organized by lifecycle phase. Each section includes input/output contracts, sequence diagrams, and implementation details.
 
