@@ -13,8 +13,6 @@ async function runTelemetryProbe(options: {
   telemetryEnv?: string;
 }): Promise<{
   dauEnabled: boolean;
-  baseEnabled: boolean;
-  contentEnabled: boolean;
   calls: number;
   stampPath: string;
   dauPayloads: unknown[];
@@ -42,15 +40,11 @@ async function runTelemetryProbe(options: {
     };
 
     const dauEnabled = telemetry.isDauTelemetryEnabled();
-    const baseEnabled = telemetry.isBaseTelemetryEnabled();
-    const contentEnabled = telemetry.isContentTelemetryEnabled();
     await telemetry.trackDauActiveToday();
     await telemetry.trackDauActiveToday();
-    await telemetry.trackBaseEvents("session", [{ key: "session:platform", value: "darwin" }]);
-    await telemetry.trackContentEvents("session", [{ key: "prompt:text", value: "hello from prompt" }]);
 
     const stampPath = telemetry.getDauStampPath();
-    console.log(JSON.stringify({ dauEnabled, baseEnabled, contentEnabled, calls, stampPath, dauPayloads }));
+    console.log(JSON.stringify({ dauEnabled, calls, stampPath, dauPayloads }));
   `;
 
   const proc = Bun.spawn([NODE_BIN, "--input-type=module", "-e", script], {
@@ -69,8 +63,6 @@ async function runTelemetryProbe(options: {
 
   return JSON.parse(stdout.trim()) as {
     dauEnabled: boolean;
-    baseEnabled: boolean;
-    contentEnabled: boolean;
     calls: number;
     stampPath: string;
     dauPayloads: unknown[];
@@ -89,8 +81,6 @@ describe("telemetry controls", () => {
   test("VERCEL_PLUGIN_TELEMETRY=off disables all telemetry sends", async () => {
     const result = await runTelemetryProbe({ telemetryEnv: "off" });
     expect(result.dauEnabled).toBe(false);
-    expect(result.baseEnabled).toBe(false);
-    expect(result.contentEnabled).toBe(false);
     expect(result.calls).toBe(0);
     expect(existsSync(result.stampPath)).toBe(false);
   });
@@ -98,8 +88,6 @@ describe("telemetry controls", () => {
   test("default telemetry is DAU-only", async () => {
     const result = await runTelemetryProbe({});
     expect(result.dauEnabled).toBe(true);
-    expect(result.baseEnabled).toBe(false);
-    expect(result.contentEnabled).toBe(false);
     expect(result.calls).toBe(1);
     expect(result.stampPath).toBe(join(tempHome, ".config", "vercel-plugin", "dau-stamp"));
     expect(existsSync(result.stampPath)).toBe(true);
@@ -113,22 +101,16 @@ describe("telemetry controls", () => {
     ]);
   });
 
-  test("VERCEL_PLUGIN_TELEMETRY=true enables expanded telemetry without prompt content", async () => {
-    const result = await runTelemetryProbe({ telemetryEnv: "true" });
-    expect(result.dauEnabled).toBe(true);
-    expect(result.baseEnabled).toBe(true);
-    expect(result.contentEnabled).toBe(false);
-    expect(result.calls).toBe(2);
-  });
-
-  test("compiled hooks emit skill-injection telemetry but not prompt or tool telemetry keys", () => {
+  test("compiled hooks do not emit prompt, tool, or skill-injection telemetry keys", () => {
     const pretoolHook = readFileSync(join(ROOT, "hooks", "pretooluse-skill-inject.mjs"), "utf-8");
     const promptSkillInjectHook = readFileSync(join(ROOT, "hooks", "user-prompt-submit-skill-inject.mjs"), "utf-8");
 
     expect(pretoolHook.includes("tool_call:tool_name")).toBe(false);
     expect(pretoolHook.includes("tool_call:command")).toBe(false);
-    expect(promptSkillInjectHook.includes("skill:injected")).toBe(true);
-    expect(promptSkillInjectHook.includes("skill:hook")).toBe(true);
+    expect(pretoolHook.includes("skill:injected")).toBe(false);
+    expect(pretoolHook.includes("skill:hook")).toBe(false);
+    expect(promptSkillInjectHook.includes("skill:injected")).toBe(false);
+    expect(promptSkillInjectHook.includes("skill:hook")).toBe(false);
     expect(promptSkillInjectHook.includes("prompt:text")).toBe(false);
   });
 

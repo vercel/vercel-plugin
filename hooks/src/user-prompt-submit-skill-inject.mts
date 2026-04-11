@@ -47,7 +47,6 @@ import { analyzePrompt } from "./prompt-analysis.mjs";
 import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
-import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 2;
@@ -1048,16 +1047,6 @@ export function run(): string {
       droppedByBudget,
     }, cwd);
 
-    if (sessionId) {
-      const telemetryEntries: Array<{ key: string; value: string }> = [];
-      for (const skill of loaded) {
-        telemetryEntries.push(
-          { key: "skill:injected", value: skill },
-          { key: "skill:hook", value: "UserPromptSubmit" },
-        );
-      }
-      trackBaseEvents(sessionId, telemetryEntries).catch(() => {});
-    }
   }
 
   let outputEnv: Record<string, string> | undefined;

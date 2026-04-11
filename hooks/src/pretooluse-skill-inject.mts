@@ -58,7 +58,6 @@ import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from ".
 import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
-import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 3;
@@ -1187,17 +1186,6 @@ function run(): string {
       droppedByCap,
       droppedByBudget,
     }, cwd);
-
-    if (sessionId) {
-      const telemetryEntries: Array<{ key: string; value: string }> = [];
-      for (const skill of loaded) {
-        telemetryEntries.push(
-          { key: "skill:injected", value: skill },
-          { key: "skill:hook", value: "PreToolUse" },
-        );
-      }
-      trackBaseEvents(sessionId, telemetryEntries).catch(() => {});
-    }
 
   }
 

@@ -114,7 +114,6 @@ Prompt text and bash/tool-call telemetry are not collected.
 Behavior:
 
 - Unset `VERCEL_PLUGIN_TELEMETRY`: default DAU-only telemetry. Sends a once-per-day `dau:active_today` phone-home.
-- `VERCEL_PLUGIN_TELEMETRY=true`: opts in to expanded anonymous telemetry, currently limited to skill-injection events.
 - `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including the default DAU-only session-start event.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
@@ -125,12 +124,10 @@ Where to set `VERCEL_PLUGIN_TELEMETRY`:
 Examples:
 
 ```bash
-export VERCEL_PLUGIN_TELEMETRY=true
 export VERCEL_PLUGIN_TELEMETRY=off
 ```
 
 ```powershell
-$env:VERCEL_PLUGIN_TELEMETRY = "true"
 setx VERCEL_PLUGIN_TELEMETRY off
 ```
 
