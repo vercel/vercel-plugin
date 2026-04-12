@@ -2688,22 +2688,18 @@ describe("ai-sdk bash patterns match @ai-sdk/ scoped packages", () => {
 });
 
 describe("hooks.json PreToolUse config", () => {
-  test("has PreToolUse matcher for Read|Edit|Write|Bash", () => {
+  test("does not auto-register the Read|Edit|Write|Bash skill injection hook", () => {
     const hooks = JSON.parse(readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8"));
-    expect(hooks.hooks.PreToolUse).toBeDefined();
-    expect(hooks.hooks.PreToolUse.length).toBeGreaterThan(0);
+    const preToolHooks = hooks.hooks.PreToolUse ?? [];
+    const skillInjectionEntry = preToolHooks.find((entry: any) =>
+      Array.isArray(entry?.hooks)
+      && entry.hooks.some((hook: any) =>
+        typeof hook?.command === "string"
+        && hook.command.includes("pretooluse-skill-inject.mjs"),
+      ),
+    );
 
-    const matcher = hooks.hooks.PreToolUse[0].matcher;
-    expect(matcher).toContain("Read");
-    expect(matcher).toContain("Edit");
-    expect(matcher).toContain("Write");
-    expect(matcher).toContain("Bash");
-  });
-
-  test("references the correct hook script", () => {
-    const hooks = JSON.parse(readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8"));
-    const hookCmd = hooks.hooks.PreToolUse[0].hooks[0].command;
-    expect(hookCmd).toContain("pretooluse-skill-inject.mjs");
+    expect(skillInjectionEntry).toBeUndefined();
   });
 });
 

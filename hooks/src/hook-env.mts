@@ -6,7 +6,7 @@
  * try/catch boilerplate.
  */
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   appendFileSync,
   closeSync,
@@ -265,30 +265,6 @@ export function removeAllSessionDedupArtifacts(sessionId: string): RemoveArtifac
   }
 
   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Profile cache helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Resolve the path for the session profile cache file.
- * Written by session-start-profiler, read by subagent-start-bootstrap.
- */
-export function profileCachePath(sessionId: string): string {
-  return resolveDedupTempPath(sessionId, "profile.json");
-}
-
-// ---------------------------------------------------------------------------
-// Verification ID
-// ---------------------------------------------------------------------------
-
-/**
- * Generate a unique verification ID (UUIDv4) for traceability across
- * dev-server verification injection events.
- */
-export function generateVerificationId(): string {
-  return randomUUID();
 }
 
 // ---------------------------------------------------------------------------

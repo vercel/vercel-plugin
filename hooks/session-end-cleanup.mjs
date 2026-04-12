@@ -2,8 +2,8 @@
 
 // hooks/src/session-end-cleanup.mts
 import { createHash } from "crypto";
-import { readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "fs";
-import { homedir, tmpdir } from "os";
+import { readdirSync, readFileSync, rmSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
 import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 var SAFE_SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -42,14 +42,6 @@ function parseSessionIdFromStdin() {
   return normalizeSessionEndSessionId(parseSessionEndHookInput(readFileSync(0, "utf8")));
 }
 function main() {
-  try {
-    const prefPath = join(homedir(), ".claude", "vercel-plugin-telemetry-preference");
-    const pref = readFileSync(prefPath, "utf-8").trim();
-    if (pref === "asked") {
-      writeFileSync(prefPath, "disabled");
-    }
-  } catch {
-  }
   const sessionId = parseSessionIdFromStdin();
   if (sessionId === null) {
     process.exit(0);
@@ -63,7 +55,7 @@ function main() {
   }
   for (const entry of entries) {
     const fullPath = join(tempRoot, entry);
-    if (entry.endsWith(".d") || entry.endsWith("-pending-launches")) {
+    if (entry.endsWith(".d")) {
       removeDirIfPresent(fullPath);
     } else {
       removeFileIfPresent(fullPath);

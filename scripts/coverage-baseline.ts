@@ -238,8 +238,29 @@ export async function checkCoverage(root: string): Promise<CoverageResult> {
   );
 
   // Load graph
-  const graphPath = join(root, "assets", "vercel-ecosystem-graph.md");
-  const graph = await readFile(graphPath, "utf-8");
+  const candidateGraphPaths = [
+    join(root, "vercel.md"),
+    join(root, "assets", "vercel-ecosystem-graph.md"),
+  ];
+
+  let graph = "";
+  let loaded = false;
+  let lastError: unknown = null;
+
+  for (const graphPath of candidateGraphPaths) {
+    try {
+      graph = await readFile(graphPath, "utf-8");
+      loaded = true;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!loaded) {
+    throw lastError instanceof Error ? lastError : new Error("Could not load ecosystem graph");
+  }
+
   const graphLower = graph.toLowerCase();
 
   // Check coverage

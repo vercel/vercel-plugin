@@ -1,8 +1,11 @@
-import { describe, test, expect } from "bun:test";
+import { afterEach, beforeEach, describe, test, expect } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "inject-claude-md.mjs");
+let tempDir: string;
 
 async function runHook(
   payload: Record<string, unknown>,
@@ -33,6 +36,14 @@ async function runHook(
 }
 
 describe("inject-claude-md", () => {
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "inject-claude-md-"));
+  });
+
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
   test("injects thin session context instead of the full vercel ecosystem graph", async () => {
     const { code, stdout } = await runHook({ session_id: "inject-thin-session" });
     expect(code).toBe(0);
@@ -48,6 +59,33 @@ describe("inject-claude-md", () => {
     );
     expect(code).toBe(0);
     expect(stdout).toContain("Greenfield execution mode");
+  });
+
+  test("skips injection for non-empty non-vercel projects", async () => {
+    const projectDir = join(tempDir, "plain-project");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "README.md"), "# Plain project");
+
+    const { code, stdout } = await runHook(
+      { session_id: "inject-thin-skip" },
+      { CLAUDE_PROJECT_ROOT: projectDir },
+    );
+
+    expect(code).toBe(0);
+    expect(stdout.trim()).toBe("");
+  });
+
+  test("still injects for empty directories", async () => {
+    const projectDir = join(tempDir, "greenfield-project");
+    mkdirSync(projectDir);
+
+    const { code, stdout } = await runHook(
+      { session_id: "inject-thin-empty" },
+      { CLAUDE_PROJECT_ROOT: projectDir },
+    );
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("Vercel Plugin Session Context");
   });
 
   test("cursor payload returns flat JSON with thin additional context", async () => {

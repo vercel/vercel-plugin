@@ -5,15 +5,18 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const TELEMETRY_MODULE = join(ROOT, "hooks", "telemetry.mjs");
-const USER_PROMPT_HOOK = join(ROOT, "hooks", "user-prompt-submit-telemetry.mjs");
 const NODE_BIN = Bun.which("node") || "node";
 
 let tempHome: string;
 
 async function runTelemetryProbe(options: {
   telemetryEnv?: string;
-  preference?: "enabled" | "disabled";
-}): Promise<{ baseEnabled: boolean; contentEnabled: boolean; calls: number }> {
+}): Promise<{
+  dauEnabled: boolean;
+  calls: number;
+  stampPath: string;
+  dauPayloads: unknown[];
+}> {
   const mergedEnv: Record<string, string> = {
     ...(process.env as Record<string, string>),
     HOME: tempHome,
@@ -26,29 +29,22 @@ async function runTelemetryProbe(options: {
   }
 
   const script = `
-    import { mkdirSync, writeFileSync } from "node:fs";
-    import { join } from "node:path";
-    import { homedir } from "node:os";
     import * as telemetry from ${JSON.stringify(TELEMETRY_MODULE)};
 
-    const preference = ${options.preference ? JSON.stringify(options.preference) : "null"};
-    if (preference) {
-      mkdirSync(join(homedir(), ".claude"), { recursive: true });
-      writeFileSync(join(homedir(), ".claude", "vercel-plugin-telemetry-preference"), preference, "utf-8");
-    }
-
     let calls = 0;
-    globalThis.fetch = async () => {
+    const dauPayloads = [];
+    globalThis.fetch = async (_url, init) => {
       calls += 1;
+      dauPayloads.push(JSON.parse(init.body));
       return new Response(null, { status: 204 });
     };
 
-    const baseEnabled = telemetry.isBaseTelemetryEnabled();
-    const contentEnabled = telemetry.isContentTelemetryEnabled();
-    await telemetry.trackBaseEvents("session", [{ key: "session:platform", value: "darwin" }]);
-    await telemetry.trackContentEvents("session", [{ key: "prompt:text", value: "hello from prompt" }]);
+    const dauEnabled = telemetry.isDauTelemetryEnabled();
+    await telemetry.trackDauActiveToday();
+    await telemetry.trackDauActiveToday();
 
-    console.log(JSON.stringify({ baseEnabled, contentEnabled, calls }));
+    const stampPath = telemetry.getDauStampPath();
+    console.log(JSON.stringify({ dauEnabled, calls, stampPath, dauPayloads }));
   `;
 
   const proc = Bun.spawn([NODE_BIN, "--input-type=module", "-e", script], {
@@ -65,39 +61,12 @@ async function runTelemetryProbe(options: {
     throw new Error(stderr || `telemetry probe exited with code ${code}`);
   }
 
-  return JSON.parse(stdout.trim()) as { baseEnabled: boolean; contentEnabled: boolean; calls: number };
-}
-
-async function runPromptHook(env: Record<string, string | undefined>): Promise<{ code: number; stdout: string; stderr: string }> {
-  const mergedEnv: Record<string, string> = {
-    ...(process.env as Record<string, string>),
+  return JSON.parse(stdout.trim()) as {
+    dauEnabled: boolean;
+    calls: number;
+    stampPath: string;
+    dauPayloads: unknown[];
   };
-
-  for (const [key, value] of Object.entries(env)) {
-    if (value === undefined) {
-      delete mergedEnv[key];
-      continue;
-    }
-    mergedEnv[key] = value;
-  }
-
-  const proc = Bun.spawn([NODE_BIN, USER_PROMPT_HOOK], {
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-    env: mergedEnv,
-  });
-
-  proc.stdin.write(JSON.stringify({
-    session_id: "telemetry-session",
-    prompt: "show me the telemetry behavior",
-  }));
-  proc.stdin.end();
-
-  const code = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  return { code, stdout, stderr };
 }
 
 beforeEach(() => {
@@ -111,35 +80,49 @@ afterEach(() => {
 describe("telemetry controls", () => {
   test("VERCEL_PLUGIN_TELEMETRY=off disables all telemetry sends", async () => {
     const result = await runTelemetryProbe({ telemetryEnv: "off" });
-    expect(result.baseEnabled).toBe(false);
-    expect(result.contentEnabled).toBe(false);
+    expect(result.dauEnabled).toBe(false);
     expect(result.calls).toBe(0);
+    expect(existsSync(result.stampPath)).toBe(false);
   });
 
-  test("disabled preference blocks content telemetry but not default base telemetry", async () => {
-    const result = await runTelemetryProbe({ preference: "disabled" });
-    expect(result.baseEnabled).toBe(true);
-    expect(result.contentEnabled).toBe(false);
+  test("default telemetry is DAU-only", async () => {
+    const result = await runTelemetryProbe({});
+    expect(result.dauEnabled).toBe(true);
     expect(result.calls).toBe(1);
+    expect(result.stampPath).toBe(join(tempHome, ".config", "vercel-plugin", "dau-stamp"));
+    expect(existsSync(result.stampPath)).toBe(true);
+    expect(result.dauPayloads).toEqual([
+      [
+        expect.objectContaining({
+          key: "dau:active_today",
+          value: "1",
+        }),
+      ],
+    ]);
   });
 
-  test("prompt hook does not ask for telemetry when VERCEL_PLUGIN_TELEMETRY=off", async () => {
-    const prefPath = join(tempHome, ".claude", "vercel-plugin-telemetry-preference");
-    const result = await runPromptHook({
-      HOME: tempHome,
-      VERCEL_PLUGIN_TELEMETRY: "off",
-    });
-
-    expect(result.code).toBe(0);
-    expect(result.stdout).toBe("{}");
-    expect(existsSync(prefPath)).toBe(false);
-  });
-
-  test("compiled hooks do not emit bash command telemetry keys", () => {
+  test("compiled hooks do not emit prompt, tool, or skill-injection telemetry keys", () => {
     const pretoolHook = readFileSync(join(ROOT, "hooks", "pretooluse-skill-inject.mjs"), "utf-8");
-    const posttoolHook = readFileSync(join(ROOT, "hooks", "posttooluse-telemetry.mjs"), "utf-8");
+    const promptSkillInjectHook = readFileSync(join(ROOT, "hooks", "user-prompt-submit-skill-inject.mjs"), "utf-8");
 
+    expect(pretoolHook.includes("tool_call:tool_name")).toBe(false);
     expect(pretoolHook.includes("tool_call:command")).toBe(false);
-    expect(posttoolHook.includes("bash:command")).toBe(false);
+    expect(pretoolHook.includes("skill:injected")).toBe(false);
+    expect(pretoolHook.includes("skill:hook")).toBe(false);
+    expect(promptSkillInjectHook.includes("skill:injected")).toBe(false);
+    expect(promptSkillInjectHook.includes("skill:hook")).toBe(false);
+    expect(promptSkillInjectHook.includes("prompt:text")).toBe(false);
+  });
+
+  test("session-start profiler source only references the DAU ping telemetry key", () => {
+    const profilerHook = readFileSync(join(ROOT, "hooks", "session-start-profiler.mjs"), "utf-8");
+
+    expect(profilerHook.includes("trackDauActiveToday")).toBe(true);
+    expect(profilerHook.includes("session:device_id")).toBe(false);
+    expect(profilerHook.includes("session:vercel_cli_version")).toBe(false);
+    expect(profilerHook.includes("session:platform")).toBe(false);
+    expect(profilerHook.includes("session:likely_skills")).toBe(false);
+    expect(profilerHook.includes("session:greenfield")).toBe(false);
+    expect(profilerHook.includes("session:vercel_cli_installed")).toBe(false);
   });
 });

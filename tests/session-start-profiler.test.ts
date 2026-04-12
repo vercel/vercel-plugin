@@ -127,6 +127,23 @@ describe("session-start-profiler", () => {
     expect(skills).not.toContain("observability");
   });
 
+  test("skips non-empty non-vercel projects", async () => {
+    const projectDir = join(tempDir, "plain-project");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "README.md"), "# Plain project");
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(readGreenfieldState()).toBe("");
+    expect(readSessionFile(testSessionId, "likely-skills")).toBe("");
+    expect(readFileSync(envFile, "utf-8")).toBe("");
+  });
+
   test("detects Next.js project via next.config.ts", async () => {
     const projectDir = join(tempDir, "nextjs-project");
     mkdirSync(projectDir);

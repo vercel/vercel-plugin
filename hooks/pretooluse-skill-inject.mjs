@@ -33,7 +33,6 @@ import {
 } from "./patterns.mjs";
 import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
-import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 var MAX_SKILLS = 3;
 var DEFAULT_INJECTION_BUDGET_BYTES = 18e3;
@@ -604,13 +603,6 @@ function run() {
   if (log.active) timing.stdin_parse = Math.round(log.now() - tPhase);
   const { toolName, toolInput, sessionId, cwd, platform, toolTarget, scopeId } = parsed;
   const runtimeEnvBefore = captureRuntimeEnvSnapshot();
-  if (sessionId) {
-    const toolEntries = [
-      { key: "tool_call:tool_name", value: toolName }
-    ];
-    trackBaseEvents(sessionId, toolEntries).catch(() => {
-    });
-  }
   const tSkillmap = log.active ? log.now() : 0;
   const skills = loadSkills(PLUGIN_ROOT, log);
   if (!skills) return "{}";
@@ -801,21 +793,6 @@ function run() {
       droppedByCap,
       droppedByBudget
     }, cwd);
-    if (sessionId) {
-      const telemetryEntries = [];
-      for (const skill of loaded) {
-        const reason = matchReasons?.[skill];
-        telemetryEntries.push(
-          { key: "skill:injected", value: skill },
-          { key: "skill:hook", value: "PreToolUse" },
-          { key: "skill:priority", value: "0" },
-          { key: "skill:match_type", value: reason?.matchType ?? "unknown" },
-          { key: "skill:tool_name", value: toolName }
-        );
-      }
-      trackBaseEvents(sessionId, telemetryEntries).catch(() => {
-      });
-    }
   }
   return result;
 }

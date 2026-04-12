@@ -6,7 +6,6 @@ import { dedupClaimDirPath, listSessionKeys, removeSessionClaimDir } from "../ho
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
-const BOOTSTRAP_SCRIPT = join(ROOT, "hooks", "subagent-start-bootstrap.mjs");
 const UNLIMITED_BUDGET = "999999";
 
 let testSession: string;
@@ -28,35 +27,6 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-async function runBootstrap(
-  input: Record<string, unknown>,
-  env: Record<string, string | undefined>,
-): Promise<{ code: number; stdout: string; stderr: string }> {
-  const payload = JSON.stringify({
-    session_id: testSession,
-    ...input,
-  });
-
-  const proc = Bun.spawn(["node", BOOTSTRAP_SCRIPT], {
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-    env: {
-      ...process.env,
-      VERCEL_PLUGIN_LOG_LEVEL: "off",
-      ...env,
-    },
-  });
-
-  proc.stdin.write(payload);
-  proc.stdin.end();
-
-  const code = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  return { code, stdout, stderr };
-}
 
 async function runPreToolUse(
   input: Record<string, unknown>,
@@ -254,131 +224,5 @@ describe("subagent-scope-dedup: multiple concurrent subagents", () => {
     // Both should get chat-sdk since they're reading a slack route
     expect(skills1).toContain("chat-sdk");
     expect(skills2).toContain("chat-sdk");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: SubagentStart bootstrap writes dedup claims
-// ---------------------------------------------------------------------------
-
-describe("subagent-scope-dedup: bootstrap dedup claims", () => {
-  const nextjsPagePath = "/Users/me/my-app/app/page.tsx";
-  const bootstrapAgentId = "gp-bootstrap-1";
-
-  afterEach(() => {
-    removeSessionClaimDir(testSession, "seen-skills");
-    removeSessionClaimDir(testSession, "seen-skills", bootstrapAgentId);
-  });
-
-  test("bootstrap writes dedup claims scoped by agent_id", async () => {
-    const result = await runBootstrap(
-      { agent_type: "general-purpose", agent_id: bootstrapAgentId },
-      { VERCEL_PLUGIN_LIKELY_SKILLS: "nextjs,ai-sdk" },
-    );
-    expect(result.code).toBe(0);
-
-    // Verify the hook produced additionalContext
-    const parsed = JSON.parse(result.stdout);
-    expect(parsed.hookSpecificOutput?.additionalContext).toBeDefined();
-
-    // Verify claims were written to the agent-scoped claim dir
-    const claimed = listSessionKeys(testSession, "seen-skills", bootstrapAgentId);
-    expect(claimed).toContain("nextjs");
-    expect(claimed).toContain("ai-sdk");
-
-    // Unscoped claim dir should be empty (no cross-contamination)
-    const unscopedClaimed = listSessionKeys(testSession, "seen-skills");
-    expect(unscopedClaimed).not.toContain("nextjs");
-    expect(unscopedClaimed).not.toContain("ai-sdk");
-  });
-
-  test("PreToolUse within same agent does not re-inject skills already claimed by bootstrap", async () => {
-    // Step 1: Run bootstrap to claim skills (scoped by agent_id)
-    const bootstrapResult = await runBootstrap(
-      { agent_type: "general-purpose", agent_id: bootstrapAgentId },
-      { VERCEL_PLUGIN_LIKELY_SKILLS: "nextjs" },
-    );
-    expect(bootstrapResult.code).toBe(0);
-
-    // Verify bootstrap claimed nextjs in scoped dir
-    const claimed = listSessionKeys(testSession, "seen-skills", bootstrapAgentId);
-    expect(claimed).toContain("nextjs");
-
-    // Step 2: Run PreToolUse with same agent_id — should see the scoped claim
-    const preToolResult = await runPreToolUse(
-      { tool_name: "Read", tool_input: { file_path: nextjsPagePath }, agent_id: bootstrapAgentId },
-      { VERCEL_PLUGIN_SEEN_SKILLS: "" },
-    );
-    expect(preToolResult.code).toBe(0);
-
-    // nextjs should NOT be re-injected because bootstrap already claimed it
-    const injected = parseInjectedSkills(preToolResult.stdout);
-    expect(injected).not.toContain("nextjs");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: Two concurrent same-type subagents get independent bootstrap claims
-// ---------------------------------------------------------------------------
-
-describe("subagent-scope-dedup: concurrent same-type bootstrap", () => {
-  const explore1 = "explore-concurrent-1";
-  const explore2 = "explore-concurrent-2";
-
-  afterEach(() => {
-    removeSessionClaimDir(testSession, "seen-skills", explore1);
-    removeSessionClaimDir(testSession, "seen-skills", explore2);
-  });
-
-  test("two Explore agents launched simultaneously receive independent skill sets", async () => {
-    // Both use the SAME session but different agent_ids
-    const [result1, result2] = await Promise.all([
-      runBootstrap(
-        { agent_type: "Explore", agent_id: explore1 },
-        { VERCEL_PLUGIN_LIKELY_SKILLS: "nextjs,ai-sdk" },
-      ),
-      runBootstrap(
-        { agent_type: "Explore", agent_id: explore2 },
-        { VERCEL_PLUGIN_LIKELY_SKILLS: "nextjs,ai-sdk" },
-      ),
-    ]);
-
-    expect(result1.code).toBe(0);
-    expect(result2.code).toBe(0);
-
-    // Both should produce context
-    const ctx1 = JSON.parse(result1.stdout)?.hookSpecificOutput?.additionalContext ?? "";
-    const ctx2 = JSON.parse(result2.stdout)?.hookSpecificOutput?.additionalContext ?? "";
-    expect(ctx1).toContain("nextjs");
-    expect(ctx2).toContain("nextjs");
-
-    // Each agent has its own scoped claims
-    const claims1 = listSessionKeys(testSession, "seen-skills", explore1);
-    const claims2 = listSessionKeys(testSession, "seen-skills", explore2);
-    expect(claims1).toContain("nextjs");
-    expect(claims1).toContain("ai-sdk");
-    expect(claims2).toContain("nextjs");
-    expect(claims2).toContain("ai-sdk");
-
-    // Claims are independent — PreToolUse within each agent sees its own scope
-    const [preTool1, preTool2] = await Promise.all([
-      runPreToolUse(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/my-app/app/page.tsx" }, agent_id: explore1 },
-        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
-      ),
-      runPreToolUse(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/my-app/app/page.tsx" }, agent_id: explore2 },
-        { VERCEL_PLUGIN_SEEN_SKILLS: "" },
-      ),
-    ]);
-
-    expect(preTool1.code).toBe(0);
-    expect(preTool2.code).toBe(0);
-
-    // Both should be deduped (nextjs already claimed by their own bootstrap)
-    const injected1 = parseInjectedSkills(preTool1.stdout);
-    const injected2 = parseInjectedSkills(preTool2.stdout);
-    expect(injected1).not.toContain("nextjs");
-    expect(injected2).not.toContain("nextjs");
   });
 });

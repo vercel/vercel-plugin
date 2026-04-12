@@ -58,7 +58,6 @@ import { resolveVercelJsonSkills, isVercelJsonPath, VERCEL_JSON_SKILLS } from ".
 import type { VercelJsonRouting } from "./vercel-config.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
-import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 3;
@@ -963,14 +962,6 @@ function run(): string {
   const { toolName, toolInput, sessionId, cwd, platform, toolTarget, scopeId } = parsed;
   const runtimeEnvBefore = captureRuntimeEnvSnapshot();
 
-  // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
-  if (sessionId) {
-    const toolEntries: Array<{ key: string; value: string }> = [
-      { key: "tool_call:tool_name", value: toolName },
-    ];
-    trackBaseEvents(sessionId, toolEntries).catch(() => {});
-  }
-
   // Stage 2: loadSkills
   const tSkillmap = log.active ? log.now() : 0;
   const skills = loadSkills(PLUGIN_ROOT, log);
@@ -1196,21 +1187,6 @@ function run(): string {
       droppedByBudget,
     }, cwd);
 
-    // Base telemetry — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
-    if (sessionId) {
-      const telemetryEntries: Array<{ key: string; value: string }> = [];
-      for (const skill of loaded) {
-        const reason = matchReasons?.[skill];
-        telemetryEntries.push(
-          { key: "skill:injected", value: skill },
-          { key: "skill:hook", value: "PreToolUse" },
-          { key: "skill:priority", value: "0" },
-          { key: "skill:match_type", value: reason?.matchType ?? "unknown" },
-          { key: "skill:tool_name", value: toolName },
-        );
-      }
-      trackBaseEvents(sessionId, telemetryEntries).catch(() => {});
-    }
   }
 
   return result;

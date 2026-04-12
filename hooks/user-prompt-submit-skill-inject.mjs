@@ -25,7 +25,6 @@ import { normalizePromptText, compilePromptSignals, matchPromptWithReason, score
 import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
-import { trackBaseEvents } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 var MAX_SKILLS = 2;
 var DEFAULT_INJECTION_BUDGET_BYTES = 8e3;
@@ -706,19 +705,6 @@ function run() {
       droppedByCap,
       droppedByBudget
     }, cwd);
-  }
-  if (sessionId && loaded.length > 0) {
-    const telemetryEntries = [];
-    for (const skill of loaded) {
-      const r = report.perSkillResults[skill];
-      telemetryEntries.push(
-        { key: "prompt:skill", value: skill },
-        { key: "prompt:score", value: String(r?.score ?? 0) },
-        { key: "prompt:hook", value: "UserPromptSubmit" }
-      );
-    }
-    trackBaseEvents(sessionId, telemetryEntries).catch(() => {
-    });
   }
   let outputEnv;
   const envFile = nonEmptyString(process.env.CLAUDE_ENV_FILE);

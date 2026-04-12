@@ -5,11 +5,12 @@
  * Cursor receives `{ additional_context: "..." }` JSON on stdout.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatOutput, type HookPlatform } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
+import { hasSessionStartActivationMarkers, isGreenfieldDirectory } from "./session-start-activation.mjs";
 
 interface InjectClaudeMdInput {
   session_id?: string;
@@ -52,6 +53,7 @@ export function buildInjectClaudeMdParts(
   content: string | null,
   env: NodeJS.ProcessEnv = process.env,
   knowledgeUpdate: string | null = null,
+  greenfield = env.VERCEL_PLUGIN_GREENFIELD === "true",
 ): string[] {
   const parts: string[] = [];
 
@@ -63,7 +65,7 @@ export function buildInjectClaudeMdParts(
     parts.push(knowledgeUpdate);
   }
 
-  if (env.VERCEL_PLUGIN_GREENFIELD === "true") {
+  if (greenfield) {
     parts.push(GREENFIELD_CONTEXT);
   }
 
@@ -78,6 +80,10 @@ export function formatInjectClaudeMdOutput(platform: HookPlatform, content: stri
   return content;
 }
 
+function resolveInjectClaudeMdProjectRoot(env: NodeJS.ProcessEnv = process.env): string {
+  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+}
+
 function stripFrontmatter(content: string): string {
   const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
   return match ? match[1].trim() : content.trim();
@@ -86,10 +92,26 @@ function stripFrontmatter(content: string): string {
 function main(): void {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
+  const projectRoot = resolveInjectClaudeMdProjectRoot();
+  const isGreenfield = isGreenfieldDirectory(projectRoot);
+  const greenfieldOverride = process.env.VERCEL_PLUGIN_GREENFIELD === "true";
+  const shouldActivate =
+    isGreenfield || greenfieldOverride || !existsSync(projectRoot) || hasSessionStartActivationMarkers(projectRoot);
+  if (!shouldActivate) {
+    if (platform === "cursor") {
+      process.stdout.write(JSON.stringify(formatOutput(platform, {})));
+    }
+    return;
+  }
   const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
   const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
   const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
-  const parts = buildInjectClaudeMdParts(thinSessionContext, process.env, knowledgeUpdate);
+  const parts = buildInjectClaudeMdParts(
+    thinSessionContext,
+    process.env,
+    knowledgeUpdate,
+    isGreenfield || greenfieldOverride,
+  );
 
   if (parts.length === 0) {
     return;

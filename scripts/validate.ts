@@ -669,18 +669,18 @@ async function validateCliBannedPatterns() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. Validate PreToolUse hook and skill-map coverage
+// 8. Validate hook-driven injection coverage and skill frontmatter
 // ---------------------------------------------------------------------------
 
 async function validatePreToolUseHook() {
-  section("[8] PreToolUse hook and skill frontmatter coverage");
+  section("[8] Hook-driven injection and skill frontmatter coverage");
 
-  // 8a. Check PreToolUse hook exists in hooks.json
+  // 8a. Check whether the optional PreToolUse injection hook is registered.
   const hooksPath = join(ROOT, "hooks", "hooks.json");
   if (!(await exists(hooksPath))) {
-    fail("HOOKS_MISSING", "hooks/hooks.json not found (cannot validate PreToolUse)", {
+    fail("HOOKS_MISSING", "hooks/hooks.json not found (cannot validate hook-driven injection wiring)", {
       file: "hooks/hooks.json",
-      hint: "Create hooks/hooks.json with PreToolUse hook definitions",
+      hint: "Create hooks/hooks.json with your hook definitions",
     });
     return;
   }
@@ -694,49 +694,47 @@ async function validatePreToolUseHook() {
   }
 
   const preToolUse = hooks?.hooks?.PreToolUse;
-  if (!preToolUse || !Array.isArray(preToolUse) || preToolUse.length === 0) {
-    fail("PRETOOLUSE_MISSING", "hooks.json has no PreToolUse hook defined", {
-      file: "hooks/hooks.json",
-      hint: "Add a PreToolUse matcher group to hooks.json",
-    });
-    return;
-  }
+  const hasPreToolUse = Array.isArray(preToolUse) && preToolUse.length > 0;
 
-  // Check matcher covers Read|Edit|Write|Bash
-  const matcher = preToolUse[0]?.matcher || "";
-  for (const tool of ["Read", "Edit", "Write", "Bash"]) {
-    if (!matcher.includes(tool)) {
-      fail("PRETOOLUSE_MATCHER_INCOMPLETE", `PreToolUse matcher missing "${tool}" — current: "${matcher}"`, {
-        file: "hooks/hooks.json",
-        hint: `Add "${tool}" to the PreToolUse matcher pattern`,
-      });
-    }
-  }
-  if (["Read", "Edit", "Write", "Bash"].every((t) => matcher.includes(t))) {
-    pass("PreToolUse matcher covers Read|Edit|Write|Bash");
-  }
-
-  // 8b. Check referenced hook script exists
-  const hookCmd = preToolUse[0]?.hooks?.[0]?.command || "";
-  const scriptMatch = hookCmd.match(/pretooluse-skill-inject\.mjs/);
-  if (!scriptMatch) {
-    fail("PRETOOLUSE_SCRIPT_REF", "PreToolUse hook command does not reference pretooluse-skill-inject.mjs", {
-      file: "hooks/hooks.json",
-      hint: "Set the hook command to reference pretooluse-skill-inject.mjs",
-    });
+  if (!hasPreToolUse) {
+    pass("No PreToolUse hook registered by default; hook wiring check skipped");
   } else {
-    const scriptPath = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
-    if (await exists(scriptPath)) {
-      pass("pretooluse-skill-inject.mjs exists");
-    } else {
-      fail("PRETOOLUSE_SCRIPT_MISSING", "hooks/pretooluse-skill-inject.mjs not found", {
-        file: "hooks/pretooluse-skill-inject.mjs",
-        hint: "Create the PreToolUse hook script at hooks/pretooluse-skill-inject.mjs",
+    // Check matcher covers Read|Edit|Write|Bash
+    const matcher = preToolUse[0]?.matcher || "";
+    for (const tool of ["Read", "Edit", "Write", "Bash"]) {
+      if (!matcher.includes(tool)) {
+        fail("PRETOOLUSE_MATCHER_INCOMPLETE", `PreToolUse matcher missing "${tool}" — current: "${matcher}"`, {
+          file: "hooks/hooks.json",
+          hint: `Add "${tool}" to the PreToolUse matcher pattern`,
+        });
+      }
+    }
+    if (["Read", "Edit", "Write", "Bash"].every((t) => matcher.includes(t))) {
+      pass("PreToolUse matcher covers Read|Edit|Write|Bash");
+    }
+
+    // 8b. Check referenced hook script exists
+    const hookCmd = preToolUse[0]?.hooks?.[0]?.command || "";
+    const scriptMatch = hookCmd.match(/pretooluse-skill-inject\.mjs/);
+    if (!scriptMatch) {
+      fail("PRETOOLUSE_SCRIPT_REF", "PreToolUse hook command does not reference pretooluse-skill-inject.mjs", {
+        file: "hooks/hooks.json",
+        hint: "Set the hook command to reference pretooluse-skill-inject.mjs",
       });
+    } else {
+      const scriptPath = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
+      if (await exists(scriptPath)) {
+        pass("pretooluse-skill-inject.mjs exists");
+      } else {
+        fail("PRETOOLUSE_SCRIPT_MISSING", "hooks/pretooluse-skill-inject.mjs not found", {
+          file: "hooks/pretooluse-skill-inject.mjs",
+          hint: "Create the PreToolUse hook script at hooks/pretooluse-skill-inject.mjs",
+        });
+      }
     }
   }
 
-  // 8c. Validate skill frontmatter triggers
+  // 8b. Validate skill frontmatter triggers
   // Every skills/*/SKILL.md should have metadata.pathPatterns or metadata.bashPatterns
   const skillsDir = join(ROOT, "skills");
   if (!(await exists(skillsDir))) {

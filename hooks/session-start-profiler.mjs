@@ -4,8 +4,7 @@ import {
   constants as fsConstants,
   existsSync,
   readFileSync,
-  readdirSync,
-  writeFileSync
+  readdirSync
 } from "fs";
 import { delimiter, join, resolve } from "path";
 import { execFileSync } from "child_process";
@@ -15,10 +14,11 @@ import {
   normalizeInput,
   setSessionEnv
 } from "./compat.mjs";
-import { pluginRoot, profileCachePath, safeReadJson, writeSessionFile } from "./hook-env.mjs";
+import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
+import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { trackBaseEvents, getOrCreateDeviceId } from "./telemetry.mjs";
+import { trackDauActiveToday } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
@@ -409,8 +409,25 @@ async function main() {
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
-  logBrokenSkillFrontmatterSummary();
   const greenfield = checkGreenfield(projectRoot);
+  const shouldActivate = greenfield !== null || !existsSync(projectRoot) || hasSessionStartActivationMarkers(projectRoot);
+  if (!shouldActivate) {
+    log.debug("session-start-profiler:skipped-non-vercel-project", {
+      projectRoot,
+      reason: "non-empty-without-vercel-markers"
+    });
+    if (sessionId) {
+      writeSessionFile(sessionId, SESSION_GREENFIELD_KIND, "");
+      writeSessionFile(sessionId, SESSION_LIKELY_SKILLS_KIND, "");
+    }
+    if (platform === "cursor") {
+      process.stdout.write(JSON.stringify(formatOutput("cursor", {})));
+    }
+    await trackDauActiveToday().catch(() => {
+    });
+    process.exit(0);
+  }
+  logBrokenSkillFrontmatterSummary();
   const cliStatus = checkVercelCli();
   const userMessages = buildSessionStartProfilerUserMessages(greenfield, cliStatus);
   const likelySkills = greenfield ? GREENFIELD_DEFAULT_SKILLS : profileProject(projectRoot);
@@ -449,37 +466,8 @@ async function main() {
 
 `);
   }
-  if (sessionId) {
-    try {
-      const cache = {
-        projectRoot,
-        likelySkills,
-        greenfield: greenfield !== null,
-        bootstrapHints: setupSignals.bootstrapHints,
-        resourceHints: setupSignals.resourceHints,
-        setupMode: setupSignals.setupMode,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      writeFileSync(profileCachePath(sessionId), JSON.stringify(cache), "utf-8");
-    } catch (error) {
-      logCaughtError(log, "session-start-profiler:write-profile-cache-failed", error, {
-        sessionId,
-        projectRoot
-      });
-    }
-  }
-  if (sessionId) {
-    const deviceId = getOrCreateDeviceId();
-    await trackBaseEvents(sessionId, [
-      { key: "session:device_id", value: deviceId },
-      { key: "session:platform", value: process.platform },
-      { key: "session:likely_skills", value: likelySkills.join(",") },
-      { key: "session:greenfield", value: String(greenfield !== null) },
-      { key: "session:vercel_cli_installed", value: String(cliStatus.installed) },
-      { key: "session:vercel_cli_version", value: cliStatus.currentVersion || "" }
-    ]).catch(() => {
-    });
-  }
+  await trackDauActiveToday().catch(() => {
+  });
   if (cursorOutput) {
     process.stdout.write(cursorOutput);
   }

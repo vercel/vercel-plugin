@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 // hooks/src/inject-claude-md.mts
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { formatOutput } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
+import { hasSessionStartActivationMarkers, isGreenfieldDirectory } from "./session-start-activation.mjs";
 var GREENFIELD_CONTEXT = `<!-- vercel-plugin:greenfield-execution -->
 ## Greenfield execution mode
 
@@ -29,7 +30,7 @@ function detectInjectClaudeMdPlatform(input, _env = process.env) {
   }
   return "claude-code";
 }
-function buildInjectClaudeMdParts(content, env = process.env, knowledgeUpdate = null) {
+function buildInjectClaudeMdParts(content, env = process.env, knowledgeUpdate = null, greenfield = env.VERCEL_PLUGIN_GREENFIELD === "true") {
   const parts = [];
   if (content !== null) {
     parts.push(content);
@@ -37,7 +38,7 @@ function buildInjectClaudeMdParts(content, env = process.env, knowledgeUpdate = 
   if (knowledgeUpdate !== null) {
     parts.push(knowledgeUpdate);
   }
-  if (env.VERCEL_PLUGIN_GREENFIELD === "true") {
+  if (greenfield) {
     parts.push(GREENFIELD_CONTEXT);
   }
   return parts;
@@ -48,6 +49,9 @@ function formatInjectClaudeMdOutput(platform, content) {
   }
   return content;
 }
+function resolveInjectClaudeMdProjectRoot(env = process.env) {
+  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+}
 function stripFrontmatter(content) {
   const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
   return match ? match[1].trim() : content.trim();
@@ -55,10 +59,25 @@ function stripFrontmatter(content) {
 function main() {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
+  const projectRoot = resolveInjectClaudeMdProjectRoot();
+  const isGreenfield = isGreenfieldDirectory(projectRoot);
+  const greenfieldOverride = process.env.VERCEL_PLUGIN_GREENFIELD === "true";
+  const shouldActivate = isGreenfield || greenfieldOverride || !existsSync(projectRoot) || hasSessionStartActivationMarkers(projectRoot);
+  if (!shouldActivate) {
+    if (platform === "cursor") {
+      process.stdout.write(JSON.stringify(formatOutput(platform, {})));
+    }
+    return;
+  }
   const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
   const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
   const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
-  const parts = buildInjectClaudeMdParts(thinSessionContext, process.env, knowledgeUpdate);
+  const parts = buildInjectClaudeMdParts(
+    thinSessionContext,
+    process.env,
+    knowledgeUpdate,
+    isGreenfield || greenfieldOverride
+  );
   if (parts.length === 0) {
     return;
   }
