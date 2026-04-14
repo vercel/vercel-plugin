@@ -19,7 +19,7 @@ metadata:
     - '\byarn\s+add\s+[^\n]*@ai-sdk/gateway\b'
 validate:
   -
-    pattern: \d+-\d+[)'"]
+    pattern: '\b(claude|gpt|gemini|llama|mistral|qwen|deepseek)[a-z0-9-]*-\d+-\d+[a-z0-9-]*\b'
     message: 'Model slug uses hyphens — use dots not hyphens for version numbers (e.g., claude-sonnet-4.6)'
     severity: error
   -
