@@ -252,7 +252,47 @@ function compareVersionSegments(leftVersion, rightVersion) {
   }
   return 0;
 }
+function checkVercelCliWin32() {
+  let currentVersion;
+  try {
+    const raw = execFileSync("cmd.exe", ["/c", "vercel.cmd", ...VERCEL_VERSION_ARGS], {
+      timeout: EXEC_SYNC_TIMEOUT_MS,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO
+    }).trim();
+    const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+    currentVersion = lines[lines.length - 1];
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:vercel-version-check-failed", error, {
+      command: "vercel.cmd",
+      args: VERCEL_VERSION_ARGS.join(" ")
+    });
+    return { installed: false, needsUpdate: false };
+  }
+  let latestVersion;
+  try {
+    const raw = execFileSync("cmd.exe", ["/c", "npm.cmd", ...NPM_VIEW_ARGS], {
+      timeout: EXEC_SYNC_TIMEOUT_MS,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO
+    }).trim();
+    latestVersion = raw;
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
+      command: "npm.cmd",
+      args: NPM_VIEW_ARGS.join(" "),
+      currentVersion
+    });
+    return { installed: true, currentVersion, needsUpdate: false };
+  }
+  const versionComparison = currentVersion && latestVersion ? compareVersionSegments(currentVersion, latestVersion) : null;
+  const needsUpdate = versionComparison === null ? !!(currentVersion && latestVersion && currentVersion !== latestVersion) : versionComparison < 0;
+  return { installed: true, currentVersion, latestVersion, needsUpdate };
+}
 function checkVercelCli() {
+  if (process.platform === "win32") {
+    return checkVercelCliWin32();
+  }
   const vercelBinary = resolveBinaryFromPath("vercel");
   if (!vercelBinary) {
     return { installed: false, needsUpdate: false };

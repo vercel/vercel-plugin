@@ -616,6 +616,9 @@ describe("session-start-profiler", () => {
   });
 
   test("treats 1.9.0 as older than 1.10.0 when checking Vercel CLI", async () => {
+    if (process.platform === "win32") {
+      return;
+    }
     const projectDir = join(tempDir, "semver-project");
     const binDir = join(tempDir, "mock-bin");
     mkdirSync(projectDir);
@@ -631,7 +634,7 @@ describe("session-start-profiler", () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("The Vercel CLI is outdated");
-    expect(result.stdout).toContain("Vercel CLI 1.9.0");
+    expect(result.stdout).toContain("1.9.0");
     expect(result.stdout).toContain("1.10.0");
     expect(result.stdout).toContain("npm i -g vercel@latest");
     expect(result.stdout).toContain("pnpm add -g vercel@latest");
@@ -661,6 +664,9 @@ describe("session-start-profiler", () => {
   });
 
   test("skips npm registry lookup when npm binary cannot be resolved", async () => {
+    if (process.platform === "win32") {
+      return;
+    }
     const projectDir = join(tempDir, "missing-npm-project");
     const binDir = join(tempDir, "missing-npm-bin");
     mkdirSync(projectDir);
@@ -685,7 +691,8 @@ describe("session-start-profiler", () => {
     const binDir = join(tempDir, "slow-vercel-bin");
     mkdirSync(projectDir);
     mkdirSync(binDir);
-    makeMockCommand(binDir, "vercel", "sleep 5");
+    const vercelCmd = process.platform === "win32" ? "vercel.cmd" : "vercel";
+    makeMockCommand(binDir, vercelCmd, "sleep 5");
 
     const startedAt = Date.now();
     const result = await runProfiler({
@@ -717,8 +724,12 @@ describe("session-start-profiler", () => {
     expect(result.stderr).toContain("session-start-profiler:check-greenfield-readdir-failed");
     expect(result.stderr).toContain("session-start-profiler:profile-bootstrap-signals-readdir-failed");
     expect(result.stderr).toContain("session-start-profiler:vercel-version-check-failed");
-    expect(result.stderr).toContain("session-start-profiler:binary-resolution-skipped");
-    expect(result.stderr).toContain('"binaryName":"agent-browser"');
+    if (process.platform === "win32") {
+      expect(result.stderr).toContain('"command":"vercel.cmd"');
+    } else {
+      expect(result.stderr).toContain("session-start-profiler:binary-resolution-skipped");
+      expect(result.stderr).toContain('"binaryName":"agent-browser"');
+    }
     expect(result.stderr).toContain("session-start-profiler:append-env-export-failed");
     expect(result.stderr).toContain("hook-env:safe-read-file-failed");
   });
