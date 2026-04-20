@@ -394,26 +394,83 @@ function compareVersionSegments(leftVersion: string, rightVersion: string): numb
 }
 
 /**
+ * Windows-specific Vercel CLI check.
+ * Always delegates to cmd.exe so it can resolve and run the `.cmd` wrappers
+ * that npm installs for global packages. This avoids both the path-encoding
+ * failures caused by non-ASCII usernames (Issue #30) and the hard ENOENT/EINVAL
+ * restriction Node 18+ places on directly spawning `.cmd` / `.bat` files.
+ */
+function checkVercelCliWin32(): VercelCliStatus {
+  // 1. Check if vercel is installed
+  let currentVersion: string | undefined;
+  try {
+    const raw: string = execFileSync("cmd.exe", ["/c", "vercel.cmd", ...VERCEL_VERSION_ARGS], {
+      timeout: EXEC_SYNC_TIMEOUT_MS,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO,
+    }).trim();
+    const lines: string[] = raw.split("\n").map((l: string) => l.trim()).filter(Boolean);
+    currentVersion = lines[lines.length - 1];
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:vercel-version-check-failed", error, {
+      command: "vercel.cmd",
+      args: VERCEL_VERSION_ARGS.join(" "),
+    });
+    return { installed: false, needsUpdate: false };
+  }
+
+  // 2. Fetch latest version from npm registry
+  let latestVersion: string | undefined;
+  try {
+    const raw: string = execFileSync("cmd.exe", ["/c", "npm.cmd", ...NPM_VIEW_ARGS], {
+      timeout: EXEC_SYNC_TIMEOUT_MS,
+      encoding: "utf-8",
+      stdio: SPAWN_STDIO,
+    }).trim();
+    latestVersion = raw;
+  } catch (error) {
+    logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
+      command: "npm.cmd",
+      args: NPM_VIEW_ARGS.join(" "),
+      currentVersion,
+    });
+    return { installed: true, currentVersion, needsUpdate: false };
+  }
+
+  const versionComparison = currentVersion && latestVersion
+    ? compareVersionSegments(currentVersion, latestVersion)
+    : null;
+  const needsUpdate: boolean = versionComparison === null
+    ? !!(currentVersion && latestVersion && currentVersion !== latestVersion)
+    : versionComparison < 0;
+
+  return { installed: true, currentVersion, latestVersion, needsUpdate };
+}
+
+/**
  * Check if Vercel CLI is installed and whether it's up to date.
  * Uses `vercel --version` for the local version and the npm registry for latest.
  * Returns quickly — each subprocess has a tight timeout.
  */
 function checkVercelCli(): VercelCliStatus {
-  let vercelBinary = resolveBinaryFromPath("vercel");
+  // On Windows, Node.js cannot directly spawn `.cmd` wrappers that npm installs
+  // for global packages (ENOENT/EINVAL since Node 18+, CVE-2024-27980). Even when
+  // resolveBinaryFromPath finds the extensionless `vercel` file, executing it fails.
+  // We bypass both path-encoding issues (Issue #30) and the spawn restriction by
+  // delegating to cmd.exe, which resolves and runs `.cmd` files natively.
+  if (process.platform === "win32") {
+    return checkVercelCliWin32();
+  }
+
+  const vercelBinary = resolveBinaryFromPath("vercel");
   if (!vercelBinary) {
-    if (process.platform === "win32") {
-      vercelBinary = "vercel.cmd";
-    } else {
-      return { installed: false, needsUpdate: false };
-    }
+    return { installed: false, needsUpdate: false };
   }
 
   // 1. Check if vercel is installed
   let currentVersion: string | undefined;
   try {
-    const args = process.platform === "win32" ? ["/c", vercelBinary, ...VERCEL_VERSION_ARGS] : VERCEL_VERSION_ARGS;
-    const bin = process.platform === "win32" ? "cmd.exe" : vercelBinary;
-    const raw: string = execFileSync(bin, args, {
+    const raw: string = execFileSync(vercelBinary, VERCEL_VERSION_ARGS, {
       timeout: EXEC_SYNC_TIMEOUT_MS,
       encoding: "utf-8",
       stdio: SPAWN_STDIO,
@@ -429,21 +486,15 @@ function checkVercelCli(): VercelCliStatus {
     return { installed: false, needsUpdate: false };
   }
 
-  let npmBinary = resolveBinaryFromPath("npm");
+  const npmBinary = resolveBinaryFromPath("npm");
   if (!npmBinary) {
-    if (process.platform === "win32") {
-      npmBinary = "npm.cmd";
-    } else {
-      return { installed: true, currentVersion, needsUpdate: false };
-    }
+    return { installed: true, currentVersion, needsUpdate: false };
   }
 
   // 2. Fetch latest version from npm registry
   let latestVersion: string | undefined;
   try {
-    const args = process.platform === "win32" ? ["/c", npmBinary, ...NPM_VIEW_ARGS] : NPM_VIEW_ARGS;
-    const bin = process.platform === "win32" ? "cmd.exe" : npmBinary;
-    const raw: string = execFileSync(bin, args, {
+    const raw: string = execFileSync(npmBinary, NPM_VIEW_ARGS, {
       timeout: EXEC_SYNC_TIMEOUT_MS,
       encoding: "utf-8",
       stdio: SPAWN_STDIO,
