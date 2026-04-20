@@ -306,6 +306,9 @@ function parseSessionStartInput(raw) {
   }
 }
 function detectSessionStartPlatform(input, env = process.env) {
+  if (env.ANTIGRAVITY_AGENT === "1") {
+    return "antigravity";
+  }
   if (typeof env.CLAUDE_ENV_FILE === "string" && env.CLAUDE_ENV_FILE.trim() !== "") {
     return "claude-code";
   }
@@ -320,7 +323,7 @@ function normalizeSessionStartSessionId(input) {
   return sessionId || null;
 }
 function resolveSessionStartProjectRoot(env = process.env) {
-  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+  return env.VSCODE_CWD ?? env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 function collectBrokenSkillFrontmatterNames(files) {
   return [...new Set(
@@ -445,9 +448,9 @@ async function main() {
     writeSessionFile(sessionId, SESSION_LIKELY_SKILLS_KIND, likelySkillsValue);
   }
   try {
-    if (platform === "claude-code") {
+    if (platform === "cursor" || platform === "antigravity") {
       for (const [key, value] of Object.entries(envVars)) {
-        if (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS") {
+        if (platform !== "antigravity" && (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS")) {
           continue;
         }
         setSessionEnv(platform, key, value);

@@ -15,6 +15,7 @@
     "build": "bun run build:skills && bun run build:hooks && bun run build:manifest && bun run build:from-skills",
     "validate": "bun run scripts/validate.ts",
     "doctor": "bun run src/cli/index.ts doctor",
+    "vercel-plugin": "bun run src/cli/index.ts",
     "typecheck": "tsc -p hooks/tsconfig.json --noEmit",
     "test": "bun run typecheck && bun test",
     "test:update-snapshots": "UPDATE_SNAPSHOTS=1 bun test tests/snapshot-runner.test.ts",

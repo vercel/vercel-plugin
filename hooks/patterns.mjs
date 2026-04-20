@@ -3,7 +3,8 @@ import { createHash } from "crypto";
 import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { basename } from "path";
-import { join, resolve } from "path";
+import { join, resolve, dirname } from "path";
+import { getEnvFilePath } from "./compat.mjs";
 var REGEX_META_CHARS = ".()+[]{}|^$\\";
 function parseBraceExpansion(pattern, startIndex) {
   let depth = 0;
@@ -187,9 +188,10 @@ function escapeShellEnvValue(value) {
 function persistCompactionResetEnv(nextSeenEnv) {
   process.env.VERCEL_PLUGIN_SEEN_SKILLS = nextSeenEnv;
   process.env.VERCEL_PLUGIN_CONTEXT_COMPACTED = "";
-  const envFile = process.env.CLAUDE_ENV_FILE;
+  const envFile = getEnvFilePath();
   if (!envFile) return;
   try {
+    mkdirSync(dirname(envFile), { recursive: true });
     appendFileSync(
       envFile,
       [

@@ -698,6 +698,32 @@ describe("session-start-profiler", () => {
     expect(result.stderr).toContain("session-start-profiler:append-env-export-failed");
     expect(result.stderr).toContain("hook-env:safe-read-file-failed");
   });
+
+  test("persists to antigravity env file when requested", async () => {
+    const projectDir = join(tempDir, "antigravity-project");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.js"), "");
+
+    // Mask HOME to testDir to avoid writing to real user config
+    const mockHome = join(tempDir, "mock-home");
+    mkdirSync(mockHome);
+
+    const result = await runProfiler({
+      ANTIGRAVITY_AGENT: "1",
+      HOME: mockHome,
+      USERPROFILE: mockHome, // for Windows
+      CLAUDE_PROJECT_ROOT: projectDir,
+    });
+
+    expect(result.code).toBe(0);
+
+    const antigravityEnvFile = join(mockHome, ".gemini", "antigravity", "context_state", "vercel-plugin-env");
+    expect(existsSync(antigravityEnvFile)).toBe(true);
+
+    const content = readFileSync(antigravityEnvFile, "utf-8");
+    expect(content).toContain('export VERCEL_PLUGIN_LIKELY_SKILLS="');
+    expect(content).toContain('export VERCEL_PLUGIN_BOOTSTRAP_HINTS="');
+  });
 });
 
 // ---------------------------------------------------------------------------
