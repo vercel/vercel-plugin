@@ -1,5 +1,7 @@
 // hooks/src/compat.mts
-import { appendFileSync } from "fs";
+import { appendFileSync, mkdirSync } from "fs";
+import { dirname } from "path";
+import { getAntigravityEnvPath, loadAntigravityEnv, saveAntigravityEnv } from "./antigravity-env.mjs";
 var cursorSessionEnv = /* @__PURE__ */ new Map();
 var currentHookEventName;
 function isRecord(value) {
@@ -45,6 +47,9 @@ function detectPlatform(raw, env = process.env) {
 }
 function normalizeInput(raw, env = process.env) {
   const platform = detectPlatform(raw, env);
+  if (platform === "antigravity") {
+    loadAntigravityEnv(env);
+  }
   const sessionId = readString(raw.session_id ?? raw.conversation_id) ?? "";
   const cwd = readString(raw.cwd) ?? readWorkspaceRoot(raw) ?? env.VSCODE_CWD ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const hookEvent = readString(raw.hook_event_name) ?? "";
@@ -101,7 +106,10 @@ function formatOutput(platform, internal) {
   }
   return { hookSpecificOutput };
 }
-function getEnvFilePath() {
+function getEnvFilePath(platform) {
+  if (platform === "antigravity") {
+    return getAntigravityEnvPath();
+  }
   return process.env.CLAUDE_ENV_FILE || null;
 }
 function setSessionEnv(platform, key, value) {
@@ -109,10 +117,18 @@ function setSessionEnv(platform, key, value) {
     cursorSessionEnv.set(key, value);
     return;
   }
-  const envFile = getEnvFilePath();
+  if (platform === "antigravity") {
+    saveAntigravityEnv(key, value);
+    return;
+  }
+  const envFile = getEnvFilePath(platform);
   if (!envFile) return;
-  appendFileSync(envFile, `export ${key}="${escapeShellEnvValue(value)}"
+  try {
+    mkdirSync(dirname(envFile), { recursive: true });
+    appendFileSync(envFile, `export ${key}="${escapeShellEnvValue(value)}"
 `);
+  } catch {
+  }
 }
 function getProjectRoot() {
   return process.env.VSCODE_CWD ?? process.env.CLAUDE_PROJECT_ROOT ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd();

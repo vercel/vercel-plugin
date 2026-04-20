@@ -192,25 +192,28 @@ function extractSectionFromMarkdown(markdown: string, headingPath: string): stri
 
 /**
  * Extract content from a heading to the next heading of equal or higher level.
- * Skips heading detection inside fenced code blocks (``` markers).
+ * Skips heading detection inside fenced code blocks (``` markers)
  */
 function extractDirectSection(markdown: string, headingSpec: string): string {
   const { level: specLevel, text: specText } = parseHeadingSpec(headingSpec);
-  const lines = markdown.split("\n");
+  // Normalize line endings to LF
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
 
   let startLine = -1;
   let headingLevel = 0;
   let inCodeBlock = false;
 
-  // Find the matching heading (skip lines inside fenced code blocks)
+  const headingRegex = /^(#{1,6})\s+(.+)$/;
+
   for (let i = 0; i < lines.length; i++) {
-    if (/^```/.test(lines[i])) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
     if (inCodeBlock) continue;
 
-    const hMatch = lines[i].match(/^(#{1,6})\s+(.+)$/);
+    const hMatch = line.match(headingRegex);
     if (!hMatch) continue;
 
     const lineLevel = hMatch[1].length;
@@ -225,22 +228,22 @@ function extractDirectSection(markdown: string, headingSpec: string): string {
 
   if (startLine === -1) return "";
 
-  // Collect lines until next heading of equal or higher level (skip code blocks)
   inCodeBlock = false;
   const contentLines: string[] = [];
   for (let i = startLine + 1; i < lines.length; i++) {
-    if (/^```/.test(lines[i])) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
       inCodeBlock = !inCodeBlock;
-      contentLines.push(lines[i]);
+      contentLines.push(line);
       continue;
     }
     if (inCodeBlock) {
-      contentLines.push(lines[i]);
+      contentLines.push(line);
       continue;
     }
-    const hMatch = lines[i].match(/^(#{1,6})\s+/);
+    const hMatch = line.match(headingRegex);
     if (hMatch && hMatch[1].length <= headingLevel) break;
-    contentLines.push(lines[i]);
+    contentLines.push(line);
   }
 
   return contentLines.join("\n").trim();

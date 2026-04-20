@@ -21,6 +21,10 @@
 
 ```bash
 npx plugins add vercel/vercel-plugin
+
+# For Antigravity users specifically:
+# This automates skills linking and session persistence setup
+bun run vercel-plugin install --antigravity
 ```
 
 That's it. The plugin installs Vercel context, skills, and a lightweight default hook profile.
@@ -96,7 +100,19 @@ A text-form relational graph covering:
 Lifecycle hooks that run automatically during your session:
 
 - **Session start context injection** — Injects a thin Vercel session context plus the knowledge-update guidance for empty directories and detected Vercel/Next.js projects
-- **Session start repo profiler** — Scans config files and dependencies to set likely-skill hints, but only after that same activation check passes
+- **Profiler Persistence** — In Antigravity and Claude Code, session state (likely skills, greenfield status) is persisted across agent turns via a local environment file.
+
+## Platform Specifics
+
+### Antigravity
+
+Antigravity uses a dedicated file-based persistence layer since it lacks a native environment file.
+- **Persistence Path**: `~/.gemini/antigravity/context_state/vercel-plugin-env`
+- **Installation**: Use `vercel-plugin install --antigravity` to symlink your local skills to the Antigravity environment.
+- **Deduplication**: Uses the same `VERCEL_PLUGIN_SEEN_SKILLS` flow as other platforms, but persisted locally.
+
+### Claude Code
+...
 
 ## Usage
 

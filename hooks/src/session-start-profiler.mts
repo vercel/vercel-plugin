@@ -678,9 +678,9 @@ async function main(): Promise<void> {
   }
 
   try {
-    if (platform === "claude-code") {
+    if (platform === "cursor" || platform === "antigravity") {
       for (const [key, value] of Object.entries(envVars)) {
-        if (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS") {
+        if (platform !== "antigravity" && (key === "VERCEL_PLUGIN_GREENFIELD" || key === "VERCEL_PLUGIN_LIKELY_SKILLS")) {
           continue;
         }
         setSessionEnv(platform, key, value);

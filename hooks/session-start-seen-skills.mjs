@@ -5,7 +5,8 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import {
-  formatOutput
+  formatOutput,
+  setSessionEnv
 } from "./compat.mjs";
 import {
   removeAllSessionDedupArtifacts
@@ -20,7 +21,10 @@ function parseSessionStartSeenSkillsInput(raw) {
     return null;
   }
 }
-function detectSessionStartSeenSkillsPlatform(input, _env = process.env) {
+function detectSessionStartSeenSkillsPlatform(input, env = process.env) {
+  if (env.ANTIGRAVITY_AGENT === "1") {
+    return "antigravity";
+  }
   if (input && ("conversation_id" in input || "cursor_version" in input)) {
     return "cursor";
   }
@@ -61,6 +65,9 @@ function main() {
     removedFiles,
     removedDirs
   });
+  if (platform === "antigravity") {
+    setSessionEnv(platform, "VERCEL_PLUGIN_SEEN_SKILLS", process.env.VERCEL_PLUGIN_SEEN_SKILLS ?? "");
+  }
 }
 var SESSION_START_SEEN_SKILLS_ENTRYPOINT = fileURLToPath(import.meta.url);
 var isSessionStartSeenSkillsEntrypoint = process.argv[1] ? resolve(process.argv[1]) === SESSION_START_SEEN_SKILLS_ENTRYPOINT : false;

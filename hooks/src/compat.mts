@@ -5,7 +5,10 @@
  * platform-specific output without duplicating translation logic.
  */
 
-import { appendFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { dirname, join } from "node:path"
+import { getAntigravityEnvPath, loadAntigravityEnv, saveAntigravityEnv } from "./antigravity-env.mjs"
 
 /**
  * Supported hook payload/output platforms.
@@ -112,6 +115,11 @@ export function normalizeInput(
   env: NodeJS.ProcessEnv = process.env,
 ): NormalizedInput {
   const platform = detectPlatform(raw, env)
+
+  if (platform === "antigravity") {
+    loadAntigravityEnv(env)
+  }
+
   const sessionId = readString(raw.session_id ?? raw.conversation_id) ?? ""
   const cwd =
     readString(raw.cwd) ??
@@ -191,7 +199,10 @@ export function formatOutput(platform: string, internal: InternalOutput): Record
 /**
  * Return the active Claude env-file path when available.
  */
-export function getEnvFilePath(): string | null {
+export function getEnvFilePath(platform?: HookPlatform): string | null {
+  if (platform === "antigravity") {
+    return getAntigravityEnvPath()
+  }
   return process.env.CLAUDE_ENV_FILE || null
 }
 
@@ -204,10 +215,20 @@ export function setSessionEnv(platform: string, key: string, value: string): voi
     return
   }
 
-  const envFile = getEnvFilePath()
+  if (platform === "antigravity") {
+    saveAntigravityEnv(key, value)
+    return
+  }
+
+  const envFile = getEnvFilePath(platform as HookPlatform)
   if (!envFile) return
 
-  appendFileSync(envFile, `export ${key}="${escapeShellEnvValue(value)}"\n`)
+  try {
+    mkdirSync(dirname(envFile), { recursive: true })
+    appendFileSync(envFile, `export ${key}="${escapeShellEnvValue(value)}"\n`)
+  } catch {
+    // Ignore errors
+  }
 }
 
 /**

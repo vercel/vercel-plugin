@@ -7,10 +7,15 @@
  *   vercel-plugin explain --help
  */
 
-import { existsSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { existsSync, readFileSync, mkdirSync, symlinkSync } from "node:fs";
+import { resolve, join, dirname } from "node:path";
+import { homedir } from "node:os";
 import { explain, formatExplainResult } from "./explain.ts";
 import { doctor, formatDoctorResult } from "../commands/doctor.ts";
+import { loadAntigravityEnv } from "../../hooks/src/antigravity-env.mts";
+
+// Load persistence if running under Antigravity
+loadAntigravityEnv();
 
 function validateProjectRoot(projectRoot: string): void {
   const skillsDir = join(projectRoot, "skills");
@@ -29,6 +34,7 @@ function printUsage() {
 Commands:
   explain <target>    Show which skills match a file path or bash command
   doctor              Run self-diagnosis checks on the plugin setup
+  install             Automate installation and platform integration
 
 Options for explain:
   --json              Output machine-readable JSON
@@ -41,7 +47,8 @@ Examples:
   vercel-plugin explain middleware.ts
   vercel-plugin explain "vercel deploy --prod"
   vercel-plugin explain vercel.json --json
-  vercel-plugin explain app/api/chat/route.ts --project /path/to/plugin`);
+  vercel-plugin explain app/api/chat/route.ts --project /path/to/plugin
+  vercel-plugin install --antigravity`);
 }
 
 if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
@@ -55,6 +62,8 @@ if (command === "explain") {
   runExplain(args.slice(1));
 } else if (command === "doctor") {
   runDoctor(args.slice(1));
+} else if (command === "install") {
+  runInstall(args.slice(1));
 } else {
   console.error(`Unknown command: ${command}`);
   printUsage();
@@ -173,5 +182,73 @@ function runDoctor(doctorArgs: string[]) {
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     process.exit(2);
+  }
+}
+
+function runInstall(installArgs: string[]) {
+  let platform: "antigravity" | undefined;
+  let projectRoot = resolve(import.meta.dir, "../..");
+
+  for (let i = 0; i < installArgs.length; i++) {
+    const arg = installArgs[i];
+    if (arg === "--antigravity") {
+      platform = "antigravity";
+    } else if (arg === "--project") {
+      i++;
+      if (i >= installArgs.length) {
+        console.error("Error: --project requires a path argument");
+        process.exit(1);
+      }
+      projectRoot = resolve(installArgs[i]);
+    } else if (arg === "--help" || arg === "-h") {
+      printUsage();
+      process.exit(0);
+    } else {
+      console.error(`Error: unexpected argument "${arg}"`);
+      process.exit(1);
+    }
+  }
+
+  if (!platform) {
+    console.error("Error: install requires a platform flag (e.g. --antigravity)");
+    process.exit(1);
+  }
+
+  if (platform === "antigravity") {
+    const antigravitySkillsDir = join(homedir(), ".gemini", "antigravity", "skills");
+    const junctionPath = join(antigravitySkillsDir, "nextjs");
+    const skillsSource = join(projectRoot, "skills");
+    const contextStateDir = join(homedir(), ".gemini", "antigravity", "context_state");
+
+    console.log("Installing vercel-plugin for Antigravity...");
+
+    try {
+      // 1. Ensure skills dir exists
+      if (!existsSync(antigravitySkillsDir)) {
+        console.log(`Creating ${antigravitySkillsDir}...`);
+        mkdirSync(antigravitySkillsDir, { recursive: true });
+      }
+
+      // 2. Create skills junction
+      if (!existsSync(junctionPath)) {
+        console.log(`Linking ${skillsSource} to ${junctionPath}...`);
+        symlinkSync(skillsSource, junctionPath, "junction");
+      } else {
+        console.log(`Link already exists at ${junctionPath}`);
+      }
+
+      // 3. Ensure context_state exists
+      if (!existsSync(contextStateDir)) {
+        console.log(`Creating ${contextStateDir}...`);
+        mkdirSync(contextStateDir, { recursive: true });
+      }
+
+      console.log("\nSuccess: vercel-plugin is now integrated with Antigravity.");
+      console.log("You can verify with: $env:ANTIGRAVITY_AGENT='1'; vercel-plugin doctor");
+      process.exit(0);
+    } catch (err: any) {
+      console.error(`Error during installation: ${err.message}`);
+      process.exit(2);
+    }
   }
 }

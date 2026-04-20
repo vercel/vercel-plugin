@@ -16,6 +16,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   formatOutput,
+  setSessionEnv,
   type HookPlatform,
 } from "./compat.mjs";
 import {
@@ -46,8 +47,12 @@ export function parseSessionStartSeenSkillsInput(raw: string): SessionStartSeenS
 
 export function detectSessionStartSeenSkillsPlatform(
   input: SessionStartSeenSkillsInput | null,
-  _env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = process.env,
 ): HookPlatform {
+  if (env.ANTIGRAVITY_AGENT === "1") {
+    return "antigravity";
+  }
+
   if (input && ("conversation_id" in input || "cursor_version" in input)) {
     return "cursor";
   }
@@ -104,6 +109,11 @@ function main(): void {
     removedFiles,
     removedDirs,
   });
+
+  if (platform === "antigravity") {
+    // Ensure the env var is initialized in the persistence file
+    setSessionEnv(platform, "VERCEL_PLUGIN_SEEN_SKILLS", process.env.VERCEL_PLUGIN_SEEN_SKILLS ?? "");
+  }
 }
 
 const SESSION_START_SEEN_SKILLS_ENTRYPOINT = fileURLToPath(import.meta.url);

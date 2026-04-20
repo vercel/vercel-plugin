@@ -8,7 +8,8 @@ import { createHash } from "node:crypto";
 import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename } from "node:path";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { getEnvFilePath } from "./compat.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -351,10 +352,11 @@ function persistCompactionResetEnv(nextSeenEnv: string): void {
   process.env.VERCEL_PLUGIN_SEEN_SKILLS = nextSeenEnv;
   process.env.VERCEL_PLUGIN_CONTEXT_COMPACTED = "";
 
-  const envFile = process.env.CLAUDE_ENV_FILE;
+  const envFile = getEnvFilePath();
   if (!envFile) return;
 
   try {
+    mkdirSync(dirname(envFile), { recursive: true });
     appendFileSync(
       envFile,
       [

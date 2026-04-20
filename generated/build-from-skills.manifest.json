@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-11T21:14:22.852Z",
+  "generatedAt": "2026-04-20T22:31:24.905Z",
   "templates": [
     {
       "template": "agents/ai-architect.md.tmpl",
@@ -22,72 +22,6 @@
           "target": "file:references/common-errors.md",
           "type": "section",
           "lineNumber": 201
-        }
-      ]
-    },
-    {
-      "template": "agents/performance-optimizer.md.tmpl",
-      "output": "agents/performance-optimizer.md",
-      "dependencies": [
-        "nextjs",
-        "next-cache-components"
-      ],
-      "includes": [
-        {
-          "marker": "{{include:skill:nextjs:file:references/rsc-boundaries.md}}",
-          "skillName": "nextjs",
-          "target": "file:references/rsc-boundaries.md",
-          "type": "section",
-          "lineNumber": 123
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/bundling.md:Bundle Analysis}}",
-          "skillName": "nextjs",
-          "target": "file:references/bundling.md:Bundle Analysis",
-          "type": "section",
-          "lineNumber": 130
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Decision Tree}}",
-          "skillName": "nextjs",
-          "target": "file:references/data-patterns.md:Decision Tree",
-          "type": "section",
-          "lineNumber": 137
-        },
-        {
-          "marker": "{{include:skill:next-cache-components:Cache Invalidation}}",
-          "skillName": "next-cache-components",
-          "target": "Cache Invalidation",
-          "type": "section",
-          "lineNumber": 142
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/image.md}}",
-          "skillName": "nextjs",
-          "target": "file:references/image.md",
-          "type": "section",
-          "lineNumber": 168
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/font.md}}",
-          "skillName": "nextjs",
-          "target": "file:references/font.md",
-          "type": "section",
-          "lineNumber": 173
-        },
-        {
-          "marker": "{{include:skill:next-cache-components:`use cache` Directive}}",
-          "skillName": "next-cache-components",
-          "target": "`use cache` Directive",
-          "type": "section",
-          "lineNumber": 178
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Client Component Data Fetching}}",
-          "skillName": "nextjs",
-          "target": "file:references/data-patterns.md:Client Component Data Fetching",
-          "type": "section",
-          "lineNumber": 183
         }
       ]
     },
@@ -172,46 +106,68 @@
       ]
     },
     {
-      "template": "commands/deploy.md.tmpl",
-      "output": "commands/deploy.md",
+      "template": "agents/performance-optimizer.md.tmpl",
+      "output": "agents/performance-optimizer.md",
       "dependencies": [
-        "deployments-cicd"
+        "nextjs",
+        "next-cache-components"
       ],
       "includes": [
         {
-          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Preview Deployment}}",
-          "skillName": "deployments-cicd",
-          "target": "Deployment Commands > Preview Deployment",
+          "marker": "{{include:skill:nextjs:file:references/rsc-boundaries.md}}",
+          "skillName": "nextjs",
+          "target": "file:references/rsc-boundaries.md",
           "type": "section",
-          "lineNumber": 56
+          "lineNumber": 123
         },
         {
-          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Production Deployment}}",
-          "skillName": "deployments-cicd",
-          "target": "Deployment Commands > Production Deployment",
+          "marker": "{{include:skill:nextjs:file:references/bundling.md:Bundle Analysis}}",
+          "skillName": "nextjs",
+          "target": "file:references/bundling.md:Bundle Analysis",
           "type": "section",
-          "lineNumber": 61
+          "lineNumber": 130
         },
         {
-          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Inspect Deployments}}",
-          "skillName": "deployments-cicd",
-          "target": "Deployment Commands > Inspect Deployments",
-          "type": "section",
-          "lineNumber": 78
-        },
-        {
-          "marker": "{{include:skill:deployments-cicd:Deploy Summary Format}}",
-          "skillName": "deployments-cicd",
-          "target": "Deploy Summary Format",
-          "type": "section",
-          "lineNumber": 132
-        },
-        {
-          "marker": "{{include:skill:deployments-cicd:Deploy Next Steps}}",
-          "skillName": "deployments-cicd",
-          "target": "Deploy Next Steps",
+          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Decision Tree}}",
+          "skillName": "nextjs",
+          "target": "file:references/data-patterns.md:Decision Tree",
           "type": "section",
           "lineNumber": 137
+        },
+        {
+          "marker": "{{include:skill:next-cache-components:Cache Invalidation}}",
+          "skillName": "next-cache-components",
+          "target": "Cache Invalidation",
+          "type": "section",
+          "lineNumber": 142
+        },
+        {
+          "marker": "{{include:skill:nextjs:file:references/image.md}}",
+          "skillName": "nextjs",
+          "target": "file:references/image.md",
+          "type": "section",
+          "lineNumber": 168
+        },
+        {
+          "marker": "{{include:skill:nextjs:file:references/font.md}}",
+          "skillName": "nextjs",
+          "target": "file:references/font.md",
+          "type": "section",
+          "lineNumber": 173
+        },
+        {
+          "marker": "{{include:skill:next-cache-components:`use cache` Directive}}",
+          "skillName": "next-cache-components",
+          "target": "`use cache` Directive",
+          "type": "section",
+          "lineNumber": 178
+        },
+        {
+          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Client Component Data Fetching}}",
+          "skillName": "nextjs",
+          "target": "file:references/data-patterns.md:Client Component Data Fetching",
+          "type": "section",
+          "lineNumber": 183
         }
       ]
     },
@@ -288,26 +244,48 @@
       ]
     },
     {
-      "template": "commands/marketplace.md.tmpl",
-      "output": "commands/marketplace.md",
+      "template": "commands/deploy.md.tmpl",
+      "output": "commands/deploy.md",
       "dependencies": [
-        "marketplace"
+        "deployments-cicd"
       ],
       "includes": [
         {
-          "marker": "{{include:skill:marketplace:Observability Integration Path}}",
-          "skillName": "marketplace",
-          "target": "Observability Integration Path",
+          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Preview Deployment}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Commands > Preview Deployment",
           "type": "section",
-          "lineNumber": 142
+          "lineNumber": 56
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Production Deployment}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Commands > Production Deployment",
+          "type": "section",
+          "lineNumber": 61
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deployment Commands > Inspect Deployments}}",
+          "skillName": "deployments-cicd",
+          "target": "Deployment Commands > Inspect Deployments",
+          "type": "section",
+          "lineNumber": 78
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deploy Summary Format}}",
+          "skillName": "deployments-cicd",
+          "target": "Deploy Summary Format",
+          "type": "section",
+          "lineNumber": 132
+        },
+        {
+          "marker": "{{include:skill:deployments-cicd:Deploy Next Steps}}",
+          "skillName": "deployments-cicd",
+          "target": "Deploy Next Steps",
+          "type": "section",
+          "lineNumber": 137
         }
       ]
-    },
-    {
-      "template": "commands/status.md.tmpl",
-      "output": "commands/status.md",
-      "dependencies": [],
-      "includes": []
     },
     {
       "template": "commands/env.md.tmpl",
@@ -359,6 +337,28 @@
           "lineNumber": 128
         }
       ]
+    },
+    {
+      "template": "commands/marketplace.md.tmpl",
+      "output": "commands/marketplace.md",
+      "dependencies": [
+        "marketplace"
+      ],
+      "includes": [
+        {
+          "marker": "{{include:skill:marketplace:Observability Integration Path}}",
+          "skillName": "marketplace",
+          "target": "Observability Integration Path",
+          "type": "section",
+          "lineNumber": 142
+        }
+      ]
+    },
+    {
+      "template": "commands/status.md.tmpl",
+      "output": "commands/status.md",
+      "dependencies": [],
+      "includes": []
     }
   ]
 }
