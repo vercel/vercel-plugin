@@ -399,15 +399,21 @@ function compareVersionSegments(leftVersion: string, rightVersion: string): numb
  * Returns quickly — each subprocess has a tight timeout.
  */
 function checkVercelCli(): VercelCliStatus {
-  const vercelBinary = resolveBinaryFromPath("vercel");
+  let vercelBinary = resolveBinaryFromPath("vercel");
   if (!vercelBinary) {
-    return { installed: false, needsUpdate: false };
+    if (process.platform === "win32") {
+      vercelBinary = "vercel.cmd";
+    } else {
+      return { installed: false, needsUpdate: false };
+    }
   }
 
   // 1. Check if vercel is installed
   let currentVersion: string | undefined;
   try {
-    const raw: string = execFileSync(vercelBinary, VERCEL_VERSION_ARGS, {
+    const args = process.platform === "win32" ? ["/c", vercelBinary, ...VERCEL_VERSION_ARGS] : VERCEL_VERSION_ARGS;
+    const bin = process.platform === "win32" ? "cmd.exe" : vercelBinary;
+    const raw: string = execFileSync(bin, args, {
       timeout: EXEC_SYNC_TIMEOUT_MS,
       encoding: "utf-8",
       stdio: SPAWN_STDIO,
@@ -423,15 +429,21 @@ function checkVercelCli(): VercelCliStatus {
     return { installed: false, needsUpdate: false };
   }
 
-  const npmBinary = resolveBinaryFromPath("npm");
+  let npmBinary = resolveBinaryFromPath("npm");
   if (!npmBinary) {
-    return { installed: true, currentVersion, needsUpdate: false };
+    if (process.platform === "win32") {
+      npmBinary = "npm.cmd";
+    } else {
+      return { installed: true, currentVersion, needsUpdate: false };
+    }
   }
 
   // 2. Fetch latest version from npm registry
   let latestVersion: string | undefined;
   try {
-    const raw: string = execFileSync(npmBinary, NPM_VIEW_ARGS, {
+    const args = process.platform === "win32" ? ["/c", npmBinary, ...NPM_VIEW_ARGS] : NPM_VIEW_ARGS;
+    const bin = process.platform === "win32" ? "cmd.exe" : npmBinary;
+    const raw: string = execFileSync(bin, args, {
       timeout: EXEC_SYNC_TIMEOUT_MS,
       encoding: "utf-8",
       stdio: SPAWN_STDIO,
