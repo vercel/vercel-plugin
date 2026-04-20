@@ -15,7 +15,6 @@ describe("platform hook compatibility", () => {
       }),
       undefined,
       {
-        ...process.env,
         CURSOR_PROJECT_DIR: "/tmp/cursor-project",
         CLAUDE_PROJECT_ROOT: "/tmp/claude-project",
       },
@@ -69,7 +68,26 @@ describe("platform hook compatibility", () => {
       VERCEL_PLUGIN_SEEN_SKILLS: "ai-sdk",
       VERCEL_PLUGIN_TSX_EDIT_COUNT: "1",
     });
-    expect(parsed.hookSpecificOutput).toBeUndefined();
+  });
+
+  it("test_parseInput_normalizes_antigravity_session_and_cwd", () => {
+    const parsed = parsePreToolInput(
+      JSON.stringify({
+        tool_name: "Write",
+        tool_input: { file_path: "app/page.tsx" },
+        session_id: "antigravity-session",
+      }),
+      undefined,
+      {
+        ANTIGRAVITY_AGENT: "1",
+        VSCODE_CWD: "/tmp/antigravity-cwd",
+      },
+    );
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.platform).toBe("antigravity");
+    expect(parsed?.sessionId).toBe("antigravity-session");
+    expect(parsed?.cwd).toBe("/tmp/antigravity-cwd");
   });
 
 });

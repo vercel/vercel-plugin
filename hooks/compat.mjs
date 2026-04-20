@@ -34,16 +34,19 @@ function drainCursorSessionEnv() {
   cursorSessionEnv.clear();
   return env;
 }
-function detectPlatform(raw) {
+function detectPlatform(raw, env = process.env) {
+  if (env.ANTIGRAVITY_AGENT === "1") {
+    return "antigravity";
+  }
   if ("conversation_id" in raw || "workspace_roots" in raw || "cursor_version" in raw) {
     return "cursor";
   }
   return "claude-code";
 }
-function normalizeInput(raw) {
-  const platform = detectPlatform(raw);
+function normalizeInput(raw, env = process.env) {
+  const platform = detectPlatform(raw, env);
   const sessionId = readString(raw.session_id ?? raw.conversation_id) ?? "";
-  const cwd = readString(raw.cwd) ?? readWorkspaceRoot(raw) ?? process.env.CURSOR_PROJECT_DIR ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const cwd = readString(raw.cwd) ?? readWorkspaceRoot(raw) ?? env.VSCODE_CWD ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const hookEvent = readString(raw.hook_event_name) ?? "";
   const toolOutput = normalizeToolOutputValue(raw.tool_output ?? raw.tool_response);
   currentHookEventName = hookEvent || void 0;
@@ -112,7 +115,7 @@ function setSessionEnv(platform, key, value) {
 `);
 }
 function getProjectRoot() {
-  return process.env.CLAUDE_PROJECT_ROOT ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd();
+  return process.env.VSCODE_CWD ?? process.env.CLAUDE_PROJECT_ROOT ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 export {
   detectPlatform,

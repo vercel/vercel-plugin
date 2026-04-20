@@ -10,7 +10,7 @@ import { appendFileSync } from "node:fs"
 /**
  * Supported hook payload/output platforms.
  */
-export type HookPlatform = "claude-code" | "cursor"
+export type HookPlatform = "claude-code" | "cursor" | "antigravity"
 
 /**
  * Shared hook input shape used by the compatibility layer.
@@ -85,7 +85,14 @@ function drainCursorSessionEnv(): Record<string, string> | undefined {
 /**
  * Detect the source platform from the parsed stdin payload.
  */
-export function detectPlatform(raw: Record<string, unknown>): HookPlatform {
+export function detectPlatform(
+  raw: Record<string, unknown>,
+  env: NodeJS.ProcessEnv = process.env,
+): HookPlatform {
+  if (env.ANTIGRAVITY_AGENT === "1") {
+    return "antigravity";
+  }
+
   if (
     "conversation_id" in raw ||
     "workspace_roots" in raw ||
@@ -100,14 +107,18 @@ export function detectPlatform(raw: Record<string, unknown>): HookPlatform {
 /**
  * Normalize a raw hook payload into one shared internal shape.
  */
-export function normalizeInput(raw: Record<string, unknown>): NormalizedInput {
-  const platform = detectPlatform(raw)
+export function normalizeInput(
+  raw: Record<string, unknown>,
+  env: NodeJS.ProcessEnv = process.env,
+): NormalizedInput {
+  const platform = detectPlatform(raw, env)
   const sessionId = readString(raw.session_id ?? raw.conversation_id) ?? ""
   const cwd =
     readString(raw.cwd) ??
     readWorkspaceRoot(raw) ??
-    process.env.CURSOR_PROJECT_DIR ??
-    process.env.CLAUDE_PROJECT_DIR ??
+    env.VSCODE_CWD ??
+    env.CURSOR_PROJECT_DIR ??
+    env.CLAUDE_PROJECT_DIR ??
     process.cwd()
   const hookEvent = readString(raw.hook_event_name) ?? ""
   const toolOutput = normalizeToolOutputValue(raw.tool_output ?? raw.tool_response)
@@ -203,5 +214,10 @@ export function setSessionEnv(platform: string, key: string, value: string): voi
  * Resolve the best available project root across both platforms.
  */
 export function getProjectRoot(): string {
-  return process.env.CLAUDE_PROJECT_ROOT ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd()
+  return (
+    process.env.VSCODE_CWD ??
+    process.env.CLAUDE_PROJECT_ROOT ??
+    process.env.CURSOR_PROJECT_DIR ??
+    process.cwd()
+  )
 }

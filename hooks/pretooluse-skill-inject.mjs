@@ -129,9 +129,9 @@ function parseInput(raw, logger, env = process.env) {
   const workspaceRoot = Array.isArray(parsed.workspace_roots) && typeof parsed.workspace_roots[0] === "string" ? parsed.workspace_roots[0] : void 0;
   const toolName = parsed.tool_name || "";
   const toolInput = parsed.tool_input || {};
-  const platform = detectPlatform(parsed);
+  const platform = detectPlatform(parsed, env);
   const sessionId = typeof (parsed.session_id ?? parsed.conversation_id) === "string" ? parsed.session_id ?? parsed.conversation_id : "";
-  const cwdCandidate = parsed.cwd ?? workspaceRoot ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_ROOT ?? process.cwd();
+  const cwdCandidate = parsed.cwd ?? workspaceRoot ?? env.VSCODE_CWD ?? env.CURSOR_PROJECT_DIR ?? env.CLAUDE_PROJECT_ROOT ?? process.cwd();
   const cwd = typeof cwdCandidate === "string" && cwdCandidate.trim() !== "" ? cwdCandidate : process.cwd();
   const toolTarget = toolName === "Bash" ? toolInput.command || "" : toolInput.file_path || "";
   const agentId = typeof parsed.agent_id === "string" && parsed.agent_id.length > 0 ? parsed.agent_id : void 0;

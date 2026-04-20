@@ -25,4 +25,13 @@ describe("session-start-profiler platform detection", () => {
       ),
     ).toBe("claude-code");
   });
+
+  test("test_session_start_profiler_infers_antigravity_from_agent_env", () => {
+    expect(
+      detectSessionStartPlatform(
+        { session_id: "sess-123" },
+        { ANTIGRAVITY_AGENT: "1" },
+      ),
+    ).toBe("antigravity");
+  });
 });

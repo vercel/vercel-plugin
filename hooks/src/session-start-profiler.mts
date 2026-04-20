@@ -482,6 +482,10 @@ export function detectSessionStartPlatform(
   input: SessionStartInput | null,
   env: NodeJS.ProcessEnv = process.env,
 ): HookPlatform {
+  if (env.ANTIGRAVITY_AGENT === "1") {
+    return "antigravity";
+  }
+
   if (typeof env.CLAUDE_ENV_FILE === "string" && env.CLAUDE_ENV_FILE.trim() !== "") {
     return "claude-code";
   }
@@ -501,7 +505,7 @@ export function normalizeSessionStartSessionId(input: SessionStartInput | null):
 }
 
 export function resolveSessionStartProjectRoot(env: NodeJS.ProcessEnv = process.env): string {
-  return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
+  return env.VSCODE_CWD ?? env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 
 function collectBrokenSkillFrontmatterNames(files: string[]): string[] {

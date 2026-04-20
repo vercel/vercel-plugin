@@ -8,6 +8,7 @@
 |------|--------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported |
 | [Cursor](https://www.cursor.com) | Supported |
+| [Antigravity](https://antigravity.ai) | Supported |
 | [OpenAI Codex](https://openai.com/index/codex/) | Coming soon |
 
 ### Prerequisites

@@ -230,12 +230,13 @@ export function parseInput(
     : undefined;
   const toolName = (parsed.tool_name as string) || "";
   const toolInput = (parsed.tool_input as Record<string, unknown>) || {};
-  const platform = detectPlatform(parsed);
+  const platform = detectPlatform(parsed, env);
   const sessionId = typeof (parsed.session_id ?? parsed.conversation_id) === "string"
     ? (parsed.session_id ?? parsed.conversation_id) as string
     : "";
   const cwdCandidate = parsed.cwd
     ?? workspaceRoot
+    ?? env.VSCODE_CWD
     ?? env.CURSOR_PROJECT_DIR
     ?? env.CLAUDE_PROJECT_ROOT
     ?? process.cwd();
