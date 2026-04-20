@@ -336,6 +336,7 @@ describe("session-start-profiler", () => {
     });
 
     expect(result.code).toBe(0);
+    console.error("STDERR was:", result.stderr);
     const skills = parseLikelySkills(readFileSync(envFile, "utf-8"));
     expect(skills).toContain("shadcn");
   });
@@ -634,6 +635,29 @@ describe("session-start-profiler", () => {
     expect(result.stdout).toContain("1.10.0");
     expect(result.stdout).toContain("npm i -g vercel@latest");
     expect(result.stdout).toContain("pnpm add -g vercel@latest");
+  });
+
+  test("gracefully falls back and handles missing command on win32 during Vercel CLI check", async () => {
+    const projectDir = join(tempDir, "graceful-fallback");
+    const binDir = join(tempDir, "graceful-bin");
+    mkdirSync(projectDir);
+    mkdirSync(binDir);
+
+    const result = await runProfiler({
+      CLAUDE_ENV_FILE: envFile,
+      CLAUDE_PROJECT_ROOT: projectDir,
+      PATH: binDir,
+      VERCEL_PLUGIN_LOG_LEVEL: "debug",
+    });
+
+    expect(result.code).toBe(0);
+    if (process.platform === "win32") {
+      expect(result.stderr).toContain("session-start-profiler:vercel-version-check-failed");
+      expect(result.stderr).toContain('"command":"vercel.cmd"');
+    } else {
+      expect(result.stderr).toContain("session-start-profiler:binary-resolution-skipped");
+      expect(result.stderr).toContain('"binaryName":"vercel"');
+    }
   });
 
   test("skips npm registry lookup when npm binary cannot be resolved", async () => {
