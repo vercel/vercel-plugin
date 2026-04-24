@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T02:14:44.931Z",
+  "generatedAt": "2026-04-24T23:50:09.258Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -277,7 +277,17 @@
         "lib/supabase.*",
         "src/lib/supabase.*",
         "prisma/schema.prisma",
-        "prisma/**"
+        "prisma/**",
+        "lib/db/**",
+        "src/lib/db/**",
+        "lib/db.*",
+        "src/lib/db.*",
+        "src/db/**",
+        "src/db.*",
+        "server/db/**",
+        "server/db.*",
+        "src/server/db/**",
+        "src/server/db.*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/blob\\b",
@@ -355,7 +365,17 @@
         "^lib\\/supabase\\.[^/]*$",
         "^src\\/lib\\/supabase\\.[^/]*$",
         "^prisma\\/schema\\.prisma$",
-        "^prisma\\/.*$"
+        "^prisma\\/.*$",
+        "^lib\\/db\\/.*$",
+        "^src\\/lib\\/db\\/.*$",
+        "^lib\\/db\\.[^/]*$",
+        "^src\\/lib\\/db\\.[^/]*$",
+        "^src\\/db\\/.*$",
+        "^src\\/db\\.[^/]*$",
+        "^server\\/db\\/.*$",
+        "^server\\/db\\.[^/]*$",
+        "^src\\/server\\/db\\/.*$",
+        "^src\\/server\\/db\\.[^/]*$"
       ],
       "bashRegexSources": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/blob\\b",
@@ -525,6 +545,68 @@
           "skipIfFileContains": "@clerk/|@auth0/|@descope/"
         }
       ],
+      "promptSignals": {
+        "phrases": [
+          "add a database",
+          "set up a database",
+          "need a database",
+          "add postgres",
+          "set up postgres",
+          "add redis",
+          "persist data",
+          "save todos",
+          "persist todos",
+          "store todos",
+          "where do I store"
+        ],
+        "allOf": [
+          [
+            "add",
+            "database"
+          ],
+          [
+            "set",
+            "up",
+            "database"
+          ],
+          [
+            "need",
+            "database"
+          ],
+          [
+            "store",
+            "users"
+          ],
+          [
+            "save",
+            "users"
+          ],
+          [
+            "persist",
+            "users"
+          ],
+          [
+            "upload",
+            "files"
+          ],
+          [
+            "store",
+            "images"
+          ]
+        ],
+        "anyOf": [
+          "database",
+          "postgres",
+          "neon",
+          "upstash",
+          "redis",
+          "blob storage",
+          "drizzle",
+          "prisma"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
       "retrieval": {
         "aliases": [
           "database",

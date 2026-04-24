@@ -2,7 +2,6 @@
   "version": 1,
   "toolName": "Write",
   "matchedSkills": [
-    "cron-jobs",
     "deployments-cicd",
     "routing-middleware",
     "vercel-cli",
@@ -13,11 +12,10 @@
     "vercel-cli",
     "vercel-functions"
   ],
-  "summaryOnly": [],
-  "droppedByCap": [
-    "cron-jobs",
-    "deployments-cicd"
+  "contextChunks": [
+    "compute-routing"
   ],
+  "summaryOnly": [],
   "droppedByBudget": [],
   "reasons": {
     "routing-middleware": {

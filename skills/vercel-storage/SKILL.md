@@ -22,6 +22,16 @@ metadata:
     - 'src/lib/supabase.*'
     - 'prisma/schema.prisma'
     - 'prisma/**'
+    - 'lib/db/**'
+    - 'src/lib/db/**'
+    - 'lib/db.*'
+    - 'src/lib/db.*'
+    - 'src/db/**'
+    - 'src/db.*'
+    - 'server/db/**'
+    - 'server/db.*'
+    - 'src/server/db/**'
+    - 'src/server/db.*'
   bashPatterns:
     - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/blob\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/blob\b'
@@ -80,6 +90,38 @@ metadata:
     - "@vercel/postgres"
     - "@supabase/supabase-js"
     - "@prisma/client"
+  promptSignals:
+    phrases:
+      - "add a database"
+      - "set up a database"
+      - "need a database"
+      - "add postgres"
+      - "set up postgres"
+      - "add redis"
+      - "persist data"
+      - "save todos"
+      - "persist todos"
+      - "store todos"
+      - "where do I store"
+    allOf:
+      - ["add", "database"]
+      - ["set", "up", "database"]
+      - ["need", "database"]
+      - ["store", "users"]
+      - ["save", "users"]
+      - ["persist", "users"]
+      - ["upload", "files"]
+      - ["store", "images"]
+    anyOf:
+      - "database"
+      - "postgres"
+      - "neon"
+      - "upstash"
+      - "redis"
+      - "blob storage"
+      - "drizzle"
+      - "prisma"
+    minScore: 6
 validate:
   -
     pattern: from\s+['"]@vercel/kv['"]
@@ -175,10 +217,46 @@ You are an expert in Vercel's storage options. Know which products are active, w
 
 Choose storage provisioning paths in this order:
 
-1. **Preferred**: Vercel-managed Neon/Upstash through the Vercel Marketplace (`vercel integration add ...` or dashboard). This path auto-provisions accounts/resources and injects environment variables into the linked Vercel project.
+1. **Preferred**: Vercel-managed Neon/Upstash through the Vercel Marketplace (`vercel integration add ...` or dashboard). This path auto-provisions the resource, connects it to the linked project across all environments, and runs `vercel env pull --yes` automatically.
 2. **Fallback**: Provider CLI/manual provisioning only when Marketplace is unavailable or you must use an existing external account.
 
-When using fallback/manual provisioning, you must add/sync environment variables yourself and then re-run `vercel env pull .env.local --yes` locally.
+For the manual fallback path you must add/sync environment variables yourself and then run `vercel env pull .env.local --yes` locally. The Marketplace path does this for you.
+
+### Marketplace bootstrap commands
+
+Run from inside the project directory. If `.vercel/project.json` doesn't exist, link first.
+
+```bash
+test -f .vercel/project.json || vercel link
+vercel integration discover                       # browse slugs (or skip if you know it)
+vercel integration guide neon --framework nextjs  # framework-specific setup snippets
+vercel integration add neon                       # provision + auto-connect + auto env pull
+pnpm add @neondatabase/serverless                 # then install the SDK
+```
+
+After `vercel integration add`, wait **1–3 minutes** before debugging connection failures — transient HTTP 500s usually mean the database is still provisioning. If env sync was skipped (or you used `--no-env-pull`), run `vercel env pull .env.local --yes` to refresh local credentials.
+
+### Multiple resources in one project
+
+When provisioning two of the same resource type, the second collides with the first's env var names. Use `--prefix` to rename:
+
+```bash
+vercel integration add neon --prefix NEON_PRIMARY_
+vercel integration add neon --prefix NEON_REPLICA_
+```
+
+This produces `NEON_PRIMARY_DATABASE_URL` and `NEON_REPLICA_DATABASE_URL` etc. instead of both writing `DATABASE_URL`. The prefix is forwarded to the Marketplace API; base names come from each integration's contract.
+
+### Marketplace env var names
+
+Marketplace-provisioned env var names come from each integration. Common ones for the providers in this skill:
+
+- **Neon**: `DATABASE_URL` (verified via `vercel integration add neon` eval that checks for this key after install)
+- **Upstash Redis**: `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (matches what `Redis.fromEnv()` reads)
+- **Vercel Blob**: `BLOB_READ_WRITE_TOKEN`
+- **Edge Config**: `EDGE_CONFIG`
+
+Run `vercel env ls` after install to confirm the exact keys provisioned for your project — integrations occasionally evolve their env-var contracts.
 
 ## Active First-Party Storage
 
@@ -503,18 +581,46 @@ Install via Vercel Marketplace: `vercel integration add turso`
 
 ## Installing Marketplace Storage
 
-Use the Vercel CLI or the Marketplace dashboard at `https://vercel.com/dashboard/{team}/stores`:
+The Marketplace install commands (see also "Marketplace bootstrap commands" near the top of this skill):
 
 ```bash
-# Install a storage integration (auto-provisions env vars)
-vercel integration add neon
-vercel integration add upstash
-
-# List installed integrations
-vercel integration list
+vercel integration add neon                       # Postgres
+vercel integration add upstash                    # Redis / KV
+vercel integration add supabase                   # Postgres + auth + realtime + storage
+vercel integration add prisma                     # Prisma Accelerate (connection pooling)
+vercel integration add mongodb-atlas              # MongoDB
+vercel integration add turso                      # libSQL (edge-native SQLite)
+vercel install <slug>                             # alias for `vercel integration add`
 ```
 
-Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard (`https://vercel.com/dashboard/{team}/integrations`) automatically provisions accounts, creates databases, and sets environment variables.
+`vercel integration add <slug>` provisions the resource, connects it to the linked project across `production`, `preview`, and `development`, and runs `vercel env pull --yes` automatically. To opt out: `--no-connect` skips the project link (and env pull); `--no-env-pull` skips only the local env sync; `--environment production -e preview` connects to a subset.
+
+Common flags:
+
+```bash
+vercel integration add neon --plan pro                                    # specific billing plan
+vercel integration add neon -m region=us-east-1 -m "readRegions=sfo1"    # provider metadata
+vercel integration add neon --name my-primary-db                          # custom resource name
+vercel integration add aws/aws-dynamodb                                   # multi-product integration
+vercel integration add neon --format=json                                 # machine-readable output
+```
+
+Listing and lifecycle (run inside a linked project):
+
+```bash
+vercel integration list                           # Marketplace resources for the linked project
+vercel integration list --all                     # all team resources
+vercel integration installations                  # team-level installations (different from `list`)
+vercel integration balance neon                   # usage / credit balance for prepayment plans
+vercel integration open neon                      # SSO into provider dashboard
+vercel integration update neon --projects all     # change which projects can use the installation
+
+# Removal: resources first, then the installation
+vercel ir remove <resource> --disconnect-all --yes
+vercel integration remove neon --yes
+```
+
+Browse the catalog at the [Vercel Marketplace](https://vercel.com/marketplace) or via `vercel integration discover`.
 
 ## Official Documentation
 
