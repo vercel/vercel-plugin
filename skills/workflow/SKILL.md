@@ -439,7 +439,6 @@ retrieval:
     - step
     - pause/resume
     - durable
-
 ---
 
 ## *CRITICAL*: Always Use Correct `workflow` Documentation
