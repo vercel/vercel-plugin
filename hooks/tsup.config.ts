@@ -1,5 +1,7 @@
 import { defineConfig } from "tsup";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+
+const packageJson = JSON.parse(readFileSync("package.json", "utf-8")) as { version: string };
 
 // Build each .mts source file as a separate .mjs output (no bundling)
 const discoveredEntries = readdirSync("hooks/src")
@@ -36,6 +38,9 @@ export default defineConfig({
   dts: false,
   clean: false, // don't wipe hooks/ — it has hooks.json, src/, etc.
   target: "node20",
+  define: {
+    __VERCEL_PLUGIN_VERSION__: JSON.stringify(packageJson.version),
+  },
   esbuildPlugins: [
     {
       name: "externalize-sibling-hooks",
