@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T02:14:44.931Z",
+  "generatedAt": "2026-04-28T18:37:08.157Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -1548,12 +1548,10 @@
       "pathPatterns": [
         "lib/workflow/**",
         "src/lib/workflow/**",
-        "workflows/**",
         "lib/workflow.*",
         "src/lib/workflow.*",
         "workflow.*",
         "*workflow*",
-        "*workflow*/**",
         "**/chain-engine*",
         "**/chain_engine*",
         "**/chainEngine*",
@@ -1592,12 +1590,10 @@
       "pathRegexSources": [
         "^lib\\/workflow\\/.*$",
         "^src\\/lib\\/workflow\\/.*$",
-        "^workflows\\/.*$",
         "^lib\\/workflow\\.[^/]*$",
         "^src\\/lib\\/workflow\\.[^/]*$",
         "^workflow\\.[^/]*$",
         "^[^/]*workflow[^/]*$",
-        "^[^/]*workflow[^/]*\\/.*$",
         "^(?:[^/]+\\/)*chain-engine[^/]*$",
         "^(?:[^/]+\\/)*chain_engine[^/]*$",
         "^(?:[^/]+\\/)*chainEngine[^/]*$",

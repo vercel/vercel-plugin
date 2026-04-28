@@ -10,12 +10,10 @@ metadata:
   pathPatterns:
     - 'lib/workflow/**'
     - 'src/lib/workflow/**'
-    - 'workflows/**'
     - 'lib/workflow.*'
     - 'src/lib/workflow.*'
     - 'workflow.*'
     - '*workflow*'
-    - '*workflow*/**'
     # Chain / pipeline / orchestration engine files
     - '**/chain-engine*'
     - '**/chain_engine*'
@@ -441,7 +439,6 @@ retrieval:
     - step
     - pause/resume
     - durable
-
 ---
 
 ## *CRITICAL*: Always Use Correct `workflow` Documentation
