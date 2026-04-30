@@ -109,7 +109,7 @@ describe("telemetry controls", () => {
         }),
         expect.objectContaining({
           key: "plugin:version",
-          value: "0.41.0",
+          value: "0.42.0",
         }),
       ],
     ]);
