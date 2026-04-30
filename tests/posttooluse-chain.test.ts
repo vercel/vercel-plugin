@@ -1143,7 +1143,7 @@ describe("real-world chain and validate scenarios", () => {
       `import { generateText } from 'ai';`,
       ``,
       `const result = await generateText({`,
-      `  model: anthropic('claude-sonnet-4.6'),`,
+      `  model: anthropic('claude-sonnet-4-6'),`,
       `  prompt: 'Hello!',`,
       `});`,
     ].join("\n");

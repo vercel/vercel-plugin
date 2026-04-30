@@ -423,15 +423,25 @@ describe("ai-sdk validation rules", () => {
 // ---------------------------------------------------------------------------
 
 describe("ai-gateway validation rules", () => {
-  test("flags hyphenated model slug (anthropic/claude-sonnet-4-6)", () => {
+  test("does NOT flag hyphenated model slug — both gateway-form (dots) and provider-canonical (hyphens) are valid", () => {
+    // Issue #60: the prior rule `\d+-\d+[)'"]` flagged hyphenated model
+    // slugs as typos expecting dots. But Anthropic's canonical IDs are
+    // hyphenated (`claude-sonnet-4-6`), and the rule also false-positived
+    // on date strings, package versions, and direct provider SDK calls.
+    // Rule was removed; both forms must now pass without violation.
     const data = loadRealRules();
-    const violations = runValidation(
+    const hyphenViolations = runValidation(
       `gateway('anthropic/claude-sonnet-4-6')\n`,
       ["ai-gateway"],
       data!.rulesMap,
     );
-    // This pattern is a plain string, no escaping needed
-    expect(violations.some((v) => v.message.includes("dots not hyphens"))).toBe(true);
+    const dotViolations = runValidation(
+      `gateway('anthropic/claude-sonnet-4.6')\n`,
+      ["ai-gateway"],
+      data!.rulesMap,
+    );
+    expect(hyphenViolations.some((v) => v.message.includes("dots not hyphens"))).toBe(false);
+    expect(dotViolations.some((v) => v.message.includes("dots not hyphens"))).toBe(false);
   });
 
   test("AI_GATEWAY_API_KEY is recommended severity (fallback auth)", () => {
@@ -1143,10 +1153,10 @@ describe("multi-skill overlap", () => {
     const data = loadRealRules();
     // Use patterns that actually work (no double-escape issues):
     // ai-sdk: import from 'openai' (direct import pattern)
-    // ai-gateway: anthropic/claude-sonnet-4-6 (hyphenated slug)
+    // ai-gateway: gateway('opaque') — missing provider/ prefix (error rule)
     const content = [
       `import OpenAI from 'openai';`,
-      `const result = await generateText({ model: gateway('anthropic/claude-sonnet-4-6') });`,
+      `const result = await generateText({ model: gateway('opaque') });`,
     ].join("\n");
     const violations = runValidation(content, ["ai-sdk", "ai-gateway"], data!.rulesMap);
 
@@ -1177,10 +1187,10 @@ describe("multi-skill overlap", () => {
   test("overlapping rules don't suppress each other", () => {
     const data = loadRealRules();
     // ai-sdk flags: import from 'openai'
-    // ai-gateway flags: anthropic/claude-sonnet-4-6 (hyphenated slug)
+    // ai-gateway flags: gateway('opaque') — missing provider/ prefix
     const content = [
       `import OpenAI from 'openai';`,
-      `gateway('anthropic/claude-sonnet-4-6')`,
+      `gateway('opaque')`,
     ].join("\n");
     const violations = runValidation(content, ["ai-sdk", "ai-gateway"], data!.rulesMap);
 
@@ -1195,12 +1205,12 @@ describe("multi-skill overlap", () => {
     const content = [
       `import OpenAI from 'openai';`,     // line 1 - ai-sdk error
       `const x = 1;`,                      // line 2 - clean
-      `gateway('anthropic/claude-sonnet-4-6')`, // line 3 - ai-gateway error
+      `gateway('opaque')`,                 // line 3 - ai-gateway error (missing provider/)
     ].join("\n");
     const violations = runValidation(content, ["ai-sdk", "ai-gateway"], data!.rulesMap);
 
     const aiSdkV = violations.find((v) => v.skill === "ai-sdk" && v.message.includes("@ai-sdk/openai"));
-    const aiGwV = violations.find((v) => v.skill === "ai-gateway" && v.message.includes("dots not hyphens"));
+    const aiGwV = violations.find((v) => v.skill === "ai-gateway" && v.message.includes("missing provider/ prefix"));
     expect(aiSdkV).toBeDefined();
     expect(aiSdkV!.line).toBe(1);
     expect(aiGwV).toBeDefined();
@@ -1439,13 +1449,17 @@ describe("no false positives", () => {
     expect(errors.length).toBe(0);
   });
 
-  test("correctly versioned anthropic slug does not flag", () => {
+  test("anthropic slug — both dot and hyphen forms pass (rule removed in #60)", () => {
     const data = loadRealRules();
-    const content = `gateway('anthropic/claude-sonnet-4.6')\n`;
-    const violations = runValidation(content, ["ai-gateway"], data!.rulesMap);
-    // The dot version should NOT be flagged (only hyphenated version is wrong)
-    const slugError = violations.filter((v) => v.message.includes("dots not hyphens"));
-    expect(slugError.length).toBe(0);
+    // Post-#60: the dot-vs-hyphen rule is gone. Both gateway-catalog form
+    // (dots, e.g. anthropic/claude-sonnet-4.6) and Anthropic-canonical form
+    // (hyphens, e.g. anthropic/claude-sonnet-4-6) must pass without
+    // raising a "dots not hyphens" violation.
+    for (const slug of ["anthropic/claude-sonnet-4.6", "anthropic/claude-sonnet-4-6"]) {
+      const violations = runValidation(`gateway('${slug}')\n`, ["ai-gateway"], data!.rulesMap);
+      const slugError = violations.filter((v) => v.message.includes("dots not hyphens"));
+      expect(slugError.length).toBe(0);
+    }
   });
 });
 

@@ -969,11 +969,6 @@
       ],
       "validate": [
         {
-          "pattern": "\\d+-\\d+[)'\"]",
-          "message": "Model slug uses hyphens — use dots not hyphens for version numbers (e.g., claude-sonnet-4.6)",
-          "severity": "error"
-        },
-        {
           "pattern": "AI_GATEWAY_API_KEY",
           "message": "Consider OIDC-based auth via vercel env pull for automatic token management — AI_GATEWAY_API_KEY works but requires manual rotation",
           "severity": "recommended"

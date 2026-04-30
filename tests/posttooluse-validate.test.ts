@@ -187,29 +187,37 @@ describe("posttooluse-validate.mjs", () => {
       }
     });
 
-    test("detects gateway from 'ai' with hyphenated model slug", async () => {
-      writeFileSync(testFile, [
-        `import { generateText, gateway } from 'ai';`,
-        ``,
-        `const result = await generateText({`,
-        `  model: gateway('anthropic/claude-sonnet-4-6'),`,
-        `  prompt: 'Hello!',`,
-        `});`,
-      ].join("\n"));
-      const { code, stdout } = await runHook({
-        tool_name: "Write",
-        tool_input: { file_path: testFile },
-      });
-      expect(code).toBe(0);
-      const result = JSON.parse(stdout);
-      expect(result.hookSpecificOutput).toBeDefined();
-      const ctx = result.hookSpecificOutput.additionalContext;
-      expect(ctx).toContain("VALIDATION");
-      expect(ctx).toContain("dots not hyphens");
-      const meta = extractPostValidation(result.hookSpecificOutput);
-      expect(meta).toBeDefined();
-      expect(meta.errorCount).toBeGreaterThan(0);
-      expect(meta.matchedSkills).toContain("ai-gateway");
+    test("hyphenated and dotted model slugs both pass — slug-form rule removed in #60", async () => {
+      // Issue #60: the prior `\d+-\d+[)'"]` rule false-positived on
+      // Anthropic's canonical hyphenated slugs and on date strings.
+      // Rule removed; both gateway-catalog (dots) and provider-canonical
+      // (hyphens) forms must pass without raising "dots not hyphens".
+      // ai-gateway must still be detected on the file (importPatterns
+      // includes 'ai'), and the missing-provider rule still fires for
+      // bare model strings.
+      for (const slug of ["anthropic/claude-sonnet-4-6", "anthropic/claude-sonnet-4.6"]) {
+        writeFileSync(testFile, [
+          `import { generateText, gateway } from 'ai';`,
+          ``,
+          `const result = await generateText({`,
+          `  model: gateway('${slug}'),`,
+          `  prompt: 'Hello!',`,
+          `});`,
+        ].join("\n"));
+        const { code, stdout } = await runHook({
+          tool_name: "Write",
+          tool_input: { file_path: testFile },
+        });
+        expect(code).toBe(0);
+        const result = JSON.parse(stdout);
+        const ctx = result.hookSpecificOutput?.additionalContext ?? "";
+        // The deleted rule's message must not appear for either form.
+        expect(ctx).not.toContain("dots not hyphens");
+        const meta = extractPostValidation(result.hookSpecificOutput);
+        if (meta) {
+          expect(meta.matchedSkills).toContain("ai-gateway");
+        }
+      }
     });
 
     test("no output for file that doesn't match any skill", async () => {
