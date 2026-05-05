@@ -2,6 +2,7 @@
   "version": 1,
   "toolName": "Read",
   "matchedSkills": [
+    "cron-jobs",
     "deployments-cicd",
     "routing-middleware",
     "vercel-cli",
@@ -12,10 +13,11 @@
     "vercel-cli",
     "vercel-functions"
   ],
-  "contextChunks": [
-    "compute-routing"
-  ],
   "summaryOnly": [],
+  "droppedByCap": [
+    "cron-jobs",
+    "deployments-cicd"
+  ],
   "droppedByBudget": [],
   "reasons": {
     "routing-middleware": {
