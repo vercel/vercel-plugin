@@ -588,7 +588,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Code quality enforcement in monorepo | Conformance | Automated best-practice checks |
 | Non-Next.js framework | Framework-native bundler | Vercel adapters handle deploy |
 
-### Security
+### Security                                  ⤳ skill: vercel-firewall
 | Need | Use | Why |
 |------|-----|-----|
 | DDoS protection | Vercel Firewall (automatic) | Always on, all plans |

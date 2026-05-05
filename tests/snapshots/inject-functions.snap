@@ -2,7 +2,6 @@
   "version": 1,
   "toolName": "Read",
   "matchedSkills": [
-    "cron-jobs",
     "deployments-cicd",
     "routing-middleware",
     "vercel-cli",
@@ -11,13 +10,12 @@
   "injectedSkills": [
     "vercel-functions",
     "vercel-cli",
-    "cron-jobs"
+    "deployments-cicd"
+  ],
+  "contextChunks": [
+    "compute-routing"
   ],
   "summaryOnly": [],
-  "droppedByCap": [
-    "deployments-cicd",
-    "routing-middleware"
-  ],
   "droppedByBudget": [],
   "reasons": {
     "vercel-functions": {
@@ -28,7 +26,7 @@
       "trigger": "basename",
       "reasonCode": "pattern-match"
     },
-    "cron-jobs": {
+    "deployments-cicd": {
       "trigger": "basename",
       "reasonCode": "pattern-match"
     }

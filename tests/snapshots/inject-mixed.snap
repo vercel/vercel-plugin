@@ -2,7 +2,6 @@
   "version": 1,
   "toolName": "Edit",
   "matchedSkills": [
-    "cron-jobs",
     "deployments-cicd",
     "routing-middleware",
     "vercel-cli",
@@ -10,25 +9,24 @@
   ],
   "injectedSkills": [
     "vercel-functions",
-    "cron-jobs",
-    "deployments-cicd"
+    "deployments-cicd",
+    "routing-middleware"
+  ],
+  "contextChunks": [
+    "compute-routing"
   ],
   "summaryOnly": [],
-  "droppedByCap": [
-    "routing-middleware",
-    "vercel-cli"
-  ],
   "droppedByBudget": [],
   "reasons": {
     "vercel-functions": {
       "trigger": "basename",
       "reasonCode": "pattern-match"
     },
-    "cron-jobs": {
+    "deployments-cicd": {
       "trigger": "basename",
       "reasonCode": "pattern-match"
     },
-    "deployments-cicd": {
+    "routing-middleware": {
       "trigger": "basename",
       "reasonCode": "pattern-match"
     }
