@@ -109,12 +109,42 @@ After installing, session context is injected automatically only for empty direc
 
 ## Telemetry
 
-Prompt text and bash/tool-call telemetry are not collected.
+Telemetry is on by default and can be disabled with `VERCEL_PLUGIN_TELEMETRY=off`.
+
+What is collected:
+
+- `dau:active_today`: sent at most once per UTC day when the plugin runs.
+- `plugin:first_use`: sent once per local user profile the first time the plugin successfully reports telemetry.
+- `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
+
+Each telemetry event contains only:
+
+- `id`: a random event UUID.
+- `event_time`: the event timestamp.
+- `key`: one of the event names listed above.
+- `value`: currently `"1"`.
+
+The request also sends HTTP headers used by the telemetry bridge:
+
+- `x-vercel-plugin-topic-id: dau`
+- `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
+- `x-vercel-plugin-version`: the plugin version embedded at build time.
+
+Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, and skill-injection details are not collected.
+
+How it is tracked:
+
+- Events are sent to Vercel's public telemetry bridge at `https://telemetry.vercel.com/api/vercel-plugin/v1/events`.
+- The bridge only forwards events from plugin versions `0.40.0` and newer.
+- Local throttle files are stored under `~/.config/vercel-plugin/`:
+  - `dau-stamp` prevents sending `dau:active_today` more than once per UTC day.
+  - `first-use-stamp` prevents sending `plugin:first_use` more than once.
+- Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
 
 Behavior:
 
-- Unset `VERCEL_PLUGIN_TELEMETRY`: default DAU-only telemetry. Sends a once-per-day `dau:active_today` phone-home.
-- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including the default DAU-only session-start event.
+- Unset `VERCEL_PLUGIN_TELEMETRY`: telemetry is enabled.
+- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
 

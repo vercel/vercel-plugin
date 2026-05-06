@@ -3,10 +3,14 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 
+declare const __VERCEL_PLUGIN_VERSION__: string;
+
 const BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 const FLUSH_TIMEOUT_MS = 3_000;
+const PLUGIN_VERSION = __VERCEL_PLUGIN_VERSION__;
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
+const FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
 
 export interface TelemetryEvent {
   id: string;
@@ -15,7 +19,7 @@ export interface TelemetryEvent {
   value: string;
 }
 
-async function sendDau(events: TelemetryEvent[]): Promise<boolean> {
+async function sendTelemetry(events: TelemetryEvent[]): Promise<boolean> {
   if (events.length === 0) return false;
 
   const controller = new AbortController();
@@ -26,6 +30,8 @@ async function sendDau(events: TelemetryEvent[]): Promise<boolean> {
       headers: {
         "Content-Type": "application/json",
         "x-vercel-plugin-topic-id": "dau",
+        "x-vercel-plugin-session-id": randomUUID(),
+        "x-vercel-plugin-version": PLUGIN_VERSION,
       },
       body: JSON.stringify(events),
       signal: controller.signal,
@@ -46,6 +52,10 @@ export function getDauStampPath(): string {
   return DAU_STAMP_PATH;
 }
 
+export function getFirstUseStampPath(): string {
+  return FIRST_USE_STAMP_PATH;
+}
+
 function utcDayStamp(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -59,11 +69,29 @@ export function shouldSendDauPing(now: Date = new Date()): boolean {
   }
 }
 
+export function shouldSendFirstUsePing(): boolean {
+  try {
+    statSync(FIRST_USE_STAMP_PATH);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 export function markDauPingSent(now: Date = new Date()): void {
   void now;
   try {
     mkdirSync(dirname(DAU_STAMP_PATH), { recursive: true });
     writeFileSync(DAU_STAMP_PATH, "", { flag: "w" });
+  } catch {
+    // Best-effort
+  }
+}
+
+export function markFirstUsePingSent(): void {
+  try {
+    mkdirSync(dirname(FIRST_USE_STAMP_PATH), { recursive: true });
+    writeFileSync(FIRST_USE_STAMP_PATH, "", { flag: "w" });
   } catch {
     // Best-effort
   }
@@ -80,8 +108,8 @@ export function getTelemetryOverride(env: NodeJS.ProcessEnv = process.env): "off
 }
 
 /**
- * DAU telemetry is enabled by default, but users can disable all telemetry with
- * VERCEL_PLUGIN_TELEMETRY=off.
+ * Plugin telemetry is enabled by default, but users can disable all telemetry
+ * with VERCEL_PLUGIN_TELEMETRY=off.
  */
 export function isDauTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return getTelemetryOverride(env) !== "off";
@@ -92,17 +120,44 @@ export function isDauTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boo
 // ---------------------------------------------------------------------------
 
 export async function trackDauActiveToday(now: Date = new Date()): Promise<void> {
-  if (!isDauTelemetryEnabled() || !shouldSendDauPing(now)) return;
+  if (!isDauTelemetryEnabled()) return;
 
   const eventTime = now.getTime();
-  const sent = await sendDau([{
-    id: randomUUID(),
-    event_time: eventTime,
-    key: "dau:active_today",
-    value: "1",
-  }]);
+  const events: TelemetryEvent[] = [];
+
+  if (shouldSendDauPing(now)) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "dau:active_today",
+      value: "1",
+    });
+  }
+
+  if (shouldSendFirstUsePing()) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:first_use",
+      value: "1",
+    });
+  }
+
+  if (events.length > 0) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:version",
+      value: PLUGIN_VERSION,
+    });
+  }
+
+  const sent = await sendTelemetry(events);
 
   if (sent) {
-    markDauPingSent(now);
+    for (const event of events) {
+      if (event.key === "dau:active_today") markDauPingSent(now);
+      if (event.key === "plugin:first_use") markFirstUsePingSent();
+    }
   }
 }

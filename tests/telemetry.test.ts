@@ -15,6 +15,7 @@ async function runTelemetryProbe(options: {
   dauEnabled: boolean;
   calls: number;
   stampPath: string;
+  firstUseStampPath: string;
   dauPayloads: unknown[];
 }> {
   const mergedEnv: Record<string, string> = {
@@ -44,7 +45,8 @@ async function runTelemetryProbe(options: {
     await telemetry.trackDauActiveToday();
 
     const stampPath = telemetry.getDauStampPath();
-    console.log(JSON.stringify({ dauEnabled, calls, stampPath, dauPayloads }));
+    const firstUseStampPath = telemetry.getFirstUseStampPath();
+    console.log(JSON.stringify({ dauEnabled, calls, stampPath, firstUseStampPath, dauPayloads }));
   `;
 
   const proc = Bun.spawn([NODE_BIN, "--input-type=module", "-e", script], {
@@ -65,6 +67,7 @@ async function runTelemetryProbe(options: {
     dauEnabled: boolean;
     calls: number;
     stampPath: string;
+    firstUseStampPath: string;
     dauPayloads: unknown[];
   };
 }
@@ -83,19 +86,30 @@ describe("telemetry controls", () => {
     expect(result.dauEnabled).toBe(false);
     expect(result.calls).toBe(0);
     expect(existsSync(result.stampPath)).toBe(false);
+    expect(existsSync(result.firstUseStampPath)).toBe(false);
   });
 
-  test("default telemetry is DAU-only", async () => {
+  test("default telemetry sends DAU and first-use once", async () => {
     const result = await runTelemetryProbe({});
     expect(result.dauEnabled).toBe(true);
     expect(result.calls).toBe(1);
     expect(result.stampPath).toBe(join(tempHome, ".config", "vercel-plugin", "dau-stamp"));
+    expect(result.firstUseStampPath).toBe(join(tempHome, ".config", "vercel-plugin", "first-use-stamp"));
     expect(existsSync(result.stampPath)).toBe(true);
+    expect(existsSync(result.firstUseStampPath)).toBe(true);
     expect(result.dauPayloads).toEqual([
       [
         expect.objectContaining({
           key: "dau:active_today",
           value: "1",
+        }),
+        expect.objectContaining({
+          key: "plugin:first_use",
+          value: "1",
+        }),
+        expect.objectContaining({
+          key: "plugin:version",
+          value: "0.42.0",
         }),
       ],
     ]);
