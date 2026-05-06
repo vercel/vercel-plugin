@@ -1,5 +1,5 @@
 name: vercel-cli
-description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, managing domains, or interacting with the Vercel platform from the command line.
+description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, managing domains, or interacting with the Vercel platform from the command line.
 metadata:
   priority: 4
   docs:
@@ -26,6 +26,7 @@ metadata:
       - "deployment status"
       - "deploy status"
       - "vercel logs"
+      - "vercel metrics"
       - "deployment logs"
       - "deploy logs"
       - "vercel inspect"
@@ -40,6 +41,7 @@ metadata:
       - [check, deploy]
       - [vercel, status]
       - [vercel, logs]
+      - [vercel, metrics]
       - [deploy, error]
       - [deploy, failed]
       - [deploy, stuck]
@@ -70,6 +72,7 @@ retrieval:
     - vercel env
     - vercel link
     - vercel logs
+    - vercel metrics
 chainTo:
   -
     pattern: '"functions"\s*:\s*\{|"maxDuration"\s*:|"memory"\s*:'
@@ -80,4 +83,3 @@ chainTo:
     pattern: '"redirects"\s*:\s*\[|"rewrites"\s*:\s*\[|"headers"\s*:\s*\['
     targetSkill: routing-middleware
     message: 'Routing rules in vercel.json — loading Routing Middleware guidance for platform-level request interception patterns.'
-

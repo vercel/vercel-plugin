@@ -773,6 +773,7 @@
           "deployment status",
           "deploy status",
           "vercel logs",
+          "vercel metrics",
           "deployment logs",
           "deploy logs",
           "vercel inspect",
@@ -799,6 +800,10 @@
           [
             "vercel",
             "logs"
+          ],
+          [
+            "vercel",
+            "metrics"
           ],
           [
             "deploy",
@@ -844,7 +849,8 @@
           "vercel deploy",
           "vercel env",
           "vercel link",
-          "vercel logs"
+          "vercel logs",
+          "vercel metrics"
         ],
         "examples": []
       }

@@ -11,6 +11,20 @@ vercel logs --since 2024-01-01                 # filter by time
 vercel logs --query "timeout"                  # search
 ```
 
+## Metrics
+
+```bash
+vercel metrics schema                                                    # list available metrics
+vercel metrics schema vercel.function_invocation                         # inspect a metric prefix
+vercel metrics vercel.function_invocation.count --since 1h               # query linked project
+vercel metrics vercel.request.count --group-by http_status --since 6h    # group by schema dimension
+vercel metrics vercel.function_invocation.request_duration_ms -a avg --group-by route --since 1h
+vercel metrics vercel.ai_gateway_request.cost -a sum --group-by ai_provider --since 7d
+vercel metrics vercel.speed_insights_metric.lcp -a p75 --group-by route --since 7d
+vercel metrics --all vercel.function_invocation.count --group-by project_id --since 24h
+vercel metrics vercel.function_invocation.count -f "http_status ge 500" --group-by error_code --since 1h --format=json
+```
+
 ## Inspecting Deployments
 
 ```bash
