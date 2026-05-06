@@ -1,6 +1,6 @@
 ---
 name: vercel-cli
-description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, managing domains, or interacting with the Vercel platform from the command line.
+description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, managing domains, or interacting with the Vercel platform from the command line.
 metadata:
   priority: 4
   docs:
@@ -27,6 +27,7 @@ metadata:
       - "deployment status"
       - "deploy status"
       - "vercel logs"
+      - "vercel metrics"
       - "deployment logs"
       - "deploy logs"
       - "vercel inspect"
@@ -41,6 +42,7 @@ metadata:
       - [check, deploy]
       - [vercel, status]
       - [vercel, logs]
+      - [vercel, metrics]
       - [deploy, error]
       - [deploy, failed]
       - [deploy, stuck]
@@ -71,6 +73,7 @@ retrieval:
     - vercel env
     - vercel link
     - vercel logs
+    - vercel metrics
 chainTo:
   -
     pattern: '"functions"\s*:\s*\{|"maxDuration"\s*:|"memory"\s*:'
@@ -123,7 +126,7 @@ Use this to route to the correct reference file:
 - **CI/CD automation** → `references/ci-automation.md`
 - **Domains or DNS** → `references/domains-and-dns.md`
 - **Projects or teams** → `references/projects-and-teams.md`
-- **Logs, debugging, or accessing preview deploys** → `references/monitoring-and-debugging.md`
+- **Logs, metrics, debugging, or accessing preview deploys** → `references/monitoring-and-debugging.md`
 - **Blob storage** → `references/storage.md`
 - **Integrations (databases, storage, etc.)** → `references/integrations.md`
 - **Access a preview deployment** → use `vercel curl` (see `references/monitoring-and-debugging.md`)

@@ -173,7 +173,8 @@ If drains are unavailable (Hobby plan or not yet configured), use these alternat
 | Query logs programmatically | **MCP / REST API** | `get_runtime_logs` tool or `/v3/deployments/:id/events` |
 | Monitor errors post-deploy | **CLI** | `vercel logs <url> --level error --since 1h` |
 | Web Analytics data | **Dashboard only** | `https://vercel.com/{team}/{project}/analytics` |
-| Performance metrics | **Dashboard only** | `https://vercel.com/{team}/{project}/speed-insights` |
+| Observability metrics | **Vercel CLI** | `vercel metrics schema`, then `vercel metrics <metric-id> --format=json` |
+| Speed Insights dashboard | **Dashboard** | `https://vercel.com/{team}/{project}/speed-insights` |
 
 > **Upgrade path:** When ready for centralized observability, upgrade to Pro and configure drains at `https://vercel.com/dashboard/{team}/~/settings/log-drains` or via REST API. The drain setup is typically < 5 minutes.
 
@@ -183,7 +184,8 @@ If drains are unavailable (Hobby plan or not yet configured), use these alternat
 |------|-----|-----|
 | Page views, traffic sources | Web Analytics | First-party, privacy-friendly |
 | Business event tracking | Web Analytics custom events | Track conversions, feature usage |
-| Core Web Vitals monitoring | Speed Insights | Real user data per route |
+| Core Web Vitals monitoring | Speed Insights + `vercel metrics vercel.speed_insights_metric.lcp -a p75 --group-by route --since 7d` | Real user data per route |
+| Query platform metrics | `vercel metrics` / `vc metrics` | Function invocations, request counts, AI Gateway spend, Speed Insights, grouped by schema dimensions |
 | Function debugging | Runtime Logs (CLI `vercel logs` / Dashboard (`https://vercel.com/{team}/{project}/logs`) / REST) | Real-time, per-invocation logs |
 | Export logs to external platform | Drains (JSON/NDJSON/Syslog) | Centralize observability (Pro+) |
 | Export analytics data | Drains (Web Analytics type) | Warehouse pageviews + custom events (Pro+) |
@@ -202,6 +204,7 @@ Confirm each data source returned successfully:
 - [ ] Domain list retrieved (or "no custom domains")
 - [ ] vercel.json parsed (or "not present")
 - [ ] Drain status checked (count, errored drains identified)
+- [ ] Metrics schema checked with `vercel metrics schema --format=json` when CLI auth/team scope is available
 - [ ] Analytics/Speed Insights instrumentation detected (or gap flagged)
 - [ ] Drain signature secret checked (if drains configured)
 

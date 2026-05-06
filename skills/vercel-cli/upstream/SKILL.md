@@ -42,7 +42,7 @@ Use this to route to the correct reference file:
 - **CI/CD automation** → `references/ci-automation.md`
 - **Domains or DNS** → `references/domains-and-dns.md`
 - **Projects or teams** → `references/projects-and-teams.md`
-- **Logs, debugging, or accessing preview deploys** → `references/monitoring-and-debugging.md`
+- **Logs, metrics, debugging, or accessing preview deploys** → `references/monitoring-and-debugging.md`
 - **Blob storage** → `references/storage.md`
 - **Integrations (databases, storage, etc.)** → `references/integrations.md`
 - **Access a preview deployment** → use `vercel curl` (see `references/monitoring-and-debugging.md`)
