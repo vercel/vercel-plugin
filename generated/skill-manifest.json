@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T16:42:55.978Z",
+  "generatedAt": "2026-05-05T22:50:57.156Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -4247,6 +4247,104 @@
           "Turborepo",
           "monorepo",
           "SaaS starter"
+        ],
+        "examples": []
+      }
+    },
+    "vercel-firewall": {
+      "priority": 7,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/vercel-firewall",
+        "https://vercel.com/docs/cli/firewall"
+      ],
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bvercel\\s+firewall\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/vercel-firewall/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bvercel\\s+firewall\\b"
+      ],
+      "importRegexSources": [],
+      "promptSignals": {
+        "phrases": [
+          "vercel firewall",
+          "vercel waf",
+          "attack challenge mode",
+          "ddos protection",
+          "ip block",
+          "managed ruleset",
+          "bot protection",
+          "system bypass",
+          "rate limit rule"
+        ],
+        "allOf": [
+          [
+            "firewall",
+            "vercel"
+          ],
+          [
+            "waf",
+            "vercel"
+          ],
+          [
+            "ddos",
+            "vercel"
+          ],
+          [
+            "challenge",
+            "vercel"
+          ],
+          [
+            "rate limit",
+            "vercel"
+          ],
+          [
+            "system bypass",
+            "vercel"
+          ],
+          [
+            "ip block",
+            "vercel"
+          ]
+        ],
+        "anyOf": [],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "ddos protection",
+          "waf rules",
+          "bot protection",
+          "rate limiting",
+          "attack mode",
+          "ip allowlist",
+          "traffic filtering",
+          "verified bots"
+        ],
+        "intents": [
+          "protect from ddos",
+          "block malicious traffic",
+          "configure firewall",
+          "rate limit api",
+          "allow bot through firewall",
+          "enable attack mode",
+          "publish firewall rule"
+        ],
+        "entities": [
+          "Vercel Firewall",
+          "Vercel WAF",
+          "DDoS",
+          "Attack Challenge Mode",
+          "Bot Protection",
+          "Managed Rulesets",
+          "System Bypass",
+          "JA3",
+          "JA4"
         ],
         "examples": []
       }
