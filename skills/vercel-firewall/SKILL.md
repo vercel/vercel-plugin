@@ -1,6 +1,6 @@
 ---
 name: vercel-firewall
-description: Vercel Firewall expert guidance — automatic DDoS mitigation, the Vercel WAF (custom rules, IP blocking, managed rulesets, rate limiting), Attack Challenge Mode, system bypass, bot management, and the `vercel firewall` CLI. Use when configuring platform-level security, responding to attacks, or staging firewall rules.
+description: Vercel Firewall expert guidance — automatic DDoS mitigation, the Vercel WAF (custom rules, IP blocking, managed rulesets, rate limiting), Attack Mode, system bypass, bot management, and the `vercel firewall` CLI. Use when configuring platform-level security, responding to attacks, or staging firewall rules.
 metadata:
   priority: 7
   docs:
@@ -12,7 +12,7 @@ metadata:
     phrases:
       - 'vercel firewall'
       - 'vercel waf'
-      - 'attack challenge mode'
+      - 'attack mode'
       - 'ddos protection'
       - 'ip block'
       - 'managed ruleset'
@@ -51,7 +51,7 @@ retrieval:
     - Vercel Firewall
     - Vercel WAF
     - DDoS
-    - Attack Challenge Mode
+    - Attack Mode
     - Bot Protection
     - Managed Rulesets
     - System Bypass
@@ -61,7 +61,7 @@ retrieval:
 
 # Vercel Firewall
 
-You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, IP blocks, system bypass, Attack Challenge Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
+You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, IP blocks, system bypass, Attack Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
 
 ## Core Knowledge
 
@@ -251,7 +251,7 @@ System bypass does **not** override your own custom rules — for that, use a cu
 
 ## Attack mode
 
-[Attack Challenge Mode](https://vercel.com/docs/vercel-firewall/attack-challenge-mode) is the emergency response for active attacks. Unverified visitors see a challenge page; verified bots and search crawlers are exempt. Immediate — no publish. **Requires interactive confirmation; blocked for agents/scripts due to severity.**
+[Attack Mode](https://vercel.com/docs/vercel-firewall/attack-mode) is the emergency response for active attacks. Unverified visitors see a challenge page; verified bots and search crawlers are exempt. Immediate — no publish. **Requires interactive confirmation; blocked for agents/scripts due to severity.**
 
 ```bash
 vercel firewall attack-mode enable --duration 1h --yes    # 1h (default)
