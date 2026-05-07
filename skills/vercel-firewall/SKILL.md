@@ -61,16 +61,18 @@ retrieval:
 
 # Vercel Firewall
 
-You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, IP blocks, system bypass, Attack Challenge Mode, system mitigations). Project must be linked first (`vercel link`).
+You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, IP blocks, system bypass, Attack Challenge Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
 
 ## Core Knowledge
 
-- **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with custom rules.
+- **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with IP blocks and custom rules. Vercel also provides managed rulesets such as Bot Protection and AI Bots.
 - **Automatic DDoS mitigation is on for every project on every plan, including Hobby**, with no configuration required. It covers L3/L4/L7 attacks.
 - **Vercel does not bill for traffic blocked by DDoS mitigations.** Usage is only incurred for requests served before mitigation kicked in or not classified as an attack. Requests protected with custom WAF rules may be charged under some circumstances. See https://vercel.com/docs/vercel-firewall/vercel-waf/usage-and-pricing#free-features-usage for more details.
-- **The Firewall can be configured with a custom WAF.** Actions: `deny`, `challenge`, `log`, `bypass`, `rate_limit`, `redirect`. Matching on path, method, IP/CIDR, geo, headers/cookies/queries, user agent, regex, JA3/JA4.
+- **Custom rules** allows the user to define their own Firewall rules. Includes actions `deny`, `challenge`, `log`, `bypass`, `rate_limit`, `redirect` and matching on `path`, `route`, `ip_address`, `host`, `header`, `cookie`, `user-agent`, `environment`, `region`, `geo_country`, `ja4_digest`. See https://vercel.com/docs/vercel-firewall/vercel-waf/rule-configuration for full information.
 
 ## Overview
+
+Project must be linked first (`vercel link`).
 
 ```bash
 vercel firewall overview                  # active rules, blocks, bypasses, attack-mode, drafts
@@ -150,6 +152,8 @@ vercel firewall rules reorder "My Rule" --position 3 --yes         # 1-based
 
 Rules are evaluated in priority order (top to bottom). Reorder to control which rule matches first.
 
+NOTE: When using `edit` with `--condition`, it will overwrite all conditions listed in the rule. Make sure to specify all conditions when editing a rule.
+
 ### Condition format
 
 Each `--condition` is a JSON object:
@@ -176,7 +180,6 @@ Conditions within a group are **AND'd**. Multiple groups (separated by `--or`) a
 - **Client**: `ip_address` (IP or CIDR), `user_agent`, `geo_country`, `geo_continent`, `geo_country_region`, `geo_city`, `geo_as_number`
 - **Headers / cookies / queries** — require `key`: `header`, `cookie`, `query`
 - **TLS fingerprints**: `ja4_digest` (all plans), `ja3_digest` (Enterprise only)
-- **Verified bots** (Security Plus only): `bot_name`, `bot_category`
 
 ### Actions
 
@@ -185,9 +188,8 @@ Conditions within a group are **AND'd**. Multiple groups (separated by `--or`) a
 - `log` — log without blocking (use to tune before enforcing)
 - `bypass` — skip remaining WAF custom rules + managed rulesets
 - `rate_limit` — throttle by counting key (see Rate limit example for flags)
-- `redirect` — redirect to URL (`--redirect-url`, `--redirect-permanent` for 301; default 307)
 
-All actions accept `--duration` (Pro/Enterprise): `1m`, `5m`, `15m`, `30m`, `1h`. Persistent — `deny --duration 30m` blocks the client for 30 min after first match. Without a duration the action evaluates per-request.
+All actions accept `--duration` (Pro/Enterprise): `1m`, `5m`, `15m`, `30m`, `1h`. Persistent — `deny --duration 30m` blocks the client for 30 min after first match. Without a duration the action evaluates per-request. Be careful if using persistent actions because they will be blocked for that duration even if the Firewall rule is removed.
 
 ### Rate limit example
 
@@ -209,52 +211,11 @@ vercel firewall rules add "Rate limit API" \
 - `--rate-limit-action` — when limit exceeded: `rate_limit` returns 429 (default), `deny` 403, `challenge`, `log`
 - Counters are **per region** — N regions can collectively exceed your configured limit by ~N×.
 
-### Redirect example
+When the user asks for firewall help on a project — or asks "what rate limits should I add?" — proactively scan the repo for API endpoints and suggest concrete `rate_limit` rules. Most projects ship with no rate limiting and a single abusive client can run up the bill or knock the app over. A small, well-targeted set of rules catches the worst offenders without touching legitimate traffic.
 
-```bash
-vercel firewall rules add "Redirect old path" \
-  --condition '{"type":"path","op":"eq","value":"/old"}' \
-  --action redirect \
-  --redirect-url "/new" \
-  --redirect-permanent \
-  --yes
-```
+Method scoping matters — `GET /api/foo` and `POST /api/foo` will likely need different rate limits. Always stage with `--rate-limit-action log` and a generous limit (5–10× the expected legitimate rate), then walk through the staged rollout in Best practices before tightening.
 
-- `--redirect-url` — destination (must start with `/`, `http://`, or `https://`)
-- `--redirect-permanent` — 301. Default 307.
-
-### JSON rule schema (for `--json`)
-
-```json
-{
-  "name": "Rule name (max 160 chars)",
-  "description": "Optional (max 256)",
-  "active": true,
-  "conditionGroup": [
-    {
-      "conditions": [
-        { "type": "path", "op": "pre", "value": "/api" },
-        { "type": "method", "op": "inc", "value": ["POST", "PUT"] }
-      ]
-    },
-    { "conditions": [{ "type": "ip_address", "op": "eq", "value": "1.2.3.4" }] }
-  ],
-  "action": {
-    "mitigate": {
-      "action": "rate_limit",
-      "actionDuration": "1h",
-      "rateLimit": {
-        "algo": "fixed_window",
-        "window": 60,
-        "limit": 100,
-        "keys": ["ip"],
-        "action": "rate_limit"
-      },
-      "redirect": null
-    }
-  }
-}
-```
+For more sophisticated counting (custom buckets, hashing identifiers from headers/cookies, sliding windows from your own code) point the user at the **Rate Limiting SDK**: https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting-sdk.
 
 ## IP blocks
 
@@ -316,18 +277,70 @@ vercel firewall publish --yes             # push drafts to production
 vercel firewall discard --yes             # throw away drafts
 ```
 
+## Querying firewall metrics from the CLI
+
+If the project has **Observability Plus**, `vc metrics` returns firewall counters that you can analyze without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work.
+
+```bash
+vc metrics vercel.firewall_action.count \
+  --group-by waf_rule_id \
+  --group-by waf_action \
+  --since 3d \
+  --granularity 4h \
+  --format json
+```
+
+- `--group-by waf_rule_id` — break out hits per rule. Match the IDs to `vercel firewall rules list --json` to see which rule fired.
+- `--group-by waf_action` — splits `log` / `deny` / `challenge` / `rate_limit` / `bypass` so you can tell what actually got enforced versus only logged.
+- `--since` accepts `1h`, `24h`, `3d`, `7d`, etc.; `--granularity` is the bucket size.
+- `--format json` is best for programmatic review; drop it for a human-readable table.
+
+For an **active-attack triage** lens — "is something happening right now?" — narrow the window and tighten the granularity:
+
+```bash
+vc metrics vercel.firewall_action.count \
+  --group-by waf_action \
+  --since 1h \
+  --granularity 5m \
+  --format json
+```
+
+Other dimensions and metric names exist; run `vc metrics --help` to discover them, and check https://vercel.com/docs/cli/metrics for the full catalog. If the command errors with "metrics not enabled" or similar, the project isn't on Observability Plus — fall back to the dashboard URL (`/firewall/traffic?filter=<ruleId>`) for the same data.
+
 ## Best practices
 
 The firewall sits in front of every request. A misconfigured rule can block real users, kill SEO crawlers, or break checkout. Treat changes like a production database migration: stage, review, and let the user pull the trigger.
 
-- **Start every new rule in `log` mode.** Set `--action log` first — the rule records hits to the Firewall dashboard but blocks nothing. Ask the user to open the project's **Firewall** tab and review the requests the rule would have blocked or challenged. Once they confirm only malicious traffic is matching, upgrade the action:
+- **Roll new rules out in stages, not in one shot.** A new rule's blast radius is unpredictable until real traffic hits it. Walk every meaningful rule through the stages below, asking the user to `vercel firewall publish --yes` between each. Don't skip stages even if a rule "obviously" matches only attackers — common JA4s and user agents collide with real users far more often than they look like they will.
+  1. **Log everywhere.** Add the rule with `--action log` so it records hits to the Firewall dashboard but blocks nothing.
 
-  ```bash
-  vercel firewall rules edit "Rule name" --action challenge --yes   # or deny
-  vercel firewall diff
-  ```
+     ```bash
+     vercel firewall rules add "Block exploit probes" \
+       --condition '{"type":"path","op":"inc","value":["/wp-admin","/.env","/.git/config","/phpmyadmin"]}' \
+       --action log --yes
+     ```
 
-  Then ask the user to `vercel firewall publish --yes`. Repeat the log-first cycle for every meaningful change.
+  2. **Have the user review traffic in the dashboard.** Get the rule ID from the `rules add` output or `vercel firewall rules list --json` (look for the `id` field — rule IDs start with `rule_`). Read the team and project slugs from `.vercel/project.json` (`orgSlug` / `projectName`) or via `vercel project ls`. Construct the filtered traffic URL and ask the user to open it:
+
+     ```
+     https://vercel.com/<team>/<project>/firewall/traffic?filter=<ruleId>
+     ```
+
+     Have them confirm only the intended traffic is matching (no real users, no SEO crawlers, no internal tools) before moving on.
+
+  3. **Block in preview first.** Edit the rule to `deny` (or `challenge`) and add an `environment = preview` condition so production stays in log mode. This lets the user hit a preview deployment and confirm the block fires correctly without exposing real users:
+
+     ```bash
+     vercel firewall rules edit "Block exploit probes" \
+       --action deny \
+       --condition '{"type":"path","op":"inc","value":["/wp-admin","/.env","/.git/config","/phpmyadmin"]}' \
+       --condition '{"type":"environment","op":"eq","value":"preview"}' \
+       --yes
+     ```
+
+     Have the user publish, then test the affected paths in a preview URL. Re-check the dashboard URL filtered by rule ID to see the blocks land.
+
+  4. **Block in production.** Once the user is satisfied with the production log data, edit to `deny` / `challenge` and have them publish. Keep the dashboard URL handy for the first 24h in case you need to roll back with `--action log` or `rules disable`.
 
 - **Stage drafts; let the user publish.** Mutating commands (`rules add/edit/enable/disable/remove/reorder`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
 
@@ -342,7 +355,10 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
 - **Keep bypasses narrow.** When unblocking trusted automation, scope by a shared-secret header **plus** an IP or CIDR. Avoid wide-open bypasses (e.g., a single header with a known value an attacker could guess).
 
-- **Don't disable managed rulesets to fix one false positive.** If Bot Protection or the AI Bots ruleset is challenging legitimate traffic, add a higher-priority custom rule with `--action bypass` scoped to the specific path, header, or IP instead.
+- **Don't over-block.** User agents, JA4, and IP addresses may collide with real users far more than they look like they will:
+  - **JA4 fingerprints are shared across millions of clients.** A single Chrome point release, a single iOS version, or a popular mobile SDK all produce the same JA4. "Block this JA4" can silently take out an entire browser cohort. Before recommending a JA4 rule, run it through the staged log → preview → log-prod → block flow above and have the user confirm the dashboard shows only attacker behavior (high request rate, suspicious paths, anomalous geos) — not just "this JA4 hit `/login` once."
+  - **User-agent substring rules over-match constantly.** `sub` matches like `crawler`, `bot`, `python`, `curl`, or `headless` will block legitimate tools (uptime monitors, link previewers, SEO auditors, partner integrations, the user's own CI). For known-good crawlers (Googlebot, Bingbot, Slack/Discord/X unfurlers, etc.) prefer Vercel's verified-bot signals over UA strings, and pair UA conditions with another condition (path, geo, rate) so a single UA token can't take down a whole class of clients.
+  - **Sanity-check before staging.** Before adding a block, ask the user: "Does this fingerprint also match Chrome on macOS / our mobile app / a partner's webhook?" If you don't know, the answer is "log first, decide later."
 
 ## External reverse proxies
 
