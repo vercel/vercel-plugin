@@ -140,6 +140,7 @@ How it is tracked:
   - `dau-stamp` prevents sending `dau:active_today` more than once per UTC day.
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
+- `active-session.json` is refreshed on session start with the plugin version and expiry timestamp. It lets Vercel CLI telemetry identify commands run while a recent Vercel plugin session marker is present. It contains no prompt text, file paths, project names, account IDs, tool-call contents, or skill-injection details.
 
 Behavior:
 
