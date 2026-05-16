@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 
@@ -7,16 +7,26 @@ declare const __VERCEL_PLUGIN_VERSION__: string;
 
 const BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 const FLUSH_TIMEOUT_MS = 3_000;
-const PLUGIN_VERSION = __VERCEL_PLUGIN_VERSION__;
+export const PLUGIN_VERSION = __VERCEL_PLUGIN_VERSION__;
+const ACTIVE_SESSION_TTL_MS = 60 * 60 * 1000;
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 const FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
+const ACTIVE_SESSION_MARKER_PATH = join(homedir(), ".config", "vercel-plugin", "active-session.json");
 
 export interface TelemetryEvent {
   id: string;
   event_time: number;
   key: string;
   value: string;
+}
+
+export interface ActiveSessionMarker {
+  schema: 1;
+  active: true;
+  pluginVersion: string;
+  updatedAt: number;
+  expiresAt: number;
 }
 
 async function sendTelemetry(events: TelemetryEvent[]): Promise<boolean> {
@@ -54,6 +64,10 @@ export function getDauStampPath(): string {
 
 export function getFirstUseStampPath(): string {
   return FIRST_USE_STAMP_PATH;
+}
+
+export function getActiveSessionMarkerPath(): string {
+  return ACTIVE_SESSION_MARKER_PATH;
 }
 
 function utcDayStamp(date: Date): string {
@@ -97,6 +111,14 @@ export function markFirstUsePingSent(): void {
   }
 }
 
+export function removeActiveSessionMarker(): void {
+  try {
+    rmSync(ACTIVE_SESSION_MARKER_PATH, { force: true });
+  } catch {
+    // Best-effort
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Telemetry controls
 // ---------------------------------------------------------------------------
@@ -113,6 +135,29 @@ export function getTelemetryOverride(env: NodeJS.ProcessEnv = process.env): "off
  */
 export function isDauTelemetryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return getTelemetryOverride(env) !== "off";
+}
+
+export function refreshActiveSessionMarker(now: Date = new Date()): void {
+  if (!isDauTelemetryEnabled()) {
+    removeActiveSessionMarker();
+    return;
+  }
+
+  const updatedAt = now.getTime();
+  const marker: ActiveSessionMarker = {
+    schema: 1,
+    active: true,
+    pluginVersion: PLUGIN_VERSION,
+    updatedAt,
+    expiresAt: updatedAt + ACTIVE_SESSION_TTL_MS,
+  };
+
+  try {
+    mkdirSync(dirname(ACTIVE_SESSION_MARKER_PATH), { recursive: true });
+    writeFileSync(ACTIVE_SESSION_MARKER_PATH, `${JSON.stringify(marker)}\n`, { flag: "w" });
+  } catch {
+    // Best-effort
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,8 @@ async function runTelemetryProbe(options: {
   calls: number;
   stampPath: string;
   firstUseStampPath: string;
+  activeSessionMarkerPath: string;
+  activeSessionMarker: unknown;
   dauPayloads: unknown[];
 }> {
   const mergedEnv: Record<string, string> = {
@@ -46,7 +48,14 @@ async function runTelemetryProbe(options: {
 
     const stampPath = telemetry.getDauStampPath();
     const firstUseStampPath = telemetry.getFirstUseStampPath();
-    console.log(JSON.stringify({ dauEnabled, calls, stampPath, firstUseStampPath, dauPayloads }));
+    const activeSessionMarkerPath = telemetry.getActiveSessionMarkerPath();
+    telemetry.refreshActiveSessionMarker(new Date("2026-05-15T12:00:00.000Z"));
+    const activeSessionMarker = await import("node:fs").then((fs) =>
+      fs.existsSync(activeSessionMarkerPath)
+        ? JSON.parse(fs.readFileSync(activeSessionMarkerPath, "utf-8"))
+        : null
+    );
+    console.log(JSON.stringify({ dauEnabled, calls, stampPath, firstUseStampPath, activeSessionMarkerPath, activeSessionMarker, dauPayloads }));
   `;
 
   const proc = Bun.spawn([NODE_BIN, "--input-type=module", "-e", script], {
@@ -68,6 +77,8 @@ async function runTelemetryProbe(options: {
     calls: number;
     stampPath: string;
     firstUseStampPath: string;
+    activeSessionMarkerPath: string;
+    activeSessionMarker: unknown;
     dauPayloads: unknown[];
   };
 }
@@ -87,6 +98,8 @@ describe("telemetry controls", () => {
     expect(result.calls).toBe(0);
     expect(existsSync(result.stampPath)).toBe(false);
     expect(existsSync(result.firstUseStampPath)).toBe(false);
+    expect(existsSync(result.activeSessionMarkerPath)).toBe(false);
+    expect(result.activeSessionMarker).toBeNull();
   });
 
   test("default telemetry sends DAU and first-use once", async () => {
@@ -95,8 +108,17 @@ describe("telemetry controls", () => {
     expect(result.calls).toBe(1);
     expect(result.stampPath).toBe(join(tempHome, ".config", "vercel-plugin", "dau-stamp"));
     expect(result.firstUseStampPath).toBe(join(tempHome, ".config", "vercel-plugin", "first-use-stamp"));
+    expect(result.activeSessionMarkerPath).toBe(join(tempHome, ".config", "vercel-plugin", "active-session.json"));
     expect(existsSync(result.stampPath)).toBe(true);
     expect(existsSync(result.firstUseStampPath)).toBe(true);
+    expect(existsSync(result.activeSessionMarkerPath)).toBe(true);
+    expect(result.activeSessionMarker).toEqual({
+      schema: 1,
+      active: true,
+      pluginVersion: "0.43.0",
+      updatedAt: Date.parse("2026-05-15T12:00:00.000Z"),
+      expiresAt: Date.parse("2026-05-15T13:00:00.000Z"),
+    });
     expect(result.dauPayloads).toEqual([
       [
         expect.objectContaining({
@@ -109,7 +131,7 @@ describe("telemetry controls", () => {
         }),
         expect.objectContaining({
           key: "plugin:version",
-          value: "0.42.0",
+          value: "0.43.0",
         }),
       ],
     ]);

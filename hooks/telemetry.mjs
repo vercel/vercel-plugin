@@ -1,13 +1,15 @@
 // hooks/src/telemetry.mts
 import { randomUUID } from "crypto";
-import { mkdirSync, statSync, writeFileSync } from "fs";
+import { mkdirSync, rmSync, statSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
-var PLUGIN_VERSION = "0.42.0";
+var PLUGIN_VERSION = "0.43.0";
+var ACTIVE_SESSION_TTL_MS = 60 * 60 * 1e3;
 var DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 var FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
+var ACTIVE_SESSION_MARKER_PATH = join(homedir(), ".config", "vercel-plugin", "active-session.json");
 async function sendTelemetry(events) {
   if (events.length === 0) return false;
   const controller = new AbortController();
@@ -36,6 +38,9 @@ function getDauStampPath() {
 }
 function getFirstUseStampPath() {
   return FIRST_USE_STAMP_PATH;
+}
+function getActiveSessionMarkerPath() {
+  return ACTIVE_SESSION_MARKER_PATH;
 }
 function utcDayStamp(date) {
   return date.toISOString().slice(0, 10);
@@ -71,6 +76,12 @@ function markFirstUsePingSent() {
   } catch {
   }
 }
+function removeActiveSessionMarker() {
+  try {
+    rmSync(ACTIVE_SESSION_MARKER_PATH, { force: true });
+  } catch {
+  }
+}
 function getTelemetryOverride(env = process.env) {
   const value = env.VERCEL_PLUGIN_TELEMETRY?.trim().toLowerCase();
   if (value === "off") return value;
@@ -78,6 +89,26 @@ function getTelemetryOverride(env = process.env) {
 }
 function isDauTelemetryEnabled(env = process.env) {
   return getTelemetryOverride(env) !== "off";
+}
+function refreshActiveSessionMarker(now = /* @__PURE__ */ new Date()) {
+  if (!isDauTelemetryEnabled()) {
+    removeActiveSessionMarker();
+    return;
+  }
+  const updatedAt = now.getTime();
+  const marker = {
+    schema: 1,
+    active: true,
+    pluginVersion: PLUGIN_VERSION,
+    updatedAt,
+    expiresAt: updatedAt + ACTIVE_SESSION_TTL_MS
+  };
+  try {
+    mkdirSync(dirname(ACTIVE_SESSION_MARKER_PATH), { recursive: true });
+    writeFileSync(ACTIVE_SESSION_MARKER_PATH, `${JSON.stringify(marker)}
+`, { flag: "w" });
+  } catch {
+  }
 }
 async function trackDauActiveToday(now = /* @__PURE__ */ new Date()) {
   if (!isDauTelemetryEnabled()) return;
@@ -116,12 +147,16 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date()) {
   }
 }
 export {
+  PLUGIN_VERSION,
+  getActiveSessionMarkerPath,
   getDauStampPath,
   getFirstUseStampPath,
   getTelemetryOverride,
   isDauTelemetryEnabled,
   markDauPingSent,
   markFirstUsePingSent,
+  refreshActiveSessionMarker,
+  removeActiveSessionMarker,
   shouldSendDauPing,
   shouldSendFirstUsePing,
   trackDauActiveToday

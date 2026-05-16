@@ -32,7 +32,7 @@ import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { trackDauActiveToday } from "./telemetry.mjs";
+import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -619,6 +619,7 @@ async function main(): Promise<void> {
   const platform = detectSessionStartPlatform(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
+  refreshActiveSessionMarker();
 
   // Greenfield check — seed defaults and skip repository exploration.
   const greenfield: GreenfieldResult | null = checkGreenfield(projectRoot);
