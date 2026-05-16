@@ -27,6 +27,13 @@ validate:
     pattern: export\s+default\s+function
     message: 'Use named exports (GET, POST, PUT, DELETE) instead of default export for route handlers'
     severity: error
+    # Skip on App Router page / layout / loading / error / not-found / sitemap / template / default files,
+    # which require a default export by Next.js convention. Detected via the 'use client' directive,
+    # an App Router config export (metadata, dynamic, revalidate, fetchCache, runtime), an `export default
+    # function` whose name matches an App Router file (Page / Layout / Loading / etc.), or any JSX
+    # element with a capitalised component tag — all signals that the file is a page-style file rather
+    # than a route handler. See anthropics/claude-code#54989.
+    skipIfFileContains: "(?:^|\\n)\\s*['\"]use\\s+client['\"]|export\\s+const\\s+(?:metadata|dynamic|revalidate|fetchCache|runtime)\\b|export\\s+default\\s+(?:async\\s+)?function\\s+\\w*(?:Page|Layout|Loading|Error|NotFound|Sitemap|Template|Default|sitemap|robots|opengraph|manifest)\\b|<[A-Z][A-Za-z0-9]*|\\{\\s*children\\s*[,}:]|MetadataRoute\\.|from\\s+['\"]next/(?:font|image|link|navigation|headers|cookies)['\"]"
   -
     pattern: NextApiRequest|NextApiResponse
     message: 'NextApiRequest/NextApiResponse are Pages Router types — use Web API Request/Response'
