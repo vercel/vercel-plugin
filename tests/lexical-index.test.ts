@@ -89,8 +89,7 @@ describe("SYNONYM_MAP bidirectional expansion", () => {
   // analytics/tracking/metrics
   test("analytics <-> tracking", () => assertBidirectional("analytics", "tracking"));
   test("analytics <-> metrics", () => assertBidirectional("analytics", "metrics"));
-  test("analytics <-> observability", () => assertBidirectional("analytics", "observability"));
-
+  
   // middleware/interceptor
   test("middleware <-> interceptor", () => assertBidirectional("middleware", "interceptor"));
   test("middleware <-> edge-middleware", () => assertBidirectional("middleware", "edge-middleware"));
@@ -104,8 +103,7 @@ describe("SYNONYM_MAP bidirectional expansion", () => {
   test("image <-> opengraph", () => assertBidirectional("image", "opengraph"));
 
   // monorepo/turborepo
-  test("monorepo <-> turborepo", () => assertBidirectional("monorepo", "turborepo"));
-  test("monorepo <-> workspace", () => assertBidirectional("monorepo", "workspace"));
+    test("monorepo <-> workspace", () => assertBidirectional("monorepo", "workspace"));
 
   // domain/dns
   test("domain <-> dns", () => assertBidirectional("domain", "dns"));

@@ -215,8 +215,8 @@ describe("parseTraceLog", () => {
       JSON.stringify({
         event: "skill-injection",
         toolName: "Write",
-        matchedSkills: ["cron-jobs"],
-        injectedSkills: ["cron-jobs"],
+        matchedSkills: ["vercel-functions"],
+        injectedSkills: ["vercel-functions"],
         droppedByCap: [],
         droppedByBudget: [],
       }),
@@ -224,7 +224,7 @@ describe("parseTraceLog", () => {
 
     const injections = parseTraceLog(traceText);
     expect(injections).toHaveLength(1);
-    expect(injections[0].matchedSkills).toEqual(["cron-jobs"]);
+    expect(injections[0].matchedSkills).toEqual(["vercel-functions"]);
   });
 
   test("returns empty array for empty input", () => {
@@ -289,6 +289,15 @@ describe("detectPortFromOutput", () => {
   });
 });
 
+function serveOrNull(options: Parameters<typeof Bun.serve>[0]): ReturnType<typeof Bun.serve> | null {
+  try {
+    return Bun.serve(options);
+  } catch (error) {
+    if ((error as { code?: string }).code === "EADDRINUSE") return null;
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // pollServer — smoke test with a local Bun server
 // ---------------------------------------------------------------------------
@@ -296,12 +305,14 @@ describe("detectPortFromOutput", () => {
 describe("pollServer", () => {
   test("returns non-200 status from a server that returns 503", async () => {
     // Spin up a tiny server that always returns 503
-    const server = Bun.serve({
+    const server = serveOrNull({
       port: 0, // random available port
       fetch() {
         return new Response("Service Unavailable", { status: 503 });
       },
     });
+
+    if (!server) return;
 
     try {
       const result = await pollServer(server.port, 5000);
@@ -313,12 +324,14 @@ describe("pollServer", () => {
   });
 
   test("returns 200 from a healthy server", async () => {
-    const server = Bun.serve({
+    const server = serveOrNull({
       port: 0,
       fetch() {
         return new Response("OK", { status: 200 });
       },
     });
+
+    if (!server) return;
 
     try {
       const result = await pollServer(server.port, 5000);
@@ -330,7 +343,7 @@ describe("pollServer", () => {
   });
 
   test("returns redirect status without following", async () => {
-    const server = Bun.serve({
+    const server = serveOrNull({
       port: 0,
       fetch() {
         return new Response(null, {
@@ -339,6 +352,8 @@ describe("pollServer", () => {
         });
       },
     });
+
+    if (!server) return;
 
     try {
       const result = await pollServer(server.port, 5000);
@@ -443,7 +458,7 @@ describe("ReportJson structure", () => {
   test("buildSuggestedPatterns returns known patterns for missing skills", () => {
     const missing = new Map<string, string[]>([
       ["auth", ["01-recipe", "02-trivia"]],
-      ["cron-jobs", ["03-aggregator"]],
+      ["vercel-functions", ["03-aggregator"]],
     ]);
 
     const patterns = buildSuggestedPatterns(missing);
@@ -460,8 +475,8 @@ describe("ReportJson structure", () => {
       expect(typeof p.tool).toBe("string");
     }
 
-    // cron-jobs should have known hints
-    const cronPatterns = patterns.filter((p) => p.skill === "cron-jobs");
+    // vercel-functions should have known hints
+    const cronPatterns = patterns.filter((p) => p.skill === "vercel-functions");
     expect(cronPatterns.length).toBeGreaterThan(0);
   });
 
@@ -535,7 +550,7 @@ describe("ReportJson structure", () => {
   });
 
   test("SKILL_PATTERN_HINTS has entries for commonly missed skills", () => {
-    const expectedSkills = ["auth", "nextjs", "ai-sdk", "payments", "cron-jobs"];
+    const expectedSkills = ["auth", "nextjs", "ai-sdk", "payments", "vercel-functions"];
     for (const skill of expectedSkills) {
       expect(SKILL_PATTERN_HINTS[skill]).toBeDefined();
       expect(SKILL_PATTERN_HINTS[skill].length).toBeGreaterThan(0);

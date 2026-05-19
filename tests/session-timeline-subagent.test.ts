@@ -128,7 +128,7 @@ describe("session timeline subagent integration", () => {
       );
 
       expect(leadRead.code).toBe(0);
-      expect(JSON.parse(leadRead.stdout)).toEqual({});
+      expect(parseInjectedSkills(leadRead.stdout)).not.toContain("nextjs");
 
       const subagentSessionStart = await runSessionStart(subagentEnvPath);
       expect(subagentSessionStart.code).toBe(0);

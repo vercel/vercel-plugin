@@ -42,7 +42,7 @@ function findIncludeDependency(): {
       if (m) {
         const [, skillName, target] = m;
         // Skip frontmatter refs — we want a section include
-        if (target.startsWith("frontmatter:")) continue;
+        if (target.startsWith("frontmatter:") || target.startsWith("file:")) continue;
         return {
           templatePath: join(dir, f),
           outputPath: join(dir, f.replace(/\.tmpl$/, "")),

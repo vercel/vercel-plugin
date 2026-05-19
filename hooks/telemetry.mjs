@@ -5,7 +5,7 @@ import { join, dirname } from "path";
 import { homedir } from "os";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
-var PLUGIN_VERSION = "0.43.0";
+var PLUGIN_VERSION = true ? "0.43.0" : "0.43.0";
 var ACTIVE_SESSION_TTL_MS = 60 * 60 * 1e3;
 var DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 var FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");

@@ -279,6 +279,7 @@ This is test content.
       "hook-env.mjs",
       "compat.mjs",
       "telemetry.mjs",
+      "vercel-context.mjs",
     ];
     for (const f of hookFiles) {
       const src = join(ROOT, "hooks", f);

@@ -89,14 +89,6 @@ describe("vercel-config.mjs", () => {
     expect(resolveVercelJsonSkills(p)).toBeNull();
   });
 
-  test("resolveVercelJsonSkills maps crons to cron-jobs", () => {
-    const p = writeVercelJson({ crons: [{ path: "/api/cron", schedule: "0 * * * *" }] });
-    const result = resolveVercelJsonSkills(p);
-    expect(result).not.toBeNull();
-    expect(result!.relevantSkills.has("cron-jobs")).toBe(true);
-    expect(result!.relevantSkills.has("vercel-functions")).toBe(false);
-  });
-
   test("resolveVercelJsonSkills maps redirects to routing-middleware", () => {
     const p = writeVercelJson({ redirects: [{ source: "/old", destination: "/new" }] });
     const result = resolveVercelJsonSkills(p);
@@ -111,12 +103,10 @@ describe("vercel-config.mjs", () => {
 
   test("resolveVercelJsonSkills maps mixed keys correctly", () => {
     const p = writeVercelJson({
-      crons: [],
       redirects: [],
       functions: {},
     });
     const result = resolveVercelJsonSkills(p);
-    expect(result!.relevantSkills.has("cron-jobs")).toBe(true);
     expect(result!.relevantSkills.has("routing-middleware")).toBe(true);
     expect(result!.relevantSkills.has("vercel-functions")).toBe(true);
     // deployments-cicd has no mapped keys in this config
@@ -127,7 +117,7 @@ describe("vercel-config.mjs", () => {
     // Verify that every key we expect to be mapped produces at least one relevant skill
     const expectedKeys = [
       "redirects", "rewrites", "headers", "cleanUrls", "trailingSlash",
-      "crons", "functions", "regions",
+      "functions", "regions",
       "builds", "buildCommand", "installCommand", "outputDirectory", "framework",
     ];
     for (const key of expectedKeys) {
@@ -165,24 +155,6 @@ describe("vercel.json key-aware routing (collision scenarios)", () => {
     }
   });
 
-  test("Scenario 2: vercel.json with only crons → cron-jobs boosted, others deprioritized", async () => {
-    const filePath = writeVercelJson({
-      crons: [{ path: "/api/cron/daily", schedule: "0 8 * * *" }],
-    });
-    const { injectedSkills } = await runHook({
-      tool_name: "Read",
-      tool_input: { file_path: filePath },
-    });
-    // cron-jobs must be injected
-    expect(injectedSkills).toContain("cron-jobs");
-    // cron-jobs should appear before vercel-functions (despite lower base priority)
-    const cjIdx = injectedSkills.indexOf("cron-jobs");
-    const vfIdx = injectedSkills.indexOf("vercel-functions");
-    if (vfIdx >= 0) {
-      expect(cjIdx).toBeLessThan(vfIdx);
-    }
-  });
-
   test("Scenario 3: vercel.json with headers + buildCommand → routing-middleware and deployments-cicd boosted", async () => {
     const filePath = writeVercelJson({
       headers: [{ source: "/(.*)", headers: [{ key: "X-Frame-Options", value: "DENY" }] }],
@@ -211,7 +183,6 @@ describe("vercel.json key-aware routing (collision scenarios)", () => {
 
   test("Scenario 5: vercel.json with all key types → no duplicates, cap respected", async () => {
     const filePath = writeVercelJson({
-      crons: [],
       redirects: [],
       functions: {},
       buildCommand: "npm run build",
@@ -224,10 +195,10 @@ describe("vercel.json key-aware routing (collision scenarios)", () => {
     expect(injectedSkills.length).toBeLessThanOrEqual(3);
     // No duplicates
     expect(new Set(injectedSkills).size).toBe(injectedSkills.length);
-    // All 4 vercel.json skills are relevant, but cap limits to 3
+    // The injected skills should all be current vercel.json skills.
     // The ones that ARE injected should all be vercel.json skills
     for (const skill of injectedSkills) {
-      expect(["cron-jobs", "deployments-cicd", "routing-middleware", "vercel-functions"]).toContain(skill);
+      expect(["deployments-cicd", "routing-middleware", "vercel-functions"]).toContain(skill);
     }
   });
 

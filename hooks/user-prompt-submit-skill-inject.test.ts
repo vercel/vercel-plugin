@@ -68,8 +68,7 @@ describe("user prompt seen-skills dedup state", () => {
 
     expect(state.dedupOff).toBe(false);
     expect(state.hasFileDedup).toBe(true);
-    expect("hasEnvDedup" in state).toBe(false);
-    expect("seenEnv" in state).toBe(false);
+    expect(state.seenEnv).toBe("skill-env,shared");
     expect(state.seenClaims).toBe("skill-claim");
     expect(state.seenState).toBe("shared,skill-claim,skill-file");
     expect(readSessionFile(sessionId, SESSION_KIND)).toBe(state.seenState);
@@ -137,12 +136,12 @@ describe("user prompt cursor compatibility", () => {
         conversation_id: "cursor-conversation",
         workspace_roots: ["/tmp/cursor-workspace", "/tmp/ignored"],
         cursor_version: "1.0.0",
-        prompt: "Use ai elements for streaming markdown in this chat UI",
+        prompt: "Use the AI SDK for streaming text generation",
       }),
     );
 
     expect(parsed).toEqual({
-      prompt: "Use ai elements for streaming markdown in this chat UI",
+      prompt: "Use the AI SDK for streaming text generation",
       platform: "cursor",
       sessionId: "cursor-conversation",
       cwd: "/tmp/cursor-workspace",
@@ -174,22 +173,23 @@ describe("user prompt cursor compatibility", () => {
 
   it("test_formatOutput_returns_cursor_flat_shape_with_continue_and_env", () => {
     const output = JSON.parse(formatOutput(
-      ["You must run the Skill(ai-elements) tool."],
-      ["ai-elements"],
-      ["ai-elements"],
+      ["You must run the Skill(ai-sdk) tool."],
+      ["ai-sdk"],
+      ["ai-sdk"],
       [],
       [],
       [],
-      { "ai-elements": "matched streaming markdown" },
+      [],
+      { "ai-sdk": "matched AI SDK" },
       undefined,
       "cursor",
-      { VERCEL_PLUGIN_SEEN_SKILLS: "ai-elements" },
+      { VERCEL_PLUGIN_SEEN_SKILLS: "ai-sdk" },
     ));
 
     expect(output.continue).toBe(true);
-    expect(output.additional_context).toContain("Skill(ai-elements)");
+    expect(output.additional_context).toContain("Skill(ai-sdk)");
     expect(output.additional_context).toContain("skillInjection");
-    expect(output.env).toEqual({ VERCEL_PLUGIN_SEEN_SKILLS: "ai-elements" });
+    expect(output.env).toEqual({ VERCEL_PLUGIN_SEEN_SKILLS: "ai-sdk" });
     expect(output.hookSpecificOutput).toBeUndefined();
   });
 

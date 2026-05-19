@@ -101,9 +101,9 @@ describe("TSX review trigger", () => {
 
     const ctx = parsed.hookSpecificOutput.additionalContext;
     // Should contain the react-best-practices skill content
-    expect(ctx).toContain("skill:react-best-practices");
+    expect(ctx).toContain("Skill(react-best-practices)");
     // Should contain the review marker
-    expect(hasReviewMarker(parsed.hookSpecificOutput)).toBe(true);
+    expect(extractSkillInjection(parsed.hookSpecificOutput)?.injectedSkills).toContain("react-best-practices");
   });
 
   test("injects react-best-practices with marker above threshold", async () => {
@@ -121,8 +121,8 @@ describe("TSX review trigger", () => {
 
     expect(parsed).not.toBeNull();
     expect(parsed.hookSpecificOutput).toBeDefined();
-    expect(parsed.hookSpecificOutput.additionalContext).toContain("skill:react-best-practices");
-    expect(hasReviewMarker(parsed.hookSpecificOutput)).toBe(true);
+    expect(parsed.hookSpecificOutput.additionalContext).toContain("Skill(react-best-practices)");
+    expect(extractSkillInjection(parsed.hookSpecificOutput)?.injectedSkills).toContain("react-best-practices");
   });
 
   test("does not trigger for non-tsx files", async () => {
@@ -181,8 +181,8 @@ describe("TSX review trigger", () => {
 
     expect(parsed).not.toBeNull();
     expect(parsed.hookSpecificOutput).toBeDefined();
-    expect(parsed.hookSpecificOutput.additionalContext).toContain("skill:react-best-practices");
-    expect(hasReviewMarker(parsed.hookSpecificOutput)).toBe(true);
+    expect(parsed.hookSpecificOutput.additionalContext).toContain("Skill(react-best-practices)");
+    expect(extractSkillInjection(parsed.hookSpecificOutput)?.injectedSkills).toContain("react-best-practices");
   });
 
   test("does not trigger below custom threshold", async () => {
@@ -250,8 +250,8 @@ describe("TSX review trigger", () => {
     // Dedup bypass: counter >= threshold triggers re-injection even when slug is in SEEN_SKILLS
     expect(parsed).not.toBeNull();
     expect(parsed.hookSpecificOutput).toBeDefined();
-    expect(parsed.hookSpecificOutput.additionalContext).toContain("skill:react-best-practices");
-    expect(hasReviewMarker(parsed.hookSpecificOutput)).toBe(true);
+    expect(parsed.hookSpecificOutput.additionalContext).toContain("Skill(react-best-practices)");
+    expect(extractSkillInjection(parsed.hookSpecificOutput)?.injectedSkills).toContain("react-best-practices");
   });
 
   test("does not re-inject when counter is below threshold even if in seen skills", async () => {
