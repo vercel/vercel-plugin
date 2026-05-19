@@ -1286,4 +1286,6 @@ async function main() {
   process.exit(errorCount > 0 ? 1 : 0);
 }
 
-main();
+if (import.meta.main) {
+  main();
+}

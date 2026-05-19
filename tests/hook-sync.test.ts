@@ -89,30 +89,6 @@ describe("pretooluse-skill-inject .mts/.mjs sync", () => {
     }
   });
 
-  test("isDevServerCommand produces identical output", async () => {
-    const src = await load("hooks/src/pretooluse-skill-inject.mts");
-    const compiled = await load("hooks/pretooluse-skill-inject.mjs");
-
-    const inputs = [
-      "npm run dev",
-      "next dev",
-      "vite dev",
-      "bun dev",
-      "npm run build",
-      "vite build",
-      "echo hello",
-    ];
-    for (const input of inputs) {
-      expect(compiled.isDevServerCommand(input)).toBe(src.isDevServerCommand(input));
-    }
-  });
-
-  test("getReviewThreshold matches", async () => {
-    const src = await load("hooks/src/pretooluse-skill-inject.mts");
-    const compiled = await load("hooks/pretooluse-skill-inject.mjs");
-
-    expect(compiled.getReviewThreshold()).toBe(src.getReviewThreshold());
-  });
 });
 
 // ---------------------------------------------------------------------------

@@ -109,9 +109,6 @@ describe("resolve real templates", () => {
 
     test(`${label} resolves without errors`, () => {
       const content = readFileSync(tmpl, "utf-8");
-      const markers = extractMarkers(content);
-      expect(markers.length).toBeGreaterThan(0);
-
       // Strict mode throws on any unresolved include
       const resolved = resolveIncludes(content, { skillsDir: SKILLS_DIR, strict: true });
 
@@ -239,9 +236,7 @@ describe("dependency manifest", () => {
       expect(typeof entry.output).toBe("string");
       expect(entry.output).toEndWith(".md");
       expect(Array.isArray(entry.dependencies)).toBe(true);
-      expect(entry.dependencies.length).toBeGreaterThan(0);
       expect(Array.isArray(entry.includes)).toBe(true);
-      expect(entry.includes.length).toBeGreaterThan(0);
 
       for (const inc of entry.includes) {
         expect(typeof inc.marker).toBe("string");

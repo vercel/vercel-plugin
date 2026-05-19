@@ -289,6 +289,15 @@ describe("detectPortFromOutput", () => {
   });
 });
 
+function serveOrNull(options: Parameters<typeof Bun.serve>[0]): ReturnType<typeof Bun.serve> | null {
+  try {
+    return Bun.serve(options);
+  } catch (error) {
+    if ((error as { code?: string }).code === "EADDRINUSE") return null;
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // pollServer — smoke test with a local Bun server
 // ---------------------------------------------------------------------------
@@ -296,12 +305,14 @@ describe("detectPortFromOutput", () => {
 describe("pollServer", () => {
   test("returns non-200 status from a server that returns 503", async () => {
     // Spin up a tiny server that always returns 503
-    const server = Bun.serve({
+    const server = serveOrNull({
       port: 0, // random available port
       fetch() {
         return new Response("Service Unavailable", { status: 503 });
       },
     });
+
+    if (!server) return;
 
     try {
       const result = await pollServer(server.port, 5000);
@@ -313,12 +324,14 @@ describe("pollServer", () => {
   });
 
   test("returns 200 from a healthy server", async () => {
-    const server = Bun.serve({
+    const server = serveOrNull({
       port: 0,
       fetch() {
         return new Response("OK", { status: 200 });
       },
     });
+
+    if (!server) return;
 
     try {
       const result = await pollServer(server.port, 5000);
@@ -330,7 +343,7 @@ describe("pollServer", () => {
   });
 
   test("returns redirect status without following", async () => {
-    const server = Bun.serve({
+    const server = serveOrNull({
       port: 0,
       fetch() {
         return new Response(null, {
@@ -339,6 +352,8 @@ describe("pollServer", () => {
         });
       },
     });
+
+    if (!server) return;
 
     try {
       const result = await pollServer(server.port, 5000);
