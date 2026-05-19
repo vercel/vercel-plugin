@@ -7,7 +7,7 @@ declare const __VERCEL_PLUGIN_VERSION__: string;
 
 const BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 const FLUSH_TIMEOUT_MS = 3_000;
-export const PLUGIN_VERSION = typeof __VERCEL_PLUGIN_VERSION__ === "string" ? __VERCEL_PLUGIN_VERSION__ : "0.0.0-test";
+export const PLUGIN_VERSION = typeof __VERCEL_PLUGIN_VERSION__ === "string" ? __VERCEL_PLUGIN_VERSION__ : "0.43.0";
 const ACTIVE_SESSION_TTL_MS = 60 * 60 * 1000;
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
