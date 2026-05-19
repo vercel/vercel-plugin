@@ -274,7 +274,7 @@ describe("dependency manifest", () => {
       template: e.template,
       dependencies: e.dependencies.sort(),
       includeCount: e.includes.length,
-    }));
+    })).sort((a, b) => a.template.localeCompare(b.template));
 
     expect(depGraph).toMatchSnapshot();
   });
@@ -352,7 +352,7 @@ describe("CLI --json output shape", () => {
       dependencyCount: e.result.dependencies.length,
       resolvedCount: e.result.resolved.length,
       diagnosticCount: e.result.diagnostics.length,
-    }));
+    })).sort((a: any, b: any) => a.template.localeCompare(b.template));
 
     expect(shape).toMatchSnapshot();
   });
