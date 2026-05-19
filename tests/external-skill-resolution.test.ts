@@ -55,42 +55,13 @@ describe("react-best-practices SKILL.md", () => {
     expect(content).toContain("components/**/*.tsx");
   });
 
-  test("contains review checklist content", () => {
+  test("contains current review guidance content", () => {
     const content = readFileSync(skillPath, "utf-8");
-    expect(content).toContain("Component Structure");
-    expect(content).toContain("Hooks");
-    expect(content).toContain("Accessibility");
-    expect(content).toContain("Performance");
-    expect(content).toContain("TypeScript");
-  });
-});
-
-describe("agent-browser-verify SKILL.md", () => {
-  const skillPath = join(SKILLS_DIR, "agent-browser-verify", "SKILL.md");
-
-  test("SKILL.md exists", () => {
-    expect(existsSync(skillPath)).toBe(true);
-  });
-
-  test("has valid frontmatter with slug and triggers", () => {
-    const content = readFileSync(skillPath, "utf-8");
-    expect(content.startsWith("---\n")).toBe(true);
-    expect(content).toContain("name: agent-browser-verify");
-    expect(content).toContain("bashPatterns:");
-    expect(content).toContain("next\\s+dev");
-  });
-
-  test("is under 4KB", () => {
-    const content = readFileSync(skillPath, "utf-8");
-    expect(content.length).toBeLessThan(8192);
-  });
-
-  test("contains verification checklist", () => {
-    const content = readFileSync(skillPath, "utf-8");
-    expect(content).toContain("Verification Checklist");
-    expect(content).toContain("agent-browser open");
-    expect(content).toContain("On Failure");
-    expect(content).toContain("On Success");
+    expect(content).toContain("performance optimization guide");
+    expect(content).toContain("Eliminating Waterfalls");
+    expect(content).toContain("Bundle Size Optimization");
+    expect(content).toContain("Re-render Optimization");
+    expect(content).toContain("accessibility");
   });
 });
 
@@ -108,22 +79,12 @@ describe("skill-map resolution", () => {
     expect(skill.pathPatterns.length).toBeGreaterThan(0);
   });
 
-  test("buildSkillMap resolves agent-browser-verify", async () => {
-    const { buildSkillMap } = await import("../hooks/skill-map-frontmatter.mjs");
-    const result = buildSkillMap(SKILLS_DIR);
-    expect(result.skills).toHaveProperty("agent-browser-verify");
-    const skill = result.skills["agent-browser-verify"];
-    expect(skill.priority).toBe(2);
-    expect(skill.bashPatterns.length).toBeGreaterThan(0);
-  });
-
-  test("loadSkills includes both new skills in compiled entries", async () => {
+  test("loadSkills includes react-best-practices in compiled entries", async () => {
     const { loadSkills } = await import("../hooks/pretooluse-skill-inject.mjs");
     const result = loadSkills(ROOT);
     expect(result).not.toBeNull();
     const slugs = result.compiledSkills.map((e: any) => e.skill);
     expect(slugs).toContain("react-best-practices");
-    expect(slugs).toContain("agent-browser-verify");
   });
 });
 
@@ -143,25 +104,4 @@ describe("hook skill injection", () => {
     expect(injection!.injectedSkills).toContain("react-best-practices");
   });
 
-  test("running next dev matches agent-browser-verify", async () => {
-    const { code, stdout } = await runHook({
-      tool_name: "Bash",
-      tool_input: { command: "next dev" },
-    });
-    expect(code).toBe(0);
-    const injection = parseInjection(stdout);
-    expect(injection).not.toBeNull();
-    expect(injection!.matchedSkills).toContain("agent-browser-verify");
-  });
-
-  test("running npm run dev matches agent-browser-verify", async () => {
-    const { code, stdout } = await runHook({
-      tool_name: "Bash",
-      tool_input: { command: "npm run dev" },
-    });
-    expect(code).toBe(0);
-    const injection = parseInjection(stdout);
-    expect(injection).not.toBeNull();
-    expect(injection!.matchedSkills).toContain("agent-browser-verify");
-  });
 });

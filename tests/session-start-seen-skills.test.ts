@@ -156,8 +156,8 @@ describe("session-start-seen-skills hook", () => {
     const sessionId = `test-compact-${Date.now()}`;
 
     try {
-      expect(tryClaimSessionKey(sessionId, "seen-skills", "swr")).toBe(true);
-      writeFileSync(dedupFilePath(sessionId, "seen-skills"), "swr", "utf-8");
+      expect(tryClaimSessionKey(sessionId, "seen-skills", "nextjs")).toBe(true);
+      writeFileSync(dedupFilePath(sessionId, "seen-skills"), "nextjs", "utf-8");
 
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },

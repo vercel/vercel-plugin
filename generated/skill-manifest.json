@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T22:50:57.156Z",
+  "generatedAt": "2026-05-19T02:32:59.381Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -4273,7 +4273,7 @@
         "phrases": [
           "vercel firewall",
           "vercel waf",
-          "attack challenge mode",
+          "attack mode",
           "ddos protection",
           "ip block",
           "managed ruleset",
@@ -4339,7 +4339,7 @@
           "Vercel Firewall",
           "Vercel WAF",
           "DDoS",
-          "Attack Challenge Mode",
+          "Attack Mode",
           "Bot Protection",
           "Managed Rulesets",
           "System Bypass",

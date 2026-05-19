@@ -215,8 +215,8 @@ describe("parseTraceLog", () => {
       JSON.stringify({
         event: "skill-injection",
         toolName: "Write",
-        matchedSkills: ["cron-jobs"],
-        injectedSkills: ["cron-jobs"],
+        matchedSkills: ["vercel-functions"],
+        injectedSkills: ["vercel-functions"],
         droppedByCap: [],
         droppedByBudget: [],
       }),
@@ -224,7 +224,7 @@ describe("parseTraceLog", () => {
 
     const injections = parseTraceLog(traceText);
     expect(injections).toHaveLength(1);
-    expect(injections[0].matchedSkills).toEqual(["cron-jobs"]);
+    expect(injections[0].matchedSkills).toEqual(["vercel-functions"]);
   });
 
   test("returns empty array for empty input", () => {
@@ -443,7 +443,7 @@ describe("ReportJson structure", () => {
   test("buildSuggestedPatterns returns known patterns for missing skills", () => {
     const missing = new Map<string, string[]>([
       ["auth", ["01-recipe", "02-trivia"]],
-      ["cron-jobs", ["03-aggregator"]],
+      ["vercel-functions", ["03-aggregator"]],
     ]);
 
     const patterns = buildSuggestedPatterns(missing);
@@ -460,8 +460,8 @@ describe("ReportJson structure", () => {
       expect(typeof p.tool).toBe("string");
     }
 
-    // cron-jobs should have known hints
-    const cronPatterns = patterns.filter((p) => p.skill === "cron-jobs");
+    // vercel-functions should have known hints
+    const cronPatterns = patterns.filter((p) => p.skill === "vercel-functions");
     expect(cronPatterns.length).toBeGreaterThan(0);
   });
 
@@ -535,7 +535,7 @@ describe("ReportJson structure", () => {
   });
 
   test("SKILL_PATTERN_HINTS has entries for commonly missed skills", () => {
-    const expectedSkills = ["auth", "nextjs", "ai-sdk", "payments", "cron-jobs"];
+    const expectedSkills = ["auth", "nextjs", "ai-sdk", "payments", "vercel-functions"];
     for (const skill of expectedSkills) {
       expect(SKILL_PATTERN_HINTS[skill]).toBeDefined();
       expect(SKILL_PATTERN_HINTS[skill].length).toBeGreaterThan(0);
