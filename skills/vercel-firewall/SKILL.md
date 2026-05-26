@@ -67,7 +67,7 @@ You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Ve
 
 - **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with IP blocks and custom rules. Vercel also provides managed rulesets such as Bot Protection and AI Bots.
 - **Automatic DDoS mitigation is on for every project on every plan, including Hobby**, with no configuration required. It covers L3/L4/L7 attacks.
-- **Vercel does not bill for traffic blocked by DDoS mitigations or WAF.** Usage is only incurred for requests served before mitigation kicked in or not classified as an attack. You do not pay for requests or bandwidth for denies, challenges, or rate-limits from WAF custom rules or managed rules.
+- **Vercel does not bill CDN Requests or Fast Data Transfer for mitigated firewall traffic.** WAF deny, challenge, or rate-limit mitigated traffic does not incur CDN Requests or Fast Data Transfer. The same applies to persistent actions, DDoS mitigation, Attack Mode, and IP blocking. Usage is only incurred for requests served before mitigation kicked in or not classified as an attack.
 - **Custom rules** allows the user to define their own Firewall rules. Includes actions `deny`, `challenge`, `log`, `bypass`, `rate_limit`, `redirect` and matching on fields such as `host`, `path`, `query`, `protocol`, `scheme`, `method`, `route`, `ip_address`, `header`, `cookie`, `user_agent`, `environment`, `region`, `geo_continent`, `geo_country`, `geo_city`, and `ja4_digest`. See https://vercel.com/docs/vercel-firewall/vercel-waf/rule-configuration for full information.
 
 ## Overview
