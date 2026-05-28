@@ -457,6 +457,25 @@ AUTHENTICATION INTEGRATIONS                ⤳ skill: auth
     ↔ Sign in with Vercel (Vercel OAuth)
 ```
 
+```
+VERCEL CONNECT                             ⤳ skill: vercel-connect  📖 docs: https://vercel.com/docs/connect
+├── Purpose: Scoped OAuth tokens for third-party services
+│   ⊃ Slack (user / bot tokens for messaging, channel access)
+│   ⊃ GitHub (user / app tokens for repo and API access)
+│   ⊃ Linear, generic OAuth providers
+│
+├── Integration paths
+│   ⊃ Vercel CLI (vercel connect create/list/token)
+│   ⊃ @vercel/connect SDK (getToken)
+│   ⊃ @vercel/connect/ash (connect() helper, connectSlackCredentials())
+│   ⊃ HTTP API (for non-JS callers)
+│
+└── Integrations
+    ↔ Vercel OIDC (token exchange uses OIDC for authentication)
+    ↔ Vercel Agent / Ash (declarative connection wiring)
+    ⇢ replaces hand-managed SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET env vars
+```
+
 ---
 
 ## 7. CLI & API
