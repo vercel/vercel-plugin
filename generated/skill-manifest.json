@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T20:54:41.055Z",
+  "generatedAt": "2026-05-28T23:43:56.362Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -1477,7 +1477,12 @@
           "oauth token for",
           "third-party token",
           "connect to slack",
-          "connect to github"
+          "connect to github",
+          "connect to mcp",
+          "mcp connection",
+          "mcp server",
+          "snowflake connection",
+          "salesforce connection"
         ],
         "allOf": [
           [
@@ -1491,12 +1496,21 @@
           [
             "oauth",
             "token"
+          ],
+          [
+            "mcp",
+            "connect"
+          ],
+          [
+            "mcp",
+            "server"
           ]
         ],
         "anyOf": [
           "vercel connect",
           "@vercel/connect",
-          "oauth"
+          "oauth",
+          "mcp"
         ],
         "noneOf": [
           "supabase auth",
@@ -1510,7 +1524,8 @@
           "vercel connect",
           "oauth helper",
           "third-party tokens",
-          "connect sdk"
+          "connect sdk",
+          "mcp connector"
         ],
         "intents": [
           "get slack token",
@@ -1518,7 +1533,11 @@
           "wire up third-party oauth",
           "add slack channel to agent",
           "connect to oauth provider",
-          "obtain api credentials"
+          "obtain api credentials",
+          "connect to mcp server",
+          "set up mcp connection",
+          "add snowflake connection",
+          "add salesforce connection"
         ],
         "entities": [
           "Vercel Connect",
@@ -1527,13 +1546,18 @@
           "OAuth",
           "Slack",
           "GitHub",
+          "MCP",
+          "Snowflake",
+          "Salesforce",
           "Ash",
           "connector"
         ],
         "examples": [
           "send a slack message from my app",
           "get a github oauth token",
-          "wire up Linear in my Ash agent"
+          "wire up Linear in my Ash agent",
+          "connect my agent to a MCP server",
+          "add Snowflake credentials to my project"
         ]
       }
     },

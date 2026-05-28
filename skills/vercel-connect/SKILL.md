@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, Linear, generic OAuth) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, sending Slack messages, accessing GitHub APIs, or building Ash agent connections.
+description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake, Salesforce) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, accessing GitHub APIs, or building Ash agent connections.
 metadata:
   priority: 5
   docs:
@@ -34,14 +34,22 @@ metadata:
       - "third-party token"
       - "connect to slack"
       - "connect to github"
+      - "connect to mcp"
+      - "mcp connection"
+      - "mcp server"
+      - "snowflake connection"
+      - "salesforce connection"
     allOf:
       - [slack, token]
       - [github, token]
       - [oauth, token]
+      - [mcp, connect]
+      - [mcp, server]
     anyOf:
       - "vercel connect"
       - "@vercel/connect"
       - "oauth"
+      - "mcp"
     noneOf:
       - "supabase auth"
       - "clerk"
@@ -53,6 +61,7 @@ retrieval:
     - oauth helper
     - third-party tokens
     - connect sdk
+    - mcp connector
   intents:
     - get slack token
     - get github oauth token
@@ -60,6 +69,10 @@ retrieval:
     - add slack channel to agent
     - connect to oauth provider
     - obtain api credentials
+    - connect to mcp server
+    - set up mcp connection
+    - add snowflake connection
+    - add salesforce connection
   entities:
     - Vercel Connect
     - getToken
@@ -67,12 +80,17 @@ retrieval:
     - OAuth
     - Slack
     - GitHub
+    - MCP
+    - Snowflake
+    - Salesforce
     - Ash
     - connector
   examples:
     - send a slack message from my app
     - get a github oauth token
     - wire up Linear in my Ash agent
+    - connect my agent to a MCP server
+    - add Snowflake credentials to my project
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/ash['\"]"
@@ -118,7 +136,7 @@ Example commands:
 
 ```bash
 # Create new Connect connector
-vercel connect create <provider>
+vercel connect create <service>
 
 # List existing Connect connectors
 vercel connect list
@@ -129,14 +147,18 @@ vercel connect token <connector> --subject user|app
 
 Important! The `vercel connect create` and `vercel connect token` commands may open the browser for the user if there's a manual registration required (for eg completing the OAuth consent or installing a slack app to a workspace). The user must visit the browser to complete the process while you wait for the process to complete.
 
-#### Available Providers
+#### Available Services
 
-| Provider | Modes     | Description       |
-| -------- | --------- | ----------------- |
-| `slack`  | user, bot | Slack API access  |
-| `github` | user, app | GitHub API access |
+| Service                | Modes      | Description                                |
+| ---------------------- | ---------- | ------------------------------------------ |
+| `slack`                | user, bot  | Slack API access                           |
+| `github`               | user, app  | GitHub API access                          |
+| MCP servers            | user, app  | Any MCP server (`mcp.<host>/<path>`)       |
+| `snowflake`            | user       | Snowflake data access                      |
+| `salesforce`           | user       | Salesforce API access                      |
+| Generic OAuth provider | user, app  | Any OAuth 2.0 server registered via `vercel connect create` |
 
-And many more, including generic OAuth providers.
+For MCP servers, pass the full endpoint URL when registering (e.g. `vercel connect create https://mcp.linear.app/mcp`). The connector ID then takes the form `mcp.<host>/<name>` (for example `mcp.linear.app/myagent`).
 
 #### Example: Send a Slack message using curl
 
@@ -186,16 +208,16 @@ import { defineMcpClientConnection } from "experimental-ash/connections";
 import { connect } from "@vercel/connect/ash";
 
 export default defineMcpClientConnection({
-  url: "https://mcp.linear.app/sse",
+  url: "https://mcp.linear.app/mcp",
   description: "Linear workspace — issues, projects, cycles, and comments.",
-  auth: connect("linear"),
+  auth: connect("mcp.linear.app/myagent"),
 });
 ```
 
 Key points for the agent:
 
 - Omit `principalType` for the default per-user OAuth flow, or set `"app"` for app-scoped tokens (no consent flow — fail terminally if not installed).
-- Pass the connector id directly with `connect("linear")`, or use `connect({ connector: "linear" })` when you need options.
+- Pass the connector id directly with `connect("mcp.linear.app/myagent")`, or use `connect({ connector: "mcp.linear.app/myagent" })` when you need options.
 - For scopes, audiences, or `authorizationDetails`, pass them through `tokenParams`. For a custom challenge prompt, pass `instructions`. Both are optional.
 - `experimental-ash` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-Ash consumers.
 
@@ -271,10 +293,10 @@ Important! If more than one connector found, allow user to make the choice betwe
 2. **Register**: If the provider you need is not registered of if the user asked to create a new connector / app / bot, follow the instructions to register it (this may involve setting up credentials on browser in the third-party service and then registering them with Vercel Connect).
 
    ```bash
-   vercel connect create <provider> [--name <app-name>]
+   vercel connect create <service> [--name <app-name>]
    ```
 
-Important! Provide the most precise server URL for the provider, including the complete connection URL (e.g. `https://mcp.linear.app/sse` rather than just `linear`). Short provider aliases may resolve to a default endpoint that does not match the transport or path the user actually wants. When in doubt, run `vercel connect create --help` to confirm which provider names and URL forms are accepted before picking one.
+Important! Provide the most precise server URL for the service, including the complete connection URL (e.g. `https://mcp.linear.app/mcp` rather than just `linear`). Short service aliases may resolve to a default endpoint that does not match the transport or path the user actually wants. When in doubt, run `vercel connect create --help` to confirm which service names and URL forms are accepted before picking one.
 
 Important! This command will give you a URL or directly open it to complete the registration process. User must visit that URL and follow the instructions to link their third-party account with Vercel Connect. The command will not complete until they finish the registration. The agent must clearly show the URL to the user and prompt them to complete the registration.
 
