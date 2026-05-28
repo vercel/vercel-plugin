@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-19T03:50:40.184Z",
+  "generatedAt": "2026-05-28T20:54:41.055Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -1394,6 +1394,147 @@
           "components.json"
         ],
         "examples": []
+      }
+    },
+    "vercel-connect": {
+      "priority": 5,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/connect"
+      ],
+      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "pathPatterns": [
+        "agent/connections/**",
+        "agent/channels/**"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+connect\\b",
+        "\\bvc\\s+connect\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/connect\\b"
+      ],
+      "importPatterns": [
+        "@vercel/connect",
+        "@vercel/connect/ash",
+        "@vercel/connect/authjs",
+        "@vercel/connect/betterauth"
+      ],
+      "bodyPath": "skills/vercel-connect/SKILL.md",
+      "pathRegexSources": [
+        "^agent\\/connections\\/.*$",
+        "^agent\\/channels\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+connect\\b",
+        "\\bvc\\s+connect\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/connect\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/ash(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/authjs(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/betterauth(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "from\\\\s+['\\\"]@vercel/connect/ash['\\\"]",
+          "targetSkill": "vercel-connect",
+          "message": "Ash + Vercel Connect import detected — loading Vercel Connect guidance for the connect() helper and Slack channel patterns."
+        },
+        {
+          "pattern": "SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL",
+          "targetSkill": "vercel-connect",
+          "message": "Hand-managed Slack secrets detected — use Vercel Connect + connectSlackCredentials() to remove the need for SLACK_BOT_TOKEN/SLACK_SIGNING_SECRET env vars.",
+          "skipIfFileContains": "connectSlackCredentials|@vercel/connect"
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel connect",
+          "slack token",
+          "slack bot token",
+          "post to slack",
+          "send slack message",
+          "github oauth token",
+          "linear oauth",
+          "oauth token for",
+          "third-party token",
+          "connect to slack",
+          "connect to github"
+        ],
+        "allOf": [
+          [
+            "slack",
+            "token"
+          ],
+          [
+            "github",
+            "token"
+          ],
+          [
+            "oauth",
+            "token"
+          ]
+        ],
+        "anyOf": [
+          "vercel connect",
+          "@vercel/connect",
+          "oauth"
+        ],
+        "noneOf": [
+          "supabase auth",
+          "clerk",
+          "auth0"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "vercel connect",
+          "oauth helper",
+          "third-party tokens",
+          "connect sdk"
+        ],
+        "intents": [
+          "get slack token",
+          "get github oauth token",
+          "wire up third-party oauth",
+          "add slack channel to agent",
+          "connect to oauth provider",
+          "obtain api credentials"
+        ],
+        "entities": [
+          "Vercel Connect",
+          "getToken",
+          "@vercel/connect",
+          "OAuth",
+          "Slack",
+          "GitHub",
+          "Ash",
+          "connector"
+        ],
+        "examples": [
+          "send a slack message from my app",
+          "get a github oauth token",
+          "wire up Linear in my Ash agent"
+        ]
       }
     },
     "verification": {
