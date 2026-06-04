@@ -1,18 +1,5 @@
 # Local Development Reference
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Application Setup](#application-setup)
-- [Starting the Local Proxy](#starting-the-local-proxy)
-- [Monorepo with Turborepo](#monorepo-with-turborepo)
-- [Without Turborepo](#without-turborepo)
-- [Polyrepo Setup](#polyrepo-setup)
-- [Proxy Command Reference](#proxy-command-reference)
-- [Port Configuration](#port-configuration)
-- [Debug Routing](#debug-routing)
-- [Protected Deployment Fallbacks](#protected-deployment-fallbacks)
-
 ## Overview
 
 The `@vercel/microfrontends` local development proxy routes requests between locally running microfrontends and production fallbacks. This allows developers to run only the microfrontend they're working on while still being able to navigate the full application.

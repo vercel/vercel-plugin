@@ -1,16 +1,5 @@
 # Testing & Troubleshooting Reference
 
-## Table of Contents
-
-- [Testing Utilities](#testing-utilities)
-  - [validateMiddlewareConfig](#validatemiddlewareconfig)
-  - [validateMiddlewareOnFlaggedPaths](#validatemiddlewareonflaggedpaths)
-  - [validateRouting](#validaterouting)
-- [Debug Headers](#debug-headers)
-- [Debug Routing Locally](#debug-routing-locally)
-- [Observability & Tracing](#observability--tracing)
-- [Common Issues](#common-issues)
-
 ## Testing Utilities
 
 The `@vercel/microfrontends` package includes test utilities imported from `@vercel/microfrontends/next/testing`. All utilities throw exceptions on failure, so they work with any test framework.

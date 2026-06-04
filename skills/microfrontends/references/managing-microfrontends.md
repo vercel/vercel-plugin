@@ -1,16 +1,5 @@
 # Managing Microfrontends Reference
 
-## Table of Contents
-
-- [Inspecting a Group](#inspecting-a-group)
-- [Adding Microfrontends](#adding-microfrontends)
-- [Removing Microfrontends](#removing-microfrontends)
-- [Deleting a Group](#deleting-a-group)
-- [Fallback Environment](#fallback-environment)
-- [Sharing Settings](#sharing-settings)
-- [Optimizing Navigations](#optimizing-navigations)
-- [Observability Data Routing](#observability-data-routing)
-
 ## Inspecting a Group
 
 Use `vercel microfrontends inspect-group` to retrieve metadata about a microfrontends group and its projects. This is useful for setup automation and scripts — it provides the project names, frameworks, git repos, and root directories needed to generate `microfrontends.json` and wire up framework integrations.
