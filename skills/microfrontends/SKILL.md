@@ -13,6 +13,12 @@ metadata:
   bashPatterns:
     - '\bvercel\s+microfrontends\b'
     - '\bvercel\s+mf\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/microfrontends\b'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/microfrontends\b'
+    - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/microfrontends\b'
+    - '\byarn\s+add\s+[^\n]*@vercel/microfrontends\b'
+  importPatterns:
+    - '@vercel/microfrontends'
 retrieval:
   aliases:
     - microfrontends

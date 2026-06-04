@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T16:42:55.978Z",
+  "generatedAt": "2026-06-04T11:53:27.573Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -2845,9 +2845,15 @@
       ],
       "bashPatterns": [
         "\\bvercel\\s+microfrontends\\b",
-        "\\bvercel\\s+mf\\b"
+        "\\bvercel\\s+mf\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/microfrontends\\b"
       ],
-      "importPatterns": [],
+      "importPatterns": [
+        "@vercel/microfrontends"
+      ],
       "bodyPath": "skills/microfrontends/SKILL.md",
       "pathRegexSources": [
         "^microfrontends\\.json$",
@@ -2857,9 +2863,18 @@
       ],
       "bashRegexSources": [
         "\\bvercel\\s+microfrontends\\b",
-        "\\bvercel\\s+mf\\b"
+        "\\bvercel\\s+mf\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/microfrontends\\b"
       ],
-      "importRegexSources": [],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/microfrontends(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
       "chainTo": [
         {
           "pattern": "runMicrofrontendsMiddleware|flag.*microfrontend|microfrontend.*flag",
