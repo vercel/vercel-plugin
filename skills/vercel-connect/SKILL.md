@@ -1,17 +1,13 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake, Salesforce) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, accessing GitHub APIs, or building Ash agent connections.
+description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake, Salesforce) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, or accessing GitHub APIs.
 metadata:
   priority: 5
   docs:
     - "https://vercel.com/docs/connect"
   sitemap: "https://vercel.com/sitemap/docs.xml"
-  pathPatterns:
-    - 'agent/connections/**'
-    - 'agent/channels/**'
   importPatterns:
     - '@vercel/connect'
-    - '@vercel/connect/ash'
     - '@vercel/connect/authjs'
     - '@vercel/connect/betterauth'
   bashPatterns:
@@ -66,7 +62,6 @@ retrieval:
     - get slack token
     - get github oauth token
     - wire up third-party oauth
-    - add slack channel to agent
     - connect to oauth provider
     - obtain api credentials
     - connect to mcp server
@@ -83,24 +78,12 @@ retrieval:
     - MCP
     - Snowflake
     - Salesforce
-    - Ash
     - connector
   examples:
     - send a slack message from my app
     - get a github oauth token
-    - wire up Linear in my Ash agent
     - connect my agent to a MCP server
     - add Snowflake credentials to my project
-chainTo:
-  -
-    pattern: "from\\s+['\"]@vercel/connect/ash['\"]"
-    targetSkill: vercel-connect
-    message: 'Ash + Vercel Connect import detected — loading Vercel Connect guidance for the connect() helper and Slack channel patterns.'
-  -
-    pattern: 'SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL'
-    targetSkill: vercel-connect
-    message: 'Hand-managed Slack secrets detected — use Vercel Connect + connectSlackCredentials() to remove the need for SLACK_BOT_TOKEN/SLACK_SIGNING_SECRET env vars.'
-    skipIfFileContains: 'connectSlackCredentials|@vercel/connect'
 ---
 
 # Vercel Connect Skill
@@ -120,7 +103,11 @@ Use Vercel Connect when you need to:
 
 ## Modes of tokens
 
-Some tokens allow user and bot modes. The difference is important. When the goal is to perform actions on behalf of a user (e.g., post a message to a channel as the user), you need a user token. When the goal is to perform actions as a bot (e.g., post a message to a channel as a bot), you need a bot token. Some providers may also support app tokens for application-level access.
+The SDK supports three subject types — pick based on what's acting:
+
+- **`user`** — actions performed on behalf of a specific end user (e.g., post a Slack message as the user). Requires a user `id` and optional `issuer`.
+- **`app`** — actions performed as the app itself (e.g., post as a Slack bot, app-level GitHub access). No consent flow — fails terminally if the connector is not installed.
+- **`jwt-bearer`** — RFC 7523 JWT-bearer exchange for connectors that accept a caller-minted assertion. Pass `sub` (required), plus optional `iss`, `aud`, and `additionalClaims`. Use when the third-party expects you to vouch for the subject via a signed JWT rather than an interactive OAuth grant.
 
 ## Available Tools
 
@@ -198,74 +185,37 @@ const response = await fetch("https://slack.com/api/chat.postMessage", {
 
 The SDK uses the user's Vercel OIDC token to authenticate. The user should have run `vc env pull` to pull the OIDC token env variables locally (or `vc link` pulls it automatically)
 
-#### Ash agents — `@vercel/connect/ash`
-
-When the project is built on [Ash](https://github.com/vercel/ash), prefer the `connect` helper over calling `getToken` directly inside connection definitions. The helper wires the full token / start-authorization / complete-authorization lifecycle into Ash's connection runtime, so a Vercel Connect-backed connection becomes a single declaration:
-
-```typescript
-// agent/connections/linear.ts
-import { defineMcpClientConnection } from "experimental-ash/connections";
-import { connect } from "@vercel/connect/ash";
-
-export default defineMcpClientConnection({
-  url: "https://mcp.linear.app/mcp",
-  description: "Linear workspace — issues, projects, cycles, and comments.",
-  auth: connect("mcp.linear.app/myagent"),
-});
-```
-
-Key points for the agent:
-
-- Omit `principalType` for the default per-user OAuth flow, or set `"app"` for app-scoped tokens (no consent flow — fail terminally if not installed).
-- Pass the connector id directly with `connect("mcp.linear.app/myagent")`, or use `connect({ connector: "mcp.linear.app/myagent" })` when you need options.
-- For scopes, audiences, or `authorizationDetails`, pass them through `tokenParams`. For a custom challenge prompt, pass `instructions`. Both are optional.
-- `experimental-ash` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-Ash consumers.
-
-##### Slack channel — `connectSlackCredentials`
-
-For Ash Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials(connector)` from `@vercel/connect/ash`. It returns a complete `SlackChannelCredentials` object — both the bot token and inbound webhook verification are handled by Vercel Connect, so you do **not** need `SLACK_BOT_TOKEN` or `SLACK_SIGNING_SECRET` env vars:
-
-```typescript
-// agent/channels/slack.ts
-import { slackRoute } from "experimental-ash/channels/slack";
-import { connectSlackCredentials } from "@vercel/connect/ash";
-
-export default slackRoute({
-  credentials: connectSlackCredentials("slack/myagent"),
-});
-```
-
-What the helper wires up:
-
-- `botToken`: a function that calls `getToken(connector, { subject: { type: "app" } })` on each inbound webhook, so token rotation, refresh, and multi-workspace tenancy are handled server-side.
-- `webhookVerifier`: a Vercel OIDC verifier (`vercelOidc()`). Vercel Connect forwards verified Slack webhooks to your app as signed Vercel OIDC requests; the helper verifies that signature instead of the raw Slack signing secret.
-
-Use this whenever the project is on Ash + Vercel Connect — it's the one-liner for both outbound posts and inbound webhook auth.
-
 ### 3. HTTP API (for other languages)
 
-For other languages, make HTTP requests directly to the Vercel Connect server:
+For other languages, make HTTP requests directly to the Vercel Connect server. The request must be authenticated with the project's Vercel OIDC token (`VERCEL_OIDC_TOKEN` env var — pulled by `vc env pull` or injected at runtime):
 
 ```bash
 # Get a token via HTTP
 POST https://api.vercel.com/v1/connect/token/<connector>
+Authorization: Bearer <VERCEL_OIDC_TOKEN>
 Content-Type: application/json
 
+{ "subject": { "type": "user", "id": "user_123" } }
 ```
+
+The response is JSON with a `token` field (plus `expiresAt`, `connector`, and other metadata).
 
 #### Python Example
 
 ```python
+import os
 import requests
 
 # Get token from Vercel Connect
 connect_response = requests.post(
     "https://api.vercel.com/v1/connect/token/slack1234",
+    headers={"Authorization": f"Bearer {os.environ['VERCEL_OIDC_TOKEN']}"},
     json={
-        "scopes": ["chat:write"]
-    }
+        "subject": {"type": "app"},
+        "scopes": ["chat:write"],
+    },
 )
-token = connect_response.json()["accessToken"]
+token = connect_response.json()["token"]
 
 # Use the token
 slack_response = requests.post(
@@ -300,9 +250,9 @@ Important! Provide the most precise server URL for the service, including the co
 
 Important! This command will give you a URL or directly open it to complete the registration process. User must visit that URL and follow the instructions to link their third-party account with Vercel Connect. The command will not complete until they finish the registration. The agent must clearly show the URL to the user and prompt them to complete the registration.
 
-Important! Once the register-token completes, it will print a successful message. You must capture that connector ID for the next step.
+Important! Once `vercel connect create` completes, it will print a successful message. You must capture that connector ID for the next step.
 
-Important! The register-token command may open the browser so it's better to get the user approval before running it.
+Important! The `vercel connect create` command may open the browser so it's better to get the user approval before running it.
 
 3. **Get token**: Obtain a token for the provider you need:
    On CLI, you can get the token via
