@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake, Salesforce) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, or accessing GitHub APIs.
+description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, or accessing GitHub APIs.
 metadata:
   priority: 5
   docs:
@@ -34,7 +34,6 @@ metadata:
       - "mcp connection"
       - "mcp server"
       - "snowflake connection"
-      - "salesforce connection"
     allOf:
       - [slack, token]
       - [github, token]
@@ -67,7 +66,6 @@ retrieval:
     - connect to mcp server
     - set up mcp connection
     - add snowflake connection
-    - add salesforce connection
   entities:
     - Vercel Connect
     - getToken
@@ -77,7 +75,6 @@ retrieval:
     - GitHub
     - MCP
     - Snowflake
-    - Salesforce
     - connector
   examples:
     - send a slack message from my app
@@ -142,7 +139,6 @@ Important! The `vercel connect create` and `vercel connect token` commands may o
 | `github`               | user, app  | GitHub API access                          |
 | MCP servers            | user, app  | Any MCP server (`mcp.<host>/<path>`)       |
 | `snowflake`            | user       | Snowflake data access                      |
-| `salesforce`           | user       | Salesforce API access                      |
 | Generic OAuth provider | user, app  | Any OAuth 2.0 server registered via `vercel connect create` |
 
 For MCP servers, pass the full endpoint URL when registering (e.g. `vercel connect create https://mcp.linear.app/mcp`). The connector ID then takes the form `mcp.<host>/<name>` (for example `mcp.linear.app/myagent`).
