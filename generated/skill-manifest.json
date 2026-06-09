@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T23:43:56.362Z",
+  "generatedAt": "2026-06-09T19:39:41.807Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -1403,10 +1403,7 @@
         "https://vercel.com/docs/connect"
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
-      "pathPatterns": [
-        "agent/connections/**",
-        "agent/channels/**"
-      ],
+      "pathPatterns": [],
       "bashPatterns": [
         "\\bvercel\\s+connect\\b",
         "\\bvc\\s+connect\\b",
@@ -1417,15 +1414,11 @@
       ],
       "importPatterns": [
         "@vercel/connect",
-        "@vercel/connect/ash",
         "@vercel/connect/authjs",
         "@vercel/connect/betterauth"
       ],
       "bodyPath": "skills/vercel-connect/SKILL.md",
-      "pathRegexSources": [
-        "^agent\\/connections\\/.*$",
-        "^agent\\/channels\\/.*$"
-      ],
+      "pathRegexSources": [],
       "bashRegexSources": [
         "\\bvercel\\s+connect\\b",
         "\\bvc\\s+connect\\b",
@@ -1440,29 +1433,12 @@
           "flags": "m"
         },
         {
-          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/ash(?:\\/[^'\"]*)?['\"]",
-          "flags": "m"
-        },
-        {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/authjs(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         },
         {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/betterauth(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
-        }
-      ],
-      "chainTo": [
-        {
-          "pattern": "from\\\\s+['\\\"]@vercel/connect/ash['\\\"]",
-          "targetSkill": "vercel-connect",
-          "message": "Ash + Vercel Connect import detected — loading Vercel Connect guidance for the connect() helper and Slack channel patterns."
-        },
-        {
-          "pattern": "SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL",
-          "targetSkill": "vercel-connect",
-          "message": "Hand-managed Slack secrets detected — use Vercel Connect + connectSlackCredentials() to remove the need for SLACK_BOT_TOKEN/SLACK_SIGNING_SECRET env vars.",
-          "skipIfFileContains": "connectSlackCredentials|@vercel/connect"
         }
       ],
       "promptSignals": {
@@ -1481,8 +1457,7 @@
           "connect to mcp",
           "mcp connection",
           "mcp server",
-          "snowflake connection",
-          "salesforce connection"
+          "snowflake connection"
         ],
         "allOf": [
           [
@@ -1531,13 +1506,11 @@
           "get slack token",
           "get github oauth token",
           "wire up third-party oauth",
-          "add slack channel to agent",
           "connect to oauth provider",
           "obtain api credentials",
           "connect to mcp server",
           "set up mcp connection",
-          "add snowflake connection",
-          "add salesforce connection"
+          "add snowflake connection"
         ],
         "entities": [
           "Vercel Connect",
@@ -1548,14 +1521,11 @@
           "GitHub",
           "MCP",
           "Snowflake",
-          "Salesforce",
-          "Ash",
           "connector"
         ],
         "examples": [
           "send a slack message from my app",
           "get a github oauth token",
-          "wire up Linear in my Ash agent",
           "connect my agent to a MCP server",
           "add Snowflake credentials to my project"
         ]
@@ -1722,7 +1692,18 @@
         "lib/workflow.*",
         "src/lib/workflow.*",
         "workflow.*",
-        "*workflow*"
+        "*workflow*",
+        "**/chain-engine*",
+        "**/chain_engine*",
+        "**/chainEngine*",
+        "**/pipeline-engine*",
+        "**/pipeline_engine*",
+        "**/pipelineEngine*",
+        "**/state-machine*",
+        "**/state_machine*",
+        "**/stateMachine*",
+        "**/orchestrat*",
+        "**/escalation*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
@@ -1753,7 +1734,18 @@
         "^lib\\/workflow\\.[^/]*$",
         "^src\\/lib\\/workflow\\.[^/]*$",
         "^workflow\\.[^/]*$",
-        "^[^/]*workflow[^/]*$"
+        "^[^/]*workflow[^/]*$",
+        "^(?:[^/]+\\/)*chain-engine[^/]*$",
+        "^(?:[^/]+\\/)*chain_engine[^/]*$",
+        "^(?:[^/]+\\/)*chainEngine[^/]*$",
+        "^(?:[^/]+\\/)*pipeline-engine[^/]*$",
+        "^(?:[^/]+\\/)*pipeline_engine[^/]*$",
+        "^(?:[^/]+\\/)*pipelineEngine[^/]*$",
+        "^(?:[^/]+\\/)*state-machine[^/]*$",
+        "^(?:[^/]+\\/)*state_machine[^/]*$",
+        "^(?:[^/]+\\/)*stateMachine[^/]*$",
+        "^(?:[^/]+\\/)*orchestrat[^/]*$",
+        "^(?:[^/]+\\/)*escalation[^/]*$"
       ],
       "bashRegexSources": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
@@ -2974,6 +2966,84 @@
           "configure caching for this data fetch",
           "set up server rendering for my pages"
         ]
+      }
+    },
+    "microfrontends": {
+      "priority": 7,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/microfrontends"
+      ],
+      "pathPatterns": [
+        "microfrontends.json",
+        "microfrontends.jsonc",
+        "apps/*/microfrontends.json",
+        "apps/*/microfrontends.jsonc"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+microfrontends\\b",
+        "\\bvercel\\s+mf\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/microfrontends\\b"
+      ],
+      "importPatterns": [
+        "@vercel/microfrontends"
+      ],
+      "bodyPath": "skills/microfrontends/SKILL.md",
+      "pathRegexSources": [
+        "^microfrontends\\.json$",
+        "^microfrontends\\.jsonc$",
+        "^apps\\/[^/]*\\/microfrontends\\.json$",
+        "^apps\\/[^/]*\\/microfrontends\\.jsonc$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+microfrontends\\b",
+        "\\bvercel\\s+mf\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/microfrontends\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/microfrontends\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/microfrontends(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "runMicrofrontendsMiddleware|flag.*microfrontend|microfrontend.*flag",
+          "targetSkill": "routing-middleware",
+          "message": "Flag-controlled microfrontend routing requires middleware in the default app — loading Routing Middleware guidance."
+        }
+      ],
+      "retrieval": {
+        "aliases": [
+          "microfrontends",
+          "multi-zones",
+          "multi zones",
+          "mfe",
+          "microfrontend routing",
+          "cross-zone navigation"
+        ],
+        "intents": [
+          "split app into microfrontends",
+          "set up microfrontends",
+          "configure microfrontends.json",
+          "add path routing between projects",
+          "share layout across microfrontends"
+        ],
+        "entities": [
+          "microfrontends.json",
+          "@vercel/microfrontends",
+          "default app",
+          "child app",
+          "asset prefix",
+          "microfrontends group"
+        ],
+        "examples": []
       }
     },
     "vercel-sandbox": {

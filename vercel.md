@@ -84,6 +84,13 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │       → 7 apps (app, web, api, email, docs, studio, storybook)
 │       → 20 @repo/* workspace packages
 │
+├── Microfrontends (multi-zone routing across independent Vercel projects)
+│   ⊃ microfrontends.json (routing config deployed with default app)
+│   ⊃ Local dev proxy (routes requests to local apps or fallbacks)
+│   ↔ Edge Network (routing resolved at network layer)
+│   ↔ @vercel/microfrontends (Next.js, SvelteKit, React Router, Vite)
+│   ⤳ skill: microfrontends
+│
 └── Teams & Access Control
     ↔ Vercel REST API
     ↔ Vercel Dashboard
