@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-04T14:01:36.676Z",
+  "generatedAt": "2026-06-09T19:39:41.807Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -1396,6 +1396,141 @@
         "examples": []
       }
     },
+    "vercel-connect": {
+      "priority": 5,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/connect"
+      ],
+      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bvercel\\s+connect\\b",
+        "\\bvc\\s+connect\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/connect\\b"
+      ],
+      "importPatterns": [
+        "@vercel/connect",
+        "@vercel/connect/authjs",
+        "@vercel/connect/betterauth"
+      ],
+      "bodyPath": "skills/vercel-connect/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bvercel\\s+connect\\b",
+        "\\bvc\\s+connect\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/connect\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/connect\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/authjs(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/betterauth(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel connect",
+          "slack token",
+          "slack bot token",
+          "post to slack",
+          "send slack message",
+          "github oauth token",
+          "linear oauth",
+          "oauth token for",
+          "third-party token",
+          "connect to slack",
+          "connect to github",
+          "connect to mcp",
+          "mcp connection",
+          "mcp server",
+          "snowflake connection"
+        ],
+        "allOf": [
+          [
+            "slack",
+            "token"
+          ],
+          [
+            "github",
+            "token"
+          ],
+          [
+            "oauth",
+            "token"
+          ],
+          [
+            "mcp",
+            "connect"
+          ],
+          [
+            "mcp",
+            "server"
+          ]
+        ],
+        "anyOf": [
+          "vercel connect",
+          "@vercel/connect",
+          "oauth",
+          "mcp"
+        ],
+        "noneOf": [
+          "supabase auth",
+          "clerk",
+          "auth0"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "vercel connect",
+          "oauth helper",
+          "third-party tokens",
+          "connect sdk",
+          "mcp connector"
+        ],
+        "intents": [
+          "get slack token",
+          "get github oauth token",
+          "wire up third-party oauth",
+          "connect to oauth provider",
+          "obtain api credentials",
+          "connect to mcp server",
+          "set up mcp connection",
+          "add snowflake connection"
+        ],
+        "entities": [
+          "Vercel Connect",
+          "getToken",
+          "@vercel/connect",
+          "OAuth",
+          "Slack",
+          "GitHub",
+          "MCP",
+          "Snowflake",
+          "connector"
+        ],
+        "examples": [
+          "send a slack message from my app",
+          "get a github oauth token",
+          "connect my agent to a MCP server",
+          "add Snowflake credentials to my project"
+        ]
+      }
+    },
     "verification": {
       "priority": 7,
       "summary": "Verify full user story: browser + server + data flow + env",
@@ -1557,7 +1692,18 @@
         "lib/workflow.*",
         "src/lib/workflow.*",
         "workflow.*",
-        "*workflow*"
+        "*workflow*",
+        "**/chain-engine*",
+        "**/chain_engine*",
+        "**/chainEngine*",
+        "**/pipeline-engine*",
+        "**/pipeline_engine*",
+        "**/pipelineEngine*",
+        "**/state-machine*",
+        "**/state_machine*",
+        "**/stateMachine*",
+        "**/orchestrat*",
+        "**/escalation*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
@@ -1588,7 +1734,18 @@
         "^lib\\/workflow\\.[^/]*$",
         "^src\\/lib\\/workflow\\.[^/]*$",
         "^workflow\\.[^/]*$",
-        "^[^/]*workflow[^/]*$"
+        "^[^/]*workflow[^/]*$",
+        "^(?:[^/]+\\/)*chain-engine[^/]*$",
+        "^(?:[^/]+\\/)*chain_engine[^/]*$",
+        "^(?:[^/]+\\/)*chainEngine[^/]*$",
+        "^(?:[^/]+\\/)*pipeline-engine[^/]*$",
+        "^(?:[^/]+\\/)*pipeline_engine[^/]*$",
+        "^(?:[^/]+\\/)*pipelineEngine[^/]*$",
+        "^(?:[^/]+\\/)*state-machine[^/]*$",
+        "^(?:[^/]+\\/)*state_machine[^/]*$",
+        "^(?:[^/]+\\/)*stateMachine[^/]*$",
+        "^(?:[^/]+\\/)*orchestrat[^/]*$",
+        "^(?:[^/]+\\/)*escalation[^/]*$"
       ],
       "bashRegexSources": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
