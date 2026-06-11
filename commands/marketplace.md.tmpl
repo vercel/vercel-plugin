@@ -138,11 +138,16 @@ Ask the user for confirmation before writing files.
 
 ### 7. Verify Drain (Observability Integrations)
 
-<!-- Sourced from marketplace skill: Observability Integration Path -->
-{{include:skill:marketplace:Observability Integration Path}}
+Observability vendors installed via the Marketplace auto-create drains for **logs and traces only**. Speed Insights and Web Analytics need manual drain setup via the Dashboard or REST API.
+
+```bash
+# Confirm a drain was auto-configured for the vendor
+curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" | jq '.[] | {id, url, type, sources}'
+```
 
 - **Drain present** → Proceed to health check.
-- **No drain found** → Integration may not auto-configure drains. Create one manually via Dashboard or REST API.
+- **No drain found** → Integration may not auto-configure drains. Create one manually via Dashboard (`https://vercel.com/dashboard/{team}/~/settings/log-drains`) or REST API.
 - **Drain errored** → Check the drain status in the Vercel Dashboard. Common fixes: endpoint URL typo, auth header missing, endpoint not accepting POST.
 
 ### 8. Run Local Health Check
