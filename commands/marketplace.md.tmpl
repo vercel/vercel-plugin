@@ -44,9 +44,9 @@ No destructive operations unless the user explicitly confirms. Package installs 
 vercel integration discover
 
 # Filter by category
-vercel integration discover --category databases
+vercel integration discover --category storage
 vercel integration discover --category monitoring
-vercel integration discover --category auth
+vercel integration discover --category authentication
 
 # List integrations already installed on this project
 vercel integration list

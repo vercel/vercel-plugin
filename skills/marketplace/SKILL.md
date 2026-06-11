@@ -74,14 +74,14 @@ If not linked, do not continue with provisioning until linking completes.
 ```bash
 # List canonical category slugs (always run this first when filtering)
 vercel integration categories
-vercel integration categories --json
+vercel integration categories --format=json
 
 # Filter discover by category
 vercel integration discover --category storage
 vercel integration discover -c ai                          # shorthand
 
 # Multi-category in a single command (preferred when user has multiple needs)
-vercel integration discover --category commerce --category payments --category auth
+vercel integration discover --category commerce --category payments --category authentication
 vercel integration discover -c storage -c ai
 # Server-side union: returns integrations matching ANY listed category.
 
