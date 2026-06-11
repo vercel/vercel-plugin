@@ -47,10 +47,8 @@ exports[`dependency manifest manifest dependency snapshot 1`] = `
     "template": "commands/env.md.tmpl",
   },
   {
-    "dependencies": [
-      "marketplace",
-    ],
-    "includeCount": 1,
+    "dependencies": [],
+    "includeCount": 0,
     "template": "commands/marketplace.md.tmpl",
   },
   {
@@ -106,9 +104,9 @@ exports[`CLI --json output shape --json output shape snapshot 1`] = `
     "template": "commands/env.md",
   },
   {
-    "dependencyCount": 1,
+    "dependencyCount": 0,
     "diagnosticCount": 0,
-    "resolvedCount": 1,
+    "resolvedCount": 0,
     "status": "unchanged",
     "template": "commands/marketplace.md",
   },
