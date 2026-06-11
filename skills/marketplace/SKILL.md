@@ -61,7 +61,7 @@ When the user asks you to build, create, scaffold, or describe an app — even c
 
 ### Linked project preflight
 
-Integration provisioning is project-scoped. Verify the repo is linked before any `add`/`connect`:
+Integration provisioning is project-scoped. Verify the local directory is linked to a Vercel project before any `add`/`connect`:
 
 ```bash
 test -f .vercel/project.json && echo "Linked" || vercel link
@@ -85,11 +85,11 @@ vercel integration discover --category commerce --category payments --category a
 vercel integration discover -c storage -c ai
 # Server-side union: returns integrations matching ANY listed category.
 
-# Specific integration by name (substring search across slug/name/description)
+# Specific integration by query (substring search across slug/name/description)
 vercel integration discover postgres
 vercel integration discover sentry
 
-# Full catalog (rare — usually narrow with --category)
+# Full catalog
 vercel integration discover
 vercel integration discover --format=json
 ```
@@ -98,12 +98,16 @@ For browsing the full catalog interactively, use the [Vercel Marketplace](https:
 
 ### Getting Setup Guidance
 
+`<name>` is the integration slug from `vercel integration discover` (e.g. `neon`, `sentry`, `clerk`).
+
 ```bash
 # Agent-friendly setup guide for a specific integration
-vercel integration guide <name>
+vercel integration guide neon
+vercel integration guide sentry
 
 # Framework-specific steps when available
-vercel integration guide <name> --framework <fw>
+vercel integration guide neon --framework nextjs
+vercel integration guide clerk --framework sveltekit
 ```
 
 Supported frameworks: `nextjs`, `remix`, `astro`, `nuxtjs`, `sveltekit`. The guide returns env vars, packages, and code snippets tailored to the framework.
@@ -139,7 +143,7 @@ If the CLI hands off to the dashboard for provider-specific completion, use the 
 vercel integration open <name>
 ```
 
-Complete the web step, then verify with `vercel env ls` and `vercel env pull .env.local --yes`.
+Complete the web step, then verify with `vercel env ls` and `vercel env pull --yes`.
 
 ### Auto-Provisioned Environment Variables
 
@@ -147,10 +151,8 @@ Installing via Marketplace injects env vars into Development, Preview, and Produ
 
 ```bash
 vercel env ls                              # see what was injected (names only)
-vercel env pull .env.local --yes           # sync to local
+vercel env pull --yes                      # sync to local (defaults to .env.local)
 ```
-
-**Provisioning delay:** database integrations may take **1–3 minutes** to fully provision. HTTP 500 errors during this window are expected — do NOT debug connection strings or code, just wait and retry. Run `vercel env pull` again after a brief wait if needed.
 
 ### Managing Integrations
 
@@ -194,10 +196,8 @@ vercel integration balance <name>
 
 ## Two Integration Types
 
-- **Native integrations** — full two-way integration. No provider account needed. Billing through Vercel.
-- **Connectable accounts** — connect an existing third-party account; prompts you to log in to the provider during install. Env vars still auto-provisioned.
-
-Both use the same `vercel integration` CLI commands.
+- **Native integrations** — full two-way integration installable directly via the `vercel integration` CLI. No provider account needed. Billing through Vercel.
+- **Connectable accounts** — connect an existing third-party account. **Requires manual setup via the Vercel Dashboard in the browser** — the CLI doesn't drive the auth handshake. Once connected, env vars are still auto-provisioned to the linked project.
 
 ## Cross-References
 

@@ -114,7 +114,7 @@ Check that each variable name listed in the guide appears in the output. **Never
 - If local env sync was disabled or `.env.local` is stale, run:
 
 ```bash
-vercel env pull .env.local --yes
+vercel env pull --yes
 ```
 
 - **All present** → Proceed to code changes.
@@ -140,10 +140,32 @@ Ask the user for confirmation before writing files.
 
 Observability vendors installed via the Marketplace auto-create drains for **logs and traces only**. Speed Insights and Web Analytics need manual drain setup via the Dashboard or REST API.
 
+| Data Type          | Auto-configured by install? | How to set up                                                  |
+| ------------------ | --------------------------- | -------------------------------------------------------------- |
+| **Logs**           | Yes                         | `vercel integration add <vendor>`                              |
+| **Traces**         | Yes                         | Same — auto-configured on install                              |
+| **Speed Insights** | No                          | Manual drain via REST API or Dashboard (`/~/settings/log-drains`) |
+| **Web Analytics**  | No                          | Manual drain via REST API or Dashboard (`/~/settings/log-drains`) |
+
+Confirm the auto-created drain landed:
+
 ```bash
-# Confirm a drain was auto-configured for the vendor
 curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
   "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" | jq '.[] | {id, url, type, sources}'
+```
+
+For Speed Insights / Web Analytics, create a drain manually:
+
+```bash
+curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" \
+  -d '{
+    "url": "https://your-vendor-endpoint.example.com/vercel-analytics",
+    "type": "json",
+    "sources": ["lambda"],
+    "environments": ["production"]
+  }'
 ```
 
 - **Drain present** → Proceed to health check.
@@ -175,7 +197,7 @@ After completing the apply-guide loop, confirm:
 - [ ] Integration guide was retrieved via `vercel integration guide <name> --framework <fw>`
 - [ ] Project was linked before provisioning started
 - [ ] All required environment variables are provisioned on Vercel
-- [ ] Local env sync is up to date (auto-sync succeeded or `vercel env pull .env.local --yes` ran)
+- [ ] Local env sync is up to date (auto-sync succeeded or `vercel env pull --yes` ran)
 - [ ] SDK package installed without errors
 - [ ] Code changes applied and match the guide's patterns
 - [ ] For observability integrations: drain verified and test payload received
