@@ -44,9 +44,9 @@ No destructive operations unless the user explicitly confirms. Package installs 
 vercel integration discover
 
 # Filter by category
-vercel integration discover --category databases
+vercel integration discover --category storage
 vercel integration discover --category monitoring
-vercel integration discover --category auth
+vercel integration discover --category authentication
 
 # List integrations already installed on this project
 vercel integration list
@@ -114,7 +114,7 @@ Check that each variable name listed in the guide appears in the output. **Never
 - If local env sync was disabled or `.env.local` is stale, run:
 
 ```bash
-vercel env pull .env.local --yes
+vercel env pull --yes
 ```
 
 - **All present** → Proceed to code changes.
@@ -138,81 +138,25 @@ Ask the user for confirmation before writing files.
 
 ### 7. Verify Drain (Observability Integrations)
 
-<!-- Sourced from marketplace skill: Observability Integration Path -->
-Marketplace observability integrations (Datadog, Sentry, Axiom, Honeycomb, etc.) connect to Vercel's **Drains** system to receive telemetry. Understanding the data-type split is critical for correct setup.
+Observability vendors installed via the Marketplace auto-create drains for **logs and traces only**. Speed Insights and Web Analytics need manual drain setup via the Dashboard or REST API.
 
-### Data-Type Split
+| Data Type          | Auto-configured by install? | How to set up                                                  |
+| ------------------ | --------------------------- | -------------------------------------------------------------- |
+| **Logs**           | Yes                         | `vercel integration add <vendor>`                              |
+| **Traces**         | Yes                         | Same — auto-configured on install                              |
+| **Speed Insights** | No                          | Manual drain via REST API or Dashboard (`/~/settings/log-drains`) |
+| **Web Analytics**  | No                          | Manual drain via REST API or Dashboard (`/~/settings/log-drains`) |
 
-| Data Type          | Delivery Mechanism                                    | Integration Setup                                                                                                      |
-| ------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **Logs**           | Native drain (auto-configured by Marketplace install) | `vercel integration add <vendor>` auto-creates drain                                                                   |
-| **Traces**         | Native drain (OpenTelemetry-compatible)               | Same — auto-configured on install                                                                                      |
-| **Speed Insights** | Custom drain endpoint only                            | Requires manual drain creation via REST API or Dashboard (`https://vercel.com/dashboard/{team}/~/settings/log-drains`) |
-| **Web Analytics**  | Custom drain endpoint only                            | Requires manual drain creation via REST API or Dashboard (`https://vercel.com/dashboard/{team}/~/settings/log-drains`) |
-
-> **Key distinction:** When you install an observability vendor via the Marketplace, it auto-configures drains for **logs and traces** only. Speed Insights and Web Analytics data require a separate, manually configured drain pointing to a custom endpoint. See `⤳ skill: observability` for drain setup details.
-
-### Agentic Flow: Observability Vendor Setup
-
-Follow this sequence when setting up an observability integration:
-
-#### 1. Pick Vendor
+Confirm the auto-created drain landed:
 
 ```bash
-# Discover observability integrations
-vercel integration discover --category monitoring
-
-# Get setup guide for chosen vendor
-vercel integration guide datadog
-```
-
-#### 2. Install Integration
-
-```bash
-# Install — auto-provisions env vars and creates log/trace drains
-vercel integration add datadog
-```
-
-#### 3. Verify Drain Created
-
-```bash
-# Confirm drain was auto-configured
 curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
   "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" | jq '.[] | {id, url, type, sources}'
 ```
 
-Check the response for a drain pointing to the vendor's ingestion endpoint. If no drain appears, the integration may need manual drain setup — see `⤳ skill: observability` for REST API drain creation.
-
-#### 4. Validate Endpoint
+For Speed Insights / Web Analytics, create a drain manually:
 
 ```bash
-# Send a test payload to the drain
-curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
-  "https://api.vercel.com/v1/drains/<drain-id>/test?teamId=$TEAM_ID"
-```
-
-Confirm the vendor dashboard shows the test event arriving.
-
-#### 5. Smoke Log Check
-
-```bash
-# Trigger a deployment and check logs flow through
-vercel logs <deployment-url> --follow --since 5m
-
-# Check integration balance to confirm data is flowing
-vercel integration balance datadog
-```
-
-Verify that logs appear both in Vercel's runtime logs and in the vendor's dashboard.
-
-> **For drain payload formats and signature verification**, see `⤳ skill: observability` — the Drains section covers JSON/NDJSON schemas and `x-vercel-signature` HMAC-SHA1 verification.
-
-### Speed Insights + Web Analytics Drains
-
-For observability vendors that also want Speed Insights or Web Analytics data, configure a separate drain manually:
-
-```bash
-# Create a drain for Speed Insights + Web Analytics
 curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
   -H "Content-Type: application/json" \
   "https://api.vercel.com/v1/drains?teamId=$TEAM_ID" \
@@ -224,10 +168,8 @@ curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
   }'
 ```
 
-> **Payload schema reference:** See `⤳ skill: observability` for Web Analytics drain payload formats (JSON array of `{type, url, referrer, timestamp, geo, device}` events).
-
 - **Drain present** → Proceed to health check.
-- **No drain found** → Integration may not auto-configure drains. Create one manually via Dashboard or REST API.
+- **No drain found** → Integration may not auto-configure drains. Create one manually via Dashboard (`https://vercel.com/dashboard/{team}/~/settings/log-drains`) or REST API.
 - **Drain errored** → Check the drain status in the Vercel Dashboard. Common fixes: endpoint URL typo, auth header missing, endpoint not accepting POST.
 
 ### 8. Run Local Health Check
@@ -255,7 +197,7 @@ After completing the apply-guide loop, confirm:
 - [ ] Integration guide was retrieved via `vercel integration guide <name> --framework <fw>`
 - [ ] Project was linked before provisioning started
 - [ ] All required environment variables are provisioned on Vercel
-- [ ] Local env sync is up to date (auto-sync succeeded or `vercel env pull .env.local --yes` ran)
+- [ ] Local env sync is up to date (auto-sync succeeded or `vercel env pull --yes` ran)
 - [ ] SDK package installed without errors
 - [ ] Code changes applied and match the guide's patterns
 - [ ] For observability integrations: drain verified and test payload received

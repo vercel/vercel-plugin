@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-19T03:50:38.812Z",
+  "generatedAt": "2026-06-11T01:55:09.119Z",
   "templates": [
     {
       "template": "agents/ai-architect.md.tmpl",
@@ -290,18 +290,8 @@
     {
       "template": "commands/marketplace.md.tmpl",
       "output": "commands/marketplace.md",
-      "dependencies": [
-        "marketplace"
-      ],
-      "includes": [
-        {
-          "marker": "{{include:skill:marketplace:Observability Integration Path}}",
-          "skillName": "marketplace",
-          "target": "Observability Integration Path",
-          "type": "section",
-          "lineNumber": 142
-        }
-      ]
+      "dependencies": [],
+      "includes": []
     },
     {
       "template": "commands/status.md.tmpl",
