@@ -326,23 +326,25 @@ When the app already uses [Better Auth](https://www.better-auth.com/) or [Auth.j
 
 #### Better Auth — `@vercel/connect/betterauth`
 
-Optional peer dependency: `better-auth`. Pass the connector through Better Auth's `genericOAuth` plugin:
+Optional peer dependency: `better-auth`. Pass the connector through Better Auth's `genericOAuth` plugin. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Better Auth additionally requires a `providerId`:
 
 ```typescript
 import { genericOAuth } from "better-auth/plugins";
 import { connect } from "@vercel/connect/betterauth";
 
-genericOAuth({ config: [connect({ connector: "linear" })] });
+genericOAuth({
+  config: [connect({ providerId: "linear", connector: "linear/myagent" })],
+});
 ```
 
 #### Auth.js — `@vercel/connect/authjs`
 
-Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider:
+Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Auth.js additionally requires an `id`:
 
 ```typescript
 import { connect } from "@vercel/connect/authjs";
 
-const providers = [connect({ connector: "linear" })];
+const providers = [connect({ id: "linear", connector: "linear/myagent" })];
 ```
 
 ## Workflow
