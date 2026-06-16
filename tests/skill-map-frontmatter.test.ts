@@ -269,7 +269,7 @@ describe("scanSkillsDir", () => {
     expect(skills.length).toBe(expected);
     // Assert on directory-based identity (canonical key), not frontmatter name
     const dirs = skills.map((s) => s.dir);
-    expect(dirs).toContain("nextjs");
+    expect(dirs).toContain("routing-middleware");
     expect(dirs).toContain("vercel-storage");
     expect(dirs).toContain("ai-sdk");
   });
@@ -411,14 +411,14 @@ describe("buildSkillMap", () => {
     }
   });
 
-  test("nextjs skill matches expected values from frontmatter", () => {
+  test("routing-middleware skill matches expected values from frontmatter", () => {
     const map = buildSkillMap(SKILLS_DIR);
-    const nextjs = map.skills["nextjs"];
-    expect(nextjs).toBeDefined();
-    expect(nextjs.priority).toBe(5);
-    expect(nextjs.pathPatterns).toContain("next.config.*");
-    expect(nextjs.pathPatterns).toContain("app/**");
-    expect(nextjs.bashPatterns.length).toBeGreaterThan(0);
+    const routingMiddleware = map.skills["routing-middleware"];
+    expect(routingMiddleware).toBeDefined();
+    expect(routingMiddleware.priority).toBe(6);
+    expect(routingMiddleware.pathPatterns).toContain("middleware.ts");
+    expect(routingMiddleware.pathPatterns).toContain("vercel.json");
+    expect(routingMiddleware.bashPatterns.length).toBeGreaterThan(0);
   });
 
   test("skill count matches number of SKILL.md directories", () => {
@@ -431,14 +431,14 @@ describe("buildSkillMap", () => {
   test("invariant: expected representative skills present with correct patterns", () => {
     const map = buildSkillMap(SKILLS_DIR);
     // Spot-check key skills
-    expect(map.skills["nextjs"]).toBeDefined();
+    expect(map.skills["routing-middleware"]).toBeDefined();
     expect(map.skills["vercel-cli"]).toBeDefined();
     expect(map.skills["ai-sdk"]).toBeDefined();
     expect(map.skills["vercel-storage"]).toBeDefined();
 
-    // nextjs should have app/** and next.config.* patterns
-    expect(map.skills["nextjs"].pathPatterns).toContain("app/**");
-    expect(map.skills["nextjs"].pathPatterns).toContain("next.config.*");
+    // routing-middleware should have middleware.ts and vercel.json patterns
+    expect(map.skills["routing-middleware"].pathPatterns).toContain("middleware.ts");
+    expect(map.skills["routing-middleware"].pathPatterns).toContain("vercel.json");
 
     // vercel-cli should have a bash pattern for vercel commands
     expect(map.skills["vercel-cli"].bashPatterns.length).toBeGreaterThan(0);
@@ -446,9 +446,9 @@ describe("buildSkillMap", () => {
 
   test("backslash sequences preserved in bash patterns", () => {
     const map = buildSkillMap(SKILLS_DIR);
-    const nextjs = map.skills["nextjs"];
+    const routingMiddleware = map.skills["routing-middleware"];
     // Should contain literal \b not a backspace character
-    const hasWordBoundary = nextjs.bashPatterns.some((p: string) => p.includes("\\b"));
+    const hasWordBoundary = routingMiddleware.bashPatterns.some((p: string) => p.includes("\\b"));
     expect(hasWordBoundary).toBe(true);
   });
 

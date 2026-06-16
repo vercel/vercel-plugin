@@ -48,10 +48,9 @@ async function matchFile(filePath: string): Promise<string[]> {
 }
 
 describe("notion clone patterns", () => {
-  test("notion-clone app/layout.tsx injects current Next.js skills", async () => {
+  test("notion-clone app/layout.tsx no longer injects Next.js skills (moved to the Next.js repo)", async () => {
     const injectedSkills = await matchFile("/Users/me/notion-clone/app/layout.tsx");
-    expect(injectedSkills).toContain("next-cache-components");
-    expect(injectedSkills).toContain("nextjs");
+    expect(injectedSkills).toEqual([]);
   });
 
   test("notion-clone middleware.ts injects routing-middleware", async () => {
@@ -66,15 +65,15 @@ describe("notion clone patterns", () => {
     expect(injectedSkills).toEqual(["shadcn", "react-best-practices"]);
   });
 
-  test("notion-clone app/(marketing)/(routes)/page.tsx injects nextjs", async () => {
+  test("notion-clone app/(marketing)/(routes)/page.tsx no longer injects Next.js skills (moved to the Next.js repo)", async () => {
     const injectedSkills = await matchFile(
       "/Users/me/notion-clone/app/(marketing)/(routes)/page.tsx",
     );
-    expect(injectedSkills).toContain("nextjs");
+    expect(injectedSkills).toEqual([]);
   });
 
-  test("notion-clone next.config.ts injects current Next.js config skills", async () => {
+  test("notion-clone next.config.ts no longer injects Next.js skills (moved to the Next.js repo)", async () => {
     const injectedSkills = await matchFile("/Users/me/notion-clone/next.config.ts");
-    expect(injectedSkills).toContain("nextjs");
+    expect(injectedSkills).toEqual([]);
   });
 });

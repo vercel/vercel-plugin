@@ -84,7 +84,6 @@ chainTo:
     pattern: '"redirects"\s*:\s*\[|"rewrites"\s*:\s*\[|"headers"\s*:\s*\['
     targetSkill: routing-middleware
     message: 'Routing rules in vercel.json — loading Routing Middleware guidance for platform-level request interception patterns.'
-
 ---
 
 # Vercel CLI Skill

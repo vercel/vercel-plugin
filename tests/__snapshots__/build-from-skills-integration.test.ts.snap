@@ -18,11 +18,8 @@ exports[`dependency manifest manifest dependency snapshot 1`] = `
     "template": "agents/deployment-expert.md.tmpl",
   },
   {
-    "dependencies": [
-      "next-cache-components",
-      "nextjs",
-    ],
-    "includeCount": 8,
+    "dependencies": [],
+    "includeCount": 0,
     "template": "agents/performance-optimizer.md.tmpl",
   },
   {
@@ -76,9 +73,9 @@ exports[`CLI --json output shape --json output shape snapshot 1`] = `
     "template": "agents/deployment-expert.md",
   },
   {
-    "dependencyCount": 2,
+    "dependencyCount": 0,
     "diagnosticCount": 0,
-    "resolvedCount": 8,
+    "resolvedCount": 0,
     "status": "unchanged",
     "template": "agents/performance-optimizer.md",
   },

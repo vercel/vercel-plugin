@@ -68,10 +68,6 @@ interface GreenfieldResult {
  * Mapping from marker file / condition to skill slugs.
  */
 const FILE_MARKERS: FileMarker[] = [
-  { file: "next.config.js", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.ts", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.mts", skills: ["nextjs", "turbopack"] },
   { file: "vercel.json", skills: ["vercel-cli", "deployments-cicd", "vercel-functions"] },
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
@@ -83,7 +79,6 @@ const FILE_MARKERS: FileMarker[] = [
  * Dependency names in package.json -> skill slugs.
  */
 const PACKAGE_MARKERS: Record<string, string[]> = {
-  "next": ["nextjs"],
   "ai": ["ai-sdk"],
   "@ai-sdk/openai": ["ai-sdk"],
   "@ai-sdk/anthropic": ["ai-sdk"],
@@ -131,7 +126,6 @@ const SETUP_RESOURCE_DEPENDENCIES: Record<string, string> = {
 
 const SETUP_MODE_THRESHOLD = 3;
 const GREENFIELD_DEFAULT_SKILLS: string[] = [
-  "nextjs",
   "ai-sdk",
   "vercel-cli",
   "env-vars",

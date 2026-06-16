@@ -72,29 +72,29 @@ function parseInjectedSkills(stdout: string): string[] {
 // ---------------------------------------------------------------------------
 
 describe("subagent-scope-dedup: isolated dedup scopes", () => {
-  const nextjsPagePath = "/Users/me/my-app/app/page.tsx";
+  const helloRoutePath = "/Users/me/my-app/app/api/hello/route.ts";
 
   test("parent injection does not suppress the same skill in a subagent", async () => {
-    // Step 1: Lead agent injects nextjs
+    // Step 1: Lead agent injects vercel-functions
     const leadResult = await runPreToolUse(
-      { tool_name: "Read", tool_input: { file_path: nextjsPagePath } },
+      { tool_name: "Read", tool_input: { file_path: helloRoutePath } },
       { VERCEL_PLUGIN_SEEN_SKILLS: "" },
     );
     expect(leadResult.code).toBe(0);
     const leadInjected = parseInjectedSkills(leadResult.stdout);
-    expect(leadInjected).toContain("nextjs");
+    expect(leadInjected).toContain("vercel-functions");
 
     // Step 2: Lead's second call should be deduped
     const leadSeen = leadInjected.join(",");
     const leadSecond = await runPreToolUse(
-      { tool_name: "Read", tool_input: { file_path: nextjsPagePath } },
+      { tool_name: "Read", tool_input: { file_path: helloRoutePath } },
       { VERCEL_PLUGIN_SEEN_SKILLS: leadSeen },
     );
     expect(leadSecond.code).toBe(0);
     expect(JSON.parse(leadSecond.stdout)).toEqual({});
 
     // Step 3: Subagent with its own agent_id and NO inherited seen-skills
-    // should still get nextjs injected (isolated scope)
+    // should still get vercel-functions injected (isolated scope)
     const subSession = `scope-dedup-sub-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const origSession = testSession;
     testSession = subSession;
@@ -102,13 +102,13 @@ describe("subagent-scope-dedup: isolated dedup scopes", () => {
       const subResult = await runPreToolUse(
         {
           tool_name: "Read",
-          tool_input: { file_path: nextjsPagePath },
+          tool_input: { file_path: helloRoutePath },
           agent_id: "subagent-explore-1",
         },
         { VERCEL_PLUGIN_SEEN_SKILLS: "" },
       );
       expect(subResult.code).toBe(0);
-      expect(parseInjectedSkills(subResult.stdout)).toContain("nextjs");
+      expect(parseInjectedSkills(subResult.stdout)).toContain("vercel-functions");
     } finally {
       testSession = origSession;
     }
@@ -124,47 +124,47 @@ describe("subagent-scope-dedup: isolated dedup scopes", () => {
       const subResult = await runPreToolUse(
         {
           tool_name: "Read",
-          tool_input: { file_path: nextjsPagePath },
+          tool_input: { file_path: helloRoutePath },
           agent_id: "subagent-plan-1",
         },
         { VERCEL_PLUGIN_SEEN_SKILLS: "" },
       );
       expect(subResult.code).toBe(0);
-      expect(parseInjectedSkills(subResult.stdout)).toContain("nextjs");
+      expect(parseInjectedSkills(subResult.stdout)).toContain("vercel-functions");
     } finally {
       testSession = origSession;
     }
 
-    // Parent should still be able to inject nextjs independently
+    // Parent should still be able to inject vercel-functions independently
     const parentResult = await runPreToolUse(
-      { tool_name: "Read", tool_input: { file_path: nextjsPagePath } },
+      { tool_name: "Read", tool_input: { file_path: helloRoutePath } },
       { VERCEL_PLUGIN_SEEN_SKILLS: "" },
     );
     expect(parentResult.code).toBe(0);
-    expect(parseInjectedSkills(parentResult.stdout)).toContain("nextjs");
+    expect(parseInjectedSkills(parentResult.stdout)).toContain("vercel-functions");
   });
 
   test("resumed agent reuses its existing scope (dedup works across invocations)", async () => {
     const agentId = "subagent-gp-resume-1";
 
-    // First invocation: inject nextjs
+    // First invocation: inject vercel-functions
     const first = await runPreToolUse(
       {
         tool_name: "Read",
-        tool_input: { file_path: nextjsPagePath },
+        tool_input: { file_path: helloRoutePath },
         agent_id: agentId,
       },
       { VERCEL_PLUGIN_SEEN_SKILLS: "" },
     );
     expect(first.code).toBe(0);
     const firstInjected = parseInjectedSkills(first.stdout);
-    expect(firstInjected).toContain("nextjs");
+    expect(firstInjected).toContain("vercel-functions");
 
     // Second invocation with same agent_id and session: should be deduped
     const second = await runPreToolUse(
       {
         tool_name: "Read",
-        tool_input: { file_path: nextjsPagePath },
+        tool_input: { file_path: helloRoutePath },
         agent_id: agentId,
       },
       { VERCEL_PLUGIN_SEEN_SKILLS: firstInjected.join(",") },
