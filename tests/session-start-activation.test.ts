@@ -58,7 +58,7 @@ describe("session-start activation", () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("greenfield project");
     expect(readSessionFile(testSessionId, "greenfield")).toBe("true");
-    expect(readSessionFile(testSessionId, "likely-skills")).toContain("nextjs");
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("ai-sdk");
   });
 
   test("non-empty unrelated directories skip activation", async () => {
@@ -76,14 +76,14 @@ describe("session-start activation", () => {
   });
 
   test("detected vercel projects still activate", async () => {
-    const projectDir = join(tempDir, "next-project");
+    const projectDir = join(tempDir, "vercel-project");
     mkdirSync(projectDir);
-    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+    writeFileSync(join(projectDir, "vercel.json"), "{}");
 
     const result = await runProfiler(projectDir);
 
     expect(result.code).toBe(0);
-    expect(readSessionFile(testSessionId, "likely-skills")).toContain("nextjs");
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("vercel-cli");
   });
 
   test("package.json vercel signals are enough to activate", async () => {

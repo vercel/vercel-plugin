@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-11T01:55:09.119Z",
+  "generatedAt": "2026-06-16T23:46:02.405Z",
   "templates": [
     {
       "template": "agents/ai-architect.md.tmpl",
@@ -28,68 +28,8 @@
     {
       "template": "agents/performance-optimizer.md.tmpl",
       "output": "agents/performance-optimizer.md",
-      "dependencies": [
-        "nextjs",
-        "next-cache-components"
-      ],
-      "includes": [
-        {
-          "marker": "{{include:skill:nextjs:file:references/rsc-boundaries.md}}",
-          "skillName": "nextjs",
-          "target": "file:references/rsc-boundaries.md",
-          "type": "section",
-          "lineNumber": 123
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/bundling.md:Bundle Analysis}}",
-          "skillName": "nextjs",
-          "target": "file:references/bundling.md:Bundle Analysis",
-          "type": "section",
-          "lineNumber": 130
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Decision Tree}}",
-          "skillName": "nextjs",
-          "target": "file:references/data-patterns.md:Decision Tree",
-          "type": "section",
-          "lineNumber": 137
-        },
-        {
-          "marker": "{{include:skill:next-cache-components:Cache Invalidation}}",
-          "skillName": "next-cache-components",
-          "target": "Cache Invalidation",
-          "type": "section",
-          "lineNumber": 142
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/image.md}}",
-          "skillName": "nextjs",
-          "target": "file:references/image.md",
-          "type": "section",
-          "lineNumber": 168
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/font.md}}",
-          "skillName": "nextjs",
-          "target": "file:references/font.md",
-          "type": "section",
-          "lineNumber": 173
-        },
-        {
-          "marker": "{{include:skill:next-cache-components:`use cache` Directive}}",
-          "skillName": "next-cache-components",
-          "target": "`use cache` Directive",
-          "type": "section",
-          "lineNumber": 178
-        },
-        {
-          "marker": "{{include:skill:nextjs:file:references/data-patterns.md:Client Component Data Fetching}}",
-          "skillName": "nextjs",
-          "target": "file:references/data-patterns.md:Client Component Data Fetching",
-          "type": "section",
-          "lineNumber": 183
-        }
-      ]
+      "dependencies": [],
+      "includes": []
     },
     {
       "template": "agents/deployment-expert.md.tmpl",

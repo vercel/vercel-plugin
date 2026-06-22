@@ -101,14 +101,14 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 ## 2. Frameworks
 
 ```
-NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://nextjs.org/docs
+NEXT.JS (v16+)  📖 docs: https://nextjs.org/docs
 ├── App Router (file-system routing)
 │   ⊃ Server Components (default, zero client JS)
 │   ⊃ Client Components ('use client')
 │   ⊃ Server Actions / Server Functions ('use server')
 │   ⊃ Route Handlers (API endpoints)
 │   ⊃ Middleware → renamed to Proxy in v16
-│   ⊃ Cache Components ('use cache')              ⤳ skill: next-cache-components
+│   ⊃ Cache Components ('use cache')
 │   ⊃ Layouts, Loading, Error boundaries
 │   ⊃ Parallel & Intercepting Routes
 │   ⊃ Dynamic Segments ([id], [...slug], [[...slug]])
@@ -120,7 +120,7 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 │   ⊃ PPR (Partial Prerendering) → evolving to Cache Components
 │   ⊃ Streaming (React Suspense boundaries)
 │
-├── Upgrading                                    ⤳ skill: next-upgrade
+├── Upgrading
 │
 ├── Build System
 │   → Turbopack (default bundler in v16)
@@ -129,8 +129,8 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 ├── Key Integrations
 │   ↔ Vercel AI SDK (chat UIs, streaming, tool calling)
 │   ↔ Vercel Analytics / Speed Insights
-│   ↔ Vercel Image Optimization (next/image)      ⤳ skill: nextjs
-│   ↔ Satori / @vercel/og (dynamic OG images)     ⤳ skill: nextjs
+│   ↔ Vercel Image Optimization (next/image)
+│   ↔ Satori / @vercel/og (dynamic OG images)
 │   ↔ Vercel Font Optimization (next/font)
 │   ↔ Vercel Functions (automatic from route handlers / server actions)
 │
@@ -368,7 +368,7 @@ VERCEL AGENT                               ⤳ skill: vercel-agent  📖 docs: h
 ## 4. Build Tools
 
 ```
-TURBOPACK                                  ⤳ skill: turbopack  📖 docs: https://turbo.build/pack/docs
+TURBOPACK  📖 docs: https://turbo.build/pack/docs
 ├── Purpose: JavaScript/TypeScript bundler
 │   ⊃ Instant HMR (doesn't degrade with app size)
 │   ⊃ Multi-environment builds (Browser, Server, Edge, SSR, RSC)
@@ -649,7 +649,6 @@ Choose based on **where** the interception happens and **what** you need to do.
 
 ⤳ skill: routing-middleware — Platform-level request interception
 ⤳ skill: vercel-functions — Edge Functions and Serverless Functions
-⤳ skill: nextjs — `proxy.ts` in Next.js 16
 
 ### Disambiguation: Caching Layers
 
@@ -664,7 +663,6 @@ Three distinct caching systems serve different purposes. They can be used indepe
 > **Layering pattern**: A typical Next.js app uses all three — Next.js Cache for component/route-level freshness, Runtime Cache for shared cross-request data (e.g., product catalog), and CDN Cache for static assets and ISR pages. Each layer has its own invalidation strategy; tag-based invalidation can cascade across layers when configured.
 
 ⤳ skill: runtime-cache — Per-region key-value caching with tag-based invalidation
-⤳ skill: nextjs — `'use cache'`, `revalidatePath`, `revalidateTag`
 
 ---
 
