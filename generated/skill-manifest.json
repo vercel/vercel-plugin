@@ -4660,7 +4660,8 @@
         {
           "pattern": "export\\s+default\\s+function",
           "message": "Use named exports (GET, POST, PUT, DELETE) instead of default export for route handlers",
-          "severity": "error"
+          "severity": "error",
+          "skipIfFileContains": "(?:^|\\\\n)\\\\s*['\\\"]use\\\\s+client['\\\"]|export\\\\s+const\\\\s+(?:metadata|dynamic|revalidate|fetchCache|runtime)\\\\b|export\\\\s+default\\\\s+(?:async\\\\s+)?function\\\\s+\\\\w*(?:Page|Layout|Loading|Error|NotFound|Sitemap|Template|Default|sitemap|robots|opengraph|manifest)\\\\b|<[A-Z][A-Za-z0-9]*|\\\\{\\\\s*children\\\\s*[,}:]|MetadataRoute\\\\.|from\\\\s+['\\\"]next/(?:font|image|link|navigation|headers|cookies)['\\\"]"
         },
         {
           "pattern": "NextApiRequest|NextApiResponse",
