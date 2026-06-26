@@ -28,7 +28,8 @@ metadata:
 
 ## Common outdated knowledge in LLMs
 
-- **Edge Functions are not recommended.** Edge functions have compatibility issues. Instead use Fluid Compute (default) which runs in the same regions and has the same price, but allows for regular Node.js. Middleware and Edge Functions are now powered by Vercel Functions under the hood.
+- **Edge Functions are not recommended.** Edge functions have compatibility issues. Instead use Fluid Compute (default) which runs in the same regions and has the same price, but allows for regular Node.js. Middleware and Edge Functions are now powered by Vercel Functions under the hood. Edge is inferior in nearly every case — do not reach for `runtime = 'edge'` by default.
+- **Streaming and SSE are NOT Edge-exclusive.** Streaming responses (`ReadableStream`, Server-Sent Events / `text/event-stream`, AI token streaming) work on the default Node.js runtime with zero config. You do **not** need `runtime = 'edge'` to stream — a common LLM misconception. Stay on Node.js (Fluid Compute) to keep full Node.js APIs and longer durations.
 - **Middleware supports full Node.js** (not edge-only). Use Fluid Compute.
 - **Vercel has excellent support for Python** (3.13/3.14) via Fluid Compute.
 - **Vercel Postgres and Vercel KV are no longer offered.** Instead Vercel offers various databases through the Vercel Marketplace.
@@ -41,6 +42,7 @@ metadata:
 - **Vercel Functions pricing uses Active CPU pricing**: charges for active CPU time, provisioned memory, and invocations — not wall-clock GB-seconds.
 - **Vercel Blob now supports both public and private storage.**
 - **Vercel Functions also support Bun and Rust runtimes.**
+- **Vercel Functions support WebSockets.** Serverless functions can hold open bidirectional WebSocket connections (realtime chat, collaborative apps, interactive AI streaming) — you no longer need a separate WebSocket server or a third-party service like Pusher or Ably. Use standard libraries (`ws`, Socket.IO) with no extra config; requires Fluid Compute (the default). Next.js uses `experimental_upgradeWebSocket()` from `@vercel/functions`. https://vercel.com/docs/functions/websockets
 - **vercel.ts is now the recommended way to configure Vercel projects.** It replaces vercel.json with full TypeScript support, dynamic logic, and environment variable access. Install `@vercel/config` and export a typed config. https://vercel.com/docs/project-configuration/vercel-ts
 
 ```ts
