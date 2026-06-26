@@ -80,6 +80,15 @@ describe("managed vercel context chunks", () => {
     expect(chunk?.wrapped).toContain("vercel-context-chunk:nextjs-platform");
   });
 
+  test("maps eve to the AI Stack context chunk", () => {
+    const chunk = getManagedContextChunkForSkill("eve", { pluginRoot: ROOT });
+
+    expect(chunk).not.toBeNull();
+    expect(chunk?.chunkId).toBe("ai-stack");
+    expect(chunk?.heading).toBe("AI Stack");
+    expect(chunk?.content).toContain("Consider Eve");
+  });
+
   test("returns null for unmapped skills", () => {
     expect(getManagedContextChunkForSkill("shadcn", { pluginRoot: ROOT })).toBeNull();
   });

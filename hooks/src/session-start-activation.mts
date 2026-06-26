@@ -9,6 +9,7 @@ interface PackageJson {
 }
 
 const ACTIVATION_MARKER_FILES: string[] = [
+  ".eve",
   "vercel.json",
   "next.config.js",
   "next.config.mjs",
@@ -30,7 +31,7 @@ function packageJsonSignalsVercel(projectRoot: string): boolean {
   };
 
   if (Object.keys(allDeps).some((dep: string) =>
-    dep === "next" || dep === "vercel" || dep.startsWith("@vercel/"),
+    dep === "eve" || dep === "next" || dep === "vercel" || dep.startsWith("@vercel/"),
   )) {
     return true;
   }
@@ -58,6 +59,10 @@ export function isGreenfieldDirectory(projectRoot: string): boolean {
   try {
     dirents = readdirSync(projectRoot, { withFileTypes: true });
   } catch {
+    return false;
+  }
+
+  if (dirents.some((d: Dirent) => d.name === ".eve" && d.isDirectory())) {
     return false;
   }
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T18:59:08.661Z",
+  "generatedAt": "2026-06-26T23:19:58.359Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -1232,6 +1232,167 @@
           "environment variable"
         ],
         "examples": []
+      }
+    },
+    "eve": {
+      "priority": 8,
+      "summary": "Eve framework guidance for durable agents, agent applications, project architecture, runtime capabilities, channels, and frontend clients.",
+      "docs": [
+        "https://eve.dev/docs",
+        "https://github.com/vercel/eve"
+      ],
+      "pathPatterns": [
+        ".eve/**",
+        "agent/channels/eve.ts"
+      ],
+      "bashPatterns": [
+        "\\bnpx\\s+eve(?:@latest)?\\b",
+        "\\bbunx\\s+eve(?:@latest)?\\b",
+        "\\beve\\s+(init|dev|build|start|info|channels|evals?)\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b"
+      ],
+      "importPatterns": [
+        "eve"
+      ],
+      "bodyPath": "skills/eve/SKILL.md",
+      "pathRegexSources": [
+        "^\\.eve\\/.*$",
+        "^agent\\/channels\\/eve\\.ts$"
+      ],
+      "bashRegexSources": [
+        "\\bnpx\\s+eve(?:@latest)?\\b",
+        "\\bbunx\\s+eve(?:@latest)?\\b",
+        "\\beve\\s+(init|dev|build|start|info|channels|evals?)\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]eve(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "from\\\\s+['\\\"]@vercel/connect/eve['\\\"]",
+          "targetSkill": "vercel-connect",
+          "message": "Vercel Connect integration detected in an eve project — loading guidance for managed OAuth connections and channel credentials."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel eve",
+          "eve framework",
+          "eve project",
+          "eve agent",
+          "eve.dev",
+          "useeveagent",
+          "npx eve",
+          "node_modules/eve/docs",
+          "set up eve",
+          "setup eve",
+          "install eve",
+          "build an agent",
+          "build me an agent",
+          "create an agent",
+          "create me an agent",
+          "scaffold an agent",
+          "make an agent",
+          "make me an agent",
+          "implement an agent",
+          "implement a new agent",
+          "set up an agent",
+          "setup an agent",
+          "agent framework",
+          "agent architecture"
+        ],
+        "allOf": [
+          [
+            "build",
+            "agent"
+          ],
+          [
+            "create",
+            "agent"
+          ],
+          [
+            "scaffold",
+            "agent"
+          ],
+          [
+            "architect",
+            "agent"
+          ],
+          [
+            "design",
+            "agent"
+          ],
+          [
+            "develop",
+            "agent"
+          ],
+          [
+            "prototype",
+            "agent"
+          ],
+          [
+            "migrate",
+            "agent"
+          ]
+        ],
+        "anyOf": [
+          "durable sessions",
+          "persistent sessions",
+          "channels",
+          "sandboxes",
+          "subagents",
+          "schedules",
+          "evals",
+          "frontend client"
+        ],
+        "noneOf": [
+          "eve online",
+          "user agent",
+          "user-agent"
+        ],
+        "minScore": 4
+      },
+      "retrieval": {
+        "aliases": [
+          "vercel eve",
+          "eve framework",
+          "durable agent framework",
+          "filesystem-first agent framework",
+          "eve agent application"
+        ],
+        "intents": [
+          "build or design a durable AI agent",
+          "choose a framework for a new agent application",
+          "scaffold an agent with tools skills and persistent sessions",
+          "add channels schedules sandboxes or subagents to an eve project",
+          "connect an eve agent to a browser frontend",
+          "debug eve project discovery or runtime behavior"
+        ],
+        "entities": [
+          "eve",
+          "eve.dev",
+          "defineAgent",
+          "useEveAgent",
+          "node_modules/eve/docs",
+          ".eve"
+        ],
+        "examples": [
+          "build me an agent that persists sessions and runs scheduled jobs",
+          "help me choose an agent framework for a new application",
+          "scaffold an eve project with a browser UI",
+          "add a Slack channel and subagent to my eve agent",
+          "why did eve not discover my tool"
+        ]
       }
     },
     "knowledge-update": {
@@ -2952,8 +3113,8 @@
       "chainTo": [
         {
           "pattern": "from\\\\s+['\\\"]@vercel/connect/eve['\\\"]",
-          "targetSkill": "vercel-connect",
-          "message": "Eve + Vercel Connect import detected — loading Vercel Connect guidance for the connect() helper and Slack channel patterns."
+          "targetSkill": "eve",
+          "message": "Eve + Vercel Connect import detected — loading Eve framework guidance alongside the connect() helper and channel credential patterns."
         },
         {
           "pattern": "SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(API_KEY|WEBHOOK_SECRET)",

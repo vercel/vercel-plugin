@@ -103,4 +103,33 @@ describe("session-start activation", () => {
     expect(result.code).toBe(0);
     expect(readSessionFile(testSessionId, "likely-skills")).toContain("vercel-storage");
   });
+
+  test("the eve package activates the plugin and profiles the eve skill", async () => {
+    const projectDir = join(tempDir, "eve-project");
+    mkdirSync(projectDir);
+    writeFileSync(
+      join(projectDir, "package.json"),
+      JSON.stringify({
+        dependencies: {
+          eve: "^0.15.0",
+        },
+      }),
+    );
+
+    const result = await runProfiler(projectDir);
+
+    expect(result.code).toBe(0);
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("eve");
+  });
+
+  test("an .eve build directory activates and profiles the eve skill", async () => {
+    const projectDir = join(tempDir, "compiled-eve-project");
+    mkdirSync(projectDir);
+    mkdirSync(join(projectDir, ".eve"));
+
+    const result = await runProfiler(projectDir);
+
+    expect(result.code).toBe(0);
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("eve");
+  });
 });
