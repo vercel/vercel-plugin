@@ -610,7 +610,11 @@ export function scanSkillsDir(rootDir: string): ScanResult {
   const diagnostics: Diagnostic[] = [];
   let entries: string[];
   try {
-    entries = readdirSync(rootDir) as string[];
+    // Sort for deterministic ordering: readdirSync returns entries in
+    // filesystem-dependent order (alphabetical-ish on macOS/APFS, arbitrary
+    // on Linux/ext4), which would make the generated manifest differ by
+    // platform and break the build:manifest:check drift gate in CI.
+    entries = (readdirSync(rootDir) as string[]).sort();
   } catch {
     return { skills, diagnostics };
   }
