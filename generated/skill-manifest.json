@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-11T01:55:09.087Z",
+  "generatedAt": "2026-06-26T18:47:33.570Z",
   "version": 2,
   "skills": {
     "vercel-agent": {
@@ -1719,18 +1719,7 @@
         "lib/workflow.*",
         "src/lib/workflow.*",
         "workflow.*",
-        "*workflow*",
-        "**/chain-engine*",
-        "**/chain_engine*",
-        "**/chainEngine*",
-        "**/pipeline-engine*",
-        "**/pipeline_engine*",
-        "**/pipelineEngine*",
-        "**/state-machine*",
-        "**/state_machine*",
-        "**/stateMachine*",
-        "**/orchestrat*",
-        "**/escalation*"
+        "*workflow*"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
@@ -1761,18 +1750,7 @@
         "^lib\\/workflow\\.[^/]*$",
         "^src\\/lib\\/workflow\\.[^/]*$",
         "^workflow\\.[^/]*$",
-        "^[^/]*workflow[^/]*$",
-        "^(?:[^/]+\\/)*chain-engine[^/]*$",
-        "^(?:[^/]+\\/)*chain_engine[^/]*$",
-        "^(?:[^/]+\\/)*chainEngine[^/]*$",
-        "^(?:[^/]+\\/)*pipeline-engine[^/]*$",
-        "^(?:[^/]+\\/)*pipeline_engine[^/]*$",
-        "^(?:[^/]+\\/)*pipelineEngine[^/]*$",
-        "^(?:[^/]+\\/)*state-machine[^/]*$",
-        "^(?:[^/]+\\/)*state_machine[^/]*$",
-        "^(?:[^/]+\\/)*stateMachine[^/]*$",
-        "^(?:[^/]+\\/)*orchestrat[^/]*$",
-        "^(?:[^/]+\\/)*escalation[^/]*$"
+        "^[^/]*workflow[^/]*$"
       ],
       "bashRegexSources": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/workflow\\b",
