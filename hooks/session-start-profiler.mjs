@@ -20,6 +20,7 @@ import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
 var FILE_MARKERS = [
+  { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
   { file: "next.config.ts", skills: ["nextjs", "turbopack"] },
@@ -31,6 +32,7 @@ var FILE_MARKERS = [
   { file: ".env.local", skills: ["env-vars"] }
 ];
 var PACKAGE_MARKERS = {
+  "eve": ["eve"],
   "next": ["nextjs"],
   "ai": ["ai-sdk"],
   "@ai-sdk/openai": ["ai-sdk"],
@@ -180,6 +182,9 @@ function checkGreenfield(projectRoot) {
     dirents = readdirSync(projectRoot, { withFileTypes: true });
   } catch (error) {
     logCaughtError(log, "session-start-profiler:check-greenfield-readdir-failed", error, { projectRoot });
+    return null;
+  }
+  if (dirents.some((d) => d.name === ".eve" && d.isDirectory())) {
     return null;
   }
   const hasNonDotDir = dirents.some((d) => !d.name.startsWith("."));
