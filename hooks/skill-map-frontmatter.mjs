@@ -344,7 +344,7 @@ function scanSkillsDir(rootDir) {
   const diagnostics = [];
   let entries;
   try {
-    entries = readdirSync(rootDir);
+    entries = readdirSync(rootDir).sort();
   } catch {
     return { skills, diagnostics };
   }
