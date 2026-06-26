@@ -9,7 +9,7 @@
  */
 
 import { resolve, join } from "node:path";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 
 // Import the canonical skill-map builder (ESM)
 import { globToRegex, importPatternToRegex } from "../hooks/patterns.mjs";
@@ -195,14 +195,45 @@ function buildManifest(skillsDir: string): { manifest: Manifest; warnings: strin
   return { manifest, warnings: allWarnings, errors: [] };
 }
 
+/** Serialize a manifest exactly as it is written to disk. */
+function serializeManifest(manifest: Manifest): string {
+  return JSON.stringify(manifest, null, 2) + "\n";
+}
+
 /**
  * Write the manifest JSON to generated/skill-manifest.json.
  * Returns the number of skills written.
  */
 function writeManifestFile(manifest: Manifest, outDir = OUT_DIR, outFile = OUT_FILE): number {
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(outFile, JSON.stringify(manifest, null, 2) + "\n");
+  writeFileSync(outFile, serializeManifest(manifest));
   return Object.keys(manifest.skills).length;
+}
+
+/**
+ * Normalize a serialized manifest for drift comparison by neutralizing the
+ * volatile `generatedAt` timestamp, which changes on every build.
+ */
+function normalizeManifestForCompare(serialized: string): string {
+  return serialized.replace(/"generatedAt":\s*"[^"]*"/, '"generatedAt": "<normalized>"');
+}
+
+/**
+ * Compare a freshly-built manifest against the committed file.
+ * Returns true when they match (ignoring the generatedAt timestamp).
+ */
+function checkManifestFile(manifest: Manifest, outFile = OUT_FILE): { ok: boolean; reason?: string } {
+  let committed: string;
+  try {
+    committed = readFileSync(outFile, "utf8");
+  } catch {
+    return { ok: false, reason: `${outFile} is missing` };
+  }
+  const fresh = serializeManifest(manifest);
+  if (normalizeManifestForCompare(committed) !== normalizeManifestForCompare(fresh)) {
+    return { ok: false, reason: `${outFile} is out of sync with skill sources` };
+  }
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +249,7 @@ function isMain() {
 }
 
 if (isMain()) {
+  const check = process.argv.slice(2).includes("--check");
   const { manifest, warnings, errors } = buildManifest(SKILLS_DIR);
 
   for (const w of warnings) console.warn(`[warn] ${w}`);
@@ -228,6 +260,16 @@ if (isMain()) {
     process.exit(1);
   }
 
-  const count = writeManifestFile(manifest);
-  console.log(`✓ Wrote ${count} skills to ${OUT_FILE}`);
+  if (check) {
+    const { ok, reason } = checkManifestFile(manifest);
+    if (!ok) {
+      console.error(`[error] ${reason}.`);
+      console.error("        Run `bun run build:manifest` and commit the result.");
+      process.exit(1);
+    }
+    console.log(`✓ skill-manifest.json is up-to-date (${Object.keys(manifest.skills).length} skills)`);
+  } else {
+    const count = writeManifestFile(manifest);
+    console.log(`✓ Wrote ${count} skills to ${OUT_FILE}`);
+  }
 }

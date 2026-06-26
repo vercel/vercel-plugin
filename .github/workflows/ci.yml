@@ -20,6 +20,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Verify committed generated artifacts match their sources BEFORE the
+      # build step regenerates (and thus clobbers) them in the working tree.
+      - name: Check committed manifest is up-to-date
+        run: bun run build:manifest:check
+
+      - name: Check generated files are up-to-date
+        run: bun run build:from-skills:check
+
       - name: Build
         run: bun run build
 
@@ -28,9 +36,6 @@ jobs:
 
       - name: Validate skills
         run: bun run validate
-
-      - name: Check generated files are up-to-date
-        run: bun run build:from-skills:check
 
       - name: Test
         run: bun test
