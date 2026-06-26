@@ -6,6 +6,7 @@ metadata:
   docs:
     - "https://vercel.com/docs/functions"
     - "https://vercel.com/docs/functions/runtimes"
+    - "https://vercel.com/docs/functions/websockets"
   sitemap: "https://vercel.com/sitemap/docs.xml"
   pathPatterns:
     - 'api/**/*.*'
@@ -22,6 +23,31 @@ metadata:
   bashPatterns:
     - '\bvercel\s+dev\b'
     - '\bvercel\s+logs\b'
+  importPatterns:
+    - 'ws'
+    - 'socket.io'
+    - 'socket.io-client'
+  promptSignals:
+    phrases:
+      - "websocket"
+      - "websockets"
+      - "web socket"
+      - "socket.io"
+      # Polling is the classic technique people reach for when they think Vercel
+      # lacks websockets. We intentionally do NOT trigger on named third-party
+      # services (Pusher, PubNub, Ably) — those are deliberate choices, not a
+      # signal that someone is working around a missing feature.
+      - "long polling"
+      - "long-polling"
+    allOf: []
+    anyOf:
+      - "realtime"
+      - "bidirectional"
+      - "ws server"
+      - "polling"
+      - "server-sent events"
+    noneOf: []
+    minScore: 6
 validate:
   -
     pattern: export\s+default\s+function
@@ -91,16 +117,20 @@ retrieval:
     - api routes
     - edge functions
     - lambda
+    - websockets
+    - socket.io
   intents:
     - create serverless function
     - configure function runtime
     - optimize cold starts
     - add api route
+    - serve a websocket connection
   entities:
     - Serverless Functions
     - Edge Functions
     - Fluid Compute
     - streaming
+    - WebSockets
     - Cron Jobs
 chainTo:
   -
@@ -266,7 +296,9 @@ export async function POST(req: Request) {
 
 ## Streaming
 
-Zero-config streaming for both runtimes. Essential for AI applications.
+Zero-config streaming on **both runtimes**, including Server-Sent Events (SSE). Essential for AI applications.
+
+> **You do NOT need `runtime = 'edge'` for streaming or SSE.** Streaming responses (`ReadableStream`, `text/event-stream`) work on the default Node.js runtime — this is a common misconception. Stay on Node.js (Fluid Compute) so you keep full Node.js APIs, npm packages, and longer durations; Edge offers no streaming advantage here.
 
 ```ts
 export async function POST(req: Request) {
@@ -288,6 +320,101 @@ export async function POST(req: Request) {
 ```
 
 For AI streaming, use the AI SDK's `toUIMessageStreamResponse()` (for chat UIs with `useChat`) which handles SSE formatting automatically.
+
+## WebSockets
+
+Vercel Functions can hold open bidirectional WebSocket connections — use them for realtime features like interactive AI streaming, chat, and collaborative apps. There is **no separate WebSocket-server product and no third-party service (Pusher, Ably, etc.) required** — it runs on Vercel Functions directly. Requires **Fluid Compute**, which is the default for new projects.
+
+**How it works**: a WebSocket starts as an HTTP `GET` with an `Upgrade` header, so it passes through the same Routing Middleware, rewrites, Firewall rules, and rate limits as any other request. After the upgrade, the connection is pinned to a single function instance for its lifetime; Fluid Compute lets one instance serve many concurrent connections. Active CPU pricing means you're billed while processing messages, not for idle open connections — the same limits and pricing as other Function invocations apply.
+
+### `ws` (no extra config)
+
+WebSockets work like any distributed WebSocket server — export an `http.Server` and use a library such as `ws`:
+
+```ts
+// api/ws.ts
+import http from 'http'
+import { WebSocketServer } from 'ws'
+
+const server = http.createServer()
+const wss = new WebSocketServer({ server })
+
+wss.on('connection', (ws) => {
+  ws.on('message', (data) => ws.send(data)) // echo
+})
+
+export default server
+```
+
+### Socket.IO
+
+Higher-level realtime libraries like Socket.IO work too. Configure the **client** to use the WebSocket transport directly — Socket.IO defaults to HTTP long-polling, which won't work:
+
+```ts
+// api/socket-io.ts
+import http from 'http'
+import { Server } from 'socket.io'
+
+const server = http.createServer()
+const io = new Server(server)
+
+io.on('connection', (socket) => {
+  socket.on('message', (data) => socket.send(data))
+})
+
+export default server
+```
+
+```ts
+// client.ts
+import { io } from 'socket.io-client'
+
+const socket = io('https://your-domain.com', {
+  // Socket.IO appends /socket.io, so the full path becomes /api/socket-io/socket.io
+  path: '/api/socket-io/socket.io',
+  transports: ['websocket'], // required — Socket.IO defaults to HTTP long-polling
+})
+```
+
+Express, Hono, and Nitro (including Nuxt, via native WebSocket support) serve WebSockets the same way — export the HTTP server. Python frameworks work too: FastAPI handles the upgrade natively, and `python-socketio` is protocol-compatible with the JS Socket.IO client.
+
+### Next.js
+
+Next.js doesn't expose an API for handling WebSocket upgrades. Use `experimental_upgradeWebSocket()` from `@vercel/functions` inside a route handler:
+
+```ts
+// app/api/ws/route.ts
+import { experimental_upgradeWebSocket, type WebSocketData } from '@vercel/functions'
+
+export async function GET() {
+  return experimental_upgradeWebSocket((ws) => {
+    ws.on('message', (data: WebSocketData) => ws.send(data))
+  })
+}
+```
+
+### Reconnects and persistent state
+
+- **Connections close when the function reaches its max duration.** Clients must reconnect with backoff, then resubscribe to channels and reload any state they need.
+- **No instance affinity across connections.** A reconnect — or a new deployment — may land on a different instance, so never keep durable state, presence, rooms, or pub/sub coordination in memory. Use an external store such as [Redis from the Marketplace](https://vercel.com/marketplace/redis).
+
+```ts
+// client.ts — reconnect with exponential backoff
+let socket: WebSocket
+let delay = 1000
+
+function connect() {
+  socket = new WebSocket('wss://your-domain.com/api/ws')
+  socket.addEventListener('open', () => { delay = 1000 })
+  socket.addEventListener('message', (e) => console.log(e.data))
+  socket.addEventListener('close', () => {
+    setTimeout(connect, delay)
+    delay = Math.min(delay * 2, 30000)
+  })
+}
+
+connect()
+```
 
 ## Cron Jobs
 
@@ -417,5 +544,6 @@ Cold start latency > 1s?
 - [Edge Functions](https://vercel.com/docs/functions)
 - [Fluid Compute](https://vercel.com/docs/fluid-compute)
 - [Streaming](https://vercel.com/docs/functions/streaming)
+- [WebSockets](https://vercel.com/docs/functions/websockets)
 - [Cron Jobs](https://vercel.com/docs/cron-jobs)
 - [GitHub: Vercel](https://github.com/vercel/vercel)
