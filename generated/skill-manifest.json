@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T18:59:08.661Z",
+  "generatedAt": "2026-06-26T19:51:12.459Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -3158,7 +3158,8 @@
       "summary": "",
       "docs": [
         "https://vercel.com/docs/functions",
-        "https://vercel.com/docs/functions/runtimes"
+        "https://vercel.com/docs/functions/runtimes",
+        "https://vercel.com/docs/functions/websockets"
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
       "pathPatterns": [
@@ -3178,7 +3179,11 @@
         "\\bvercel\\s+dev\\b",
         "\\bvercel\\s+logs\\b"
       ],
-      "importPatterns": [],
+      "importPatterns": [
+        "ws",
+        "socket.io",
+        "socket.io-client"
+      ],
       "bodyPath": "skills/vercel-functions/SKILL.md",
       "pathRegexSources": [
         "^api\\/(?:[^/]+\\/)*[^/]*\\.[^/]*$",
@@ -3197,7 +3202,20 @@
         "\\bvercel\\s+dev\\b",
         "\\bvercel\\s+logs\\b"
       ],
-      "importRegexSources": [],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]ws(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]socket\\.io(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]socket\\.io-client(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
       "validate": [
         {
           "pattern": "export\\s+default\\s+function",
@@ -3322,24 +3340,48 @@
           "skipIfFileContains": "use workflow|use step|@vercel/workflow|from\\s+[''\"\"](workflow)[''\"\"]"
         }
       ],
+      "promptSignals": {
+        "phrases": [
+          "websocket",
+          "websockets",
+          "web socket",
+          "socket.io",
+          "long polling",
+          "long-polling"
+        ],
+        "allOf": [],
+        "anyOf": [
+          "realtime",
+          "bidirectional",
+          "ws server",
+          "polling",
+          "server-sent events"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
       "retrieval": {
         "aliases": [
           "serverless functions",
           "api routes",
           "edge functions",
-          "lambda"
+          "lambda",
+          "websockets",
+          "socket.io"
         ],
         "intents": [
           "create serverless function",
           "configure function runtime",
           "optimize cold starts",
-          "add api route"
+          "add api route",
+          "serve a websocket connection"
         ],
         "entities": [
           "Serverless Functions",
           "Edge Functions",
           "Fluid Compute",
           "streaming",
+          "WebSockets",
           "Cron Jobs"
         ],
         "examples": []

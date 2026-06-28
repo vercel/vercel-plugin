@@ -45,7 +45,7 @@ export const SYNONYM_MAP = {
   perf: ["performance", "speed", "optimize", "latency", "slow"],
   build: ["bundler", "compile", "webpack", "esbuild", "vite"],
   routing: ["pages", "navigation", "router", "url", "path"],
-  realtime: ["websocket", "socket", "sse", "streaming", "live"],
+  realtime: ["websocket", "socket", "sse", "streaming", "live", "polling", "long-polling"],
   state: ["store", "redux", "zustand", "context", "signal"],
   search: ["indexing", "filter", "fulltext", "algolia", "elasticsearch"],
   email: ["smtp", "notification", "inbox", "sendgrid", "resend"],
