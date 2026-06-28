@@ -38,6 +38,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Fluid Compute (unified execution model)
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
+│   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
 │   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: routing-middleware
@@ -660,6 +661,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Ultra-low latency, simple logic | Edge Functions | <1ms cold start, global |
 | Long-running with I/O waits | Fluid Compute | Shared instances, waitUntil |
 | AI streaming responses | Streaming Functions | SSE, zero config |
+| Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
 | Scheduled execution | Cron Jobs | vercel.json schedule config |
 
 ### Disambiguation: Interception Compute
