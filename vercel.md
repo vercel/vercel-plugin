@@ -305,6 +305,32 @@ WORKFLOW DEVKIT (WDK)                      ⤳ skill: workflow  📖 docs: https
     ↔ Vercel Functions (automatic step isolation)
     ↔ Next.js (API routes as workflow endpoints)
 
+EVE (TypeScript, beta)                    ⤳ skill: eve  📖 docs: https://eve.dev/docs
+├── Core
+│   ⊃ Filesystem-first framework for durable AI agents and agent-powered applications
+│   ⊃ `agent/instructions.*` (identity and standing behavior)
+│   ⊃ `agent/agent.ts` (model and runtime configuration)
+│   ⊃ `agent/tools/`, `agent/skills/`, `agent/connections/`, `agent/hooks/`
+│   ⊃ `agent/channels/`, `agent/sandbox/`, `agent/subagents/`, `agent/schedules/`
+│   ⊃ `evals/` (application-level agent evaluation)
+│
+├── Runtime & Delivery
+│   ⊃ Durable, resumable sessions with streaming and human-in-the-loop input
+│   ⊃ Built-in HTTP session API and TypeScript client
+│   ⊃ Channels for web, Slack, Discord, GitHub, Linear, Teams, Telegram, and Twilio
+│   ⊃ Frontend clients for React, Vue, and Svelte
+│   ↔ Next.js, Nuxt, and SvelteKit framework integrations
+│
+├── Version-Matched Documentation
+│   → `node_modules/eve/docs/README.md` (installed-version source of truth)
+│   → `https://eve.dev/docs` (public documentation)
+│
+└── Integrations
+    → Workflow SDK (durable session execution under the hood)
+    ↔ AI SDK and AI Gateway (models, messages, and tools)
+    ↔ Vercel Sandbox (isolated agent workspaces)
+    ↔ Vercel Connect (`@vercel/connect/eve` managed OAuth connections)
+
 CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: https://chat-sdk.dev
 ├── Core
 │   ⊃ Chat class (event routing, adapter coordination)
@@ -588,8 +614,10 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
 | Image generation (image-only models) | `experimental_generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
-| Multi-step agent | AI SDK `Agent` class + AI Gateway | Loop control, tool calling |
-| Production agent (must not lose state) | Workflow DevKit `DurableAgent` | Survives crashes, observable |
+| Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
+| New durable agent or agent-powered application | Eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
+| Add durability to an existing agent or application workflow | Workflow DevKit `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
+| Browser UI for an Eve agent | Eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
 | Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
 | Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
 | Agent needs live Vercel state | Vercel MCP Server | Read projects, deployments, logs via MCP |
@@ -705,12 +733,13 @@ Three distinct caching systems serve different purposes. They can be used indepe
 
 ### 3. Build a Durable AI Agent
 ```
-1. vercel link → enable AI Gateway → vercel env pull (OIDC credentials required)
-2. Next.js (API Route) → Workflow DevKit (DurableAgent) → AI SDK (tool calling)
-                       → AI Gateway (OIDC auth for model strings in workflow steps)
-                       → Neon Postgres (state) → Vercel Functions (step execution)
-3. For human-in-the-loop: defineHook() + getWritable() token emission + resumeHook() route
-4. For AI text in workflow events: use <MessageResponse> from AI Elements (not raw text)
+1. Choose the architecture boundary:
+   - New filesystem-first agent or agent-powered app → Eve
+   - Existing app/agent that needs durable orchestration → Workflow DevKit `DurableAgent`
+2. Eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
+             → author instructions, tools, skills, connections, channels, and optional frontend client
+3. Workflow path: Next.js Route Handler → DurableAgent → AI SDK tools → AI Gateway
+4. vercel link → enable AI Gateway → vercel env pull → verify sessions, streaming, retries, and approvals
 ```
 
 ### 4. Full-Stack SaaS App
@@ -848,6 +877,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 ### AI Stack
 
 - Default to AI SDK v6 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
+- Consider Eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
+- Use Eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow DevKit when existing application logic primarily needs durable orchestration.
 - Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
 - Prefer `toUIMessageStreamResponse()`, `DefaultChatTransport`, and modern tool definitions (`inputSchema`, `outputSchema`) over v5-era patterns.
 - Keep AI recommendations scoped to the current task; do not force broad AI stack migrations unless the code already points there.
@@ -876,6 +907,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 ### Workflow and Durability
 
 - Use Workflow DevKit and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Prefer Eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
 - Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
 - Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.
 - When workflow context is injected, emphasize survival of crashes, retries, and async callback orchestration.

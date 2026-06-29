@@ -39,6 +39,7 @@ const SKILL_TO_CHUNK: Record<string, ChunkSectionMapping> = {
   "ai-sdk": { chunkId: "ai-stack", heading: "AI Stack" },
   "ai-gateway": { chunkId: "ai-stack", heading: "AI Stack" },
   "chat-sdk": { chunkId: "ai-stack", heading: "AI Stack" },
+  "eve": { chunkId: "ai-stack", heading: "AI Stack" },
   "vercel-functions": { chunkId: "compute-routing", heading: "Compute and Routing" },
   "routing-middleware": { chunkId: "compute-routing", heading: "Compute and Routing" },
   "runtime-cache": { chunkId: "compute-routing", heading: "Compute and Routing" },

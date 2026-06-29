@@ -1,6 +1,6 @@
 {
   "name": "vercel",
-  "version": "0.44.0",
+  "version": "0.45.0",
   "description": "Build and deploy web apps and agents",
   "author": {
     "name": "Vercel",
