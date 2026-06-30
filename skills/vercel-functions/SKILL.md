@@ -481,7 +481,7 @@ All plans now default to 300s execution time with Fluid Compute.
 1. **Cold starts with DB connections**: Use connection pooling (e.g., Neon's `@neondatabase/serverless`)
 2. **Edge limitations**: No `fs`, no native modules, limited `crypto` — use Node.js runtime if needed
 3. **Timeout exceeded**: Use Fluid Compute for long-running tasks, or Workflow DevKit for very long processes
-4. **Bundle size**: Python runtime supports up to 500MB; Node.js has smaller limits
+4. **Bundle size**: Functions support up to 5 GB package size on Fluid Compute (up from 250 MB); request bodies up to 100 MB (up from 4.5 MB)
 5. **Environment variables**: Available in all functions automatically; use `vercel env pull` for local dev
 
 ## Function Runtime Diagnostics
