@@ -30,7 +30,7 @@ This plugin gives AI agents a **relational knowledge graph** of the Vercel ecosy
 
 ## How Do I Use This?
 
-After installing, the plugin keeps automatic behavior lightweight. Session-start activation now only kicks in for empty directories and detected Vercel/Next.js projects, and Vercel skills are no longer auto-injected on every tool call or every prompt by default. The default post-tool path is now observer-only. The skills remain available for direct use, and the repo still keeps the injection engine for targeted or future opt-in workflows.
+After installing, the plugin keeps automatic behavior lightweight. Session-start activation now only kicks in for empty directories and detected Vercel, Next.js, or Eve projects, and Vercel skills are no longer auto-injected on every tool call or every prompt by default. The default post-tool path is now observer-only. The skills remain available for direct use, and the repo still keeps the injection engine for targeted or future opt-in workflows.
 
 ## Components
 
@@ -42,7 +42,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (25 skills)
+### Skills (29 skills)
 
 | Skill | Covers |
 |-------|--------|
@@ -53,8 +53,10 @@ A text-form relational graph covering:
 | `chat-sdk` | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear |
 | `deployments-cicd` | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files |
 | `env-vars` | Environment variable management — .env files, vercel env commands, OIDC tokens |
+| `eve` | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients |
 | `knowledge-update` | Knowledge update guidance for the plugin |
 | `marketplace` | Integration discovery, installation, auto-provisioned env vars, unified billing |
+| `microfrontends` | Multi-zone and microfrontend architecture, routing, deployment boundaries, and shared dependencies |
 | `next-cache-components` | Next.js 16 Cache Components — PPR, `use cache`, cacheLife, cacheTag, updateTag |
 | `next-forge` | Production SaaS monorepo starter — Turborepo, Clerk, Prisma/Neon, Stripe, shadcn/ui |
 | `next-upgrade` | Next.js version upgrades — codemods, migration guides, dependency updates |
@@ -66,6 +68,8 @@ A text-form relational graph covering:
 | `turbopack` | Next.js bundler, HMR, configuration, Turbopack vs Webpack |
 | `vercel-agent` | AI-powered code review, incident investigation, SDK installation, PR analysis |
 | `vercel-cli` | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace |
+| `vercel-connect` | Managed OAuth tokens and third-party connections for apps, MCP servers, and Eve agents |
+| `vercel-firewall` | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls |
 | `vercel-functions` | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration |
 | `vercel-sandbox` | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely |
 | `vercel-storage` | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages |
@@ -92,12 +96,12 @@ A text-form relational graph covering:
 
 Lifecycle hooks that run automatically during your session:
 
-- **Session start context injection** — Injects a thin Vercel session context plus the knowledge-update guidance for empty directories and detected Vercel/Next.js projects
+- **Session start context injection** — Injects a thin Vercel session context plus the knowledge-update guidance for empty directories and detected Vercel, Next.js, or Eve projects
 - **Session start repo profiler** — Scans config files and dependencies to set likely-skill hints, but only after that same activation check passes
 
 ## Usage
 
-After installing, session context is injected automatically only for empty directories and detected Vercel/Next.js projects. Vercel skills are available on demand, and you can invoke them directly via slash commands:
+After installing, session context is injected automatically only for empty directories and detected Vercel, Next.js, or Eve projects. Vercel skills are available on demand, and you can invoke them directly via slash commands:
 
 ```
 /vercel-plugin:nextjs
@@ -162,7 +166,7 @@ setx VERCEL_PLUGIN_TELEMETRY off
 
 ## Upstream Skill Sync
 
-12 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:
+11 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:
 
 ```
 skills/<name>/
@@ -183,6 +187,7 @@ skills/<name>/
 |-------|--------------|
 | `ai-sdk` | [vercel/ai](https://github.com/vercel/ai) |
 | `chat-sdk` | [vercel/chat](https://github.com/vercel/chat) |
+| `eve` | [vercel/eve](https://github.com/vercel/eve) |
 | `next-cache-components` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
 | `next-forge` | [vercel/next-forge](https://github.com/vercel/next-forge) |
 | `next-upgrade` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
@@ -215,7 +220,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 25 skills
+├── skills/                          # 29 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content

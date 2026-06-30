@@ -68,6 +68,7 @@ interface GreenfieldResult {
  * Mapping from marker file / condition to skill slugs.
  */
 const FILE_MARKERS: FileMarker[] = [
+  { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
   { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
   { file: "next.config.ts", skills: ["nextjs", "turbopack"] },
@@ -83,6 +84,7 @@ const FILE_MARKERS: FileMarker[] = [
  * Dependency names in package.json -> skill slugs.
  */
 const PACKAGE_MARKERS: Record<string, string[]> = {
+  "eve": ["eve"],
   "next": ["nextjs"],
   "ai": ["ai-sdk"],
   "@ai-sdk/openai": ["ai-sdk"],
@@ -291,6 +293,10 @@ export function checkGreenfield(projectRoot: string): GreenfieldResult | null {
   // Greenfield if every entry is a dot-directory (e.g. .git, .claude) and
   // there are no files at all (dot-files like .mcp.json or .env.local
   // indicate real project config).
+  if (dirents.some((d: Dirent) => d.name === ".eve" && d.isDirectory())) {
+    return null;
+  }
+
   const hasNonDotDir: boolean = dirents.some((d: Dirent) => !d.name.startsWith("."));
   const hasDotFile: boolean = dirents.some((d: Dirent) => d.name.startsWith(".") && d.isFile());
 

@@ -1,6 +1,6 @@
 {
   "name": "vercel-plugin",
-  "version": "0.44.0",
+  "version": "0.45.0",
   "private": true,
   "bin": {
     "vercel-plugin": "src/cli/index.ts"
@@ -8,6 +8,7 @@
   "scripts": {
     "build:hooks": "tsup --config hooks/tsup.config.ts",
     "build:manifest": "bun run scripts/build-manifest.ts",
+    "build:manifest:check": "bun run scripts/build-manifest.ts --check",
     "build:from-skills": "bun run scripts/build-from-skills.ts",
     "build:skills": "bun run scripts/build-skills.ts",
     "build:skills:check": "bun run scripts/build-skills.ts --check",

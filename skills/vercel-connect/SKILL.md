@@ -91,8 +91,8 @@ retrieval:
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/eve['\"]"
-    targetSkill: vercel-connect
-    message: 'Eve + Vercel Connect import detected — loading Vercel Connect guidance for the connect() helper and Slack channel patterns.'
+    targetSkill: eve
+    message: 'Eve + Vercel Connect import detected — loading Eve framework guidance alongside the connect() helper and channel credential patterns.'
   -
     pattern: 'SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(API_KEY|WEBHOOK_SECRET)'
     targetSkill: vercel-connect
