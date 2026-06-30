@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-26T20:41:13.492Z",
+  "generatedAt": "2026-06-30T22:47:04.318Z",
   "templates": [
     {
       "template": "agents/ai-architect.md.tmpl",
@@ -286,12 +286,6 @@
           "lineNumber": 78
         }
       ]
-    },
-    {
-      "template": "commands/marketplace.md.tmpl",
-      "output": "commands/marketplace.md",
-      "dependencies": [],
-      "includes": []
     },
     {
       "template": "commands/status.md.tmpl",

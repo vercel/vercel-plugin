@@ -80,7 +80,7 @@ A text-form relational graph covering:
 | `performance-optimizer` | Core Web Vitals, rendering strategies, caching, asset optimization |
 | `ai-architect` | AI application design, model selection, streaming architecture, MCP integration |
 
-### Commands (5 commands)
+### Commands (4 commands)
 
 | Command | Purpose |
 |---------|---------|
@@ -88,8 +88,6 @@ A text-form relational graph covering:
 | `/vercel-plugin:deploy` | Deploy to Vercel (preview or production) |
 | `/vercel-plugin:env` | Manage environment variables |
 | `/vercel-plugin:status` | Project status overview |
-| `/vercel-plugin:marketplace` | Discover and install marketplace integrations |
-
 ### Hooks
 
 Lifecycle hooks that run automatically during your session:

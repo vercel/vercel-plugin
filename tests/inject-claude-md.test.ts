@@ -61,6 +61,23 @@ describe("inject-claude-md", () => {
     expect(stdout).toContain("Greenfield execution mode");
   });
 
+  test("injects the always-on capability-routing contract", async () => {
+    // The load-bearing contract: every activated session gets the signal-gated
+    // routing table + the anti-hardcode rule, in the always-on layer.
+    const { code, stdout } = await runHook({ session_id: "inject-discover-first" });
+    expect(code).toBe(0);
+    expect(stdout).toContain("Integrations on Vercel");
+    // first-action contract: load the marketplace skill (which owns the discover-first workflow)
+    expect(stdout).toMatch(/first action/i);
+    expect(stdout).toMatch(/load the `?marketplace`? skill/i);
+    // anti-hardcode rule (the Stripe/provider-SDK failure mode)
+    expect(stdout).toMatch(/hardcode a provider SDK/i);
+    // skill-routing: the marketplace skill is the single always-on entry point
+    expect(stdout).toContain("`marketplace`");
+    // ambiguous stays loose — not over-strict
+    expect(stdout).toMatch(/ambiguous/i);
+  });
+
   test("skips injection for non-empty non-vercel projects", async () => {
     const projectDir = join(tempDir, "plain-project");
     mkdirSync(projectDir);

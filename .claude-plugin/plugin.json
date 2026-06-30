@@ -22,7 +22,6 @@
     "./commands/bootstrap.md",
     "./commands/deploy.md",
     "./commands/env.md",
-    "./commands/marketplace.md",
     "./commands/status.md"
   ],
   "agents": [
