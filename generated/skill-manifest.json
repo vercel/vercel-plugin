@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T21:33:44.911Z",
+  "generatedAt": "2026-07-01T00:44:06.858Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -847,6 +847,65 @@
           "first run"
         ],
         "examples": []
+      }
+    },
+    "cdn-caching": {
+      "priority": 6,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/caching",
+        "https://vercel.com/docs/caching/cdn-cache",
+        "https://vercel.com/docs/incremental-static-regeneration",
+        "https://vercel.com/docs/cli/metrics"
+      ],
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bvercel\\s+cache\\s+(purge|invalidate|dangerously-delete)\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/cdn-caching/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bvercel\\s+cache\\s+(purge|invalidate|dangerously-delete)\\b"
+      ],
+      "importRegexSources": [],
+      "chainTo": [
+        {
+          "pattern": "use cache|cacheLife|cacheTag",
+          "targetSkill": "next-cache-components",
+          "message": "Next.js cache directives detected — loading Cache Components guidance for revalidate/tag tuning."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "cache hit rate",
+          "isr cost",
+          "isr read units",
+          "isr write units",
+          "stale content",
+          "x-vercel-cache"
+        ],
+        "allOf": [
+          [
+            "cache",
+            "debug"
+          ],
+          [
+            "stale",
+            "cache"
+          ],
+          [
+            "revalidation",
+            "count"
+          ]
+        ],
+        "anyOf": [
+          "revalidate",
+          "prerender",
+          "invalidate"
+        ],
+        "noneOf": [],
+        "minScore": 6
       }
     },
     "chat-sdk": {
