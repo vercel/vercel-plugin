@@ -4,11 +4,11 @@
 
 ### Supported Tools
 
-| Tool | Status |
-|------|--------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported |
-| [Cursor](https://www.cursor.com) | Supported |
-| [OpenAI Codex](https://openai.com/index/codex/) | Coming soon |
+| Tool                                                          | Status      |
+| ------------------------------------------------------------- | ----------- |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported   |
+| [Cursor](https://www.cursor.com)                              | Supported   |
+| [OpenAI Codex](https://openai.com/index/codex/)               | Coming soon |
 
 ### Prerequisites
 
@@ -37,58 +37,60 @@ After installing, the plugin keeps automatic behavior lightweight. Session-start
 ### Ecosystem Graph (`vercel.md`)
 
 A text-form relational graph covering:
+
 - All Vercel products and their relationships
 - Decision matrices for choosing the right tool
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (25 skills)
+### Skills (26 skills)
 
-| Skill | Covers |
-|-------|--------|
-| `ai-gateway` | Unified model API, provider routing, failover, cost tracking, 100+ models |
-| `ai-sdk` | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings |
-| `auth` | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning |
-| `bootstrap` | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands |
-| `chat-sdk` | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear |
-| `deployments-cicd` | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files |
-| `env-vars` | Environment variable management — .env files, vercel env commands, OIDC tokens |
-| `knowledge-update` | Knowledge update guidance for the plugin |
-| `marketplace` | Integration discovery, installation, auto-provisioned env vars, unified billing |
-| `next-cache-components` | Next.js 16 Cache Components — PPR, `use cache`, cacheLife, cacheTag, updateTag |
-| `next-forge` | Production SaaS monorepo starter — Turborepo, Clerk, Prisma/Neon, Stripe, shadcn/ui |
-| `next-upgrade` | Next.js version upgrades — codemods, migration guides, dependency updates |
-| `nextjs` | App Router, Server Components, Server Actions, Cache Components, routing, rendering strategies |
-| `react-best-practices` | React/Next.js performance optimization — 64 rules across 8 categories |
-| `routing-middleware` | Request interception before cache, rewrites, redirects, personalization — Edge/Node.js/Bun runtimes |
-| `runtime-cache` | Ephemeral per-region key-value cache, tag-based invalidation, shared across Functions/Middleware/Builds |
-| `shadcn` | shadcn/ui — CLI, component installation, custom registries, theming, Tailwind CSS integration |
-| `turbopack` | Next.js bundler, HMR, configuration, Turbopack vs Webpack |
-| `vercel-agent` | AI-powered code review, incident investigation, SDK installation, PR analysis |
-| `vercel-cli` | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace |
-| `vercel-functions` | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration |
-| `vercel-sandbox` | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely |
-| `vercel-storage` | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages |
-| `verification` | Full-story verification — infers user story, verifies end-to-end browser → API → data → response |
-| `workflow` | Workflow DevKit — durable execution, DurableAgent, steps, Worlds, pause/resume |
+| Skill                   | Covers                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| `ai-gateway`            | Unified model API, provider routing, failover, cost tracking, 100+ models                                 |
+| `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings           |
+| `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning       |
+| `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands              |
+| `chat-sdk`              | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear                   |
+| `deployments-cicd`      | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files                           |
+| `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                            |
+| `knowledge-update`      | Knowledge update guidance for the plugin                                                                  |
+| `marketplace`           | Integration discovery, installation, auto-provisioned env vars, unified billing                           |
+| `next-cache-components` | Next.js 16 Cache Components — PPR, `use cache`, cacheLife, cacheTag, updateTag                            |
+| `next-forge`            | Production SaaS monorepo starter — Turborepo, Clerk, Prisma/Neon, Stripe, shadcn/ui                       |
+| `next-upgrade`          | Next.js version upgrades — codemods, migration guides, dependency updates                                 |
+| `nextjs`                | App Router, Server Components, Server Actions, Cache Components, routing, rendering strategies            |
+| `react-best-practices`  | React/Next.js performance optimization — 64 rules across 8 categories                                     |
+| `routing-middleware`    | Request interception before cache, rewrites, redirects, personalization — Edge/Node.js/Bun runtimes       |
+| `runtime-cache`         | Ephemeral per-region key-value cache, tag-based invalidation, shared across Functions/Middleware/Builds   |
+| `shadcn`                | shadcn/ui — CLI, component installation, custom registries, theming, Tailwind CSS integration             |
+| `turbopack`             | Next.js bundler, HMR, configuration, Turbopack vs Webpack                                                 |
+| `vercel-agent`          | AI-powered code review, incident investigation, SDK installation, PR analysis                             |
+| `cdn-caching`           | Diagnose cache hit rate, stale content, revalidation behavior, and ISR read/write cost across CDN/ISR/PPR |
+| `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace              |
+| `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                      |
+| `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                             |
+| `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                           |
+| `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response          |
+| `workflow`              | Workflow DevKit — durable execution, DurableAgent, steps, Worlds, pause/resume                            |
 
 ### Agents (3 specialists)
 
-| Agent | Expertise |
-|-------|-----------|
-| `deployment-expert` | CI/CD pipelines, deploy strategies, troubleshooting, environment variables |
-| `performance-optimizer` | Core Web Vitals, rendering strategies, caching, asset optimization |
-| `ai-architect` | AI application design, model selection, streaming architecture, MCP integration |
+| Agent                   | Expertise                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `deployment-expert`     | CI/CD pipelines, deploy strategies, troubleshooting, environment variables      |
+| `performance-optimizer` | Core Web Vitals, rendering strategies, caching, asset optimization              |
+| `ai-architect`          | AI application design, model selection, streaming architecture, MCP integration |
 
 ### Commands (5 commands)
 
-| Command | Purpose |
-|---------|---------|
-| `/vercel-plugin:bootstrap` | Bootstrap project — linking, env provisioning, db setup |
-| `/vercel-plugin:deploy` | Deploy to Vercel (preview or production) |
-| `/vercel-plugin:env` | Manage environment variables |
-| `/vercel-plugin:status` | Project status overview |
-| `/vercel-plugin:marketplace` | Discover and install marketplace integrations |
+| Command                      | Purpose                                                 |
+| ---------------------------- | ------------------------------------------------------- |
+| `/vercel-plugin:bootstrap`   | Bootstrap project — linking, env provisioning, db setup |
+| `/vercel-plugin:deploy`      | Deploy to Vercel (preview or production)                |
+| `/vercel-plugin:env`         | Manage environment variables                            |
+| `/vercel-plugin:status`      | Project status overview                                 |
+| `/vercel-plugin:marketplace` | Discover and install marketplace integrations           |
 
 ### Hooks
 
@@ -181,18 +183,18 @@ skills/<name>/
 
 ### Synced Skills
 
-| Skill | Upstream Repo |
-|-------|--------------|
-| `ai-sdk` | [vercel/ai](https://github.com/vercel/ai) |
-| `chat-sdk` | [vercel/chat](https://github.com/vercel/chat) |
-| `next-cache-components` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
-| `next-forge` | [vercel/next-forge](https://github.com/vercel/next-forge) |
-| `next-upgrade` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
-| `nextjs` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) |
-| `react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) |
-| `vercel-cli` | [vercel/vercel](https://github.com/vercel/vercel) |
-| `vercel-sandbox` | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
-| `workflow` | [vercel/workflow](https://github.com/vercel/workflow) |
+| Skill                   | Upstream Repo                                                             |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `ai-sdk`                | [vercel/ai](https://github.com/vercel/ai)                                 |
+| `chat-sdk`              | [vercel/chat](https://github.com/vercel/chat)                             |
+| `next-cache-components` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
+| `next-forge`            | [vercel/next-forge](https://github.com/vercel/next-forge)                 |
+| `next-upgrade`          | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
+| `nextjs`                | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
+| `react-best-practices`  | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)   |
+| `vercel-cli`            | [vercel/vercel](https://github.com/vercel/vercel)                         |
+| `vercel-sandbox`        | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
+| `workflow`              | [vercel/workflow](https://github.com/vercel/workflow)                     |
 
 ### Syncing an Upstream Skill
 
