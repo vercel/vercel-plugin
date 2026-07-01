@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-01T00:44:06.858Z",
+  "generatedAt": "2026-07-01T19:14:58.808Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -1512,14 +1512,19 @@
       "importRegexSources": [],
       "chainTo": [
         {
-          "pattern": "NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres",
+          "pattern": "NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|\\bmongodb\\b|mongoose|@libsql/|\\bconvex\\b|@vercel/blob",
           "targetSkill": "vercel-storage",
-          "message": "Database integration detected — loading Storage guidance for Neon Postgres setup, connection pooling, and serverless patterns."
+          "message": "Database/storage integration detected — loading Storage guidance (Neon, Upstash, Supabase, Prisma, Mongo, …), connection pooling, and serverless patterns."
         },
         {
-          "pattern": "CLERK_|@clerk/|clerkMiddleware",
+          "pattern": "CLERK_|@clerk/|clerkMiddleware|@auth0/|AUTH0_|@descope/|next-auth|@auth/|getServerSession",
           "targetSkill": "auth",
-          "message": "Clerk integration detected — loading Auth guidance for middleware setup, route protection, and organization flows."
+          "message": "Auth provider detected — loading Auth guidance (Clerk, Auth0, Descope, Auth.js), middleware setup, and route protection."
+        },
+        {
+          "pattern": "@ai-sdk/|AI_GATEWAY|generateText|streamText|@openai/|@anthropic-ai/",
+          "targetSkill": "ai-sdk",
+          "message": "AI usage detected — loading AI guidance for model routing through the AI Gateway, provider/model strings, and streaming."
         }
       ],
       "retrieval": {

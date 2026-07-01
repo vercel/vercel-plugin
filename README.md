@@ -86,15 +86,14 @@ A text-form relational graph covering:
 | `performance-optimizer` | Core Web Vitals, rendering strategies, caching, asset optimization              |
 | `ai-architect`          | AI application design, model selection, streaming architecture, MCP integration |
 
-### Commands (5 commands)
+### Commands (4 commands)
 
-| Command                      | Purpose                                                 |
-| ---------------------------- | ------------------------------------------------------- |
-| `/vercel-plugin:bootstrap`   | Bootstrap project — linking, env provisioning, db setup |
-| `/vercel-plugin:deploy`      | Deploy to Vercel (preview or production)                |
-| `/vercel-plugin:env`         | Manage environment variables                            |
-| `/vercel-plugin:status`      | Project status overview                                 |
-| `/vercel-plugin:marketplace` | Discover and install marketplace integrations           |
+| Command | Purpose |
+|---------|---------|
+| `/vercel-plugin:bootstrap` | Bootstrap project — linking, env provisioning, db setup |
+| `/vercel-plugin:deploy` | Deploy to Vercel (preview or production) |
+| `/vercel-plugin:env` | Manage environment variables |
+| `/vercel-plugin:status` | Project status overview |
 
 ### Hooks
 
