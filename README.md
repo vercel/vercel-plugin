@@ -4,11 +4,11 @@
 
 ### Supported Tools
 
-| Tool | Status |
-|------|--------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported |
-| [Cursor](https://www.cursor.com) | Supported |
-| [OpenAI Codex](https://openai.com/index/codex/) | Coming soon |
+| Tool                                                          | Status      |
+| ------------------------------------------------------------- | ----------- |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported   |
+| [Cursor](https://www.cursor.com)                              | Supported   |
+| [OpenAI Codex](https://openai.com/index/codex/)               | Coming soon |
 
 ### Prerequisites
 
@@ -37,12 +37,13 @@ After installing, the plugin keeps automatic behavior lightweight. Session-start
 ### Ecosystem Graph (`vercel.md`)
 
 A text-form relational graph covering:
+
 - All Vercel products and their relationships
 - Decision matrices for choosing the right tool
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (29 skills)
+### Skills (30 skills)
 
 | Skill | Covers |
 |-------|--------|
@@ -50,6 +51,7 @@ A text-form relational graph covering:
 | `ai-sdk` | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings |
 | `auth` | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning |
 | `bootstrap` | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands |
+| `cdn-caching` | Diagnose cache hit rate, stale content, revalidation behavior, and ISR read/write cost across CDN/ISR/PPR |
 | `chat-sdk` | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear |
 | `deployments-cicd` | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files |
 | `env-vars` | Environment variable management — .env files, vercel env commands, OIDC tokens |
@@ -78,11 +80,11 @@ A text-form relational graph covering:
 
 ### Agents (3 specialists)
 
-| Agent | Expertise |
-|-------|-----------|
-| `deployment-expert` | CI/CD pipelines, deploy strategies, troubleshooting, environment variables |
-| `performance-optimizer` | Core Web Vitals, rendering strategies, caching, asset optimization |
-| `ai-architect` | AI application design, model selection, streaming architecture, MCP integration |
+| Agent                   | Expertise                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `deployment-expert`     | CI/CD pipelines, deploy strategies, troubleshooting, environment variables      |
+| `performance-optimizer` | Core Web Vitals, rendering strategies, caching, asset optimization              |
+| `ai-architect`          | AI application design, model selection, streaming architecture, MCP integration |
 
 ### Commands (4 commands)
 
@@ -92,6 +94,7 @@ A text-form relational graph covering:
 | `/vercel-plugin:deploy` | Deploy to Vercel (preview or production) |
 | `/vercel-plugin:env` | Manage environment variables |
 | `/vercel-plugin:status` | Project status overview |
+
 ### Hooks
 
 Lifecycle hooks that run automatically during your session:
