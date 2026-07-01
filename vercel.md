@@ -38,6 +38,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Fluid Compute (unified execution model)
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
+│   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
 │   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: routing-middleware
@@ -303,6 +304,32 @@ WORKFLOW DEVKIT (WDK)                      ⤳ skill: workflow  📖 docs: https
     ↔ AI SDK 6 (DurableAgent)
     ↔ Vercel Functions (automatic step isolation)
     ↔ Next.js (API routes as workflow endpoints)
+
+EVE (TypeScript, beta)                    ⤳ skill: eve  📖 docs: https://eve.dev/docs
+├── Core
+│   ⊃ Filesystem-first framework for durable AI agents and agent-powered applications
+│   ⊃ `agent/instructions.*` (identity and standing behavior)
+│   ⊃ `agent/agent.ts` (model and runtime configuration)
+│   ⊃ `agent/tools/`, `agent/skills/`, `agent/connections/`, `agent/hooks/`
+│   ⊃ `agent/channels/`, `agent/sandbox/`, `agent/subagents/`, `agent/schedules/`
+│   ⊃ `evals/` (application-level agent evaluation)
+│
+├── Runtime & Delivery
+│   ⊃ Durable, resumable sessions with streaming and human-in-the-loop input
+│   ⊃ Built-in HTTP session API and TypeScript client
+│   ⊃ Channels for web, Slack, Discord, GitHub, Linear, Teams, Telegram, and Twilio
+│   ⊃ Frontend clients for React, Vue, and Svelte
+│   ↔ Next.js, Nuxt, and SvelteKit framework integrations
+│
+├── Version-Matched Documentation
+│   → `node_modules/eve/docs/README.md` (installed-version source of truth)
+│   → `https://eve.dev/docs` (public documentation)
+│
+└── Integrations
+    → Workflow SDK (durable session execution under the hood)
+    ↔ AI SDK and AI Gateway (models, messages, and tools)
+    ↔ Vercel Sandbox (isolated agent workspaces)
+    ↔ Vercel Connect (`@vercel/connect/eve` managed OAuth connections)
 
 CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: https://chat-sdk.dev
 ├── Core
@@ -578,25 +605,27 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 
 ### AI Features
 
-| Need                                                            | Use                                                                                           | Why                                                                                                                     |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Any AI feature (default)**                                    | **AI Gateway** (`model: 'provider/model'`)                                                    | **Failover, cost tracking, observability — no provider API keys needed on Vercel**                                      |
-| **Any streaming AI UI (default)**                               | **AI Elements** (`npx ai-elements`) + AI SDK `useChat`                                        | **Handles UIMessage parts, streaming markdown, tool calls, reasoning — no manual rendering**                            |
-| **Any AI-generated text (mandatory)**                           | **AI Elements `<MessageResponse>`**                                                           | **Universal markdown renderer — never render AI text as raw `{text}`. Use for chat, workflows, reports, notifications** |
-| Chat interface                                                  | AI SDK `useChat` + `streamText` + AI Gateway + AI Elements                                    | Streaming UI, provider-agnostic                                                                                         |
-| Chat UI components (messages, tools, reasoning)                 | AI Elements (`npx ai-elements`)                                                               | Pre-built, handles UIMessage parts                                                                                      |
-| Custom chat rendering (no AI Elements)                          | Manual `message.parts` iteration                                                              | Full control over rendering                                                                                             |
-| Image generation (default)                                      | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native                                                                            |
-| Image generation (image-only models)                            | `experimental_generateImage` (Imagen 4.0, Flux 2)                                             | Only for dedicated image models, not multimodal LLMs                                                                    |
-| Structured data extraction                                      | AI SDK `generateText` + `Output.object()` + AI Gateway                                        | Type-safe, schema-validated                                                                                             |
-| Multi-step agent                                                | AI SDK `Agent` class + AI Gateway                                                             | Loop control, tool calling                                                                                              |
-| Production agent (must not lose state)                          | Workflow DevKit `DurableAgent`                                                                | Survives crashes, observable                                                                                            |
-| Provider-specific features (e.g., computer use)                 | Direct provider SDK (`@ai-sdk/anthropic`)                                                     | Only when gateway doesn't expose the feature                                                                            |
-| Connect to external tools                                       | AI SDK MCP Client                                                                             | Standard protocol, OAuth                                                                                                |
-| Agent needs live Vercel state                                   | Vercel MCP Server                                                                             | Read projects, deployments, logs via MCP                                                                                |
-| Multi-platform chat bot (Slack, Teams, Discord, Telegram, etc.) | Chat SDK (`chat` + `@chat-adapter/*`)                                                         | Single codebase, unified API, cards, streaming                                                                          |
-| Chat bot with AI responses                                      | Chat SDK + AI SDK (`thread.post(textStream)`)                                                 | Streaming AI across all platforms                                                                                       |
-| UI generation from prompts                                      | v0                                                                                            | Visual output, GitHub integration                                                                                       |
+| Need | Use | Why |
+|------|-----|-----|
+| **Any AI feature (default)** | **AI Gateway** (`model: 'provider/model'`) | **Failover, cost tracking, observability — no provider API keys needed on Vercel** |
+| **Any streaming AI UI (default)** | **AI Elements** (`npx ai-elements`) + AI SDK `useChat` | **Handles UIMessage parts, streaming markdown, tool calls, reasoning — no manual rendering** |
+| **Any AI-generated text (mandatory)** | **AI Elements `<MessageResponse>`** | **Universal markdown renderer — never render AI text as raw `{text}`. Use for chat, workflows, reports, notifications** |
+| Chat interface | AI SDK `useChat` + `streamText` + AI Gateway + AI Elements | Streaming UI, provider-agnostic |
+| Chat UI components (messages, tools, reasoning) | AI Elements (`npx ai-elements`) | Pre-built, handles UIMessage parts |
+| Custom chat rendering (no AI Elements) | Manual `message.parts` iteration | Full control over rendering |
+| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
+| Image generation (image-only models) | `experimental_generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
+| Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
+| Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
+| New durable agent or agent-powered application | Eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
+| Add durability to an existing agent or application workflow | Workflow DevKit `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
+| Browser UI for an Eve agent | Eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
+| Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
+| Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
+| Agent needs live Vercel state | Vercel MCP Server | Read projects, deployments, logs via MCP |
+| Multi-platform chat bot (Slack, Teams, Discord, Telegram, etc.) | Chat SDK (`chat` + `@chat-adapter/*`) | Single codebase, unified API, cards, streaming |
+| Chat bot with AI responses | Chat SDK + AI SDK (`thread.post(textStream)`) | Streaming AI across all platforms |
+| UI generation from prompts | v0 | Visual output, GitHub integration |
 
 **IMPORTANT**: Default to AI Gateway for all AI features. Only use direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) when you need provider-specific features not exposed through the gateway.
 
@@ -632,13 +661,14 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 
 ### Functions
 
-| Need                            | Use                            | Why                              |
-| ------------------------------- | ------------------------------ | -------------------------------- |
-| Standard server logic           | Serverless Functions (Node.js) | Full Node.js, up to 14min (paid) |
-| Ultra-low latency, simple logic | Edge Functions                 | <1ms cold start, global          |
-| Long-running with I/O waits     | Fluid Compute                  | Shared instances, waitUntil      |
-| AI streaming responses          | Streaming Functions            | SSE, zero config                 |
-| Scheduled execution             | Cron Jobs                      | vercel.json schedule config      |
+| Need | Use | Why |
+|------|-----|-----|
+| Standard server logic | Serverless Functions (Node.js) | Full Node.js, up to 14min (paid) |
+| Ultra-low latency, simple logic | Edge Functions | <1ms cold start, global |
+| Long-running with I/O waits | Fluid Compute | Shared instances, waitUntil |
+| AI streaming responses | Streaming Functions | SSE, zero config |
+| Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
+| Scheduled execution | Cron Jobs | vercel.json schedule config |
 
 ### Disambiguation: Interception Compute
 
@@ -714,14 +744,13 @@ Three distinct caching systems serve different purposes. They can be used indepe
 
 ### 3. Build a Durable AI Agent
 ```
-
-1. vercel link → enable AI Gateway → vercel env pull (OIDC credentials required)
-2. Next.js (API Route) → Workflow DevKit (DurableAgent) → AI SDK (tool calling)
-   → AI Gateway (OIDC auth for model strings in workflow steps)
-   → Neon Postgres (state) → Vercel Functions (step execution)
-3. For human-in-the-loop: defineHook() + getWritable() token emission + resumeHook() route
-4. For AI text in workflow events: use <MessageResponse> from AI Elements (not raw text)
-
+1. Choose the architecture boundary:
+   - New filesystem-first agent or agent-powered app → Eve
+   - Existing app/agent that needs durable orchestration → Workflow DevKit `DurableAgent`
+2. Eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
+             → author instructions, tools, skills, connections, channels, and optional frontend client
+3. Workflow path: Next.js Route Handler → DurableAgent → AI SDK tools → AI Gateway
+4. vercel link → enable AI Gateway → vercel env pull → verify sessions, streaming, retries, and approvals
 ```
 
 ### 4. Full-Stack SaaS App
@@ -865,6 +894,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 ### AI Stack
 
 - Default to AI SDK v6 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
+- Consider Eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
+- Use Eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow DevKit when existing application logic primarily needs durable orchestration.
 - Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
 - Prefer `toUIMessageStreamResponse()`, `DefaultChatTransport`, and modern tool definitions (`inputSchema`, `outputSchema`) over v5-era patterns.
 - Keep AI recommendations scoped to the current task; do not force broad AI stack migrations unless the code already points there.
@@ -893,6 +924,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 ### Workflow and Durability
 
 - Use Workflow DevKit and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Prefer Eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
 - Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
 - Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.
 - When workflow context is injected, emphasize survival of crashes, retries, and async callback orchestration.

@@ -28,7 +28,8 @@ metadata:
       - 'invalidate'
     minScore: 6
 chainTo:
-  - pattern: 'use cache|cacheLife|cacheTag'
+  -
+    pattern: 'use cache|cacheLife|cacheTag'
     targetSkill: next-cache-components
     message: 'Next.js cache directives detected — loading Cache Components guidance for revalidate/tag tuning.'
 ---

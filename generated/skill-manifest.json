@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-27T03:14:07.476Z",
+  "generatedAt": "2026-07-01T00:44:06.858Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -849,6 +849,65 @@
         "examples": []
       }
     },
+    "cdn-caching": {
+      "priority": 6,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/caching",
+        "https://vercel.com/docs/caching/cdn-cache",
+        "https://vercel.com/docs/incremental-static-regeneration",
+        "https://vercel.com/docs/cli/metrics"
+      ],
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bvercel\\s+cache\\s+(purge|invalidate|dangerously-delete)\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/cdn-caching/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bvercel\\s+cache\\s+(purge|invalidate|dangerously-delete)\\b"
+      ],
+      "importRegexSources": [],
+      "chainTo": [
+        {
+          "pattern": "use cache|cacheLife|cacheTag",
+          "targetSkill": "next-cache-components",
+          "message": "Next.js cache directives detected — loading Cache Components guidance for revalidate/tag tuning."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "cache hit rate",
+          "isr cost",
+          "isr read units",
+          "isr write units",
+          "stale content",
+          "x-vercel-cache"
+        ],
+        "allOf": [
+          [
+            "cache",
+            "debug"
+          ],
+          [
+            "stale",
+            "cache"
+          ],
+          [
+            "revalidation",
+            "count"
+          ]
+        ],
+        "anyOf": [
+          "revalidate",
+          "prerender",
+          "invalidate"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      }
+    },
     "chat-sdk": {
       "priority": 8,
       "summary": "",
@@ -1232,6 +1291,167 @@
           "environment variable"
         ],
         "examples": []
+      }
+    },
+    "eve": {
+      "priority": 8,
+      "summary": "Eve framework guidance for durable agents, agent applications, project architecture, runtime capabilities, channels, and frontend clients.",
+      "docs": [
+        "https://eve.dev/docs",
+        "https://github.com/vercel/eve"
+      ],
+      "pathPatterns": [
+        ".eve/**",
+        "agent/channels/eve.ts"
+      ],
+      "bashPatterns": [
+        "\\bnpx\\s+eve(?:@latest)?\\b",
+        "\\bbunx\\s+eve(?:@latest)?\\b",
+        "\\beve\\s+(init|dev|build|start|info|channels|evals?)\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b"
+      ],
+      "importPatterns": [
+        "eve"
+      ],
+      "bodyPath": "skills/eve/SKILL.md",
+      "pathRegexSources": [
+        "^\\.eve\\/.*$",
+        "^agent\\/channels\\/eve\\.ts$"
+      ],
+      "bashRegexSources": [
+        "\\bnpx\\s+eve(?:@latest)?\\b",
+        "\\bbunx\\s+eve(?:@latest)?\\b",
+        "\\beve\\s+(init|dev|build|start|info|channels|evals?)\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]eve(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "from\\\\s+['\\\"]@vercel/connect/eve['\\\"]",
+          "targetSkill": "vercel-connect",
+          "message": "Vercel Connect integration detected in an eve project — loading guidance for managed OAuth connections and channel credentials."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel eve",
+          "eve framework",
+          "eve project",
+          "eve agent",
+          "eve.dev",
+          "useeveagent",
+          "npx eve",
+          "node_modules/eve/docs",
+          "set up eve",
+          "setup eve",
+          "install eve",
+          "build an agent",
+          "build me an agent",
+          "create an agent",
+          "create me an agent",
+          "scaffold an agent",
+          "make an agent",
+          "make me an agent",
+          "implement an agent",
+          "implement a new agent",
+          "set up an agent",
+          "setup an agent",
+          "agent framework",
+          "agent architecture"
+        ],
+        "allOf": [
+          [
+            "build",
+            "agent"
+          ],
+          [
+            "create",
+            "agent"
+          ],
+          [
+            "scaffold",
+            "agent"
+          ],
+          [
+            "architect",
+            "agent"
+          ],
+          [
+            "design",
+            "agent"
+          ],
+          [
+            "develop",
+            "agent"
+          ],
+          [
+            "prototype",
+            "agent"
+          ],
+          [
+            "migrate",
+            "agent"
+          ]
+        ],
+        "anyOf": [
+          "durable sessions",
+          "persistent sessions",
+          "channels",
+          "sandboxes",
+          "subagents",
+          "schedules",
+          "evals",
+          "frontend client"
+        ],
+        "noneOf": [
+          "eve online",
+          "user agent",
+          "user-agent"
+        ],
+        "minScore": 4
+      },
+      "retrieval": {
+        "aliases": [
+          "vercel eve",
+          "eve framework",
+          "durable agent framework",
+          "filesystem-first agent framework",
+          "eve agent application"
+        ],
+        "intents": [
+          "build or design a durable AI agent",
+          "choose a framework for a new agent application",
+          "scaffold an agent with tools skills and persistent sessions",
+          "add channels schedules sandboxes or subagents to an eve project",
+          "connect an eve agent to a browser frontend",
+          "debug eve project discovery or runtime behavior"
+        ],
+        "entities": [
+          "eve",
+          "eve.dev",
+          "defineAgent",
+          "useEveAgent",
+          "node_modules/eve/docs",
+          ".eve"
+        ],
+        "examples": [
+          "build me an agent that persists sessions and runs scheduled jobs",
+          "help me choose an agent framework for a new application",
+          "scaffold an eve project with a browser UI",
+          "add a Slack channel and subagent to my eve agent",
+          "why did eve not discover my tool"
+        ]
       }
     },
     "knowledge-update": {
@@ -2749,68 +2969,6 @@
         "examples": []
       }
     },
-    "cdn-caching": {
-      "priority": 6,
-      "summary": "",
-      "docs": [
-        "https://vercel.com/docs/caching",
-        "https://vercel.com/docs/incremental-static-regeneration/limits-and-pricing",
-        "https://vercel.com/docs/cli/metrics"
-      ],
-      "pathPatterns": [],
-      "bashPatterns": [
-        "\\b(vercel|vc)\\s+metrics\\b",
-        "\\bvercel\\s+httpstat\\b",
-        "\\bvercel\\s+cache\\s+(purge|invalidate|dangerously-delete)\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/cdn-caching/SKILL.md",
-      "pathRegexSources": [],
-      "bashRegexSources": [
-        "\\b(vercel|vc)\\s+metrics\\b",
-        "\\bvercel\\s+httpstat\\b",
-        "\\bvercel\\s+cache\\s+(purge|invalidate|dangerously-delete)\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "use cache|cacheLife|cacheTag",
-          "targetSkill": "next-cache-components",
-          "message": "Next.js cache directives detected — loading Cache Components guidance for revalidate/tag tuning."
-        }
-      ],
-      "promptSignals": {
-        "phrases": [
-          "cache hit rate",
-          "isr cost",
-          "isr read units",
-          "isr write units",
-          "stale content",
-          "x-vercel-cache"
-        ],
-        "allOf": [
-          [
-            "cache",
-            "debug"
-          ],
-          [
-            "stale",
-            "cache"
-          ],
-          [
-            "revalidation",
-            "count"
-          ]
-        ],
-        "anyOf": [
-          "revalidate",
-          "prerender",
-          "invalidate"
-        ],
-        "noneOf": [],
-        "minScore": 6
-      }
-    },
     "vercel-cli": {
       "priority": 4,
       "summary": "",
@@ -3014,8 +3172,8 @@
       "chainTo": [
         {
           "pattern": "from\\\\s+['\\\"]@vercel/connect/eve['\\\"]",
-          "targetSkill": "vercel-connect",
-          "message": "Eve + Vercel Connect import detected — loading Vercel Connect guidance for the connect() helper and Slack channel patterns."
+          "targetSkill": "eve",
+          "message": "Eve + Vercel Connect import detected — loading Eve framework guidance alongside the connect() helper and channel credential patterns."
         },
         {
           "pattern": "SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(API_KEY|WEBHOOK_SECRET)",
@@ -3220,7 +3378,8 @@
       "summary": "",
       "docs": [
         "https://vercel.com/docs/functions",
-        "https://vercel.com/docs/functions/runtimes"
+        "https://vercel.com/docs/functions/runtimes",
+        "https://vercel.com/docs/functions/websockets"
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
       "pathPatterns": [
@@ -3240,7 +3399,11 @@
         "\\bvercel\\s+dev\\b",
         "\\bvercel\\s+logs\\b"
       ],
-      "importPatterns": [],
+      "importPatterns": [
+        "ws",
+        "socket.io",
+        "socket.io-client"
+      ],
       "bodyPath": "skills/vercel-functions/SKILL.md",
       "pathRegexSources": [
         "^api\\/(?:[^/]+\\/)*[^/]*\\.[^/]*$",
@@ -3259,7 +3422,20 @@
         "\\bvercel\\s+dev\\b",
         "\\bvercel\\s+logs\\b"
       ],
-      "importRegexSources": [],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]ws(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]socket\\.io(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]socket\\.io-client(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
       "validate": [
         {
           "pattern": "export\\s+default\\s+function",
@@ -3384,24 +3560,48 @@
           "skipIfFileContains": "use workflow|use step|@vercel/workflow|from\\s+[''\"\"](workflow)[''\"\"]"
         }
       ],
+      "promptSignals": {
+        "phrases": [
+          "websocket",
+          "websockets",
+          "web socket",
+          "socket.io",
+          "long polling",
+          "long-polling"
+        ],
+        "allOf": [],
+        "anyOf": [
+          "realtime",
+          "bidirectional",
+          "ws server",
+          "polling",
+          "server-sent events"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
       "retrieval": {
         "aliases": [
           "serverless functions",
           "api routes",
           "edge functions",
-          "lambda"
+          "lambda",
+          "websockets",
+          "socket.io"
         ],
         "intents": [
           "create serverless function",
           "configure function runtime",
           "optimize cold starts",
-          "add api route"
+          "add api route",
+          "serve a websocket connection"
         ],
         "entities": [
           "Serverless Functions",
           "Edge Functions",
           "Fluid Compute",
           "streaming",
+          "WebSockets",
           "Cron Jobs"
         ],
         "examples": []

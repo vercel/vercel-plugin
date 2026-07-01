@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { safeReadJson } from "./hook-env.mjs";
 var ACTIVATION_MARKER_FILES = [
+  ".eve",
   "vercel.json",
   "next.config.js",
   "next.config.mjs",
@@ -20,7 +21,7 @@ function packageJsonSignalsVercel(projectRoot) {
     ...pkg.devDependencies || {}
   };
   if (Object.keys(allDeps).some(
-    (dep) => dep === "next" || dep === "vercel" || dep.startsWith("@vercel/")
+    (dep) => dep === "eve" || dep === "next" || dep === "vercel" || dep.startsWith("@vercel/")
   )) {
     return true;
   }
@@ -43,6 +44,9 @@ function isGreenfieldDirectory(projectRoot) {
   try {
     dirents = readdirSync(projectRoot, { withFileTypes: true });
   } catch {
+    return false;
+  }
+  if (dirents.some((d) => d.name === ".eve" && d.isDirectory())) {
     return false;
   }
   const hasNonDotDir = dirents.some((d) => !d.name.startsWith("."));
