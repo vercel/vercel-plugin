@@ -202,6 +202,7 @@ Use `--json` so the agent can parse cache status, path, and timing fields progra
 
 ## Related skills
 
+- `cache-reason` — the per-request `cacheReason` field (why one request was MISS/STALE/BYPASS: `cold`, `collapsed`, `stale_time`, `stale_tag`, `stale_error`, `draft_mode`, `prerender_bypass`, `crawler`). Use it to disambiguate a single request; this skill for the aggregate picture.
 - `vercel-firewall` — manage verified SEO crawlers, block abusive bots, and rate-limit junk BYPASS traffic.
 - `runtime-cache` — caching data _between your function and a backend_ (per-region key-value / data cache). A different layer from the CDN/ISR caches; use it to cache an API response or query result inside a function.
 - `next-cache-components` — Next.js `use cache`, `cacheLife`, `cacheTag`, and `revalidate` tuning (one framework's ISR/PPR controls).
