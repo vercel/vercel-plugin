@@ -7,6 +7,8 @@ metadata:
   docs:
     - "https://eve.dev/docs"
     - "https://github.com/vercel/eve"
+    - "https://vercel.com/changelog/agent-runs-vercel-mcp-cli"
+    - "https://vercel.com/docs/agent-resources/vercel-mcp/tools"
   pathPatterns:
     - '.eve/**'
     - 'agent/channels/eve.ts'
@@ -16,6 +18,7 @@ metadata:
     - '\bnpx\s+eve(?:@latest)?\b'
     - '\bbunx\s+eve(?:@latest)?\b'
     - '\beve\s+(init|dev|build|start|info|channels|evals?)\b'
+    - '\b(?:vercel|vc)\s+agent-runs\b'
     - '\bnpm\s+(install|i|add)\s+[^\n]*\beve(?:@[^\s]+)?\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*\beve(?:@[^\s]+)?\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*\beve(?:@[^\s]+)?\b'
@@ -46,6 +49,13 @@ metadata:
       - "setup an agent"
       - "agent framework"
       - "agent architecture"
+      - "agent runs observability"
+      - "latest production agent runs"
+      - "vercel agent-runs"
+      - "agent run trace"
+      - "agent runs trace"
+      - "vercel mcp agent runs"
+      - "update skills based on recent runs"
     allOf:
       - [build, agent]
       - [create, agent]
@@ -64,6 +74,10 @@ metadata:
       - "schedules"
       - "evals"
       - "frontend client"
+      - "agent runs observability"
+      - "vercel agent-runs"
+      - "agent run trace"
+      - "agent runs trace"
     noneOf:
       - "eve online"
       - "user agent"
@@ -76,6 +90,8 @@ retrieval:
     - durable agent framework
     - filesystem-first agent framework
     - eve agent application
+    - agent runs observability
+    - vercel agent-runs
   intents:
     - build or design a durable AI agent
     - choose a framework for a new agent application
@@ -83,6 +99,8 @@ retrieval:
     - add channels schedules sandboxes or subagents to an eve project
     - connect an eve agent to a browser frontend
     - debug eve project discovery or runtime behavior
+    - inspect eve Agent Runs through Vercel MCP or CLI
+    - fetch an eve agent run trace with tool calls and token usage
   entities:
     - eve
     - eve.dev
@@ -90,12 +108,17 @@ retrieval:
     - useEveAgent
     - node_modules/eve/docs
     - .eve
+    - Agent Runs
+    - Vercel MCP Agent Runs
+    - vercel agent-runs
   examples:
     - build me an agent that persists sessions and runs scheduled jobs
     - help me choose an agent framework for a new application
     - scaffold an eve project with a browser UI
     - add a Slack channel and subagent to my eve agent
     - why did eve not discover my tool
+    - show me the latest production Agent Runs for my project
+    - update skills based on recent runs
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/eve['\"]"
@@ -108,6 +131,36 @@ chainTo:
 eve is a filesystem-first framework for durable backend AI agents. An agent is
 a directory on disk — instructions, skills, tools, connections, channels,
 subagents, and schedules are all files — and eve compiles and runs it.
+
+## Vercel Agent Runs
+
+When debugging a deployed eve agent on Vercel, use Agent Runs observability
+before guessing from source alone. Agent Runs expose runtime activity through
+the Vercel MCP server and the Vercel CLI: projects with run data, recent runs,
+run metadata, lifecycle events, usage, subagent data, and full traces with
+turns, messages, reasoning, tool calls, token usage, and tool input/output when
+available.
+
+To inspect runs through Vercel MCP, list the available Vercel MCP tools and
+use the Agent Runs tools exposed by the server. Tool names and schemas can
+change, so inspect the tool list/schema before hard-coding a name from memory.
+
+For CLI usage, ask the installed CLI for the current Agent Runs surface:
+
+```bash
+vercel agent-runs --help
+vercel agent-runs <subcommand> --help
+```
+
+Use `--json` when the subcommand help exposes it and machine-readable output is
+needed.
+
+If `vercel agent-runs` is missing, check `vercel --version` and upgrade first:
+
+```bash
+npm i -g vercel@latest
+vercel agent-runs --help
+```
 
 ## Source of truth
 

@@ -47,6 +47,9 @@ describe("eve prompt activation", () => {
     "Which agent framework should I use for this application?",
     "Help debug my Eve project.",
     "Migrate my LangGraph agent to another framework.",
+    "Show me the latest production Agent Runs for my project.",
+    "Inspect an Agent Runs trace for wrun_123.",
+    "Update skills based on recent runs.",
   ])("matches agent-building or explicit Eve intent: %s", (prompt) => {
     expect(matchesPrompt(prompt)).toBe(true);
   });
@@ -78,6 +81,8 @@ describe("eve project evidence", () => {
   test("matches Eve CLI and installation commands without matching similarly named packages", () => {
     expect(matchBashWithReason("npx eve@latest init support-agent", compiledSkill.compiledBash)).not.toBeNull();
     expect(matchBashWithReason("npm install eve@latest", compiledSkill.compiledBash)).not.toBeNull();
+    expect(matchBashWithReason("vercel agent-runs --help", compiledSkill.compiledBash)).not.toBeNull();
+    expect(matchBashWithReason("vc agent-runs some-subcommand --help", compiledSkill.compiledBash)).not.toBeNull();
     expect(matchBashWithReason("npm install evergreen", compiledSkill.compiledBash)).toBeNull();
   });
 });
