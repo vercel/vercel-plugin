@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T02:23:05.290Z",
+  "generatedAt": "2026-07-03T01:21:45.033Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -849,96 +849,6 @@
         "examples": []
       }
     },
-    "cache-reason": {
-      "priority": 6,
-      "summary": "",
-      "docs": [
-        "https://vercel.com/docs/caching",
-        "https://vercel.com/docs/caching/cdn-cache/debug-cache-issues",
-        "https://vercel.com/docs/cli/logs"
-      ],
-      "pathPatterns": [],
-      "bashPatterns": [
-        "\\bvercel\\s+logs\\b"
-      ],
-      "importPatterns": [],
-      "bodyPath": "skills/cache-reason/SKILL.md",
-      "pathRegexSources": [],
-      "bashRegexSources": [
-        "\\bvercel\\s+logs\\b"
-      ],
-      "importRegexSources": [],
-      "chainTo": [
-        {
-          "pattern": "revalidateTag|invalidateByTag|updateTag|dangerouslyDeleteByTag",
-          "targetSkill": "cdn-caching",
-          "message": "Tag invalidation detected — loading cdn-caching for blast-radius and ISR write-cost analysis."
-        }
-      ],
-      "promptSignals": {
-        "phrases": [
-          "cache reason",
-          "x-vercel-cache-reason",
-          "why is it stale",
-          "why is my page stale",
-          "stale_tag",
-          "stale_time",
-          "stale_error",
-          "prerender bypass",
-          "request collapsed"
-        ],
-        "allOf": [
-          [
-            "why",
-            "bypass"
-          ],
-          [
-            "why",
-            "stale"
-          ],
-          [
-            "cache",
-            "reason"
-          ]
-        ],
-        "anyOf": [
-          "draft mode",
-          "crawler",
-          "revalidation",
-          "cold cache"
-        ],
-        "noneOf": [],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "cache reason",
-          "x-vercel-cache-reason",
-          "stale reason",
-          "bypass reason",
-          "cache miss reason"
-        ],
-        "intents": [
-          "why is my page stale",
-          "why is this request a bypass",
-          "why was this a cache miss",
-          "explain the cache status of a request",
-          "debug why a request was not cached"
-        ],
-        "entities": [
-          "cacheReason",
-          "stale_tag",
-          "stale_time",
-          "stale_error",
-          "draft_mode",
-          "prerender_bypass",
-          "crawler",
-          "request collapsed",
-          "cold cache"
-        ],
-        "examples": []
-      }
-    },
     "cdn-caching": {
       "priority": 6,
       "summary": "",
@@ -973,7 +883,14 @@
           "isr read units",
           "isr write units",
           "stale content",
-          "x-vercel-cache"
+          "x-vercel-cache",
+          "cache reason",
+          "x-vercel-cache-reason",
+          "stale_tag",
+          "stale_time",
+          "stale_error",
+          "prerender bypass",
+          "request collapsed"
         ],
         "allOf": [
           [
@@ -987,15 +904,62 @@
           [
             "revalidation",
             "count"
+          ],
+          [
+            "why",
+            "stale"
+          ],
+          [
+            "why",
+            "bypass"
+          ],
+          [
+            "cache",
+            "reason"
           ]
         ],
         "anyOf": [
           "revalidate",
           "prerender",
-          "invalidate"
+          "invalidate",
+          "draft mode",
+          "crawler",
+          "cold cache"
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "cache hit rate",
+          "cache reason",
+          "x-vercel-cache-reason",
+          "stale content",
+          "isr cost",
+          "bypass reason"
+        ],
+        "intents": [
+          "debug cache hit rate",
+          "why is my page stale",
+          "why is this request a bypass",
+          "why was this a cache miss",
+          "analyze isr read and write cost",
+          "explain the cache status of a request"
+        ],
+        "entities": [
+          "cacheReason",
+          "cache_result",
+          "stale_tag",
+          "stale_time",
+          "stale_error",
+          "draft_mode",
+          "prerender_bypass",
+          "crawler",
+          "request collapsed",
+          "PRERENDER",
+          "BYPASS"
+        ],
+        "examples": []
       }
     },
     "chat-sdk": {
