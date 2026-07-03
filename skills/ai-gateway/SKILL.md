@@ -167,6 +167,20 @@ vercel env pull .env.local     # Provisions VERCEL_OIDC_TOKEN automatically
 3. No `AI_GATEWAY_API_KEY` or provider-specific keys (like `ANTHROPIC_API_KEY`) are needed
 4. On Vercel deployments, OIDC tokens are auto-refreshed — zero maintenance
 
+### Gateway Routing Gotcha: Remove Provider Keys
+
+When using AI SDK model strings such as `"anthropic/claude-haiku-4.5"` or `"openai/gpt-5.4"` with AI Gateway auto-routing, provider-specific API key env vars must be **absent**, not empty. If a Vercel project still has `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY` from an older direct-provider integration, the AI SDK can choose direct-provider mode instead of routing through AI Gateway. An empty string value can still count as present and cause upstream errors such as `401 invalid x-api-key`.
+
+Remove stale provider keys from every environment and redeploy so warm function instances restart with the updated env:
+
+```bash
+vercel env rm ANTHROPIC_API_KEY production --yes
+vercel env rm ANTHROPIC_API_KEY preview --yes
+vercel env rm ANTHROPIC_API_KEY development --yes
+```
+
+Repeat for any other provider key that should no longer be used directly. Successful gateway-routed requests go through AI Gateway, not the upstream provider API directly.
+
 ### Local Development
 
 For local dev, the OIDC token from `vercel env pull` is valid for ~24 hours. When it expires:
