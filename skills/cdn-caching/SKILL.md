@@ -20,7 +20,11 @@ metadata:
       - 'x-vercel-cache'
       - 'cache reason'
       - 'x-vercel-cache-reason'
+      - 'stale_time'
       - 'stale_tag'
+      - 'stale_error'
+      - 'draft_mode'
+      - 'prerender_bypass'
     allOf:
       - [cache, debug]
       - [stale, cache]
@@ -35,6 +39,8 @@ metadata:
       - 'invalidate'
       - 'draft mode'
       - 'crawler'
+      - 'cold cache'
+      - 'request collapsed'
     minScore: 6
 retrieval:
   aliases:
