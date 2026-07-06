@@ -43,12 +43,15 @@ retrieval:
     - why was this a cache miss
   entities:
     - cacheReason
-    - stale_tag
-    - stale_error
+    - cold
+    - collapsed
+    - error
     - draft_mode
     - prerender_bypass
     - crawler
-    - cold
+    - stale_time
+    - stale_tag
+    - stale_error
 chainTo:
   -
     pattern: 'use cache|cacheLife|cacheTag'
