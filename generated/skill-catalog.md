@@ -20,7 +20,7 @@
 | `ai-sdk` | 8 | 27 | 11 | 2 |
 | `bootstrap` | 8 | 10 | 6 | 8 |
 | `chat-sdk` | 8 | 45 | 12 | 2 |
-| `eve` | 8 | 2 | 7 | 1 |
+| `eve` | 8 | 2 | 8 | 1 |
 | `vercel-functions` | 8 | 11 | 2 | 3 |
 | `ai-gateway` | 7 | 0 | 5 | 2 |
 | `env-vars` | 7 | 10 | 4 | 0 |
@@ -256,6 +256,7 @@
 - `\bnpx\s+eve(?:@latest)?\b`
 - `\bbunx\s+eve(?:@latest)?\b`
 - `\beve\s+(init|dev|build|start|info|channels|evals?)\b`
+- `\b(?:vercel|vc)\s+agent-runs\b`
 - `\bnpm\s+(install|i|add)\s+[^\n]*\beve(?:@[^\s]+)?\b`
 - `\bpnpm\s+(install|i|add)\s+[^\n]*\beve(?:@[^\s]+)?\b`
 - `\bbun\s+(install|i|add)\s+[^\n]*\beve(?:@[^\s]+)?\b`
