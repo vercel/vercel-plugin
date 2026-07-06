@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T20:21:06.456Z",
+  "generatedAt": "2026-07-06T20:25:45.953Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -856,8 +856,7 @@
         "https://vercel.com/docs/caching",
         "https://vercel.com/docs/caching/cdn-cache",
         "https://vercel.com/docs/incremental-static-regeneration",
-        "https://vercel.com/docs/cli/metrics",
-        "https://vercel.com/docs/cli/logs"
+        "https://vercel.com/docs/cli/metrics"
       ],
       "pathPatterns": [],
       "bashPatterns": [
@@ -874,18 +873,20 @@
         {
           "pattern": "use cache|cacheLife|cacheTag",
           "targetSkill": "next-cache-components",
-          "message": "Next.js cache directives detected — loading Cache Components guidance."
+          "message": "Next.js cache directives detected — loading Cache Components guidance for revalidate/tag tuning."
         }
       ],
       "promptSignals": {
         "phrases": [
           "cache hit rate",
           "isr cost",
+          "isr read units",
+          "isr write units",
           "stale content",
           "x-vercel-cache",
           "cache reason",
-          "stale_tag",
-          "request collapsed"
+          "x-vercel-cache-reason",
+          "stale_tag"
         ],
         "allOf": [
           [
@@ -895,6 +896,14 @@
           [
             "stale",
             "cache"
+          ],
+          [
+            "revalidation",
+            "count"
+          ],
+          [
+            "cache",
+            "reason"
           ],
           [
             "why",
@@ -907,17 +916,14 @@
           [
             "cache",
             "miss"
-          ],
-          [
-            "cache",
-            "reason"
           ]
         ],
         "anyOf": [
           "revalidate",
+          "prerender",
           "invalidate",
-          "crawler",
-          "cold cache"
+          "draft mode",
+          "crawler"
         ],
         "noneOf": [],
         "minScore": 6
