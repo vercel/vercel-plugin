@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T20:19:33.486Z",
+  "generatedAt": "2026-07-06T20:21:06.456Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -854,6 +854,7 @@
       "summary": "",
       "docs": [
         "https://vercel.com/docs/caching",
+        "https://vercel.com/docs/caching/cdn-cache",
         "https://vercel.com/docs/incremental-static-regeneration",
         "https://vercel.com/docs/cli/metrics",
         "https://vercel.com/docs/cli/logs"

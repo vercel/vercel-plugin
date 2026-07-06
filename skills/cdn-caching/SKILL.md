@@ -5,6 +5,7 @@ metadata:
   priority: 6
   docs:
     - 'https://vercel.com/docs/caching'
+    - 'https://vercel.com/docs/caching/cdn-cache'
     - 'https://vercel.com/docs/incremental-static-regeneration'
     - 'https://vercel.com/docs/cli/metrics'
     - 'https://vercel.com/docs/cli/logs'
