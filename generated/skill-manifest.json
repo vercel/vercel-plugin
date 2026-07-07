@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T17:34:16.360Z",
+  "generatedAt": "2026-07-07T17:36:42.694Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -948,12 +948,9 @@
         ],
         "entities": [
           "cacheReason",
-          "cold",
           "collapsed",
-          "error",
           "draft_mode",
           "prerender_bypass",
-          "crawler",
           "stale_time",
           "stale_tag",
           "stale_error"

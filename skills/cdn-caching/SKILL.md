@@ -54,12 +54,9 @@ retrieval:
     - why was this a cache miss
   entities:
     - cacheReason
-    - cold
     - collapsed
-    - error
     - draft_mode
     - prerender_bypass
-    - crawler
     - stale_time
     - stale_tag
     - stale_error
