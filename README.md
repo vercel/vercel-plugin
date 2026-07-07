@@ -4,11 +4,14 @@
 
 ### Supported Tools
 
-| Tool                                                          | Status      |
-| ------------------------------------------------------------- | ----------- |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported   |
-| [Cursor](https://www.cursor.com)                              | Supported   |
-| [OpenAI Codex](https://openai.com/index/codex/)               | Coming soon |
+| Tool                                                          | Status    |
+| ------------------------------------------------------------- | --------- |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Supported |
+| [Cursor](https://www.cursor.com)                              | Supported |
+| [GitHub Copilot CLI](https://github.com/github/copilot-cli)   | Supported |
+| [OpenAI Codex](https://openai.com/index/codex/)               | Supported |
+| [Grok Build](https://x.ai)                                    | Supported |
+| [Kimi Code](https://kimi.com)                                 | Supported |
 
 ### Prerequisites
 
