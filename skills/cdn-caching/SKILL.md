@@ -19,6 +19,7 @@ metadata:
       - 'stale content'
       - 'x-vercel-cache'
       - 'cache reason'
+      - 'cacheReason'
       - 'x-vercel-cache-reason'
       - 'stale_time'
       - 'stale_tag'
