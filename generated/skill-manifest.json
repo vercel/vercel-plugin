@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-03T22:15:28.313Z",
+  "generatedAt": "2026-07-07T17:36:42.694Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -883,7 +883,15 @@
           "isr read units",
           "isr write units",
           "stale content",
-          "x-vercel-cache"
+          "x-vercel-cache",
+          "cache reason",
+          "cacheReason",
+          "x-vercel-cache-reason",
+          "stale_time",
+          "stale_tag",
+          "stale_error",
+          "draft_mode",
+          "prerender_bypass"
         ],
         "allOf": [
           [
@@ -897,15 +905,57 @@
           [
             "revalidation",
             "count"
+          ],
+          [
+            "cache",
+            "reason"
+          ],
+          [
+            "why",
+            "stale"
+          ],
+          [
+            "why",
+            "bypass"
+          ],
+          [
+            "cache",
+            "miss"
           ]
         ],
         "anyOf": [
           "revalidate",
           "prerender",
-          "invalidate"
+          "invalidate",
+          "draft mode",
+          "crawler",
+          "cold cache",
+          "request collapsed"
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "cache reason",
+          "cache hit rate",
+          "stale content"
+        ],
+        "intents": [
+          "why is my page stale",
+          "why is this request a bypass",
+          "why was this a cache miss"
+        ],
+        "entities": [
+          "cacheReason",
+          "collapsed",
+          "draft_mode",
+          "prerender_bypass",
+          "stale_time",
+          "stale_tag",
+          "stale_error"
+        ],
+        "examples": []
       }
     },
     "chat-sdk": {

@@ -701,7 +701,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 
 ⤳ skill: runtime-cache — Per-region key-value caching with tag-based invalidation
 ⤳ skill: nextjs — `'use cache'`, `revalidatePath`, `revalidateTag`
-⤳ skill: cdn-caching — Diagnose cache hit rate, stale content, and ISR read/write cost
+⤳ skill: cdn-caching — Diagnose cache hit rate, stale content, per-request cache reasons, and ISR read/write cost
 
 ---
 

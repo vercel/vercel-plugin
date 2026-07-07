@@ -1,6 +1,6 @@
 ---
 name: cdn-caching
-description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, and costs.
+description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, per-request cache reasons (cacheReason), and costs.
 metadata:
   priority: 6
   docs:
@@ -18,15 +18,48 @@ metadata:
       - 'isr write units'
       - 'stale content'
       - 'x-vercel-cache'
+      - 'cache reason'
+      - 'cacheReason'
+      - 'x-vercel-cache-reason'
+      - 'stale_time'
+      - 'stale_tag'
+      - 'stale_error'
+      - 'draft_mode'
+      - 'prerender_bypass'
     allOf:
       - [cache, debug]
       - [stale, cache]
       - [revalidation, count]
+      - [cache, reason]
+      - [why, stale]
+      - [why, bypass]
+      - [cache, miss]
     anyOf:
       - 'revalidate'
       - 'prerender'
       - 'invalidate'
+      - 'draft mode'
+      - 'crawler'
+      - 'cold cache'
+      - 'request collapsed'
     minScore: 6
+retrieval:
+  aliases:
+    - cache reason
+    - cache hit rate
+    - stale content
+  intents:
+    - why is my page stale
+    - why is this request a bypass
+    - why was this a cache miss
+  entities:
+    - cacheReason
+    - collapsed
+    - draft_mode
+    - prerender_bypass
+    - stale_time
+    - stale_tag
+    - stale_error
 chainTo:
   -
     pattern: 'use cache|cacheLife|cacheTag'
@@ -65,7 +98,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   - _Invalidate_ (`invalidateByTag`, Next.js `revalidateTag`/`revalidatePath`) = stale-while-revalidate. Keeps serving stale while refreshing in the background → response shows `x-vercel-cache: STALE`.
   - _Dangerously-delete_ (`dangerouslyDeleteByTag`, Next.js `updateTag` or a revalidate with no lifetime) = hard removal. The next request blocks in the **foreground** to regenerate → `x-vercel-cache: REVALIDATED`.
 - **Cache tags & blast radius** — tags group cached entries so one call can clear many. A coarse tag attached to thousands of paths has a large _blast radius_: a single write drops them all and the hit rate collapses until they re-warm. Prefer granular tags (`product-${id}`) plus a roll-up tag.
-- **Cache status / cache reason** (`x-vercel-cache` response header):
+- **Cache status** (`x-vercel-cache` response header) — the _outcome_:
 
   | Value         | Meaning                                                          |
   | ------------- | ---------------------------------------------------------------- |
@@ -75,6 +108,22 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `PRERENDER`   | Served a prerendered ISR/PPR shell                               |
   | `REVALIDATED` | Foreground revalidation after a delete (or `Pragma: no-cache`)   |
   | `BYPASS`      | Caching skipped (`no-store`, `private`, cookies, etc.)           |
+
+- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Nine values, three per group:
+
+  | `cacheReason`      | Refines  | Meaning                                                                       |
+  | ------------------ | -------- | ----------------------------------------------------------------------------- |
+  | `cold`             | MISS     | Cache empty for this key/variant (first request or evicted); the function ran |
+  | `collapsed`        | MISS     | Concurrent requests to one uncached path collapsed into a single invocation   |
+  | `error`            | MISS     | An error prevented serving from cache                                         |
+  | `draft_mode`       | → BYPASS | Next.js Draft Mode active — bypassed so editors see live content              |
+  | `prerender_bypass` | → BYPASS | Prerender-bypass cookie/token present                                         |
+  | `crawler`          | → BYPASS | SEO-crawler UA — full response served so bots index real content              |
+  | `stale_time`       | STALE    | Time-based `revalidate` interval elapsed; regenerating in background (SWR)     |
+  | `stale_tag`        | STALE    | Tag invalidated (`revalidateTag` / `invalidateByTag`); regenerating           |
+  | `stale_error`      | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
+
+  A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
 
 ## Investigating cache issues
 

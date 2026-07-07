@@ -54,7 +54,7 @@ A text-form relational graph covering:
 | `ai-sdk` | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings |
 | `auth` | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning |
 | `bootstrap` | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands |
-| `cdn-caching` | Diagnose cache hit rate, stale content, revalidation behavior, and ISR read/write cost across CDN/ISR/PPR |
+| `cdn-caching` | Diagnose cache hit rate, stale content, revalidation behavior, per-request cache reasons, and ISR read/write cost across CDN/ISR/PPR |
 | `chat-sdk` | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear |
 | `deployments-cicd` | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files |
 | `env-vars` | Environment variable management — .env files, vercel env commands, OIDC tokens |
