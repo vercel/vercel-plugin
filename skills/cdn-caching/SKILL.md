@@ -169,6 +169,20 @@ vercel metrics vercel.request.count -S <team> -p <project> -a sum --since 24h
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> -a sum --since 24h
 ```
 
+**Write utilization = cache serves ÷ ISR writes** — cached reads per regeneration.
+
+```bash
+# numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
+vercel metrics vercel.request.count -S <team> -p <project> \
+  -f "environment eq 'production' and (cache_result eq 'HIT' or cache_result eq 'STALE')" \
+  --group-by route -a sum --since 24h
+# denominator: ISR writes
+vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
+  -f "environment eq 'production'" --group-by route -a sum --since 24h
+```
+
+High is good; near or below ~1 means you regenerate about as fast as the page is read (wasted writes) → lengthen the revalidate interval or move time-based to on-demand tag revalidation.
+
 **Which routes revalidate most.** Break write units down by `route` and `request_path` to find paths that regenerate often relative to traffic:
 
 ```bash
