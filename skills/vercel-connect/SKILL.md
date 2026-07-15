@@ -307,7 +307,6 @@ connect_response = requests.post(
     headers={"Authorization": f"Bearer {os.environ['VERCEL_OIDC_TOKEN']}"},
     json={
         "subject": {"type": "app"},
-        "scopes": ["chat:write"],
     },
 )
 token = connect_response.json()["token"]
