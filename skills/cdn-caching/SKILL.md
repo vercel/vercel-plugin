@@ -60,11 +60,6 @@ retrieval:
     - stale_time
     - stale_tag
     - stale_error
-chainTo:
-  -
-    pattern: 'use cache|cacheLife|cacheTag'
-    targetSkill: next-cache-components
-    message: 'Next.js cache directives detected — loading Cache Components guidance for revalidate/tag tuning.'
 ---
 
 # Vercel Caching
@@ -236,9 +231,9 @@ The **Firewall/WAF** with the `vercel-firewall` skill can be used to manage veri
 
 ## Reducing ISR cost
 
-- **Prefer tag-based over time-based revalidation.** Replace short `revalidate` intervals with on-demand `revalidateTag` / `invalidateByTag` when content changes — time-based regeneration runs whether or not anything changed. If using Cache Components, analyze `cacheLife` calls with the `next-cache-components` skill.
+- **Prefer tag-based over time-based revalidation.** Replace short `revalidate` intervals with on-demand `revalidateTag` / `invalidateByTag` when content changes — time-based regeneration runs whether or not anything changed.
 - **Scope tags to specific IDs.** Invalidate `blogPost:<id>`, not a generic `blogPost`/`page` tag — one broad invalidate regenerates everything that carries it.
-- Tune the revalidate interval where your framework declares it (Next.js `revalidate` / `cacheLife`, SvelteKit `isr`, Nuxt `routeRules`, Astro). For Next.js Cache Components, see the `next-cache-components` skill.
+- Tune the revalidate interval where your framework declares it (Next.js `revalidate` / `cacheLife`, SvelteKit `isr`, Nuxt `routeRules`, Astro).
 - Use `CDN-Cache-Control` headers to cache dynamic functions.
 
 ### Inspect one path
@@ -267,7 +262,6 @@ Use `--json` so the agent can parse cache status, path, and timing fields progra
 
 - `vercel-firewall` — manage verified SEO crawlers, block abusive bots, and rate-limit junk BYPASS traffic.
 - `runtime-cache` — caching data _between your function and a backend_ (per-region key-value / data cache). A different layer from the CDN/ISR caches; use it to cache an API response or query result inside a function.
-- `next-cache-components` — Next.js `use cache`, `cacheLife`, `cacheTag`, and `revalidate` tuning (one framework's ISR/PPR controls).
 
 ## References:
 

@@ -21,10 +21,6 @@ import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
-  { file: "next.config.js", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.ts", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.mts", skills: ["nextjs", "turbopack"] },
   { file: "vercel.json", skills: ["vercel-cli", "deployments-cicd", "vercel-functions"] },
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
@@ -33,7 +29,6 @@ var FILE_MARKERS = [
 ];
 var PACKAGE_MARKERS = {
   "eve": ["eve"],
-  "next": ["nextjs"],
   "ai": ["ai-sdk"],
   "@ai-sdk/openai": ["ai-sdk"],
   "@ai-sdk/anthropic": ["ai-sdk"],
@@ -76,7 +71,6 @@ var SETUP_RESOURCE_DEPENDENCIES = {
 };
 var SETUP_MODE_THRESHOLD = 3;
 var GREENFIELD_DEFAULT_SKILLS = [
-  "nextjs",
   "ai-sdk",
   "vercel-cli",
   "env-vars"

@@ -5,115 +5,162 @@
       "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions)",
       "type": "path",
       "input": "vercel.json",
-      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions"]
+      "expectedSkills": [
+        "routing-middleware",
+        "deployments-cicd",
+        "vercel-cli",
+        "vercel-functions"
+      ]
     },
     {
-      "description": "next.config.ts triggers nextjs, turbopack, next-cache-components, and next-upgrade",
+      "description": "next.config.ts triggers no direct skill matches (Next.js skills moved to the Next.js repo)",
       "type": "path",
       "input": "next.config.ts",
-      "expectedSkills": ["nextjs", "turbopack", "next-cache-components", "next-upgrade"]
+      "expectedSkills": []
     },
     {
       "description": "middleware.ts triggers routing-middleware and auth",
       "type": "path",
       "input": "middleware.ts",
-      "expectedSkills": ["routing-middleware", "auth"]
+      "expectedSkills": [
+        "routing-middleware",
+        "auth"
+      ]
     },
     {
       "description": ".env.local triggers env-vars",
       "type": "path",
       "input": ".env.local",
-      "expectedSkills": ["env-vars"]
+      "expectedSkills": [
+        "env-vars"
+      ]
     },
     {
-      "description": "app/api/chat/route.ts triggers ai-sdk, nextjs, vercel-functions, chat-sdk, and next-cache-components",
+      "description": "app/api/chat/route.ts triggers ai-sdk, vercel-functions, and chat-sdk",
       "type": "path",
       "input": "app/api/chat/route.ts",
-      "expectedSkills": ["ai-sdk", "nextjs", "vercel-functions", "chat-sdk", "next-cache-components"]
+      "expectedSkills": [
+        "ai-sdk",
+        "vercel-functions",
+        "chat-sdk"
+      ]
     },
     {
       "description": "components.json triggers shadcn",
       "type": "path",
       "input": "components.json",
-      "expectedSkills": ["shadcn"]
+      "expectedSkills": [
+        "shadcn"
+      ]
     },
     {
       "description": "prisma/schema.prisma triggers vercel-storage and bootstrap",
       "type": "path",
       "input": "prisma/schema.prisma",
-      "expectedSkills": ["vercel-storage", "bootstrap"]
+      "expectedSkills": [
+        "vercel-storage",
+        "bootstrap"
+      ]
     },
     {
       "description": ".github/workflows/deploy.yml triggers deployments-cicd and vercel-agent, not workflow",
       "type": "path",
       "input": ".github/workflows/deploy.yml",
-      "expectedSkills": ["deployments-cicd", "vercel-agent"]
+      "expectedSkills": [
+        "deployments-cicd",
+        "vercel-agent"
+      ]
     },
     {
       "description": "vercel deploy command triggers deployments-cicd and vercel-cli",
       "type": "bash",
       "input": "vercel deploy --prod",
-      "expectedSkills": ["deployments-cicd", "vercel-cli"]
+      "expectedSkills": [
+        "deployments-cicd",
+        "vercel-cli"
+      ]
     },
     {
       "description": "npx shadcn add triggers shadcn",
       "type": "bash",
       "input": "npx shadcn@latest add button",
-      "expectedSkills": ["shadcn"]
+      "expectedSkills": [
+        "shadcn"
+      ]
     },
     {
-      "description": "next dev --turbo triggers turbopack, nextjs, verification, and next-cache-components",
+      "description": "next dev --turbo triggers verification",
       "type": "bash",
       "input": "next dev --turbo",
-      "expectedSkills": ["turbopack", "nextjs", "verification", "next-cache-components"]
+      "expectedSkills": [
+        "verification"
+      ]
     },
     {
       "description": "vercel env pull triggers env-vars, ai-gateway, and vercel-cli",
       "type": "bash",
       "input": "vercel env pull .env.local",
-      "expectedSkills": ["env-vars", "ai-gateway", "vercel-cli"]
+      "expectedSkills": [
+        "env-vars",
+        "ai-gateway",
+        "vercel-cli"
+      ]
     },
     {
       "description": "src/components/Button.tsx triggers react-best-practices",
       "type": "path",
       "input": "src/components/Button.tsx",
-      "expectedSkills": ["react-best-practices"]
+      "expectedSkills": [
+        "react-best-practices"
+      ]
     },
     {
       "description": "components/Card.jsx triggers react-best-practices",
       "type": "path",
       "input": "components/Card.jsx",
-      "expectedSkills": ["react-best-practices"]
+      "expectedSkills": [
+        "react-best-practices"
+      ]
     },
     {
-      "description": "app/components/Modal.tsx triggers react-best-practices, nextjs, and next-cache-components",
+      "description": "app/components/Modal.tsx triggers react-best-practices",
       "type": "path",
       "input": "app/components/Modal.tsx",
-      "expectedSkills": ["react-best-practices", "nextjs", "next-cache-components"]
+      "expectedSkills": [
+        "react-best-practices"
+      ]
     },
     {
-      "description": "npm run dev triggers nextjs and verification",
+      "description": "npm run dev triggers verification",
       "type": "bash",
       "input": "npm run dev",
-      "expectedSkills": ["nextjs", "verification"]
+      "expectedSkills": [
+        "verification"
+      ]
     },
     {
-      "description": "pnpm dev triggers nextjs and verification",
+      "description": "pnpm dev triggers verification",
       "type": "bash",
       "input": "pnpm dev",
-      "expectedSkills": ["nextjs", "verification"]
+      "expectedSkills": [
+        "verification"
+      ]
     },
     {
-      "description": "bun run dev triggers nextjs and verification",
+      "description": "bun run dev triggers verification",
       "type": "bash",
       "input": "bun run dev",
-      "expectedSkills": ["nextjs", "verification"]
+      "expectedSkills": [
+        "verification"
+      ]
     },
     {
       "description": "vite triggers verification",
       "type": "bash",
       "input": "vite",
-      "expectedSkills": ["verification"]
+      "expectedSkills": [
+        "verification"
+      ]
     },
     {
       "description": "npm install prisma currently triggers no direct skill matches",
@@ -137,13 +184,17 @@
       "description": "npm install @clerk/nextjs triggers auth",
       "type": "bash",
       "input": "npm install @clerk/nextjs",
-      "expectedSkills": ["auth"]
+      "expectedSkills": [
+        "auth"
+      ]
     },
     {
       "description": "yarn add @clerk/nextjs triggers auth",
       "type": "bash",
       "input": "yarn add @clerk/nextjs",
-      "expectedSkills": ["auth"]
+      "expectedSkills": [
+        "auth"
+      ]
     },
     {
       "description": "pnpm add prisma langchain currently triggers no direct skill matches",
