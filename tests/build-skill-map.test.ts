@@ -121,19 +121,11 @@ describe("build-manifest.ts", () => {
     const manifest = readManifest();
     const slugs = Object.keys(manifest.skills);
     // These skills should always exist
-    expect(slugs).toContain("nextjs");
+    expect(slugs).toContain("vercel-functions");
     expect(slugs).toContain("vercel-cli");
     expect(slugs).toContain("ai-sdk");
   });
 
-  test("nextjs skill has expected path patterns", () => {
-    const manifest = readManifest();
-    const nextjs = manifest.skills["nextjs"];
-    expect(nextjs).toBeDefined();
-    const patterns = nextjs.pathPatterns;
-    // Should match next.config files
-    expect(patterns.some((p: string) => p.includes("next.config"))).toBe(true);
-  });
 });
 
 describe("manifest-backed hook loading", () => {
@@ -143,7 +135,7 @@ describe("manifest-backed hook loading", () => {
 
     const { code, stdout } = await runHook({
       tool_name: "Read",
-      tool_input: { file_path: "next.config.ts" },
+      tool_input: { file_path: "app/api/hello/route.ts" },
     });
     expect(code).toBe(0);
 
@@ -154,7 +146,7 @@ describe("manifest-backed hook loading", () => {
     const siMatch = ctx.match(/<!-- skillInjection: (\{.*?\}) -->/);
     expect(siMatch).not.toBeNull();
     const si = JSON.parse(siMatch![1]);
-    expect(si.injectedSkills).toContain("nextjs");
+    expect(si.injectedSkills).toContain("vercel-functions");
   });
 
   test("hook produces same matches with and without manifest", async () => {

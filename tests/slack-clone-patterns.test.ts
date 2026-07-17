@@ -40,22 +40,22 @@ async function matchFile(filePath: string): Promise<string[]> {
   return si.injectedSkills ?? [];
 }
 
-const EXPECTED_SLACK_ROUTE_SKILLS = ["chat-sdk", "vercel-functions", "next-cache-components"] as const;
+const EXPECTED_SLACK_ROUTE_SKILLS = ["chat-sdk", "vercel-functions"] as const;
 
 describe("slack clone patterns", () => {
-  test("slack-clone app/api/slack/route.ts injects chat-sdk, vercel-functions, next-cache-components", async () => {
+  test("slack-clone app/api/slack/route.ts injects chat-sdk, vercel-functions", async () => {
     expect(await matchFile("/Users/me/slack-clone/app/api/slack/route.ts")).toEqual(
       EXPECTED_SLACK_ROUTE_SKILLS,
     );
   });
 
-  test("slack-clone src/app/api/slack/route.ts injects chat-sdk, vercel-functions, next-cache-components", async () => {
+  test("slack-clone src/app/api/slack/route.ts injects chat-sdk, vercel-functions", async () => {
     expect(await matchFile("/Users/me/slack-clone/src/app/api/slack/route.ts")).toEqual(
       EXPECTED_SLACK_ROUTE_SKILLS,
     );
   });
 
-  test("slack-clone app/api/webhooks/slack/route.ts injects chat-sdk, vercel-functions, next-cache-components", async () => {
+  test("slack-clone app/api/webhooks/slack/route.ts injects chat-sdk, vercel-functions", async () => {
     expect(await matchFile("/Users/me/slack-clone/app/api/webhooks/slack/route.ts")).toEqual(
       EXPECTED_SLACK_ROUTE_SKILLS,
     );

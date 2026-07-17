@@ -8,7 +8,7 @@ const HOOK_SCRIPT = join(ROOT, "hooks", "pretooluse-skill-inject.mjs");
 const UNLIMITED_BUDGET = "999999";
 let testSession: string;
 
-const EXPECTED_SLACK_ROUTE_SKILLS = ["chat-sdk", "vercel-functions", "next-cache-components"] as const;
+const EXPECTED_SLACK_ROUTE_SKILLS = ["chat-sdk", "vercel-functions"] as const;
 
 function seedSeenSkills(skills: string[], session?: string): void {
   const sid = session ?? testSession;
@@ -94,7 +94,7 @@ describe("subagent fresh env dedup behavior", () => {
     expect(leadInjected).toEqual(EXPECTED_SLACK_ROUTE_SKILLS);
 
     // Second call with file-based dedup — should be deduped
-    seedSeenSkills(["nextjs", ...leadInjected]);
+    seedSeenSkills([...leadInjected]);
     const { code: leadSecondCode, stdout: leadSecondStdout } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: slackRoutePath } },
       {},
@@ -143,7 +143,7 @@ describe("subagent fresh env dedup behavior", () => {
   });
 
   test("subagent that inherits the lead seen-skills via file dedup is deduped", async () => {
-    seedSeenSkills(["nextjs", ...EXPECTED_SLACK_ROUTE_SKILLS]);
+    seedSeenSkills([...EXPECTED_SLACK_ROUTE_SKILLS]);
     const { code, stdout } = await runHookEnv(
       { tool_name: "Read", tool_input: { file_path: slackRoutePath } },
       {},
