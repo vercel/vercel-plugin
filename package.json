@@ -2,6 +2,7 @@
   "name": "vercel-plugin",
   "version": "0.45.1",
   "private": true,
+  "license": "Apache-2.0",
   "bin": {
     "vercel-plugin": "src/cli/index.ts"
   },
