@@ -291,3 +291,7 @@ If something doesn't work right, a skill gives bad advice, or injection doesn't 
 - What you were building
 - What the plugin injected (or didn't) — enable debug logs with `VERCEL_PLUGIN_LOG_LEVEL=debug`
 - What was wrong about it
+
+## License
+
+[Apache-2.0](LICENSE)
