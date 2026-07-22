@@ -7,7 +7,7 @@ import {
   readdirSync
 } from "fs";
 import { delimiter, join, resolve } from "path";
-import { execFileSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { fileURLToPath } from "url";
 import {
   formatOutput,
@@ -200,12 +200,12 @@ var SPAWN_STDIO = "ignore pipe ignore".split(" ");
 var EXEC_SYNC_TIMEOUT_MS = 3e3;
 var NUMERIC_VERSION_RE = /\d+(?:\.\d+)*/;
 var WINDOWS_EXECUTABLE_EXTENSIONS = (process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean);
-function getBinaryPathCandidates(binaryName) {
-  if (process.platform !== "win32") {
+function getBinaryPathCandidates(binaryName, platform = process.platform) {
+  if (platform !== "win32") {
     return [binaryName];
   }
   const hasExecutableExtension = /\.[^./\\]+$/.test(binaryName);
-  const suffixes = hasExecutableExtension ? [""] : ["", ...WINDOWS_EXECUTABLE_EXTENSIONS];
+  const suffixes = hasExecutableExtension ? [""] : WINDOWS_EXECUTABLE_EXTENSIONS;
   return suffixes.map((suffix) => `${binaryName}${suffix}`);
 }
 function resolveBinaryFromPath(binaryName) {
@@ -233,6 +233,28 @@ function resolveBinaryFromPath(binaryName) {
     reason: "not-found"
   });
   return null;
+}
+function buildWindowsShellCommand(binaryPath, args, platform = process.platform) {
+  if (platform !== "win32" || !/\.(?:cmd|bat)$/i.test(binaryPath)) {
+    return null;
+  }
+  const quote = (value) => `"${value.replace(/"/g, '""')}"`;
+  return [quote(binaryPath), ...args.map(quote)].join(" ");
+}
+function execResolvedBinarySync(binaryPath, args) {
+  const windowsShellCommand = buildWindowsShellCommand(binaryPath, args);
+  const options = {
+    timeout: EXEC_SYNC_TIMEOUT_MS,
+    encoding: "utf-8",
+    stdio: SPAWN_STDIO
+  };
+  if (windowsShellCommand) {
+    return execSync(windowsShellCommand, {
+      ...options,
+      shell: process.env.ComSpec || "cmd.exe"
+    }).trim();
+  }
+  return execFileSync(binaryPath, args, options).trim();
 }
 function parseVersionSegments(version) {
   const matchedVersion = version.match(NUMERIC_VERSION_RE)?.[0];
@@ -264,11 +286,7 @@ function checkVercelCli() {
   }
   let currentVersion;
   try {
-    const raw = execFileSync(vercelBinary, VERCEL_VERSION_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO
-    }).trim();
+    const raw = execResolvedBinarySync(vercelBinary, VERCEL_VERSION_ARGS);
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
     currentVersion = lines[lines.length - 1];
   } catch (error) {
@@ -284,11 +302,7 @@ function checkVercelCli() {
   }
   let latestVersion;
   try {
-    const raw = execFileSync(npmBinary, NPM_VIEW_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO
-    }).trim();
+    const raw = execResolvedBinarySync(npmBinary, NPM_VIEW_ARGS);
     latestVersion = raw;
   } catch (error) {
     logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
@@ -487,9 +501,11 @@ if (isSessionStartProfilerEntrypoint) {
 export {
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
+  buildWindowsShellCommand,
   checkGreenfield,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
+  getBinaryPathCandidates,
   logBrokenSkillFrontmatterSummary,
   normalizeSessionStartSessionId,
   parseSessionStartInput,

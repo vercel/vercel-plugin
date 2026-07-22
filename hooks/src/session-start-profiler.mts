@@ -20,7 +20,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   formatOutput,
@@ -330,13 +330,18 @@ const WINDOWS_EXECUTABLE_EXTENSIONS = (process.env.PATHEXT || ".EXE;.CMD;.BAT;.C
   .split(";")
   .filter(Boolean);
 
-function getBinaryPathCandidates(binaryName: string): string[] {
-  if (process.platform !== "win32") {
+export function getBinaryPathCandidates(
+  binaryName: string,
+  platform: NodeJS.Platform = process.platform,
+): string[] {
+  if (platform !== "win32") {
     return [binaryName];
   }
 
   const hasExecutableExtension = /\.[^./\\]+$/.test(binaryName);
-  const suffixes = hasExecutableExtension ? [""] : ["", ...WINDOWS_EXECUTABLE_EXTENSIONS];
+  // npm installs an extensionless POSIX shim beside PATHEXT launchers on
+  // Windows. Node's execFileSync cannot execute that shim or a .cmd directly.
+  const suffixes = hasExecutableExtension ? [""] : WINDOWS_EXECUTABLE_EXTENSIONS;
   return suffixes.map((suffix: string) => `${binaryName}${suffix}`);
 }
 
@@ -366,6 +371,37 @@ function resolveBinaryFromPath(binaryName: string): string | null {
     reason: "not-found",
   });
   return null;
+}
+
+export function buildWindowsShellCommand(
+  binaryPath: string,
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+): string | null {
+  if (platform !== "win32" || !/\.(?:cmd|bat)$/i.test(binaryPath)) {
+    return null;
+  }
+
+  const quote = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+  return [quote(binaryPath), ...args.map(quote)].join(" ");
+}
+
+function execResolvedBinarySync(binaryPath: string, args: string[]): string {
+  const windowsShellCommand = buildWindowsShellCommand(binaryPath, args);
+  const options = {
+    timeout: EXEC_SYNC_TIMEOUT_MS,
+    encoding: "utf-8" as const,
+    stdio: SPAWN_STDIO,
+  };
+
+  if (windowsShellCommand) {
+    return execSync(windowsShellCommand, {
+      ...options,
+      shell: process.env.ComSpec || "cmd.exe",
+    }).trim();
+  }
+
+  return execFileSync(binaryPath, args, options).trim();
 }
 
 function parseVersionSegments(version: string): number[] | null {
@@ -413,11 +449,7 @@ function checkVercelCli(): VercelCliStatus {
   // 1. Check if vercel is installed
   let currentVersion: string | undefined;
   try {
-    const raw: string = execFileSync(vercelBinary, VERCEL_VERSION_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO,
-    }).trim();
+    const raw: string = execResolvedBinarySync(vercelBinary, VERCEL_VERSION_ARGS);
     // Output may include extra lines; version is typically last non-empty line
     const lines: string[] = raw.split("\n").map((l: string) => l.trim()).filter(Boolean);
     currentVersion = lines[lines.length - 1];
@@ -437,11 +469,7 @@ function checkVercelCli(): VercelCliStatus {
   // 2. Fetch latest version from npm registry
   let latestVersion: string | undefined;
   try {
-    const raw: string = execFileSync(npmBinary, NPM_VIEW_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO,
-    }).trim();
+    const raw: string = execResolvedBinarySync(npmBinary, NPM_VIEW_ARGS);
     latestVersion = raw;
   } catch (error) {
     logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
