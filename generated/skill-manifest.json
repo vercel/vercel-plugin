@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T17:36:42.694Z",
+  "generatedAt": "2026-07-24T23:01:08.971Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -887,6 +887,9 @@
           "cache reason",
           "cacheReason",
           "x-vercel-cache-reason",
+          "ppr state",
+          "ppr_state",
+          "x-vercel-ppr-state",
           "stale_time",
           "stale_tag",
           "stale_error",
@@ -938,6 +941,7 @@
       "retrieval": {
         "aliases": [
           "cache reason",
+          "ppr state",
           "cache hit rate",
           "stale content"
         ],
@@ -948,6 +952,7 @@
         ],
         "entities": [
           "cacheReason",
+          "ppr_state",
           "collapsed",
           "draft_mode",
           "prerender_bypass",
