@@ -1,6 +1,6 @@
 ---
 name: cdn-caching
-description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, per-request cache reasons (cacheReason), and costs.
+description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, per-request cache reasons (cacheReason) and PPR state (ppr_state), and costs.
 metadata:
   priority: 6
   docs:
@@ -21,6 +21,9 @@ metadata:
       - 'cache reason'
       - 'cacheReason'
       - 'x-vercel-cache-reason'
+      - 'ppr state'
+      - 'ppr_state'
+      - 'x-vercel-ppr-state'
       - 'stale_time'
       - 'stale_tag'
       - 'stale_error'
@@ -46,6 +49,7 @@ metadata:
 retrieval:
   aliases:
     - cache reason
+    - ppr state
     - cache hit rate
     - stale content
   intents:
@@ -54,6 +58,7 @@ retrieval:
     - why was this a cache miss
   entities:
     - cacheReason
+    - ppr_state
     - collapsed
     - draft_mode
     - prerender_bypass
@@ -124,6 +129,16 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `stale_error`      | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
 
   A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
+
+- **PPR state** (`ppr_state`) — for a Partial Prerendering route, _how much_ of the response was prerendered versus computed per request. Only set on `partial_prerender` serves; blank for plain `prerender` / `func` / `static` routes and for cases the proxy can't classify (cold shell miss, `BYPASS`). Three values:
+
+  | `ppr_state` | Shown as | Meaning                                                                             |
+  | ----------- | -------- | ----------------------------------------------------------------------------------- |
+  | `page`      | Static   | Fully prerendered — no postponed state, so the function is not invoked for the body |
+  | `shell`     | Partial  | Non-empty static shell from cache + a postponed hole the function resumes per request |
+  | `blocking`  | Dynamic  | Empty shell — the whole body is postponed and rendered by the function per request  |
+
+  A shell hit that still invokes the function is `shell` (Partial), _not_ a cache miss — the cached shell serves immediately while the function fills only the dynamic holes. Read `ppr_state` from `vercel logs` or the dashboard Logs panel, or aggregate with `vercel metrics vercel.request.count --group-by ppr_state`. Like `cacheReason`, the `x-vercel-ppr-state` header is internal-only and not visible via `curl`.
 
 ## Investigating cache issues
 
