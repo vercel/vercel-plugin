@@ -46,10 +46,11 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (30 skills)
+### Skills (31 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `access-protected-vercel-deployment` | Authenticated CLI and browser access to protected preview and production deployments using `vc curl`, OIDC, and Trusted Sources |
 | `ai-gateway`            | Unified model API, provider routing, failover, cost tracking, 100+ models                                                            |
 | `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                      |
 | `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                                  |
@@ -226,7 +227,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 29 skills
+├── skills/                          # 31 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
@@ -280,6 +281,7 @@ bun run build:from-skills # Stage 4: Resolve template includes
 - Turbopack (default bundler in Next.js 16)
 - v0 (agentic intelligence, GitHub integration)
 - Vercel CLI (cache management, MCP integration, marketplace discovery)
+- Protected deployment access (`vc curl`, local OIDC tokens, Trusted Sources)
 - Vercel Observability (Analytics, Speed Insights, Drains)
 - Vercel Marketplace (one-click integrations, unified billing)
 - Agent Browser (browser automation for dev server verification and testing)
