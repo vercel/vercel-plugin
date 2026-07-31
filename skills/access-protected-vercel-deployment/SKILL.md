@@ -129,15 +129,18 @@ Use `x-vercel-trusted-oidc-idp-token` for Trusted Sources. Do not substitute `x-
 
 ## Trusted Sources rules
 
-A local development token for a linked Vercel project can access that same project's deployments by default. Do not ask the user to configure Trusted Sources for the normal same-project case.
+A local development token for a linked Vercel project can access that same project's Preview deployments by default. It does not automatically access protected Production deployments. For protected Production, the project's own Trusted Sources entry must allow `development` → `production`.
+
+Do not ask the user to configure Trusted Sources for the normal same-project Preview case.
 
 Configuration is needed when:
 
+- the target is a protected Production deployment and the caller uses a local development token;
 - the caller belongs to another Vercel project or team;
 - the target project's self-access rules were customized; or
 - the response is `TRUSTED_SOURCES_ENVIRONMENT_MISMATCH`.
 
-In the target project, open **Settings → Deployment Protection → Trusted Sources**. Add or edit the caller and allow the required `from` → `to` environment pair. A local token has the `development` environment, so browser access to protected production may require `development` → `production`.
+In the target project, open **Settings → Deployment Protection → Trusted Sources**. Add or edit the caller and allow the required `from` → `to` environment pair. A local token has the `development` environment, so access to protected Production requires `development` → `production`.
 
 Treat this as an access-control change: explain the exact rule required and obtain authorization before changing it. Do not broaden unrelated environment pairs.
 

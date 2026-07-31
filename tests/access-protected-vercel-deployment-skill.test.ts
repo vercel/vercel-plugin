@@ -105,7 +105,11 @@ describe("protected deployment guidance", () => {
     expect(skill).toContain("VERCEL_OIDC_TOKEN");
     expect(skill).toContain("x-vercel-trusted-oidc-idp-token");
     expect(skill).toContain("agent-browser");
-    expect(skill).toContain("same project's deployments by default");
+    expect(skill).toContain("same project's Preview deployments by default");
+    expect(skill).toContain(
+      "does not automatically access protected Production deployments",
+    );
+    expect(skill).not.toContain("same project's deployments by default");
     expect(skill).toContain("development` → `production");
     expect(skill).toContain("Do not disable Deployment Protection");
   });
