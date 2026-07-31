@@ -57,6 +57,7 @@ describe("protected deployment prompt activation", () => {
     "The Vercel authentication page appears instead of the app.",
     "curl gets a 403 from this Vercel deployment.",
     "Open the protected production deployment in the browser.",
+    "My protected Vercel deployment uses a custom domain.",
     "Fix TRUSTED_SOURCES_ENVIRONMENT_MISMATCH.",
     "Use x-vercel-trusted-oidc-idp-token for this request.",
   ])("matches protected Vercel access intent: %s", (prompt) => {
@@ -77,10 +78,13 @@ describe("protected deployment prompt activation", () => {
 describe("protected deployment command activation", () => {
   test.each([
     "vc curl https://my-app.vercel.app/api/health",
+    "vc curl https://app.example.com/api/health",
     "vercel curl /api/health",
+    "vercel curl https://preview.example.com/api/health",
     "curl -I https://my-app-git-main.vercel.app",
     "agent-browser open https://my-app.vercel.app",
-    "curl -H 'x-vercel-trusted-oidc-idp-token: token' https://example.com",
+    "curl -H 'x-vercel-trusted-oidc-idp-token: token' https://app.example.com",
+    "curl -H 'x-vercel-protection-bypass: token' https://app.example.com",
   ])("matches protected deployment access commands: %s", (command) => {
     expect(
       matchBashWithReason(command, compiledSkill.compiledBash),
@@ -89,6 +93,7 @@ describe("protected deployment command activation", () => {
 
   test.each([
     "curl http://localhost:3000",
+    "curl https://api.example.com",
     "agent-browser open https://example.com",
     "vercel logs",
     "kubectl get deployments",
@@ -105,6 +110,12 @@ describe("protected deployment guidance", () => {
     expect(skill).toContain("VERCEL_OIDC_TOKEN");
     expect(skill).toContain("x-vercel-trusted-oidc-idp-token");
     expect(skill).toContain("agent-browser");
+    expect(skill).toContain(
+      "Browser automation: attach the development OIDC token as a header",
+    );
+    expect(skill).toContain(
+      "short-lived local token as a request header",
+    );
     expect(skill).toContain("same project's Preview deployments by default");
     expect(skill).toContain(
       "does not automatically access protected Production deployments",

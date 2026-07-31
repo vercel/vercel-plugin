@@ -11,10 +11,13 @@ metadata:
   sitemap: "https://vercel.com/sitemap/docs.xml"
   pathPatterns: []
   bashPatterns:
+    # Match vc curl for every hostname, including custom aliases.
     - '\b(?:vercel|vc)\s+curl\b'
+    # Keep raw clients scoped to hostnames that identify themselves as Vercel.
     - '\b(?:curl|wget)\b[^\n]*\.vercel\.app\b'
     - '\bagent-browser\b[^\n]*(?:open|navigate|goto)[^\n]*\.vercel\.app\b'
-    - '\bx-vercel-trusted-oidc-idp-token\b'
+    # Match custom aliases when the request includes an explicit Vercel protection header.
+    - '\bx-vercel-(?:trusted-oidc-idp-token|protection-bypass)\b'
   importPatterns: []
   promptSignals:
     phrases:
@@ -68,6 +71,7 @@ retrieval:
   examples:
     - preview is behind Vercel SSO
     - curl this protected Vercel deployment
+    - access a protected Vercel deployment through a custom domain
     - open the protected production URL in agent-browser
 ---
 
@@ -83,6 +87,7 @@ For response bodies, headers, health checks, and API calls, replace raw `curl` w
 
 ```bash
 vc curl https://my-app.vercel.app/api/health
+vc curl https://app.example.com/api/health
 vc curl my-app.vercel.app/api/users -X POST \
   -H "Content-Type: application/json" \
   -d '{"name":"Ada"}'
@@ -99,9 +104,9 @@ vc whoami
 
 Inspect `.vercel/project.json` to confirm the linked project and team. Run `vc link` only when the directory is not linked or is linked to the wrong project. Run `vc login` only when the CLI reports that no authenticated user is available.
 
-### Browser automation: attach the development OIDC token
+### Browser automation: attach the development OIDC token as a header
 
-Browser requests must include the short-lived local token as:
+Browser requests must include the short-lived local token as a request header:
 
 ```text
 x-vercel-trusted-oidc-idp-token: <VERCEL_OIDC_TOKEN>

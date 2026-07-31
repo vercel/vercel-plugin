@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-31T15:49:37.107Z",
+  "generatedAt": "2026-07-31T18:16:05.834Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -16,7 +16,7 @@
         "\\b(?:vercel|vc)\\s+curl\\b",
         "\\b(?:curl|wget)\\b[^\\n]*\\.vercel\\.app\\b",
         "\\bagent-browser\\b[^\\n]*(?:open|navigate|goto)[^\\n]*\\.vercel\\.app\\b",
-        "\\bx-vercel-trusted-oidc-idp-token\\b"
+        "\\bx-vercel-(?:trusted-oidc-idp-token|protection-bypass)\\b"
       ],
       "importPatterns": [],
       "bodyPath": "skills/access-protected-vercel-deployment/SKILL.md",
@@ -25,7 +25,7 @@
         "\\b(?:vercel|vc)\\s+curl\\b",
         "\\b(?:curl|wget)\\b[^\\n]*\\.vercel\\.app\\b",
         "\\bagent-browser\\b[^\\n]*(?:open|navigate|goto)[^\\n]*\\.vercel\\.app\\b",
-        "\\bx-vercel-trusted-oidc-idp-token\\b"
+        "\\bx-vercel-(?:trusted-oidc-idp-token|protection-bypass)\\b"
       ],
       "importRegexSources": [],
       "promptSignals": {
@@ -106,6 +106,7 @@
         "examples": [
           "preview is behind Vercel SSO",
           "curl this protected Vercel deployment",
+          "access a protected Vercel deployment through a custom domain",
           "open the protected production URL in agent-browser"
         ]
       }
