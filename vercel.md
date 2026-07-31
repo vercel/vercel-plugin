@@ -1,4 +1,4 @@
-# Vercel Ecosystem — Relational Knowledge Graph (as of Mar 4, 2026)
+# Vercel Ecosystem — Relational Knowledge Graph (as of Jul 30, 2026)
 
 > This document is the master reference for understanding the entire Vercel ecosystem.
 > It maps every product, library, CLI, API, and service — how they relate, when to use each,
@@ -29,6 +29,8 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Build System (Turbopack or framework-native)
 │   ↔ Vercel CLI
 │   ↔ Vercel REST API / @vercel/sdk
+│   ⊃ Deployment Protection (Vercel Authentication, SSO, Trusted Sources)
+│   ⤳ skill: access-protected-vercel-deployment
 │   ⤳ skill: vercel-cli
 │   ⤳ skill: deployments-cicd
 │
@@ -521,6 +523,12 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │   ⊃ vercel build (local build)
 │   ⊃ vercel deploy --prebuilt (deploy build output only)
 │   ⊃ vercel promote / vercel rollback
+│
+├── Protected Deployment Access            ⤳ skill: access-protected-vercel-deployment
+│   ⊃ vercel curl (authenticated HTTP requests to preview or production)
+│   ⊃ VERCEL_OIDC_TOKEN (short-lived local development identity)
+│   ⊃ x-vercel-trusted-oidc-idp-token (browser and automation requests)
+│   ↔ Trusted Sources (caller project and environment access rules)
 │
 ├── Development
 │   ⊃ vercel dev (local dev server)
