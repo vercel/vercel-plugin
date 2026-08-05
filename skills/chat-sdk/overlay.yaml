@@ -126,7 +126,7 @@ chainTo:
   -
     pattern: 'setTimeout\s*\(|setInterval\s*\(|while\s*\(\s*true'
     targetSkill: workflow
-    message: 'Long-running or polling logic in chat bot — loading Workflow DevKit for durable execution that survives deploys.'
+    message: 'Long-running or polling logic in chat bot — loading Workflow SDK for durable execution that survives deploys.'
     skipIfFileContains: 'use workflow|from\s+[''"]workflow[''"]'
   -
     pattern: 'process\.env\.(OPENAI_API_KEY|ANTHROPIC_API_KEY)|from\s+[''"]@ai-sdk/(anthropic|openai)[''""]'

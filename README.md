@@ -80,7 +80,7 @@ A text-form relational graph covering:
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                                                      |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
-| `workflow`              | Workflow DevKit — durable execution, DurableAgent, steps, Worlds, pause/resume                                                       |
+| `workflow`              | Workflow SDK — durable execution, DurableAgent, steps, Worlds, pause/resume                                                          |
 
 ### Agents (3 specialists)
 
@@ -264,7 +264,7 @@ bun run build:from-skills # Stage 4: Resolve template includes
 - AI SDK v6 (Agents, MCP, DevTools, Reranking, Image Editing)
 - AI Elements (pre-built React components for AI interfaces)
 - Chat SDK (multi-platform chat bots — Slack, Telegram, Teams, Discord)
-- Workflow DevKit (DurableAgent, Worlds, open source)
+- Workflow SDK (DurableAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
 - Vercel Functions (Fluid Compute, streaming, Cron Jobs)
 - Storage (Blob, Edge Config, Neon Postgres, Upstash Redis)

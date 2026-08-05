@@ -1,10 +1,10 @@
 name: workflow
-description: Vercel Workflow DevKit (WDK) expert guidance. Use when building durable workflows, long-running tasks, API routes or agents that need pause/resume, retries, step-based execution, or crash-safe orchestration with Vercel Workflow.
+description: Vercel Workflow SDK expert guidance. Use when building durable workflows, long-running tasks, API routes or agents that need pause/resume, retries, step-based execution, or crash-safe orchestration with Vercel Workflow.
 metadata:
   priority: 9
   docs:
     - "https://vercel.com/docs/workflow"
-    - "https://useworkflow.dev"
+    - "https://workflow-sdk.dev"
   sitemap: "https://vercel.com/sitemap/docs.xml"
   pathPatterns:
     - 'lib/workflow/**'
@@ -37,6 +37,8 @@ metadata:
     phrases:
       # Direct workflow mentions
       - "vercel workflow"
+      - "workflow sdk"
+      # Legacy product name retained only as an input matcher.
       - "workflow devkit"
       - "durable workflow"
       - "durable execution"
@@ -337,7 +339,7 @@ validate:
     upgradeWhy: 'Guides migration from experimental_createWorkflow to the stable createWorkflow API and then to the "use workflow" directive.'
   -
     pattern: from\s+['"]@vercel/workflow['"]
-    message: 'Workflow DevKit requires AI Gateway OIDC setup — ensure vercel link + vercel env pull for VERCEL_OIDC_TOKEN'
+    message: 'Workflow SDK requires AI Gateway OIDC setup — ensure vercel link + vercel env pull for VERCEL_OIDC_TOKEN'
     severity: recommended
   -
     pattern: setTimeout|setInterval
@@ -346,7 +348,7 @@ validate:
     skipIfFileContains: "use step"
   -
     pattern: context\.run\s*\(
-    message: 'context.run() is not a WDK pattern — use "use step" directive for retryable, observable steps'
+    message: 'context.run() is not a Workflow SDK pattern — use "use step" directive for retryable, observable steps'
     severity: error
     upgradeToSkill: workflow
     upgradeWhy: 'Guides migration from context.run() to the "use step" directive for durable, retryable workflow steps.'
@@ -402,7 +404,7 @@ chainTo:
   -
     pattern: 'process\.env\.(OPENAI_API_KEY|ANTHROPIC_API_KEY)|from\s+[''"]@ai-sdk/(anthropic|openai)[''""]'
     targetSkill: ai-gateway
-    message: 'Direct provider API key in workflow — loading AI Gateway guidance for OIDC auth (required for WDK AI steps).'
+    message: 'Direct provider API key in workflow — loading AI Gateway guidance for OIDC auth (required for Workflow SDK AI steps).'
     skipIfFileContains: 'gateway\(|@ai-sdk/gateway|VERCEL_OIDC'
   -
     pattern: 'setTimeout\s*\(|setInterval\s*\('
@@ -421,6 +423,8 @@ retrieval:
     - create durable task
     - implement step function
   entities:
+    - Workflow SDK
+    # Legacy product names retained only as retrieval aliases.
     - Workflow DevKit
     - WDK
     - step

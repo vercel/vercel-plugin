@@ -99,10 +99,10 @@ validate:
     skipIfFileContains: 'getCache|from\s+[''""]\@vercel/functions[''""]'
   -
     pattern: 'maxRetries\s*[=:]|retryCount\s*[=:]|retry\s*\(\s*|for\s*\([^)]*retry|while\s*\([^)]*retry'
-    message: 'Manual retry logic detected. Use Vercel Workflow DevKit for automatic retries with durable execution.'
+    message: 'Manual retry logic detected. Use Vercel Workflow SDK for automatic retries with durable execution.'
     severity: recommended
     upgradeToSkill: workflow
-    upgradeWhy: 'Replace manual retry loops with Workflow DevKit steps that provide automatic retries, crash safety, and observability.'
+    upgradeWhy: 'Replace manual retry loops with Workflow SDK steps that provide automatic retries, crash safety, and observability.'
     skipIfFileContains: 'use workflow|use step|@vercel/workflow|from\s+[''""](workflow)[''""]'
   -
     pattern: 'from\s+[''"](express)[''""]|require\s*\(\s*[''"](express)[''""\)]'
@@ -140,7 +140,7 @@ chainTo:
   -
     pattern: 'setTimeout\s*\(|setInterval\s*\(|await\s+new\s+Promise\s*\([^)]*setTimeout'
     targetSkill: workflow
-    message: 'Long-running or polling logic in serverless handler — loading Workflow DevKit for durable execution.'
+    message: 'Long-running or polling logic in serverless handler — loading Workflow SDK for durable execution.'
   -
     pattern: 'writeFile(Sync)?\(|createWriteStream\(|from\s+[''\"](multer|formidable)[''"]|fs\.writeFile'
     targetSkill: vercel-storage
@@ -156,7 +156,7 @@ chainTo:
   -
     pattern: 'while\s*\(\s*true\s*\)\s*\{|for\s*\(\s*;\s*;\s*\)\s*\{|setInterval\s*\(\s*async'
     targetSkill: workflow
-    message: 'Polling loop in serverless function detected — loading Workflow DevKit for durable, crash-safe execution with pause/resume.'
+    message: 'Polling loop in serverless function detected — loading Workflow SDK for durable, crash-safe execution with pause/resume.'
     skipIfFileContains: "use workflow|use step|from\\s+['\"]workflow['\"]"
   -
     pattern: "from\\s+['\"]express['\"]|require\\s*\\(\\s*['\"]express['\"]"
@@ -171,7 +171,7 @@ chainTo:
   -
     pattern: 'maxRetries\s*[=:]|retryCount\s*[=:]|retry\s*\(\s*|for\s*\([^)]*retry|while\s*\([^)]*retry'
     targetSkill: workflow
-    message: 'Manual retry logic in serverless handler — loading Workflow DevKit guidance for automatic retries with durable execution.'
+    message: 'Manual retry logic in serverless handler — loading Workflow SDK guidance for automatic retries with durable execution.'
     skipIfFileContains: 'use workflow|use step|@vercel/workflow|from\s+[''""](workflow)[''""]'
 
 ---
@@ -480,7 +480,7 @@ All plans now default to 300s execution time with Fluid Compute.
 
 1. **Cold starts with DB connections**: Use connection pooling (e.g., Neon's `@neondatabase/serverless`)
 2. **Edge limitations**: No `fs`, no native modules, limited `crypto` — use Node.js runtime if needed
-3. **Timeout exceeded**: Use Fluid Compute for long-running tasks, or Workflow DevKit for very long processes
+3. **Timeout exceeded**: Use Fluid Compute for long-running tasks, or Workflow SDK for very long processes
 4. **Bundle size**: Functions support up to 5 GB package size on Fluid Compute (up from 250 MB); request bodies up to 100 MB (up from 4.5 MB)
 5. **Environment variables**: Available in all functions automatically; use `vercel env pull` for local dev
 
@@ -495,7 +495,7 @@ All plans now default to 300s execution time with Fluid Compute.
 ├─ Long-running task?
 │  ├─ Under 5 min → Use Fluid Compute with streaming
 │  ├─ Up to 15 min → Use Vercel Functions with `maxDuration` in vercel.json
-│  └─ Hours/days → Use Workflow DevKit (DurableAgent or workflow steps)
+│  └─ Hours/days → Use Workflow SDK (DurableAgent or workflow steps)
 └─ DB query slow? → Add connection pooling, check cold start, use Edge Config
 ```
 
