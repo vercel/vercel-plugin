@@ -1,4 +1,4 @@
-# Vercel Ecosystem — Relational Knowledge Graph (as of Jul 30, 2026)
+# Vercel Ecosystem — Relational Knowledge Graph (as of Aug 5, 2026)
 
 > This document is the master reference for understanding the entire Vercel ecosystem.
 > It maps every product, library, CLI, API, and service — how they relate, when to use each,
@@ -93,6 +93,14 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Edge Network (routing resolved at network layer)
 │   ↔ @vercel/microfrontends (Next.js, SvelteKit, React Router, Vite)
 │   ⤳ skill: microfrontends
+│
+├── Services (multiple components in one Vercel project)
+│   ⊃ Independently built frontends and backends
+│   ⊃ Top-level rewrites (shared public routing and domain)
+│   ⊃ Service bindings (private, deployment-aware communication)
+│   → Deployment Engine (atomic previews, deploys, and rollbacks)
+│   ↔ Vercel CLI (vercel dev runs all services locally)
+│   ⤳ skill: vercel-services  📖 docs: https://vercel.com/docs/services
 │
 └── Teams & Access Control
     ↔ Vercel REST API

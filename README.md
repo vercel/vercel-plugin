@@ -46,7 +46,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (31 skills)
+### Skills (32 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -78,6 +78,7 @@ A text-form relational graph covering:
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
 | `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                                                 |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
+| `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                                                      |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
 | `workflow`              | Workflow DevKit — durable execution, DurableAgent, steps, Worlds, pause/resume                                                       |

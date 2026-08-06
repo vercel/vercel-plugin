@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-31T18:16:05.834Z",
+  "generatedAt": "2026-08-06T02:59:36.893Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -3996,6 +3996,106 @@
           "isolated execution"
         ],
         "examples": []
+      }
+    },
+    "vercel-services": {
+      "priority": 7,
+      "summary": "Compose multiple frontends and backends in one Vercel project",
+      "docs": [
+        "https://vercel.com/docs/services",
+        "https://vercel.com/docs/services/routing",
+        "https://vercel.com/docs/services/bindings",
+        "https://vercel.com/docs/services/config-reference"
+      ],
+      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "pathPatterns": [
+        "vercel.json",
+        "apps/*/vercel.json"
+      ],
+      "bashPatterns": [
+        "\\b(?:vercel|vc)\\s+dev\\b[^\\n]*(?:--local|-L)(?:\\s|$)"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/vercel-services/SKILL.md",
+      "pathRegexSources": [
+        "^vercel\\.json$",
+        "^apps\\/[^/]*\\/vercel\\.json$"
+      ],
+      "bashRegexSources": [
+        "\\b(?:vercel|vc)\\s+dev\\b[^\\n]*(?:--local|-L)(?:\\s|$)"
+      ],
+      "importRegexSources": [],
+      "promptSignals": {
+        "phrases": [
+          "vercel services",
+          "vercel service binding",
+          "vercel service bindings",
+          "multi-service vercel",
+          "multiple services on vercel",
+          "frontend and backend on vercel"
+        ],
+        "allOf": [
+          [
+            "frontend",
+            "backend",
+            "vercel"
+          ],
+          [
+            "polyglot",
+            "vercel"
+          ],
+          [
+            "multiple",
+            "services",
+            "vercel"
+          ],
+          [
+            "services",
+            "vercel.json"
+          ],
+          [
+            "vercel",
+            "service",
+            "binding"
+          ]
+        ],
+        "anyOf": [
+          "frontend",
+          "backend",
+          "monorepo",
+          "polyglot",
+          "service",
+          "binding",
+          "vercel"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "Vercel Services",
+          "multi-service project",
+          "polyglot project",
+          "service binding",
+          "service rewrite"
+        ],
+        "intents": [
+          "deploy frontend and backend together on Vercel",
+          "configure multiple services in vercel.json",
+          "route requests to a service",
+          "call another service privately"
+        ],
+        "entities": [
+          "services",
+          "bindings",
+          "destination.service",
+          "root"
+        ],
+        "examples": [
+          "put a Next.js frontend and FastAPI backend in one Vercel project",
+          "expose one service at /api and keep another service private",
+          "inject an internal backend URL into the frontend service"
+        ]
       }
     },
     "vercel-storage": {

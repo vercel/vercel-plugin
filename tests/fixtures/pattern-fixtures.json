@@ -2,10 +2,10 @@
   "$schema": "Pattern fixture dry-run: maps file paths and bash commands to expected skill matches",
   "fixtures": [
     {
-      "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions)",
+      "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions, services)",
       "type": "path",
       "input": "vercel.json",
-      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions"]
+      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions", "vercel-services"]
     },
     {
       "description": "next.config.ts triggers nextjs, turbopack, next-cache-components, and next-upgrade",

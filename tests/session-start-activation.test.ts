@@ -104,6 +104,27 @@ describe("session-start activation", () => {
     expect(readSessionFile(testSessionId, "likely-skills")).toContain("vercel-storage");
   });
 
+  test("services configuration profiles the Vercel Services skill", async () => {
+    const projectDir = join(tempDir, "services-project");
+    mkdirSync(projectDir);
+    writeFileSync(
+      join(projectDir, "vercel.json"),
+      JSON.stringify({
+        services: {
+          web: { root: "apps/web" },
+          api: { root: "apps/api", entrypoint: "main:app" },
+        },
+      }),
+    );
+
+    const result = await runProfiler(projectDir);
+
+    expect(result.code).toBe(0);
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain(
+      "vercel-services",
+    );
+  });
+
   test("the eve package activates the plugin and profiles the eve skill", async () => {
     const projectDir = join(tempDir, "eve-project");
     mkdirSync(projectDir);
