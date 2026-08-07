@@ -31,7 +31,6 @@ metadata:
       - [services, vercel.json]
       - [vercel, service, binding]
     anyOf:
-      - "frontend"
       - "backend"
       - "monorepo"
       - "polyglot"
