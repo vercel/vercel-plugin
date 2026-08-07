@@ -163,7 +163,7 @@ An SPA service that serves a static `index.html`, such as a Vite build, needs a 
 }
 ```
 
-On a top-level rewrite, `destination.path` changes route lookup inside the service, not the path observed by application code. Use a service-level `request.path` transform only when application code must observe a changed path.
+Do not set `path` on a service destination. The field is accepted by the schema but has no effect at request time. Reshape paths with a service-scoped rewrite or a `request.path` transform in the service's own `routes` instead.
 
 ## Serve a service on a subdomain
 
