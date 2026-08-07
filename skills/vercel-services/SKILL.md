@@ -112,7 +112,7 @@ Each service requires a `root` relative to `vercel.json`. Let Vercel detect the 
 }
 ```
 
-The top-level rewrites expose the services. A service without a matching top-level rewrite is not publicly reachable.
+The top-level rewrites expose the services. A service without a matching top-level rewrite is private: not reachable from the public internet, only through bindings.
 
 Keep configuration ownership clear:
 
@@ -195,6 +195,8 @@ const response = await fetch(url);
 ```
 
 Bindings are deployment-aware and do not create public routes. They are available to functions at runtime, not during builds or in Routing Middleware. Internal calls skip the public Firewall, Deployment Protection, top-level middleware, and CDN pipeline.
+
+Public exposure is decided only by top-level rewrites. A service with no top-level rewrite is private: it is unreachable from the public internet and only accessible through its bindings. A service with both bindings and a top-level rewrite is also reachable publicly, so do not assume binding-only access implies the routes are protected.
 
 A binding grants network reachability, not application authentication. Add service-level authorization when the target must verify the caller.
 
