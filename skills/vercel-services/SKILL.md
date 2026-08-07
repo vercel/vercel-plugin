@@ -141,7 +141,7 @@ The service receives the original request path. With the example above, `GET /ap
       "root": "apps/backend",
       "entrypoint": "main:app",
       "rewrites": [
-        { "source": "/api/:path(.*)", "destination": "/:path" }
+        { "source": "/api/:path(.*)?", "destination": "/:path" }
       ]
     }
   }
