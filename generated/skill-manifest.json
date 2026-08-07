@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-06T02:59:36.893Z",
+  "generatedAt": "2026-08-07T06:25:57.277Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -4036,7 +4036,6 @@
         ],
         "allOf": [
           [
-            "frontend",
             "backend",
             "vercel"
           ],

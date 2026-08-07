@@ -25,7 +25,7 @@ metadata:
       - "multiple services on vercel"
       - "frontend and backend on vercel"
     allOf:
-      - [frontend, backend, vercel]
+      - [backend, vercel]
       - [polyglot, vercel]
       - [multiple, services, vercel]
       - [services, vercel.json]
