@@ -48,19 +48,26 @@ retrieval:
     - service binding
     - service rewrite
   intents:
-    - deploy frontend and backend together on Vercel
-    - configure multiple services in vercel.json
-    - route requests to a service
-    - call another service privately
+    - deploy frontend and backend together in one project
+    - configure the services key in vercel.json
+    - configure service rewrites
+    - call the backend privately with a service binding
+    - keep a service private with no public route
+    - serve a service on a subdomain
+    - strip a route prefix before it reaches the backend service
+    - run all services locally
   entities:
     - services
     - bindings
     - destination.service
     - root
   examples:
-    - put a Next.js frontend and FastAPI backend in one Vercel project
-    - expose one service at /api and keep another service private
-    - inject an internal backend URL into the frontend service
+    - put a Next.js frontend and a FastAPI backend in one project
+    - deploy a Vite SPA with an Express API behind /api
+    - add a Go service to an existing Next.js project
+    - my frontend cannot reach the backend service
+    - the backend returns 404 for every /api route
+    - point api.example.com at the backend
 ---
 
 # Vercel Services
