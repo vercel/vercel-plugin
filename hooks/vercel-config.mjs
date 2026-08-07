@@ -17,11 +17,14 @@ var KEY_SKILL_MAP = {
   outputDirectory: ["deployments-cicd"],
   framework: ["deployments-cicd"],
   devCommand: ["deployments-cicd"],
-  ignoreCommand: ["deployments-cicd"]
+  ignoreCommand: ["deployments-cicd"],
+  // Services
+  services: ["vercel-services"]
 };
 var VERCEL_JSON_SKILLS = /* @__PURE__ */ new Set([
   "deployments-cicd",
   "routing-middleware",
+  "vercel-services",
   "vercel-functions"
 ]);
 function resolveVercelJsonSkills(filePath) {

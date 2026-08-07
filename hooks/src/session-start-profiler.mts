@@ -197,6 +197,9 @@ export function profileProject(projectRoot: string): string[] {
       skills.add("routing-middleware");
     }
     if (vercelConfig.functions) skills.add("vercel-functions");
+    if (vercelConfig.services) {
+      skills.add("vercel-services");
+    }
   }
 
   return [...skills].sort();

@@ -101,6 +101,13 @@ describe("vercel-config.mjs", () => {
     expect(result!.relevantSkills.has("vercel-functions")).toBe(true);
   });
 
+  test("resolveVercelJsonSkills maps the services key", () => {
+    const p = join(tempDir, "vercel-services.json");
+    writeFileSync(p, JSON.stringify({ services: {} }), "utf-8");
+    const result = resolveVercelJsonSkills(p);
+    expect(result!.relevantSkills.has("vercel-services")).toBe(true);
+  });
+
   test("resolveVercelJsonSkills maps mixed keys correctly", () => {
     const p = writeVercelJson({
       redirects: [],
@@ -119,6 +126,7 @@ describe("vercel-config.mjs", () => {
       "redirects", "rewrites", "headers", "cleanUrls", "trailingSlash",
       "functions", "regions",
       "builds", "buildCommand", "installCommand", "outputDirectory", "framework",
+      "services",
     ];
     for (const key of expectedKeys) {
       const content: Record<string, unknown> = { [key]: {} };
@@ -181,6 +189,20 @@ describe("vercel.json key-aware routing (collision scenarios)", () => {
     expect(injectedSkills[0]).toBe("vercel-functions");
   });
 
+  test("vercel.json with services key → vercel-services stays at top", async () => {
+    const filePath = writeVercelJson({
+      services: {
+        frontend: { root: "apps/web" },
+        backend: { root: "apps/backend", entrypoint: "main:app" },
+      },
+    });
+    const { injectedSkills } = await runHook({
+      tool_name: "Edit",
+      tool_input: { file_path: filePath },
+    });
+    expect(injectedSkills[0]).toBe("vercel-services");
+  });
+
   test("Scenario 5: vercel.json with all key types → no duplicates, cap respected", async () => {
     const filePath = writeVercelJson({
       redirects: [],
@@ -198,7 +220,12 @@ describe("vercel.json key-aware routing (collision scenarios)", () => {
     // The injected skills should all be current vercel.json skills.
     // The ones that ARE injected should all be vercel.json skills
     for (const skill of injectedSkills) {
-      expect(["deployments-cicd", "routing-middleware", "vercel-functions"]).toContain(skill);
+      expect([
+        "deployments-cicd",
+        "routing-middleware",
+        "vercel-functions",
+        "vercel-services",
+      ]).toContain(skill);
     }
   });
 

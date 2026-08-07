@@ -46,7 +46,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (31 skills)
+### Skills (32 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -78,6 +78,7 @@ A text-form relational graph covering:
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
 | `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                                                 |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
+| `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                                                      |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
 | `workflow`              | Workflow DevKit — durable execution, DurableAgent, steps, Worlds, pause/resume                                                       |
@@ -227,7 +228,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 31 skills
+├── skills/                          # 32 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
@@ -267,6 +268,7 @@ bun run build:from-skills # Stage 4: Resolve template includes
 - Workflow DevKit (DurableAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
 - Vercel Functions (Fluid Compute, streaming, Cron Jobs)
+- Vercel Services (multiple frontends and backends, public rewrites, private bindings)
 - Storage (Blob, Edge Config, Neon Postgres, Upstash Redis)
 - Routing Middleware (request interception, Edge/Node.js/Bun runtimes)
 - Runtime Cache API (per-region KV cache, tag-based invalidation)
