@@ -65,20 +65,22 @@ retrieval:
 
 # Vercel Services
 
-Use the `services` model to define multiple independently built components in one Vercel project.
+Use the `services` model whenever one application is made of multiple tightly coupled components, such as a frontend plus a backend, that should deploy to one Vercel project.
 
-Services build independently but share one project, domain, preview, deployment, and rollback. Public traffic enters through one ordered route table. Private service-to-service traffic uses explicit bindings.
+Services build independently but ship together as one deployment. That buys skew protection between frontend and backend, preview environments where every service is in sync, atomic deployments and rollbacks of the whole app, and private service-to-service communication through bindings. Public traffic enters through one ordered route table.
 
 ## Choose the right structure
 
 | Need | Use |
 | --- | --- |
+| Multiple tightly coupled components, such as a frontend and a backend, that should ship as one app | Vercel Services |
 | One framework can own the whole app, such as Next.js with Route Handlers | One normal Vercel project without Services |
-| Multiple frameworks or backends should deploy and roll back together on one domain | Vercel Services |
-| Applications need separate domains or independent deploy lifecycles | Separate Vercel projects in a monorepo |
+| Teams own their services and deploy and roll back on their own cadence | Separate Vercel projects in a monorepo |
 | Independently deployed frontends must render as one site | Vercel Microfrontends |
 
-Do not introduce Services just to split one framework into arbitrary processes. Use it when an independently built component has a real runtime, framework, dependency, or deployment-boundary reason to exist.
+The benefits and the drawback are the same fact: every deployment ships all services together. Reach for separate projects only when you specifically need to deploy or roll back one service independently of the others.
+
+Do not introduce Services just to split one framework into arbitrary processes. Use it when an independently built component has a real runtime, framework, dependency, or ownership reason to exist.
 
 ## Define services and public ingress
 
@@ -89,7 +91,6 @@ Each service requires a `root` relative to `vercel.json`. Let Vercel detect the 
   "services": {
     "frontend": {
       "root": "apps/web",
-      "framework": "nextjs",
       "bindings": [
         {
           "type": "service",
@@ -101,7 +102,6 @@ Each service requires a `root` relative to `vercel.json`. Let Vercel detect the 
     },
     "backend": {
       "root": "apps/backend",
-      "framework": "fastapi",
       "entrypoint": "main:app"
     }
   },
@@ -127,9 +127,63 @@ Top-level rewrites are evaluated in order. Put specific rules before the catch-a
 
 Routing into a service is final. If the selected service returns a 404 or 405, Vercel does not try the next top-level rewrite.
 
-The service receives the original request path. With the example above, `GET /api/users` reaches `backend` as `/api/users`, not `/users`. Define the backend route accordingly.
+Split the URL namespace by what the frontend needs:
 
-`destination.path` changes route lookup inside the service, not the path observed by application code. Use a service-level `request.path` transform only when application code must observe a changed path.
+- Frontends without their own server routes, such as Vite or Create React App builds, let the backend own all of `/api`.
+- Frameworks with their own API routes, such as Next.js, share the namespace: send only a sub-namespace such as `/api/v1/(.*)` or specific prefixes such as `/api/users/(.*)` to the backend, and let the framework keep the rest.
+
+The service receives the original request path. With the example above, `GET /api/users` reaches `backend` as `/api/users`, not `/users`. Either make the backend handle the prefix, such as FastAPI `root_path`, or strip it with a service-scoped rewrite:
+
+```json filename="vercel.json"
+{
+  "services": {
+    "backend": {
+      "root": "apps/backend",
+      "entrypoint": "main:app",
+      "rewrites": [
+        { "source": "/api/:path(.*)", "destination": "/:path" }
+      ]
+    }
+  }
+}
+```
+
+An SPA service that serves a static `index.html`, such as a Vite build, needs a service-scoped catch-all so deep links resolve:
+
+```json filename="vercel.json"
+{
+  "services": {
+    "frontend": {
+      "root": "apps/web",
+      "rewrites": [
+        { "source": "/(.*)", "destination": "/index.html" }
+      ]
+    }
+  }
+}
+```
+
+On a top-level rewrite, `destination.path` changes route lookup inside the service, not the path observed by application code. Use a service-level `request.path` transform only when application code must observe a changed path.
+
+## Serve a service on a subdomain
+
+Host-matched top-level rewrites can put a service on its own subdomain, such as `api.example.com`, while the catch-all serves the frontend:
+
+```json filename="vercel.json"
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "api.example.com" }],
+      "destination": { "service": "backend" }
+    },
+    { "source": "/api/(.*)", "destination": { "service": "backend" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
+}
+```
+
+Subdomains resolve only where that domain is attached: production, or a custom environment with a custom domain. Preview deployments get a single generated URL, so keep the subpath rewrite alongside the host rule and point the frontend at the relative path, for example `NEXT_PUBLIC_API_URL=/api`, so every preview calls its own deployment.
 
 ## Call services privately with bindings
 
@@ -166,7 +220,9 @@ Deploy the project normally with `vercel` or Git integration. All services parti
 
 - **No public traffic reaches a service:** add a top-level rewrite targeting it.
 - **The wrong service receives a request:** reorder rewrites so the most specific rule comes first and the catch-all is last.
-- **A backend returns 404:** confirm its routes include the public prefix because Vercel preserves the original request path.
+- **A backend returns 404:** confirm its routes include the public prefix because Vercel preserves the original request path, or strip the prefix with a service-scoped rewrite.
+- **An SPA returns 404 on deep links:** add a service-scoped catch-all rewrite to `/index.html`.
+- **A subdomain works in production but not in previews:** preview URLs have a single host, so host rules never match there. Keep a subpath rewrite to the same service and use the relative URL in the frontend.
 - **A binding variable is missing:** declare the binding on the caller and access it from runtime function code, not build code or middleware.
 - **Build settings are ignored or rejected:** move top-level build and runtime fields into the owning service.
 - **Framework detection is wrong:** set that service's `framework` or `entrypoint` explicitly instead of changing the whole project.
