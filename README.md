@@ -132,15 +132,19 @@ Each telemetry event contains only:
 - `id`: a random event UUID.
 - `event_time`: the event timestamp.
 - `key`: one of the event names listed above.
-- `value`: currently `"1"`.
+- `value`: `"1"` for counters or the plugin version for `plugin:version`.
 
 The request also sends HTTP headers used by the telemetry bridge:
 
 - `x-vercel-plugin-topic-id: dau`
 - `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
+- `x-vercel-plugin-installation-id`: the locally stored random installation UUID.
+- `x-vercel-plugin-agent-harness`: the detected agent harness or `unknown`.
 
-Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, and skill-injection details are not collected.
+The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies agents such as Claude Code, Cursor, Codex, or GitHub Copilot; ambiguous harnesses are reported as `unknown`.
+
+Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
 
 How it is tracked:
 
@@ -149,13 +153,14 @@ How it is tracked:
 - Local throttle files are stored under `~/.config/vercel-plugin/`:
   - `dau-stamp` prevents sending `dau:active_today` more than once per UTC day.
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
+  - `installation-id` stores the random installation UUID. It is used only by plugin telemetry and is not written to `active-session.json`.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
 - `active-session.json` is refreshed on session start with the plugin version and expiry timestamp. It lets Vercel CLI telemetry identify commands run while a recent Vercel plugin session marker is present. It contains no prompt text, file paths, project names, account IDs, tool-call contents, or skill-injection details.
 
 Behavior:
 
 - Unset `VERCEL_PLUGIN_TELEMETRY`: telemetry is enabled.
-- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`.
+- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`, and does not create an installation ID if one does not already exist.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
 

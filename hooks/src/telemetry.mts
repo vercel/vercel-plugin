@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 
@@ -12,7 +12,23 @@ const ACTIVE_SESSION_TTL_MS = 60 * 60 * 1000;
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 const FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
+const INSTALLATION_ID_PATH = join(homedir(), ".config", "vercel-plugin", "installation-id");
 const ACTIVE_SESSION_MARKER_PATH = join(homedir(), ".config", "vercel-plugin", "active-session.json");
+
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export type AgentHarness =
+  | "claude-code"
+  | "cursor"
+  | "codex"
+  | "github-copilot"
+  | "kimi"
+  | "grok"
+  | "unknown";
+
+export interface TelemetryContext {
+  agentHarness?: AgentHarness;
+}
 
 export interface TelemetryEvent {
   id: string;
@@ -29,20 +45,30 @@ export interface ActiveSessionMarker {
   expiresAt: number;
 }
 
-async function sendTelemetry(events: TelemetryEvent[]): Promise<boolean> {
+async function sendTelemetry(
+  events: TelemetryEvent[],
+  installationId: string | null,
+  agentHarness: AgentHarness,
+): Promise<boolean> {
   if (events.length === 0) return false;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-vercel-plugin-topic-id": "dau",
+      "x-vercel-plugin-session-id": randomUUID(),
+      "x-vercel-plugin-version": PLUGIN_VERSION,
+      "x-vercel-plugin-agent-harness": agentHarness,
+    };
+    if (installationId) {
+      headers["x-vercel-plugin-installation-id"] = installationId;
+    }
+
     const response = await fetch(BRIDGE_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-vercel-plugin-topic-id": "dau",
-        "x-vercel-plugin-session-id": randomUUID(),
-        "x-vercel-plugin-version": PLUGIN_VERSION,
-      },
+      headers,
       body: JSON.stringify(events),
       signal: controller.signal,
     });
@@ -66,8 +92,40 @@ export function getFirstUseStampPath(): string {
   return FIRST_USE_STAMP_PATH;
 }
 
+export function getInstallationIdPath(): string {
+  return INSTALLATION_ID_PATH;
+}
+
 export function getActiveSessionMarkerPath(): string {
   return ACTIVE_SESSION_MARKER_PATH;
+}
+
+function readInstallationId(): string | null {
+  try {
+    const value = readFileSync(INSTALLATION_ID_PATH, "utf8").trim();
+    return UUID_V4_RE.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function getOrCreateInstallationId(): string | null {
+  const existing = readInstallationId();
+  if (existing) return existing;
+
+  try {
+    mkdirSync(dirname(INSTALLATION_ID_PATH), { recursive: true, mode: 0o700 });
+    const installationId = randomUUID();
+    writeFileSync(INSTALLATION_ID_PATH, `${installationId}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    return installationId;
+  } catch {
+    // Another process may have created the file first. Never send an
+    // ephemeral identifier when a stable value cannot be read from disk.
+    return readInstallationId();
+  }
 }
 
 function utcDayStamp(date: Date): string {
@@ -164,9 +222,14 @@ export function refreshActiveSessionMarker(now: Date = new Date()): void {
 // DAU telemetry (default-on, opt-out via VERCEL_PLUGIN_TELEMETRY=off)
 // ---------------------------------------------------------------------------
 
-export async function trackDauActiveToday(now: Date = new Date()): Promise<void> {
+export async function trackDauActiveToday(
+  now: Date = new Date(),
+  context: TelemetryContext = {},
+): Promise<void> {
   if (!isDauTelemetryEnabled()) return;
 
+  const installationId = getOrCreateInstallationId();
+  const agentHarness = context.agentHarness ?? "unknown";
   const eventTime = now.getTime();
   const events: TelemetryEvent[] = [];
 
@@ -197,7 +260,7 @@ export async function trackDauActiveToday(now: Date = new Date()): Promise<void>
     });
   }
 
-  const sent = await sendTelemetry(events);
+  const sent = await sendTelemetry(events, installationId, agentHarness);
 
   if (sent) {
     for (const event of events) {

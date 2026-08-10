@@ -32,7 +32,11 @@ import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
+import {
+  refreshActiveSessionMarker,
+  trackDauActiveToday,
+  type AgentHarness,
+} from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -502,6 +506,38 @@ export function detectSessionStartPlatform(
   return "claude-code";
 }
 
+function hasNonEmptyEnv(env: NodeJS.ProcessEnv, key: string): boolean {
+  const value = env[key];
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/**
+ * Detect only documented, explicit harness signals. Ambiguous sessions remain
+ * unknown rather than being inferred from installed binaries or local files.
+ */
+export function detectAgentHarness(
+  input: SessionStartInput | null,
+  env: NodeJS.ProcessEnv = process.env,
+): AgentHarness {
+  if (input && ("conversation_id" in input || "cursor_version" in input)) {
+    return "cursor";
+  }
+
+  if (hasNonEmptyEnv(env, "COPILOT_PLUGIN_DATA")) {
+    return "github-copilot";
+  }
+
+  if (hasNonEmptyEnv(env, "PLUGIN_DATA") || hasNonEmptyEnv(env, "PLUGIN_ROOT")) {
+    return "codex";
+  }
+
+  if (hasNonEmptyEnv(env, "CLAUDE_ENV_FILE")) {
+    return "claude-code";
+  }
+
+  return "unknown";
+}
+
 export function normalizeSessionStartSessionId(input: SessionStartInput | null): string | null {
   if (!input) return null;
 
@@ -626,6 +662,7 @@ export function formatSessionStartProfilerCursorOutput(
 async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
+  const agentHarness = detectAgentHarness(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
@@ -649,7 +686,7 @@ async function main(): Promise<void> {
       process.stdout.write(JSON.stringify(formatOutput("cursor", {})));
     }
 
-    await trackDauActiveToday().catch(() => {});
+    await trackDauActiveToday(new Date(), { agentHarness }).catch(() => {});
     process.exit(0);
   }
 
@@ -706,7 +743,7 @@ async function main(): Promise<void> {
   }
 
   // DAU phone-home — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
-  await trackDauActiveToday().catch(() => {});
+  await trackDauActiveToday(new Date(), { agentHarness }).catch(() => {});
 
   if (cursorOutput) {
     process.stdout.write(cursorOutput);

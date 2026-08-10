@@ -11,14 +11,18 @@ let tempHome: string;
 
 async function runTelemetryProbe(options: {
   telemetryEnv?: string;
+  agentHarness?: string;
 }): Promise<{
   dauEnabled: boolean;
   calls: number;
   stampPath: string;
   firstUseStampPath: string;
+  installationIdPath: string;
+  installationId: string | null;
   activeSessionMarkerPath: string;
   activeSessionMarker: unknown;
   dauPayloads: unknown[];
+  dauHeaders: Array<Record<string, string>>;
 }> {
   const mergedEnv: Record<string, string> = {
     ...(process.env as Record<string, string>),
@@ -36,18 +40,27 @@ async function runTelemetryProbe(options: {
 
     let calls = 0;
     const dauPayloads = [];
+    const dauHeaders = [];
     globalThis.fetch = async (_url, init) => {
       calls += 1;
       dauPayloads.push(JSON.parse(init.body));
+      dauHeaders.push(Object.fromEntries(new Headers(init.headers).entries()));
       return new Response(null, { status: 204 });
     };
 
     const dauEnabled = telemetry.isDauTelemetryEnabled();
-    await telemetry.trackDauActiveToday();
-    await telemetry.trackDauActiveToday();
+    const context = { agentHarness: ${JSON.stringify(options.agentHarness ?? "unknown")} };
+    await telemetry.trackDauActiveToday(undefined, context);
+    await telemetry.trackDauActiveToday(undefined, context);
 
     const stampPath = telemetry.getDauStampPath();
     const firstUseStampPath = telemetry.getFirstUseStampPath();
+    const installationIdPath = telemetry.getInstallationIdPath();
+    const installationId = await import("node:fs").then((fs) =>
+      fs.existsSync(installationIdPath)
+        ? fs.readFileSync(installationIdPath, "utf-8").trim()
+        : null
+    );
     const activeSessionMarkerPath = telemetry.getActiveSessionMarkerPath();
     telemetry.refreshActiveSessionMarker(new Date("2026-05-15T12:00:00.000Z"));
     const activeSessionMarker = await import("node:fs").then((fs) =>
@@ -55,7 +68,7 @@ async function runTelemetryProbe(options: {
         ? JSON.parse(fs.readFileSync(activeSessionMarkerPath, "utf-8"))
         : null
     );
-    console.log(JSON.stringify({ dauEnabled, calls, stampPath, firstUseStampPath, activeSessionMarkerPath, activeSessionMarker, dauPayloads }));
+    console.log(JSON.stringify({ dauEnabled, calls, stampPath, firstUseStampPath, installationIdPath, installationId, activeSessionMarkerPath, activeSessionMarker, dauPayloads, dauHeaders }));
   `;
 
   const proc = Bun.spawn([NODE_BIN, "--input-type=module", "-e", script], {
@@ -77,9 +90,12 @@ async function runTelemetryProbe(options: {
     calls: number;
     stampPath: string;
     firstUseStampPath: string;
+    installationIdPath: string;
+    installationId: string | null;
     activeSessionMarkerPath: string;
     activeSessionMarker: unknown;
     dauPayloads: unknown[];
+    dauHeaders: Array<Record<string, string>>;
   };
 }
 
@@ -98,19 +114,26 @@ describe("telemetry controls", () => {
     expect(result.calls).toBe(0);
     expect(existsSync(result.stampPath)).toBe(false);
     expect(existsSync(result.firstUseStampPath)).toBe(false);
+    expect(existsSync(result.installationIdPath)).toBe(false);
+    expect(result.installationId).toBeNull();
     expect(existsSync(result.activeSessionMarkerPath)).toBe(false);
     expect(result.activeSessionMarker).toBeNull();
   });
 
   test("default telemetry sends DAU and first-use once", async () => {
-    const result = await runTelemetryProbe({});
+    const result = await runTelemetryProbe({ agentHarness: "codex" });
     expect(result.dauEnabled).toBe(true);
     expect(result.calls).toBe(1);
     expect(result.stampPath).toBe(join(tempHome, ".config", "vercel-plugin", "dau-stamp"));
     expect(result.firstUseStampPath).toBe(join(tempHome, ".config", "vercel-plugin", "first-use-stamp"));
+    expect(result.installationIdPath).toBe(join(tempHome, ".config", "vercel-plugin", "installation-id"));
     expect(result.activeSessionMarkerPath).toBe(join(tempHome, ".config", "vercel-plugin", "active-session.json"));
     expect(existsSync(result.stampPath)).toBe(true);
     expect(existsSync(result.firstUseStampPath)).toBe(true);
+    expect(existsSync(result.installationIdPath)).toBe(true);
+    expect(result.installationId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
     expect(existsSync(result.activeSessionMarkerPath)).toBe(true);
     expect(result.activeSessionMarker).toEqual({
       schema: 1,
@@ -135,6 +158,15 @@ describe("telemetry controls", () => {
         }),
       ],
     ]);
+    expect(result.dauHeaders).toHaveLength(1);
+    expect(result.dauHeaders[0]["x-vercel-plugin-installation-id"]).toBe(
+      result.installationId,
+    );
+    expect(result.dauHeaders[0]["x-vercel-plugin-agent-harness"]).toBe("codex");
+
+    const repeated = await runTelemetryProbe({ agentHarness: "codex" });
+    expect(repeated.installationId).toBe(result.installationId);
+    expect(repeated.calls).toBe(0);
   });
 
   test("compiled hooks do not emit prompt, tool, or skill-injection telemetry keys", () => {

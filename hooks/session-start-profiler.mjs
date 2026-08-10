@@ -18,7 +18,10 @@ import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
+import {
+  refreshActiveSessionMarker,
+  trackDauActiveToday
+} from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -322,6 +325,25 @@ function detectSessionStartPlatform(input, env = process.env) {
   }
   return "claude-code";
 }
+function hasNonEmptyEnv(env, key) {
+  const value = env[key];
+  return typeof value === "string" && value.trim() !== "";
+}
+function detectAgentHarness(input, env = process.env) {
+  if (input && ("conversation_id" in input || "cursor_version" in input)) {
+    return "cursor";
+  }
+  if (hasNonEmptyEnv(env, "COPILOT_PLUGIN_DATA")) {
+    return "github-copilot";
+  }
+  if (hasNonEmptyEnv(env, "PLUGIN_DATA") || hasNonEmptyEnv(env, "PLUGIN_ROOT")) {
+    return "codex";
+  }
+  if (hasNonEmptyEnv(env, "CLAUDE_ENV_FILE")) {
+    return "claude-code";
+  }
+  return "unknown";
+}
 function normalizeSessionStartSessionId(input) {
   if (!input) return null;
   const sessionId = normalizeInput(input).sessionId;
@@ -415,6 +437,7 @@ function formatSessionStartProfilerCursorOutput(envVars, userMessages) {
 async function main() {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
+  const agentHarness = detectAgentHarness(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
@@ -432,7 +455,7 @@ async function main() {
     if (platform === "cursor") {
       process.stdout.write(JSON.stringify(formatOutput("cursor", {})));
     }
-    await trackDauActiveToday().catch(() => {
+    await trackDauActiveToday(/* @__PURE__ */ new Date(), { agentHarness }).catch(() => {
     });
     process.exit(0);
   }
@@ -475,7 +498,7 @@ async function main() {
 
 `);
   }
-  await trackDauActiveToday().catch(() => {
+  await trackDauActiveToday(/* @__PURE__ */ new Date(), { agentHarness }).catch(() => {
   });
   if (cursorOutput) {
     process.stdout.write(cursorOutput);
@@ -491,6 +514,7 @@ export {
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   checkGreenfield,
+  detectAgentHarness,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
   logBrokenSkillFrontmatterSummary,
