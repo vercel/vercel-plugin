@@ -86,7 +86,7 @@ describe("managed vercel context chunks", () => {
     expect(chunk).not.toBeNull();
     expect(chunk?.chunkId).toBe("ai-stack");
     expect(chunk?.heading).toBe("AI Stack");
-    expect(chunk?.content).toContain("Consider Eve");
+    expect(chunk?.content).toContain("Consider eve");
   });
 
   test("returns null for unmapped skills", () => {

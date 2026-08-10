@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, accessing GitHub APIs, receiving webhook events from Slack/Linear/GitHub and forwarding them to your agents and apps, or building Eve agent connections.
+description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, accessing GitHub APIs, receiving webhook events from Slack/Linear/GitHub and forwarding them to your agents and apps, or building eve agent connections.
 metadata:
   priority: 5
   docs:
@@ -80,19 +80,19 @@ retrieval:
     - GitHub
     - MCP
     - Snowflake
-    - Eve
+    - eve
     - connector
   examples:
     - send a slack message from my app
     - get a github oauth token
-    - wire up Linear in my Eve agent
+    - wire up Linear in my eve agent
     - connect my agent to a MCP server
     - add Snowflake credentials to my project
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/eve['\"]"
     targetSkill: eve
-    message: 'Eve + Vercel Connect import detected — loading Eve framework guidance alongside the connect() helper and channel credential patterns.'
+    message: 'eve + Vercel Connect import detected — loading eve framework guidance alongside the connect() helper and channel credential patterns.'
   -
     pattern: 'SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(API_KEY|WEBHOOK_SECRET)'
     targetSkill: vercel-connect
@@ -198,9 +198,9 @@ const response = await fetch("https://slack.com/api/chat.postMessage", {
 
 The SDK uses the user's Vercel OIDC token to authenticate. The user should have run `vc env pull` to pull the OIDC token env variables locally (or `vc link` pulls it automatically)
 
-#### Eve agents — `@vercel/connect/eve`
+#### eve agents — `@vercel/connect/eve`
 
-When the project is built on [Eve](https://eve.dev), prefer the `connect` helper over calling `getToken` directly inside connection definitions. The helper wires the full token / start-authorization / complete-authorization lifecycle into Eve's connection runtime, so a Vercel Connect-backed connection becomes a single declaration:
+When the project is built on [eve](https://eve.dev), prefer the `connect` helper over calling `getToken` directly inside connection definitions. The helper wires the full token / start-authorization / complete-authorization lifecycle into eve's connection runtime, so a Vercel Connect-backed connection becomes a single declaration:
 
 ```typescript
 // agent/connections/linear.ts
@@ -219,11 +219,11 @@ Key points for the agent:
 - Omit `principalType` for the default per-user OAuth flow, or set `"app"` for app-scoped tokens (no consent flow — fail terminally if not installed).
 - Pass the connector id directly with `connect("mcp.linear.app/myagent")`, or use `connect({ connector: "mcp.linear.app/myagent" })` when you need options.
 - For scopes, audiences, or `authorizationDetails`, pass them through `tokenParams`. For a custom challenge prompt, pass `instructions`. Both are optional.
-- `eve` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-Eve consumers.
+- `eve` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-eve consumers.
 
 ##### Slack channel — `connectSlackCredentials`
 
-For Eve Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `SlackChannelCredentials` object — both the bot token and inbound webhook verification are handled by Vercel Connect, so you do **not** need `SLACK_BOT_TOKEN` or `SLACK_SIGNING_SECRET` env vars:
+For eve Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `SlackChannelCredentials` object — both the bot token and inbound webhook verification are handled by Vercel Connect, so you do **not** need `SLACK_BOT_TOKEN` or `SLACK_SIGNING_SECRET` env vars:
 
 ```typescript
 // agent/channels/slack.ts
@@ -240,11 +240,11 @@ What the helper wires up:
 - `botToken`: a function that calls `getToken(connector, { subject: { type: "app" } })` on each inbound webhook, so token rotation, refresh, and multi-workspace tenancy are handled server-side.
 - `webhookVerifier`: a Vercel OIDC verifier (`vercelOidc()`). Vercel Connect forwards verified Slack webhooks to your app as signed Vercel OIDC requests; the helper verifies that signature instead of the raw Slack signing secret.
 
-Use this whenever the project is on Eve + Vercel Connect — it's the one-liner for both outbound posts and inbound webhook auth.
+Use this whenever the project is on eve + Vercel Connect — it's the one-liner for both outbound posts and inbound webhook auth.
 
 ##### GitHub channel — `connectGitHubCredentials`
 
-For Eve GitHub channels (`agent/channels/github.ts`), use `connectGitHubCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `GitHubChannelCredentials` object — Eve uses the installation token directly (skipping its native GitHub App JWT exchange) and Vercel Connect handles rotation, refresh, and multi-installation tenancy server-side. You do **not** need `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, or `GITHUB_WEBHOOK_SECRET` env vars:
+For eve GitHub channels (`agent/channels/github.ts`), use `connectGitHubCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `GitHubChannelCredentials` object — eve uses the installation token directly (skipping its native GitHub App JWT exchange) and Vercel Connect handles rotation, refresh, and multi-installation tenancy server-side. You do **not** need `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, or `GITHUB_WEBHOOK_SECRET` env vars:
 
 ```typescript
 // agent/channels/github.ts
@@ -263,7 +263,7 @@ What the helper wires up:
 
 ##### Linear channel — `connectLinearCredentials`
 
-For Eve Linear channels (`agent/channels/linear.ts`), use `connectLinearCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `LinearChannelCredentials` object — Vercel Connect manages the Linear app access token and webhook auth, so you do **not** need `LINEAR_API_KEY` or `LINEAR_WEBHOOK_SECRET` env vars:
+For eve Linear channels (`agent/channels/linear.ts`), use `connectLinearCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `LinearChannelCredentials` object — Vercel Connect manages the Linear app access token and webhook auth, so you do **not** need `LINEAR_API_KEY` or `LINEAR_WEBHOOK_SECRET` env vars:
 
 ```typescript
 // agent/channels/linear.ts
