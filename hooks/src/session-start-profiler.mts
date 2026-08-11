@@ -527,6 +527,14 @@ export function detectAgentHarness(
     return "github-copilot";
   }
 
+  if (hasNonEmptyEnv(env, "KIMI_PLUGIN_ROOT")) {
+    return "kimi";
+  }
+
+  if (hasNonEmptyEnv(env, "GROK_PLUGIN_ROOT") || hasNonEmptyEnv(env, "GROK_PLUGIN_DATA")) {
+    return "grok";
+  }
+
   if (hasNonEmptyEnv(env, "PLUGIN_DATA") || hasNonEmptyEnv(env, "PLUGIN_ROOT")) {
     return "codex";
   }

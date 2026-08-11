@@ -34,6 +34,15 @@ describe("session-start-profiler platform detection", () => {
     expect(detectAgentHarness({}, { COPILOT_PLUGIN_DATA: "/tmp/copilot-data" })).toBe(
       "github-copilot",
     );
+    expect(detectAgentHarness({}, { KIMI_PLUGIN_ROOT: "/tmp/kimi-plugin" })).toBe(
+      "kimi",
+    );
+    expect(
+      detectAgentHarness({}, {
+        GROK_PLUGIN_DATA: "/tmp/grok-data",
+        PLUGIN_DATA: "/tmp/compat-data",
+      }),
+    ).toBe("grok");
     expect(
       detectAgentHarness({}, {
         PLUGIN_DATA: "/tmp/codex-data",
@@ -48,6 +57,7 @@ describe("session-start-profiler platform detection", () => {
   test("returns unknown instead of guessing from ambiguous environment state", () => {
     expect(detectAgentHarness({}, {})).toBe("unknown");
     expect(detectAgentHarness({}, { CODEX_HOME: "/tmp/codex" })).toBe("unknown");
+    expect(detectAgentHarness({}, { KIMI_CODE_HOME: "/tmp/kimi" })).toBe("unknown");
     expect(detectAgentHarness({}, { CLAUDE_PLUGIN_ROOT: "/tmp/plugin" })).toBe("unknown");
   });
 });
