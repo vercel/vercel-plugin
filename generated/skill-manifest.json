@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T21:22:49.467Z",
+  "generatedAt": "2026-08-11T01:42:00.327Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -969,11 +969,19 @@
         "https://vercel.com/docs/vercel-connect"
       ],
       "pathPatterns": [],
-      "bashPatterns": [],
+      "bashPatterns": [
+        "\\bnpx\\s+eve(?:@latest)?\\s+init\\b",
+        "\\bbunx\\s+eve(?:@latest)?\\s+init\\b",
+        "\\beve\\s+init\\b"
+      ],
       "importPatterns": [],
       "bodyPath": "skills/build-agents/SKILL.md",
       "pathRegexSources": [],
-      "bashRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpx\\s+eve(?:@latest)?\\s+init\\b",
+        "\\bbunx\\s+eve(?:@latest)?\\s+init\\b",
+        "\\beve\\s+init\\b"
+      ],
       "importRegexSources": [],
       "promptSignals": {
         "phrases": [
@@ -1649,6 +1657,7 @@
           "eve framework",
           "eve project",
           "eve agent",
+          "eve architecture",
           "eve.dev",
           "useeveagent",
           "npx eve",
@@ -1676,6 +1685,10 @@
           [
             "eve",
             "framework"
+          ],
+          [
+            "eve",
+            "architecture"
           ],
           [
             "eve",

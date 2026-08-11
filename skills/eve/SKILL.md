@@ -29,6 +29,7 @@ metadata:
       - "eve framework"
       - "eve project"
       - "eve agent"
+      - "eve architecture"
       - "eve.dev"
       - "useeveagent"
       - "npx eve"
@@ -47,6 +48,7 @@ metadata:
       - [eve, agent]
       - [eve, project]
       - [eve, framework]
+      - [eve, architecture]
       - [eve, durable]
       - [eve, scaffold]
       - [eve, channel]

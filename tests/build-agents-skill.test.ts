@@ -6,12 +6,18 @@ import {
   normalizePromptText,
   type CompiledPromptSignals,
 } from "../hooks/src/prompt-patterns.mts";
+import {
+  compileSkillPatterns,
+  matchBashWithReason,
+  type CompiledSkillEntry,
+} from "../hooks/src/patterns.mts";
 import { analyzePrompt } from "../hooks/src/prompt-analysis.mts";
 import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
 let compiledPromptSignals: CompiledPromptSignals;
+let compiledSkill: CompiledSkillEntry;
 let skillMap: Record<string, any>;
 
 beforeAll(() => {
@@ -27,6 +33,7 @@ beforeAll(() => {
   expect(buildAgents.priority).toBeGreaterThan(eve.priority);
 
   compiledPromptSignals = compilePromptSignals(buildAgents.promptSignals!);
+  compiledSkill = compileSkillPatterns({ "build-agents": buildAgents })[0];
 });
 
 function matchesPrompt(prompt: string): boolean {
@@ -70,5 +77,11 @@ describe("build-agents prompt activation", () => {
     expect(report.selectedSkills[0]).toBe("build-agents");
     expect(report.perSkillResults["build-agents"].matched).toBe(true);
     expect(report.perSkillResults.eve.matched).toBe(false);
+  });
+
+  test("matches new eve agent scaffold commands", () => {
+    expect(matchBashWithReason("npx eve@latest init support-agent", compiledSkill.compiledBash)).not.toBeNull();
+    expect(matchBashWithReason("bunx eve init research-agent", compiledSkill.compiledBash)).not.toBeNull();
+    expect(matchBashWithReason("eve dev", compiledSkill.compiledBash)).toBeNull();
   });
 });

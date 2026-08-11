@@ -10,6 +10,10 @@ metadata:
     - "https://github.com/vercel-labs/slack-agent-skill"
     - "https://docs.slack.dev/ai/getting-started-with-vercel-skill/"
     - "https://vercel.com/docs/vercel-connect"
+  bashPatterns:
+    - '\bnpx\s+eve(?:@latest)?\s+init\b'
+    - '\bbunx\s+eve(?:@latest)?\s+init\b'
+    - '\beve\s+init\b'
   promptSignals:
     phrases:
       - "build an agent"
