@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   detectAgentHarness,
   detectSessionStartPlatform,
+  normalizeDetectedAgentHarness,
 } from "./src/session-start-profiler.mts";
 
 describe("session-start-profiler platform detection", () => {
@@ -29,35 +30,42 @@ describe("session-start-profiler platform detection", () => {
     ).toBe("claude-code");
   });
 
-  test("detects supported agent harnesses from explicit signals", () => {
-    expect(detectAgentHarness({ cursor_version: "1.0.0" }, {})).toBe("cursor");
-    expect(detectAgentHarness({}, { COPILOT_PLUGIN_DATA: "/tmp/copilot-data" })).toBe(
-      "github-copilot",
-    );
-    expect(detectAgentHarness({}, { KIMI_PLUGIN_ROOT: "/tmp/kimi-plugin" })).toBe(
-      "kimi",
-    );
-    expect(
-      detectAgentHarness({}, {
-        GROK_PLUGIN_DATA: "/tmp/grok-data",
-        PLUGIN_DATA: "/tmp/compat-data",
-      }),
-    ).toBe("grok");
-    expect(
-      detectAgentHarness({}, {
-        PLUGIN_DATA: "/tmp/codex-data",
-        CLAUDE_PLUGIN_DATA: "/tmp/compat-data",
-      }),
-    ).toBe("codex");
-    expect(detectAgentHarness({}, { CLAUDE_ENV_FILE: "/tmp/claude.env" })).toBe(
-      "claude-code",
-    );
+  test("normalizes supported detect-agent names", () => {
+    expect(normalizeDetectedAgentHarness("cursor")).toBe("cursor");
+    expect(normalizeDetectedAgentHarness("cursor-cli")).toBe("cursor");
+    expect(normalizeDetectedAgentHarness("github-copilot")).toBe("github-copilot");
+    expect(normalizeDetectedAgentHarness("kimi")).toBe("kimi");
+    expect(normalizeDetectedAgentHarness("grok")).toBe("grok");
+    expect(normalizeDetectedAgentHarness("codex_cli")).toBe("codex");
+    expect(normalizeDetectedAgentHarness("claude_code")).toBe("claude-code");
   });
 
-  test("returns unknown instead of guessing from ambiguous environment state", () => {
-    expect(detectAgentHarness({}, {})).toBe("unknown");
-    expect(detectAgentHarness({}, { CODEX_HOME: "/tmp/codex" })).toBe("unknown");
-    expect(detectAgentHarness({}, { KIMI_CODE_HOME: "/tmp/kimi" })).toBe("unknown");
-    expect(detectAgentHarness({}, { CLAUDE_PLUGIN_ROOT: "/tmp/plugin" })).toBe("unknown");
+  test("never forwards unsupported or custom agent names", () => {
+    expect(normalizeDetectedAgentHarness(undefined)).toBe("unknown");
+    expect(normalizeDetectedAgentHarness("custom-agent@1")).toBe("unknown");
+    expect(normalizeDetectedAgentHarness("devin")).toBe("unknown");
+  });
+
+  test("uses Cursor hook fields before detect-agent", async () => {
+    let detectorCalled = false;
+    const harness = await detectAgentHarness(
+      { cursor_version: "1.0.0" },
+      async () => {
+        detectorCalled = true;
+        return { isAgent: true, agent: { name: "claude_code" } };
+      },
+    );
+
+    expect(harness).toBe("cursor");
+    expect(detectorCalled).toBe(false);
+  });
+
+  test("uses detect-agent for non-Cursor hooks", async () => {
+    expect(
+      await detectAgentHarness({}, async () => ({
+        isAgent: true,
+        agent: { name: "grok" },
+      })),
+    ).toBe("grok");
   });
 });

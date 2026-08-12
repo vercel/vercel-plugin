@@ -156,13 +156,19 @@ describe("telemetry controls", () => {
           key: "plugin:version",
           value: "0.48.0",
         }),
+        expect.objectContaining({
+          key: "plugin:install_id",
+          value: result.installationId,
+        }),
+        expect.objectContaining({
+          key: "plugin:agent_harness",
+          value: "codex",
+        }),
       ],
     ]);
     expect(result.dauHeaders).toHaveLength(1);
-    expect(result.dauHeaders[0]["x-vercel-plugin-installation-id"]).toBe(
-      result.installationId,
-    );
-    expect(result.dauHeaders[0]["x-vercel-plugin-agent-harness"]).toBe("codex");
+    expect(result.dauHeaders[0]["x-vercel-plugin-installation-id"]).toBeUndefined();
+    expect(result.dauHeaders[0]["x-vercel-plugin-agent-harness"]).toBeUndefined();
 
     const repeated = await runTelemetryProbe({ agentHarness: "codex" });
     expect(repeated.installationId).toBe(result.installationId);

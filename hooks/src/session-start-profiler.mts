@@ -21,7 +21,9 @@ import {
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import type { AgentResult } from "detect-agent";
 import {
   formatOutput,
   normalizeInput,
@@ -37,6 +39,12 @@ import {
   trackDauActiveToday,
   type AgentHarness,
 } from "./telemetry.mjs";
+
+// detect-agent currently publishes CommonJS. The hook is bundled as a
+// standalone ESM file, so provide Node's require implementation before its
+// lazily bundled module is evaluated.
+const hookGlobal = globalThis as typeof globalThis & { require?: NodeRequire };
+hookGlobal.require ??= createRequire(import.meta.url);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -506,44 +514,48 @@ export function detectSessionStartPlatform(
   return "claude-code";
 }
 
-function hasNonEmptyEnv(env: NodeJS.ProcessEnv, key: string): boolean {
-  const value = env[key];
-  return typeof value === "string" && value.trim() !== "";
+/**
+ * Map detect-agent output to the deliberately small set of values approved for
+ * plugin telemetry. Custom AI_AGENT values are never forwarded verbatim.
+ */
+export function normalizeDetectedAgentHarness(name: string | undefined): AgentHarness {
+  switch (name) {
+    case "cursor":
+    case "cursor-cli":
+      return "cursor";
+    case "claude_code":
+      return "claude-code";
+    case "codex_cli":
+      return "codex";
+    case "github-copilot":
+      return "github-copilot";
+    case "kimi":
+      return "kimi";
+    case "grok":
+      return "grok";
+    default:
+      return "unknown";
+  }
 }
 
-/**
- * Detect only documented, explicit harness signals. Ambiguous sessions remain
- * unknown rather than being inferred from installed binaries or local files.
- */
-export function detectAgentHarness(
+type AgentDetector = () => Promise<AgentResult>;
+
+async function determineAgentWithBundledPackage(): Promise<AgentResult> {
+  const { determineAgent } = await import("detect-agent");
+  return determineAgent();
+}
+
+export async function detectAgentHarness(
   input: SessionStartInput | null,
-  env: NodeJS.ProcessEnv = process.env,
-): AgentHarness {
+  detector: AgentDetector = determineAgentWithBundledPackage,
+): Promise<AgentHarness> {
+  // Cursor exposes reliable hook payload fields that detect-agent cannot inspect.
   if (input && ("conversation_id" in input || "cursor_version" in input)) {
     return "cursor";
   }
 
-  if (hasNonEmptyEnv(env, "COPILOT_PLUGIN_DATA")) {
-    return "github-copilot";
-  }
-
-  if (hasNonEmptyEnv(env, "KIMI_PLUGIN_ROOT")) {
-    return "kimi";
-  }
-
-  if (hasNonEmptyEnv(env, "GROK_PLUGIN_ROOT") || hasNonEmptyEnv(env, "GROK_PLUGIN_DATA")) {
-    return "grok";
-  }
-
-  if (hasNonEmptyEnv(env, "PLUGIN_DATA") || hasNonEmptyEnv(env, "PLUGIN_ROOT")) {
-    return "codex";
-  }
-
-  if (hasNonEmptyEnv(env, "CLAUDE_ENV_FILE")) {
-    return "claude-code";
-  }
-
-  return "unknown";
+  const result = await detector();
+  return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : undefined);
 }
 
 export function normalizeSessionStartSessionId(input: SessionStartInput | null): string | null {
@@ -670,7 +682,7 @@ export function formatSessionStartProfilerCursorOutput(
 async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
-  const agentHarness = detectAgentHarness(hookInput);
+  const agentHarness = await detectAgentHarness(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();

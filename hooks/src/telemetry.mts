@@ -47,8 +47,6 @@ export interface ActiveSessionMarker {
 
 async function sendTelemetry(
   events: TelemetryEvent[],
-  installationId: string | null,
-  agentHarness: AgentHarness,
 ): Promise<boolean> {
   if (events.length === 0) return false;
 
@@ -60,11 +58,7 @@ async function sendTelemetry(
       "x-vercel-plugin-topic-id": "dau",
       "x-vercel-plugin-session-id": randomUUID(),
       "x-vercel-plugin-version": PLUGIN_VERSION,
-      "x-vercel-plugin-agent-harness": agentHarness,
     };
-    if (installationId) {
-      headers["x-vercel-plugin-installation-id"] = installationId;
-    }
 
     const response = await fetch(BRIDGE_ENDPOINT, {
       method: "POST",
@@ -258,9 +252,23 @@ export async function trackDauActiveToday(
       key: "plugin:version",
       value: PLUGIN_VERSION,
     });
+    if (installationId) {
+      events.push({
+        id: randomUUID(),
+        event_time: eventTime,
+        key: "plugin:install_id",
+        value: installationId,
+      });
+    }
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:agent_harness",
+      value: agentHarness,
+    });
   }
 
-  const sent = await sendTelemetry(events, installationId, agentHarness);
+  const sent = await sendTelemetry(events);
 
   if (sent) {
     for (const event of events) {

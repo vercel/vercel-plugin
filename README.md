@@ -126,23 +126,23 @@ What is collected:
 - `dau:active_today`: sent at most once per UTC day when the plugin runs.
 - `plugin:first_use`: sent once per local user profile the first time the plugin successfully reports telemetry.
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
+- `plugin:install_id`: the locally stored random installation UUID.
+- `plugin:agent_harness`: the detected agent harness or `unknown`.
 
 Each telemetry event contains only:
 
 - `id`: a random event UUID.
 - `event_time`: the event timestamp.
 - `key`: one of the event names listed above.
-- `value`: `"1"` for counters or the plugin version for `plugin:version`.
+- `value`: `"1"` for counters, the plugin version, the random installation UUID, or the detected harness, depending on the event key.
 
 The request also sends HTTP headers used by the telemetry bridge:
 
 - `x-vercel-plugin-topic-id: dau`
 - `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
-- `x-vercel-plugin-installation-id`: the locally stored random installation UUID.
-- `x-vercel-plugin-agent-harness`: the detected agent harness or `unknown`.
 
-The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code, Cursor, Codex, GitHub Copilot, Kimi Code, or Grok; ambiguous harnesses are reported as `unknown`.
+The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code, Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent); ambiguous, unsupported, and custom harness names are reported as `unknown`.
 
 Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
 

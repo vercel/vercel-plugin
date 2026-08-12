@@ -12,7 +12,7 @@ var FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-us
 var INSTALLATION_ID_PATH = join(homedir(), ".config", "vercel-plugin", "installation-id");
 var ACTIVE_SESSION_MARKER_PATH = join(homedir(), ".config", "vercel-plugin", "active-session.json");
 var UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-async function sendTelemetry(events, installationId, agentHarness) {
+async function sendTelemetry(events) {
   if (events.length === 0) return false;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
@@ -21,12 +21,8 @@ async function sendTelemetry(events, installationId, agentHarness) {
       "Content-Type": "application/json",
       "x-vercel-plugin-topic-id": "dau",
       "x-vercel-plugin-session-id": randomUUID(),
-      "x-vercel-plugin-version": PLUGIN_VERSION,
-      "x-vercel-plugin-agent-harness": agentHarness
+      "x-vercel-plugin-version": PLUGIN_VERSION
     };
-    if (installationId) {
-      headers["x-vercel-plugin-installation-id"] = installationId;
-    }
     const response = await fetch(BRIDGE_ENDPOINT, {
       method: "POST",
       headers,
@@ -173,8 +169,22 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date(), context = {
       key: "plugin:version",
       value: PLUGIN_VERSION
     });
+    if (installationId) {
+      events.push({
+        id: randomUUID(),
+        event_time: eventTime,
+        key: "plugin:install_id",
+        value: installationId
+      });
+    }
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:agent_harness",
+      value: agentHarness
+    });
   }
-  const sent = await sendTelemetry(events, installationId, agentHarness);
+  const sent = await sendTelemetry(events);
   if (sent) {
     for (const event of events) {
       if (event.key === "dau:active_today") markDauPingSent(now);
