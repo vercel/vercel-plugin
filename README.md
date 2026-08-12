@@ -127,13 +127,15 @@ What is collected:
 - `dau:active_today`: sent at most once per UTC day when the plugin runs.
 - `plugin:first_use`: sent once per local user profile the first time the plugin successfully reports telemetry.
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
+- `plugin:install_id`: the locally stored random installation UUID.
+- `plugin:agent_harness`: each distinct detected agent harness category observed per installation per UTC day.
 
 Each telemetry event contains only:
 
 - `id`: a random event UUID.
 - `event_time`: the event timestamp.
 - `key`: one of the event names listed above.
-- `value`: currently `"1"`.
+- `value`: `"1"` for counters, the plugin version, the random installation UUID, or the detected harness, depending on the event key.
 
 The request also sends HTTP headers used by the telemetry bridge:
 
@@ -141,7 +143,9 @@ The request also sends HTTP headers used by the telemetry bridge:
 - `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
 
-Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, and skill-injection details are not collected.
+The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
+
+Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
 
 How it is tracked:
 
@@ -149,14 +153,16 @@ How it is tracked:
 - The bridge only forwards events from plugin versions `0.40.0` and newer.
 - Local throttle files are stored under `~/.config/vercel-plugin/`:
   - `dau-stamp` prevents sending `dau:active_today` more than once per UTC day.
+  - `harness-stamp-<harness>` prevents sending the same `plugin:agent_harness` value more than once per UTC day.
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
+  - `installation-id` stores the random installation UUID. It is used only by plugin telemetry and is not written to `active-session.json`.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
 - `active-session.json` is refreshed on session start with the plugin version and expiry timestamp. It lets Vercel CLI telemetry identify commands run while a recent Vercel plugin session marker is present. It contains no prompt text, file paths, project names, account IDs, tool-call contents, or skill-injection details.
 
 Behavior:
 
 - Unset `VERCEL_PLUGIN_TELEMETRY`: telemetry is enabled.
-- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`.
+- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`, and does not create an installation ID if one does not already exist.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
 

@@ -1,6 +1,6 @@
 {
   "name": "vercel-plugin",
-  "version": "0.47.0",
+  "version": "0.48.0",
   "private": true,
   "license": "Apache-2.0",
   "bin": {
@@ -30,6 +30,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "detect-agent": "1.2.0",
     "minisearch": "^7.2.0"
   }
 }

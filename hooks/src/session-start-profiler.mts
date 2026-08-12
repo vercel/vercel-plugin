@@ -21,7 +21,9 @@ import {
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import type { AgentResult } from "detect-agent";
 import {
   formatOutput,
   normalizeInput,
@@ -32,7 +34,11 @@ import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
+import {
+  refreshActiveSessionMarker,
+  trackDauActiveToday,
+  type AgentHarness,
+} from "./telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -502,6 +508,65 @@ export function detectSessionStartPlatform(
   return "claude-code";
 }
 
+/**
+ * Map detect-agent output to the deliberately small set of values approved for
+ * plugin telemetry. Custom AI_AGENT values are never forwarded verbatim, and a
+ * detected but unapproved agent is distinguishable from no detection.
+ */
+export function normalizeDetectedAgentHarness(name: string | undefined): AgentHarness {
+  switch (name) {
+    case "cursor":
+    case "cursor-cli":
+      return "cursor";
+    case "claude_code":
+    case "cowork":
+      return "claude-code";
+    case "codex_cli":
+      return "codex";
+    case "github-copilot":
+      return "github-copilot";
+    case "kimi":
+      return "kimi";
+    case "grok":
+      return "grok";
+    default:
+      return name === undefined ? "unknown" : "other";
+  }
+}
+
+type AgentDetector = () => Promise<AgentResult>;
+
+async function determineAgentWithBundledPackage(): Promise<AgentResult> {
+  // detect-agent currently publishes CommonJS. The hook is bundled as a
+  // standalone ESM file, so provide Node's require implementation immediately
+  // before its lazily bundled module is evaluated. This runs inside
+  // detectAgentHarness's failure boundary.
+  const hookGlobal = globalThis as typeof globalThis & { require?: NodeRequire };
+  hookGlobal.require ??= createRequire(import.meta.url);
+
+  const { determineAgent } = await import("detect-agent");
+  return determineAgent();
+}
+
+export async function detectAgentHarness(
+  input: SessionStartInput | null,
+  detector: AgentDetector = determineAgentWithBundledPackage,
+): Promise<AgentHarness> {
+  // Cursor exposes reliable hook payload fields that detect-agent cannot inspect.
+  if (input && ("conversation_id" in input || "cursor_version" in input)) {
+    return "cursor";
+  }
+
+  try {
+    const result = await detector();
+    return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : undefined);
+  } catch {
+    // Harness detection is best-effort and must never block session startup,
+    // the active-session marker, or DAU telemetry.
+    return "unknown";
+  }
+}
+
 export function normalizeSessionStartSessionId(input: SessionStartInput | null): string | null {
   if (!input) return null;
 
@@ -626,6 +691,7 @@ export function formatSessionStartProfilerCursorOutput(
 async function main(): Promise<void> {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
+  const agentHarness = await detectAgentHarness(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
@@ -649,7 +715,7 @@ async function main(): Promise<void> {
       process.stdout.write(JSON.stringify(formatOutput("cursor", {})));
     }
 
-    await trackDauActiveToday().catch(() => {});
+    await trackDauActiveToday(new Date(), { agentHarness }).catch(() => {});
     process.exit(0);
   }
 
@@ -706,7 +772,7 @@ async function main(): Promise<void> {
   }
 
   // DAU phone-home — enabled by default unless VERCEL_PLUGIN_TELEMETRY=off
-  await trackDauActiveToday().catch(() => {});
+  await trackDauActiveToday(new Date(), { agentHarness }).catch(() => {});
 
   if (cursorOutput) {
     process.stdout.write(cursorOutput);
