@@ -61,7 +61,6 @@ metadata:
     noneOf:
       - "user agent"
       - "user-agent"
-      - "vercel agent"
       - "code review"
       - "incident investigation"
     minScore: 4
