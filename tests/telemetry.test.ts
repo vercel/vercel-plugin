@@ -12,6 +12,7 @@ let tempHome: string;
 async function runTelemetryProbe(options: {
   telemetryEnv?: string;
   agentHarness?: string;
+  agentHarnesses?: string[];
 }): Promise<{
   dauEnabled: boolean;
   calls: number;
@@ -49,9 +50,12 @@ async function runTelemetryProbe(options: {
     };
 
     const dauEnabled = telemetry.isDauTelemetryEnabled();
-    const context = { agentHarness: ${JSON.stringify(options.agentHarness ?? "unknown")} };
-    await telemetry.trackDauActiveToday(undefined, context);
-    await telemetry.trackDauActiveToday(undefined, context);
+    const agentHarnesses = ${JSON.stringify(
+      options.agentHarnesses ?? [options.agentHarness ?? "unknown", options.agentHarness ?? "unknown"],
+    )};
+    for (const agentHarness of agentHarnesses) {
+      await telemetry.trackDauActiveToday(undefined, { agentHarness });
+    }
 
     const stampPath = telemetry.getDauStampPath();
     const firstUseStampPath = telemetry.getFirstUseStampPath();
@@ -173,6 +177,28 @@ describe("telemetry controls", () => {
     const repeated = await runTelemetryProbe({ agentHarness: "codex" });
     expect(repeated.installationId).toBe(result.installationId);
     expect(repeated.calls).toBe(0);
+  });
+
+  test("reports each harness once per UTC day without inflating DAU", async () => {
+    const result = await runTelemetryProbe({
+      agentHarnesses: ["claude-code", "claude-code", "cursor", "cursor"],
+    });
+
+    expect(result.calls).toBe(2);
+    expect(result.dauPayloads).toHaveLength(2);
+
+    const events = result.dauPayloads.flat() as Array<{ key: string; value: string }>;
+    expect(events.filter((event) => event.key === "dau:active_today")).toHaveLength(1);
+    expect(
+      events
+        .filter((event) => event.key === "plugin:agent_harness")
+        .map((event) => event.value),
+    ).toEqual(["claude-code", "cursor"]);
+
+    const secondPayload = result.dauPayloads[1] as Array<{ key: string; value: string }>;
+    expect(secondPayload.some((event) => event.key === "dau:active_today")).toBe(false);
+    expect(secondPayload.some((event) => event.key === "plugin:version")).toBe(true);
+    expect(secondPayload.some((event) => event.key === "plugin:install_id")).toBe(true);
   });
 
   test("compiled hooks do not emit prompt, tool, or skill-injection telemetry keys", () => {

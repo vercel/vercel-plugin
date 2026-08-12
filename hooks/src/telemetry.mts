@@ -90,6 +90,10 @@ export function getInstallationIdPath(): string {
   return INSTALLATION_ID_PATH;
 }
 
+export function getAgentHarnessStampPath(agentHarness: AgentHarness): string {
+  return join(homedir(), ".config", "vercel-plugin", `harness-stamp-${agentHarness}`);
+}
+
 export function getActiveSessionMarkerPath(): string {
   return ACTIVE_SESSION_MARKER_PATH;
 }
@@ -144,6 +148,18 @@ export function shouldSendFirstUsePing(): boolean {
   }
 }
 
+export function shouldSendAgentHarnessPing(
+  agentHarness: AgentHarness,
+  now: Date = new Date(),
+): boolean {
+  try {
+    const existingMtime = statSync(getAgentHarnessStampPath(agentHarness)).mtime;
+    return utcDayStamp(existingMtime) !== utcDayStamp(now);
+  } catch {
+    return true;
+  }
+}
+
 export function markDauPingSent(now: Date = new Date()): void {
   void now;
   try {
@@ -158,6 +174,16 @@ export function markFirstUsePingSent(): void {
   try {
     mkdirSync(dirname(FIRST_USE_STAMP_PATH), { recursive: true });
     writeFileSync(FIRST_USE_STAMP_PATH, "", { flag: "w" });
+  } catch {
+    // Best-effort
+  }
+}
+
+export function markAgentHarnessPingSent(agentHarness: AgentHarness): void {
+  const stampPath = getAgentHarnessStampPath(agentHarness);
+  try {
+    mkdirSync(dirname(stampPath), { recursive: true });
+    writeFileSync(stampPath, "", { flag: "w" });
   } catch {
     // Best-effort
   }
@@ -224,6 +250,7 @@ export async function trackDauActiveToday(
 
   const installationId = getOrCreateInstallationId();
   const agentHarness = context.agentHarness ?? "unknown";
+  const shouldSendAgentHarness = shouldSendAgentHarnessPing(agentHarness, now);
   const eventTime = now.getTime();
   const events: TelemetryEvent[] = [];
 
@@ -245,7 +272,7 @@ export async function trackDauActiveToday(
     });
   }
 
-  if (events.length > 0) {
+  if (events.length > 0 || shouldSendAgentHarness) {
     events.push({
       id: randomUUID(),
       event_time: eventTime,
@@ -260,12 +287,14 @@ export async function trackDauActiveToday(
         value: installationId,
       });
     }
-    events.push({
-      id: randomUUID(),
-      event_time: eventTime,
-      key: "plugin:agent_harness",
-      value: agentHarness,
-    });
+    if (shouldSendAgentHarness) {
+      events.push({
+        id: randomUUID(),
+        event_time: eventTime,
+        key: "plugin:agent_harness",
+        value: agentHarness,
+      });
+    }
   }
 
   const sent = await sendTelemetry(events);
@@ -274,6 +303,7 @@ export async function trackDauActiveToday(
     for (const event of events) {
       if (event.key === "dau:active_today") markDauPingSent(now);
       if (event.key === "plugin:first_use") markFirstUsePingSent();
+      if (event.key === "plugin:agent_harness") markAgentHarnessPingSent(agentHarness);
     }
   }
 }

@@ -127,7 +127,7 @@ What is collected:
 - `plugin:first_use`: sent once per local user profile the first time the plugin successfully reports telemetry.
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
 - `plugin:install_id`: the locally stored random installation UUID.
-- `plugin:agent_harness`: the detected agent harness or `unknown`.
+- `plugin:agent_harness`: each distinct detected agent harness observed per installation per UTC day, or `unknown`.
 
 Each telemetry event contains only:
 
@@ -152,6 +152,7 @@ How it is tracked:
 - The bridge only forwards events from plugin versions `0.40.0` and newer.
 - Local throttle files are stored under `~/.config/vercel-plugin/`:
   - `dau-stamp` prevents sending `dau:active_today` more than once per UTC day.
+  - `harness-stamp-<harness>` prevents sending the same `plugin:agent_harness` value more than once per UTC day.
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
   - `installation-id` stores the random installation UUID. It is used only by plugin telemetry and is not written to `active-session.json`.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.

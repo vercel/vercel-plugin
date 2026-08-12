@@ -45,6 +45,9 @@ function getFirstUseStampPath() {
 function getInstallationIdPath() {
   return INSTALLATION_ID_PATH;
 }
+function getAgentHarnessStampPath(agentHarness) {
+  return join(homedir(), ".config", "vercel-plugin", `harness-stamp-${agentHarness}`);
+}
 function getActiveSessionMarkerPath() {
   return ACTIVE_SESSION_MARKER_PATH;
 }
@@ -91,6 +94,14 @@ function shouldSendFirstUsePing() {
     return true;
   }
 }
+function shouldSendAgentHarnessPing(agentHarness, now = /* @__PURE__ */ new Date()) {
+  try {
+    const existingMtime = statSync(getAgentHarnessStampPath(agentHarness)).mtime;
+    return utcDayStamp(existingMtime) !== utcDayStamp(now);
+  } catch {
+    return true;
+  }
+}
 function markDauPingSent(now = /* @__PURE__ */ new Date()) {
   void now;
   try {
@@ -103,6 +114,14 @@ function markFirstUsePingSent() {
   try {
     mkdirSync(dirname(FIRST_USE_STAMP_PATH), { recursive: true });
     writeFileSync(FIRST_USE_STAMP_PATH, "", { flag: "w" });
+  } catch {
+  }
+}
+function markAgentHarnessPingSent(agentHarness) {
+  const stampPath = getAgentHarnessStampPath(agentHarness);
+  try {
+    mkdirSync(dirname(stampPath), { recursive: true });
+    writeFileSync(stampPath, "", { flag: "w" });
   } catch {
   }
 }
@@ -144,6 +163,7 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date(), context = {
   if (!isDauTelemetryEnabled()) return;
   const installationId = getOrCreateInstallationId();
   const agentHarness = context.agentHarness ?? "unknown";
+  const shouldSendAgentHarness = shouldSendAgentHarnessPing(agentHarness, now);
   const eventTime = now.getTime();
   const events = [];
   if (shouldSendDauPing(now)) {
@@ -162,7 +182,7 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date(), context = {
       value: "1"
     });
   }
-  if (events.length > 0) {
+  if (events.length > 0 || shouldSendAgentHarness) {
     events.push({
       id: randomUUID(),
       event_time: eventTime,
@@ -177,33 +197,39 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date(), context = {
         value: installationId
       });
     }
-    events.push({
-      id: randomUUID(),
-      event_time: eventTime,
-      key: "plugin:agent_harness",
-      value: agentHarness
-    });
+    if (shouldSendAgentHarness) {
+      events.push({
+        id: randomUUID(),
+        event_time: eventTime,
+        key: "plugin:agent_harness",
+        value: agentHarness
+      });
+    }
   }
   const sent = await sendTelemetry(events);
   if (sent) {
     for (const event of events) {
       if (event.key === "dau:active_today") markDauPingSent(now);
       if (event.key === "plugin:first_use") markFirstUsePingSent();
+      if (event.key === "plugin:agent_harness") markAgentHarnessPingSent(agentHarness);
     }
   }
 }
 export {
   PLUGIN_VERSION,
   getActiveSessionMarkerPath,
+  getAgentHarnessStampPath,
   getDauStampPath,
   getFirstUseStampPath,
   getInstallationIdPath,
   getTelemetryOverride,
   isDauTelemetryEnabled,
+  markAgentHarnessPingSent,
   markDauPingSent,
   markFirstUsePingSent,
   refreshActiveSessionMarker,
   removeActiveSessionMarker,
+  shouldSendAgentHarnessPing,
   shouldSendDauPing,
   shouldSendFirstUsePing,
   trackDauActiveToday
