@@ -96,4 +96,12 @@ describe("session-start-profiler platform detection", () => {
       })),
     ).toBe("other");
   });
+
+  test("falls back to unknown when detect-agent rejects", async () => {
+    expect(
+      await detectAgentHarness({}, async () => {
+        throw new Error("detector failed");
+      }),
+    ).toBe("unknown");
+  });
 });

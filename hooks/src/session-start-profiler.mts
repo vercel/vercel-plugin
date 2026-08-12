@@ -40,12 +40,6 @@ import {
   type AgentHarness,
 } from "./telemetry.mjs";
 
-// detect-agent currently publishes CommonJS. The hook is bundled as a
-// standalone ESM file, so provide Node's require implementation before its
-// lazily bundled module is evaluated.
-const hookGlobal = globalThis as typeof globalThis & { require?: NodeRequire };
-hookGlobal.require ??= createRequire(import.meta.url);
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -543,6 +537,13 @@ export function normalizeDetectedAgentHarness(name: string | undefined): AgentHa
 type AgentDetector = () => Promise<AgentResult>;
 
 async function determineAgentWithBundledPackage(): Promise<AgentResult> {
+  // detect-agent currently publishes CommonJS. The hook is bundled as a
+  // standalone ESM file, so provide Node's require implementation immediately
+  // before its lazily bundled module is evaluated. This runs inside
+  // detectAgentHarness's failure boundary.
+  const hookGlobal = globalThis as typeof globalThis & { require?: NodeRequire };
+  hookGlobal.require ??= createRequire(import.meta.url);
+
   const { determineAgent } = await import("detect-agent");
   return determineAgent();
 }
@@ -556,8 +557,14 @@ export async function detectAgentHarness(
     return "cursor";
   }
 
-  const result = await detector();
-  return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : undefined);
+  try {
+    const result = await detector();
+    return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : undefined);
+  } catch {
+    // Harness detection is best-effort and must never block session startup,
+    // the active-session marker, or DAU telemetry.
+    return "unknown";
+  }
 }
 
 export function normalizeSessionStartSessionId(input: SessionStartInput | null): string | null {

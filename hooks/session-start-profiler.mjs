@@ -381,8 +381,6 @@ import {
   refreshActiveSessionMarker,
   trackDauActiveToday
 } from "./telemetry.mjs";
-var hookGlobal = globalThis;
-hookGlobal.require ??= createRequire(import.meta.url);
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -707,6 +705,8 @@ function normalizeDetectedAgentHarness(name) {
   }
 }
 async function determineAgentWithBundledPackage() {
+  const hookGlobal = globalThis;
+  hookGlobal.require ??= createRequire(import.meta.url);
   const { determineAgent } = await Promise.resolve().then(() => __toESM(require_dist(), 1));
   return determineAgent();
 }
@@ -714,8 +714,12 @@ async function detectAgentHarness(input, detector = determineAgentWithBundledPac
   if (input && ("conversation_id" in input || "cursor_version" in input)) {
     return "cursor";
   }
-  const result = await detector();
-  return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : void 0);
+  try {
+    const result = await detector();
+    return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : void 0);
+  } catch {
+    return "unknown";
+  }
 }
 function normalizeSessionStartSessionId(input) {
   if (!input) return null;
