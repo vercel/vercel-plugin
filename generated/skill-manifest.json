@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-11T01:42:00.327Z",
+  "generatedAt": "2026-08-12T03:07:25.143Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -960,7 +960,7 @@
     },
     "build-agents": {
       "priority": 10,
-      "summary": "Default eve-first guidance for building AI agents on Vercel, with Slack agent routing to the Slack Agent Skill.",
+      "summary": "Default guidance for building AI agents: eve is a great default choice — run init, then read the shipped docs.",
       "docs": [
         "https://eve.dev/docs",
         "https://github.com/vercel/eve",
