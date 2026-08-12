@@ -586,7 +586,7 @@
         {
           "pattern": "DurableAgent|use workflow|use step|from\\s+[''\"]workflow[''\"]|@workflow/",
           "targetSkill": "workflow",
-          "message": "Workflow DevKit pattern detected in AI code — loading WDK guidance for durable agent execution, step isolation, and crash-safe orchestration.",
+          "message": "Workflow SDK pattern detected in AI code — loading Workflow SDK guidance for durable agent execution, step isolation, and crash-safe orchestration.",
           "skipIfFileContains": "createWorkflow|withWorkflow"
         },
         {
@@ -1376,7 +1376,7 @@
         {
           "pattern": "setTimeout\\s*\\(|setInterval\\s*\\(|while\\s*\\(\\s*true",
           "targetSkill": "workflow",
-          "message": "Long-running or polling logic in chat bot — loading Workflow DevKit for durable execution that survives deploys.",
+          "message": "Long-running or polling logic in chat bot — loading Workflow SDK for durable execution that survives deploys.",
           "skipIfFileContains": "use workflow|from\\s+[''\"]workflow[''\"]"
         },
         {
@@ -3817,11 +3817,11 @@
         },
         {
           "pattern": "maxRetries\\s*[=:]|retryCount\\s*[=:]|retry\\s*\\(\\s*|for\\s*\\([^)]*retry|while\\s*\\([^)]*retry",
-          "message": "Manual retry logic detected. Use Vercel Workflow DevKit for automatic retries with durable execution.",
+          "message": "Manual retry logic detected. Use Vercel Workflow SDK for automatic retries with durable execution.",
           "severity": "recommended",
           "skipIfFileContains": "use workflow|use step|@vercel/workflow|from\\s+[''\"\"](workflow)[''\"\"]",
           "upgradeToSkill": "workflow",
-          "upgradeWhy": "Replace manual retry loops with Workflow DevKit steps that provide automatic retries, crash safety, and observability.",
+          "upgradeWhy": "Replace manual retry loops with Workflow SDK steps that provide automatic retries, crash safety, and observability.",
           "upgradeMode": "soft"
         },
         {
@@ -3843,7 +3843,7 @@
         {
           "pattern": "setTimeout\\s*\\(|setInterval\\s*\\(|await\\s+new\\s+Promise\\s*\\([^)]*setTimeout",
           "targetSkill": "workflow",
-          "message": "Long-running or polling logic in serverless handler — loading Workflow DevKit for durable execution."
+          "message": "Long-running or polling logic in serverless handler — loading Workflow SDK for durable execution."
         },
         {
           "pattern": "writeFile(Sync)?\\(|createWriteStream\\(|from\\s+[''\\\"](multer|formidable)[''\"]|fs\\.writeFile",
@@ -3863,7 +3863,7 @@
         {
           "pattern": "while\\s*\\(\\s*true\\s*\\)\\s*\\{|for\\s*\\(\\s*;\\s*;\\s*\\)\\s*\\{|setInterval\\s*\\(\\s*async",
           "targetSkill": "workflow",
-          "message": "Polling loop in serverless function detected — loading Workflow DevKit for durable, crash-safe execution with pause/resume.",
+          "message": "Polling loop in serverless function detected — loading Workflow SDK for durable, crash-safe execution with pause/resume.",
           "skipIfFileContains": "use workflow|use step|from\\\\s+['\\\"]workflow['\\\"]"
         },
         {
@@ -3881,7 +3881,7 @@
         {
           "pattern": "maxRetries\\s*[=:]|retryCount\\s*[=:]|retry\\s*\\(\\s*|for\\s*\\([^)]*retry|while\\s*\\([^)]*retry",
           "targetSkill": "workflow",
-          "message": "Manual retry logic in serverless handler — loading Workflow DevKit guidance for automatic retries with durable execution.",
+          "message": "Manual retry logic in serverless handler — loading Workflow SDK guidance for automatic retries with durable execution.",
           "skipIfFileContains": "use workflow|use step|@vercel/workflow|from\\s+[''\"\"](workflow)[''\"\"]"
         }
       ],
@@ -4680,7 +4680,7 @@
       "summary": "",
       "docs": [
         "https://vercel.com/docs/workflow",
-        "https://useworkflow.dev"
+        "https://workflow-sdk.dev"
       ],
       "sitemap": "https://vercel.com/sitemap/docs.xml",
       "pathPatterns": [
@@ -4767,7 +4767,7 @@
         },
         {
           "pattern": "from\\s+['\"]@vercel/workflow['\"]",
-          "message": "Workflow DevKit requires AI Gateway OIDC setup — ensure vercel link + vercel env pull for VERCEL_OIDC_TOKEN",
+          "message": "Workflow SDK requires AI Gateway OIDC setup — ensure vercel link + vercel env pull for VERCEL_OIDC_TOKEN",
           "severity": "recommended"
         },
         {
@@ -4778,7 +4778,7 @@
         },
         {
           "pattern": "context\\.run\\s*\\(",
-          "message": "context.run() is not a WDK pattern — use \"use step\" directive for retryable, observable steps",
+          "message": "context.run() is not a Workflow SDK pattern — use \"use step\" directive for retryable, observable steps",
           "severity": "error",
           "upgradeToSkill": "workflow",
           "upgradeWhy": "Guides migration from context.run() to the \"use step\" directive for durable, retryable workflow steps.",
@@ -4848,7 +4848,7 @@
         {
           "pattern": "process\\.env\\.(OPENAI_API_KEY|ANTHROPIC_API_KEY)|from\\s+[''\"]@ai-sdk/(anthropic|openai)[''\"\"]",
           "targetSkill": "ai-gateway",
-          "message": "Direct provider API key in workflow — loading AI Gateway guidance for OIDC auth (required for WDK AI steps).",
+          "message": "Direct provider API key in workflow — loading AI Gateway guidance for OIDC auth (required for Workflow SDK AI steps).",
           "skipIfFileContains": "gateway\\(|@ai-sdk/gateway|VERCEL_OIDC"
         },
         {
@@ -4867,6 +4867,7 @@
       "promptSignals": {
         "phrases": [
           "vercel workflow",
+          "workflow sdk",
           "workflow devkit",
           "durable workflow",
           "durable execution",
@@ -5464,6 +5465,7 @@
           "implement step function"
         ],
         "entities": [
+          "Workflow SDK",
           "Workflow DevKit",
           "WDK",
           "step",

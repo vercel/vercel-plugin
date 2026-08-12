@@ -242,7 +242,7 @@ AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
 │   ↔ AI Elements (render streaming responses)          │
 └── Key Patterns
     ↔ Next.js (chat apps, AI features in web apps)
-    ↔ Workflow DevKit (durable agents)
+    ↔ Workflow SDK (durable agents)
     ↔ AI Gateway (model routing, cost tracking)
     ↔ Generation Persistence (IDs, URLs, cost tracking) ⤳ skill: ai-sdk
     ↔ v0 (AI-generated UI components)
@@ -283,7 +283,7 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
     ⊃ Text, Image, Video generation
     ↔ AI SDK (unified interface)
 
-WORKFLOW DEVKIT (WDK)                      ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflow
+WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflow
 ├── Core Concepts
 │   ⊃ 'use workflow' directive
 │   ⊃ 'use step' directive
@@ -385,7 +385,7 @@ CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: http
 │
 ├── Key Patterns
 │   ↔ AI SDK (streaming AI responses via thread.post(textStream))
-│   ↔ Workflow DevKit (registerSingleton/reviver for durable serialization)
+│   ↔ Workflow SDK (registerSingleton/reviver for durable serialization)
 │   ↔ Vercel Functions (webhook handlers, waitUntil)
 │   ↔ Next.js (API routes for webhooks)
 │   ↔ Upstash Redis (state adapter backend)
@@ -642,7 +642,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
 | New durable agent or agent-powered application | eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
-| Add durability to an existing agent or application workflow | Workflow DevKit `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
+| Add durability to an existing agent or application workflow | Workflow SDK `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
 | Browser UI for an eve agent | eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
 | Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
 | Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
@@ -770,7 +770,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 ```
 1. Choose the architecture boundary:
    - New filesystem-first agent or agent-powered app → eve
-   - Existing app/agent that needs durable orchestration → Workflow DevKit `DurableAgent`
+   - Existing app/agent that needs durable orchestration → Workflow SDK `DurableAgent`
 2. eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
              → author instructions, tools, skills, connections, channels, and optional frontend client
 3. Workflow path: Next.js Route Handler → DurableAgent → AI SDK tools → AI Gateway
@@ -845,7 +845,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
 | `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
 | `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
-| `experimental_createWorkflow` | `createWorkflow()` (stable) | WDK API stabilized |
+| `experimental_createWorkflow` | `createWorkflow()` (stable) | Workflow SDK API stabilized |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
 | `next export` | `output: "export"` in next.config | CLI command removed |
@@ -919,7 +919,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 - Default to AI SDK v6 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
 - Consider eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
-- Use eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow DevKit when existing application logic primarily needs durable orchestration.
+- Use eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow SDK when existing application logic primarily needs durable orchestration.
 - Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
 - Prefer `toUIMessageStreamResponse()`, `DefaultChatTransport`, and modern tool definitions (`inputSchema`, `outputSchema`) over v5-era patterns.
 - Keep AI recommendations scoped to the current task; do not force broad AI stack migrations unless the code already points there.
@@ -947,7 +947,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### Workflow and Durability
 
-- Use Workflow DevKit and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Use Workflow SDK and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
 - Prefer eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
 - Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
 - Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.

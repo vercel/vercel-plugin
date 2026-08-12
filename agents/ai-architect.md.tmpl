@@ -20,7 +20,7 @@ What does the AI feature need to do?
 │  ├─ Single tool call → `generateText` with `tools` parameter
 │  ├─ Multi-step reasoning with tools → AI SDK `ToolLoopAgent` class
 │  │  ├─ Short-lived (< 60s) → Agent in Route Handler
-│  │  └─ Long-running (minutes to hours) → Workflow DevKit `DurableAgent`
+│  │  └─ Long-running (minutes to hours) → Workflow SDK `DurableAgent`
 │  └─ MCP server integration → `@ai-sdk/mcp` StreamableHTTPClientTransport
 │
 ├─ Process files / images / audio
@@ -34,7 +34,7 @@ What does the AI feature need to do?
 │  └─ Generate with context → `generateText` with retrieved chunks in prompt
 │
 └─ Multi-agent system
-   ├─ Agents share context? → Workflow DevKit `Worlds` (shared state)
+   ├─ Agents share context? → Workflow SDK `Worlds` (shared state)
    ├─ Independent agents? → Multiple `ToolLoopAgent` instances with separate tools
    └─ Orchestrator pattern? → Parent Agent delegates to child Agents via tools
 ```
@@ -165,7 +165,7 @@ Use when: Chat that can take actions (search, CRUD, calculations).
 ### Pattern 3: Background Agent
 
 ```
-Client → Route Handler → Workflow DevKit (DurableAgent)
+Client → Route Handler → Workflow SDK (DurableAgent)
               ↓                    ↓ tool calls
          Returns runId       External APIs / DB
               ↓                    ↓
