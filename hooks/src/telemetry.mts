@@ -24,6 +24,7 @@ export type AgentHarness =
   | "github-copilot"
   | "kimi"
   | "grok"
+  | "other"
   | "unknown";
 
 export interface TelemetryContext {

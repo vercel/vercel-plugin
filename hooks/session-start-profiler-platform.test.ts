@@ -38,12 +38,28 @@ describe("session-start-profiler platform detection", () => {
     expect(normalizeDetectedAgentHarness("grok")).toBe("grok");
     expect(normalizeDetectedAgentHarness("codex_cli")).toBe("codex");
     expect(normalizeDetectedAgentHarness("claude_code")).toBe("claude-code");
+    expect(normalizeDetectedAgentHarness("cowork")).toBe("claude-code");
   });
 
-  test("never forwards unsupported or custom agent names", () => {
+  test("distinguishes no detection from detected but unapproved agents", () => {
     expect(normalizeDetectedAgentHarness(undefined)).toBe("unknown");
-    expect(normalizeDetectedAgentHarness("custom-agent@1")).toBe("unknown");
-    expect(normalizeDetectedAgentHarness("devin")).toBe("unknown");
+    for (const name of [
+      "gemini_cli",
+      "cline",
+      "antigravity",
+      "augment-cli",
+      "open_code",
+      "goose",
+      "junie",
+      "pi",
+      "replit",
+      "kiro",
+      "openclaw",
+      "devin",
+      "custom-agent@1",
+    ]) {
+      expect(normalizeDetectedAgentHarness(name)).toBe("other");
+    }
   });
 
   test("uses Cursor hook fields before detect-agent", async () => {
@@ -67,5 +83,17 @@ describe("session-start-profiler platform detection", () => {
         agent: { name: "grok" },
       })),
     ).toBe("grok");
+  });
+
+  test("returns unknown only when detect-agent finds no agent", async () => {
+    expect(
+      await detectAgentHarness({}, async () => ({ isAgent: false })),
+    ).toBe("unknown");
+    expect(
+      await detectAgentHarness({}, async () => ({
+        isAgent: true,
+        agent: { name: "devin" },
+      })),
+    ).toBe("other");
   });
 });

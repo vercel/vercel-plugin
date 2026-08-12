@@ -692,6 +692,7 @@ function normalizeDetectedAgentHarness(name) {
     case "cursor-cli":
       return "cursor";
     case "claude_code":
+    case "cowork":
       return "claude-code";
     case "codex_cli":
       return "codex";
@@ -702,7 +703,7 @@ function normalizeDetectedAgentHarness(name) {
     case "grok":
       return "grok";
     default:
-      return "unknown";
+      return name === void 0 ? "unknown" : "other";
   }
 }
 async function determineAgentWithBundledPackage() {

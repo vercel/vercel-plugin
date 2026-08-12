@@ -127,7 +127,7 @@ What is collected:
 - `plugin:first_use`: sent once per local user profile the first time the plugin successfully reports telemetry.
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
 - `plugin:install_id`: the locally stored random installation UUID.
-- `plugin:agent_harness`: each distinct detected agent harness observed per installation per UTC day, or `unknown`.
+- `plugin:agent_harness`: each distinct detected agent harness category observed per installation per UTC day.
 
 Each telemetry event contains only:
 
@@ -142,7 +142,7 @@ The request also sends HTTP headers used by the telemetry bridge:
 - `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
 
-The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code, Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent); ambiguous, unsupported, and custom harness names are reported as `unknown`.
+The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
 
 Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
 

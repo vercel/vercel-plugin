@@ -516,7 +516,8 @@ export function detectSessionStartPlatform(
 
 /**
  * Map detect-agent output to the deliberately small set of values approved for
- * plugin telemetry. Custom AI_AGENT values are never forwarded verbatim.
+ * plugin telemetry. Custom AI_AGENT values are never forwarded verbatim, and a
+ * detected but unapproved agent is distinguishable from no detection.
  */
 export function normalizeDetectedAgentHarness(name: string | undefined): AgentHarness {
   switch (name) {
@@ -524,6 +525,7 @@ export function normalizeDetectedAgentHarness(name: string | undefined): AgentHa
     case "cursor-cli":
       return "cursor";
     case "claude_code":
+    case "cowork":
       return "claude-code";
     case "codex_cli":
       return "codex";
@@ -534,7 +536,7 @@ export function normalizeDetectedAgentHarness(name: string | undefined): AgentHa
     case "grok":
       return "grok";
     default:
-      return "unknown";
+      return name === undefined ? "unknown" : "other";
   }
 }
 
