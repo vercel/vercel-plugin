@@ -62,9 +62,9 @@ function readInstallationId() {
 function getOrCreateInstallationId() {
   const existing = readInstallationId();
   if (existing) return existing;
+  const installationId = randomUUID();
   try {
     mkdirSync(dirname(INSTALLATION_ID_PATH), { recursive: true, mode: 448 });
-    const installationId = randomUUID();
     writeFileSync(INSTALLATION_ID_PATH, `${installationId}
 `, {
       flag: "wx",
@@ -72,7 +72,18 @@ function getOrCreateInstallationId() {
     });
     return installationId;
   } catch {
-    return readInstallationId();
+    const raced = readInstallationId();
+    if (raced) return raced;
+    try {
+      writeFileSync(INSTALLATION_ID_PATH, `${installationId}
+`, {
+        flag: "w",
+        mode: 384
+      });
+      return readInstallationId();
+    } catch {
+      return readInstallationId();
+    }
   }
 }
 function utcDayStamp(date) {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -13,6 +13,7 @@ async function runTelemetryProbe(options: {
   telemetryEnv?: string;
   agentHarness?: string;
   agentHarnesses?: string[];
+  refreshActiveSessionMarker?: boolean;
 }): Promise<{
   dauEnabled: boolean;
   calls: number;
@@ -66,7 +67,9 @@ async function runTelemetryProbe(options: {
         : null
     );
     const activeSessionMarkerPath = telemetry.getActiveSessionMarkerPath();
-    telemetry.refreshActiveSessionMarker(new Date("2026-05-15T12:00:00.000Z"));
+    if (${JSON.stringify(options.refreshActiveSessionMarker ?? true)}) {
+      telemetry.refreshActiveSessionMarker(new Date("2026-05-15T12:00:00.000Z"));
+    }
     const activeSessionMarker = await import("node:fs").then((fs) =>
       fs.existsSync(activeSessionMarkerPath)
         ? JSON.parse(fs.readFileSync(activeSessionMarkerPath, "utf-8"))
@@ -177,6 +180,57 @@ describe("telemetry controls", () => {
     const repeated = await runTelemetryProbe({ agentHarness: "codex" });
     expect(repeated.installationId).toBe(result.installationId);
     expect(repeated.calls).toBe(0);
+  });
+
+  test("repairs an invalid installation ID before sending telemetry", async () => {
+    const installationIdPath = join(tempHome, ".config", "vercel-plugin", "installation-id");
+    mkdirSync(join(tempHome, ".config", "vercel-plugin"), { recursive: true });
+    writeFileSync(installationIdPath, "not-a-uuid\n");
+
+    const result = await runTelemetryProbe({ agentHarness: "codex" });
+
+    expect(result.installationId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(readFileSync(installationIdPath, "utf8").trim()).toBe(result.installationId);
+    expect(
+      (result.dauPayloads[0] as Array<{ key: string; value: string }>).find(
+        (event) => event.key === "plugin:install_id",
+      )?.value,
+    ).toBe(result.installationId);
+  });
+
+  test("concurrent invalid-file repairs leave a valid installation ID", async () => {
+    const installationIdPath = join(tempHome, ".config", "vercel-plugin", "installation-id");
+    mkdirSync(join(tempHome, ".config", "vercel-plugin"), { recursive: true });
+    writeFileSync(installationIdPath, "not-a-uuid\n");
+
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        runTelemetryProbe({ agentHarness: "codex", refreshActiveSessionMarker: false }),
+      ),
+    );
+    const storedInstallationId = readFileSync(installationIdPath, "utf8").trim();
+
+    expect(storedInstallationId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    for (const result of results) {
+      expect(result.installationId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+    }
+  });
+
+  test("telemetry opt-out does not repair an invalid installation ID", async () => {
+    const installationIdPath = join(tempHome, ".config", "vercel-plugin", "installation-id");
+    mkdirSync(join(tempHome, ".config", "vercel-plugin"), { recursive: true });
+    writeFileSync(installationIdPath, "not-a-uuid\n");
+
+    const result = await runTelemetryProbe({ telemetryEnv: "off", agentHarness: "codex" });
+
+    expect(result.calls).toBe(0);
+    expect(readFileSync(installationIdPath, "utf8")).toBe("not-a-uuid\n");
   });
 
   test("reports each harness once per UTC day without inflating DAU", async () => {

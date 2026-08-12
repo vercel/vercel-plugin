@@ -111,18 +111,32 @@ function getOrCreateInstallationId(): string | null {
   const existing = readInstallationId();
   if (existing) return existing;
 
+  const installationId = randomUUID();
   try {
     mkdirSync(dirname(INSTALLATION_ID_PATH), { recursive: true, mode: 0o700 });
-    const installationId = randomUUID();
     writeFileSync(INSTALLATION_ID_PATH, `${installationId}\n`, {
       flag: "wx",
       mode: 0o600,
     });
     return installationId;
   } catch {
-    // Another process may have created the file first. Never send an
-    // ephemeral identifier when a stable value cannot be read from disk.
-    return readInstallationId();
+    // Another process may have created the file first — prefer its value.
+    const raced = readInstallationId();
+    if (raced) return raced;
+
+    // Nothing valid is on disk, so replace the unusable file. Re-read after
+    // writing so a concurrent repair adopts the value currently on disk.
+    try {
+      writeFileSync(INSTALLATION_ID_PATH, `${installationId}\n`, {
+        flag: "w",
+        mode: 0o600,
+      });
+      return readInstallationId();
+    } catch {
+      // A concurrent repair may still have succeeded. Never send an
+      // identifier that cannot be confirmed on disk.
+      return readInstallationId();
+    }
   }
 }
 
