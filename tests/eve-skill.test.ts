@@ -40,21 +40,24 @@ function matchesPrompt(prompt: string): boolean {
 
 describe("eve prompt activation", () => {
   test.each([
-    "Build me an agent that triages support tickets.",
-    "Design a durable research agent with scheduled reports.",
-    "Prototype an agent-powered knowledge assistant.",
-    "Implement a new agent for release-note triage.",
-    "Which agent framework should I use for this application?",
-    "Help debug my Eve project.",
-    "Migrate my LangGraph agent to another framework.",
+    "Build me an eve agent that triages support tickets.",
+    "Design an eve durable research agent with scheduled reports.",
+    "Prototype an eve agent-powered knowledge assistant.",
+    "Implement a new eve agent for release-note triage.",
+    "Which eve architecture should I use for this application?",
+    "Help debug my eve project.",
+    "Migrate my LangGraph agent to eve.",
     "Show me the latest production Agent Runs for my project.",
     "Inspect an Agent Runs trace for wrun_123.",
     "Update skills based on recent runs.",
-  ])("matches agent-building or explicit Eve intent: %s", (prompt) => {
+  ])("matches explicit eve or Agent Runs intent: %s", (prompt) => {
     expect(matchesPrompt(prompt)).toBe(true);
   });
 
   test.each([
+    "Build me an agent that triages support tickets.",
+    "Design a durable research agent with scheduled reports.",
+    "Which agent framework should I use for this application?",
     "Explain what an AI agent is.",
     "Fix my AI SDK ToolLoopAgent implementation.",
     "Debug my LangGraph agent.",
@@ -67,18 +70,18 @@ describe("eve prompt activation", () => {
 });
 
 describe("eve project evidence", () => {
-  test("matches only Eve-specific paths", () => {
+  test("matches only eve-specific paths", () => {
     expect(matchPathWithReason(".eve/build/manifest.json", compiledSkill.compiledPaths)).not.toBeNull();
     expect(matchPathWithReason("apps/support/agent/channels/eve.ts", compiledSkill.compiledPaths)).not.toBeNull();
     expect(matchPathWithReason("agent/tools/search.ts", compiledSkill.compiledPaths)).toBeNull();
   });
 
-  test("matches Eve package imports", () => {
+  test("matches eve package imports", () => {
     expect(matchImportWithReason('import { defineTool } from "eve/tools";', compiledSkill.compiledImports)).not.toBeNull();
     expect(matchImportWithReason('import { ToolLoopAgent } from "ai";', compiledSkill.compiledImports)).toBeNull();
   });
 
-  test("matches Eve CLI and installation commands without matching similarly named packages", () => {
+  test("matches eve CLI and installation commands without matching similarly named packages", () => {
     expect(matchBashWithReason("npx eve@latest init support-agent", compiledSkill.compiledBash)).not.toBeNull();
     expect(matchBashWithReason("npm install eve@latest", compiledSkill.compiledBash)).not.toBeNull();
     expect(matchBashWithReason("vercel agent-runs --help", compiledSkill.compiledBash)).not.toBeNull();

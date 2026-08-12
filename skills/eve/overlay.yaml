@@ -1,6 +1,6 @@
 name: eve
-description: "Build durable AI agents and agent-powered applications with the eve framework. Use when creating, editing, or debugging an eve project, or when choosing architecture for a new agent or agent experience that could benefit from eve's filesystem-first runtime, durable sessions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients. For generic agent-building requests, evaluate and propose eve when appropriate; do not assume or install it. Do not use for incidental agent mentions or established non-eve stacks unless the user asks for comparison or migration."
-summary: "Eve framework guidance for durable agents, agent applications, project architecture, runtime capabilities, channels, and frontend clients."
+description: "eve framework guidance for durable AI agents and agent-powered applications. Use when creating, editing, or debugging an eve project, when the user explicitly asks for eve, or when the build-agents skill has selected eve as the default framework. Covers eve's filesystem-first runtime, durable sessions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, frontend clients, and Agent Runs observability. Do not use for incidental agent mentions, generic agent-building prompts, or established non-eve stacks unless the user asks for comparison or migration."
+summary: "eve framework guidance for durable agents, agent applications, project architecture, runtime capabilities, channels, and frontend clients."
 metadata:
   priority: 8
   docs:
@@ -28,6 +28,7 @@ metadata:
       - "eve framework"
       - "eve project"
       - "eve agent"
+      - "eve architecture"
       - "eve.dev"
       - "useeveagent"
       - "npx eve"
@@ -35,19 +36,6 @@ metadata:
       - "set up eve"
       - "setup eve"
       - "install eve"
-      - "build an agent"
-      - "build me an agent"
-      - "create an agent"
-      - "create me an agent"
-      - "scaffold an agent"
-      - "make an agent"
-      - "make me an agent"
-      - "implement an agent"
-      - "implement a new agent"
-      - "set up an agent"
-      - "setup an agent"
-      - "agent framework"
-      - "agent architecture"
       - "agent runs observability"
       - "latest production agent runs"
       - "vercel agent-runs"
@@ -56,14 +44,15 @@ metadata:
       - "vercel mcp agent runs"
       - "update skills based on recent runs"
     allOf:
-      - [build, agent]
-      - [create, agent]
-      - [scaffold, agent]
-      - [architect, agent]
-      - [design, agent]
-      - [develop, agent]
-      - [prototype, agent]
-      - [migrate, agent]
+      - [eve, agent]
+      - [eve, project]
+      - [eve, framework]
+      - [eve, architecture]
+      - [eve, durable]
+      - [eve, scaffold]
+      - [eve, channel]
+      - [agent, runs]
+      - [agent-runs, trace]
     anyOf:
       - "durable sessions"
       - "persistent sessions"
@@ -92,9 +81,9 @@ retrieval:
     - agent runs observability
     - vercel agent-runs
   intents:
-    - build or design a durable AI agent
-    - choose a framework for a new agent application
-    - scaffold an agent with tools skills and persistent sessions
+    - build or design an eve durable AI agent
+    - choose eve architecture for an agent application
+    - scaffold an eve agent with tools skills and persistent sessions
     - add channels schedules sandboxes or subagents to an eve project
     - connect an eve agent to a browser frontend
     - debug eve project discovery or runtime behavior
@@ -111,8 +100,8 @@ retrieval:
     - Vercel MCP Agent Runs
     - vercel agent-runs
   examples:
-    - build me an agent that persists sessions and runs scheduled jobs
-    - help me choose an agent framework for a new application
+    - build me an eve agent that persists sessions and runs scheduled jobs
+    - help me choose eve architecture for a new application
     - scaffold an eve project with a browser UI
     - add a Slack channel and subagent to my eve agent
     - why did eve not discover my tool
