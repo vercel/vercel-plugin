@@ -62,6 +62,9 @@ import { getWorkflowMetadata, getStepMetadata } from "workflow";
 // API operations
 import { start, getRun, resumeHook, resumeWebhook } from "workflow/api";
 
+// Analytics API
+import { getWorld } from "workflow/runtime";
+
 // Observability & data hydration
 import { hydrateResourceIO, observabilityRevivers, parseStepName, parseWorkflowName } from "workflow/observability";
 
