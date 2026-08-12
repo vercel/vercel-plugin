@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T19:45:23.778Z",
+  "generatedAt": "2026-08-12T03:07:25.143Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1060,6 +1060,7 @@
         "noneOf": [
           "user agent",
           "user-agent",
+          "vercel agent",
           "code review",
           "incident investigation"
         ],
