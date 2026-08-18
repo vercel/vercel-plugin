@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T03:07:25.143Z",
+  "generatedAt": "2026-08-18T04:39:35.551Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -153,7 +153,7 @@
       "validate": [
         {
           "pattern": "\\b(claude|gpt|gemini|llama|mistral|qwen|deepseek)[a-z0-9-]*-\\d+-\\d+[a-z0-9-]*\\b",
-          "message": "Model slug uses hyphens — use dots not hyphens for version numbers (e.g., claude-sonnet-4.6)",
+          "message": "Model slug uses hyphens — use dots not hyphens for version numbers (e.g., gpt-5.6-sol)",
           "severity": "error"
         },
         {
@@ -163,7 +163,7 @@
         },
         {
           "pattern": "gateway\\(['\"][^'\"/]+['\"]\\)",
-          "message": "Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-4.6)",
+          "message": "Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-5)",
           "severity": "error"
         },
         {
