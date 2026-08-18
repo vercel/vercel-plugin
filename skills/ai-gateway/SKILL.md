@@ -122,7 +122,7 @@ await generateText({
 
 - Always `provider/model`: `openai/gpt-5.6-sol`.
 - Versions use dots, never hyphens: `openai/gpt-5.6-sol`, not `gpt-5-6-sol`.
-- Authoritative model lists: `GET https://ai-gateway.vercel.sh/v1/models` (IDs + capabilities) and `/v1/models/endpoints` (per-provider detail: live pricing, context length, ZDR/no-training flags). `gateway.getAvailableModels()` from `@ai-sdk/gateway` exposes the same catalog in TypeScript — typed, in-code discovery without calling the HTTP endpoints yourself — but it can lag behind them.
+- Authoritative model lists: `GET https://ai-gateway.vercel.sh/v1/models` (IDs + capabilities) and `/v1/models/endpoints` (per-provider detail: live pricing, context length, ZDR/no-training flags). `gateway.getAvailableModels()` from `@ai-sdk/gateway` exposes the same catalog in TypeScript.
 - The catalog moves fast — pick current defaults from the live list or https://vercel.com/ai-gateway/models instead of hardcoding from memory. **Never** fall back to training-data-era defaults (`openai/gpt-4o`, `gpt-4o-mini`, `gpt-3.5-turbo`, `claude-3-*`) — they are outdated and read as stale to users. Current docs examples use models like `openai/gpt-5.6-sol` and `anthropic/claude-sonnet-5`.
 
 ## Auth (OIDC default)
