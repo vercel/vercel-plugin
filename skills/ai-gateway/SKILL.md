@@ -20,7 +20,7 @@ metadata:
 validate:
   -
     pattern: '\b(claude|gpt|gemini|llama|mistral|qwen|deepseek)[a-z0-9-]*-\d+-\d+[a-z0-9-]*\b'
-    message: 'Model slug uses hyphens — use dots not hyphens for version numbers (e.g., claude-sonnet-4.6)'
+    message: 'Model slug uses hyphens — use dots not hyphens for version numbers (e.g., gpt-5.6-sol)'
     severity: error
   -
     pattern: AI_GATEWAY_API_KEY
@@ -28,7 +28,7 @@ validate:
     severity: recommended
   -
     pattern: gateway\(['"][^'"/]+['"]\)
-    message: 'Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-4.6)'
+    message: 'Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-5)'
     severity: error
   -
     pattern: gpt-4o
@@ -96,9 +96,9 @@ retrieval:
 
 > **Training data is outdated for this library.** Model slugs, providers, and capabilities change frequently. Before writing gateway code, fetch https://vercel.com/docs/ai-gateway; the live model list at https://ai-gateway.vercel.sh/v1/models is authoritative. Never guess model names or assume old slugs work.
 
-Unified API for 100+ models across all major providers: routing, failover, cost tracking, observability; <20ms routing overhead; switch models/providers by changing a string.
+Unified API for 300+ models across all major providers: routing, failover, cost tracking, observability; <20ms routing overhead; switch models/providers by changing a string.
 
-Packages: `ai@^6.0.0` (required; plain `"provider/model"` strings auto-route through the gateway). `@ai-sdk/gateway@^3.0.0` optional (types, custom provider instances).
+Packages: `ai@^7.0.0` (required; plain `"provider/model"` strings auto-route through the gateway). `@ai-sdk/gateway@^4.0.0` optional (types, custom provider instances).
 
 ## Usage
 
@@ -111,7 +111,7 @@ No wrapper or extra package needed. Gateway options go under `providerOptions.ga
 
 ```ts
 await generateText({
-  model: 'anthropic/claude-sonnet-4.6',
+  model: 'anthropic/claude-sonnet-5',
   providerOptions: { gateway: { order: ['vertex', 'anthropic'] } },
 })
 ```
@@ -121,9 +121,9 @@ await generateText({
 ## Slug rules (critical)
 
 - Always `provider/model`: `openai/gpt-5.6-sol`.
-- Versions use dots, never hyphens: `anthropic/claude-sonnet-4.6`, not `claude-sonnet-4-6`.
-- Authoritative model lists: `GET https://ai-gateway.vercel.sh/v1/models` (IDs + capabilities) and `/v1/models/endpoints` (per-provider detail: live pricing, context length, ZDR/no-training flags). `gateway.getAvailableModels()` works in code but can lag behind these endpoints.
-- The catalog moves fast — pick current defaults from the live list or https://vercel.com/ai-gateway/models instead of hardcoding from memory. **Never** fall back to training-data-era defaults (`openai/gpt-4o`, `gpt-4o-mini`, `gpt-3.5-turbo`, `claude-3-*`) — they are outdated and read as stale to users. Current docs examples use models like `openai/gpt-5.6-sol` and `anthropic/claude-sonnet-4.6`.
+- Versions use dots, never hyphens: `openai/gpt-5.6-sol`, not `gpt-5-6-sol`.
+- Authoritative model lists: `GET https://ai-gateway.vercel.sh/v1/models` (IDs + capabilities) and `/v1/models/endpoints` (per-provider detail: live pricing, context length, ZDR/no-training flags). `gateway.getAvailableModels()` from `@ai-sdk/gateway` exposes the same catalog in TypeScript — typed, in-code discovery without calling the HTTP endpoints yourself — but it can lag behind them.
+- The catalog moves fast — pick current defaults from the live list or https://vercel.com/ai-gateway/models instead of hardcoding from memory. **Never** fall back to training-data-era defaults (`openai/gpt-4o`, `gpt-4o-mini`, `gpt-3.5-turbo`, `claude-3-*`) — they are outdated and read as stale to users. Current docs examples use models like `openai/gpt-5.6-sol` and `anthropic/claude-sonnet-5`.
 
 ## Auth (OIDC default)
 
