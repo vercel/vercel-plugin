@@ -102,6 +102,8 @@ Vercel provides first-class backend examples and integrations for these framewor
 - **Python:** FastAPI, Flask, and Django. Other WSGI or ASGI applications can run when they export a compatible `app`, with additional configuration as needed.
 - **Go:** supported as a Vercel Functions runtime.
 
+When paired with a frontend, these can be deployed together using Services.
+
 Prefer the user's existing framework. For a new project, choose based on ecosystem and application needs.
 
 ## Work sequence
