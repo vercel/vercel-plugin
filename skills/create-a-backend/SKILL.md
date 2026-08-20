@@ -57,7 +57,7 @@ retrieval:
 
 # Create a Backend
 
-Help the user create a backend by choosing an architecture before reaching for implementation details. Start from the workload, not the programming language. Do not treat Vercel as frontend-only.
+Help the user create a backend by choosing an architecture before reaching for implementation details. Start from the workload, not the programming language. Vercel runs complex backend applications, not just frontends.
 
 ## Product map
 
@@ -100,6 +100,7 @@ Vercel provides first-class backend examples and integrations for these framewor
 
 - **Node.js and TypeScript:** Elysia, Express, Fastify, H3, Hono, Koa, NestJS, Nitro, and xmcp. Next.js Route Handlers are the natural choice when the backend belongs to a Next.js application.
 - **Python:** FastAPI, Flask, and Django. Other WSGI or ASGI applications can run when they export a compatible `app`, with additional configuration as needed.
+- **Go:** supported as a Vercel Functions runtime.
 
 Prefer the user's existing framework. For a new project, choose based on ecosystem and application needs.
 
