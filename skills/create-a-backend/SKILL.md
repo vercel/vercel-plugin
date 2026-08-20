@@ -63,16 +63,16 @@ Help the user create a backend by choosing an architecture before reaching for i
 
 | Need | Vercel product |
 | --- | --- |
-| HTTP APIs, webhooks, streaming, or framework server code | **Vercel Functions with Fluid compute** |
-| Bidirectional realtime connections (WebSockets) | **Vercel Functions with Fluid compute**; no separate realtime service required |
-| A frontend and one or more backends (API endpoints) that deploy together | **Vercel Services** |
-| An existing Dockerfile, custom runtime, or system dependencies | **Container images** on Vercel Functions, optionally composed with Services |
-| Durable multi-step work with retries, sleeps, or external events | **Vercel Workflow** |
-| Background jobs, buffering, fan-out, or direct message routing | **Vercel Queues** |
-| Scheduled HTTP work | **Vercel Cron Jobs**; use Workflow when the job itself must be durable |
-| Postgres, Redis, NoSQL, vector, or other application data | **Storage integrations from the Vercel Marketplace** |
-| Files and user uploads | **Vercel Blob** |
-| Global, read-heavy configuration | **Edge Config** |
+| HTTP APIs, webhooks, streaming, or framework server code | **[Vercel Functions](https://vercel.com/docs/functions) with [Fluid compute](https://vercel.com/docs/fluid-compute)** |
+| Bidirectional realtime connections (WebSockets) | **[Vercel Functions with Fluid compute](https://vercel.com/docs/functions/websockets)**; no separate realtime service required |
+| A frontend and one or more backends (API endpoints) that deploy together | **[Vercel Services](https://vercel.com/docs/services)** |
+| An existing Dockerfile, custom runtime, or system dependencies | **[Container images](https://vercel.com/docs/functions/container-images)** on Vercel Functions, optionally composed with Services |
+| Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflow](https://vercel.com/docs/workflow)** |
+| Background jobs, buffering, fan-out, or direct message routing | **[Vercel Queues](https://vercel.com/docs/queues)** |
+| Scheduled HTTP work | **[Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)**; use Workflow when the job itself must be durable |
+| Postgres, Redis, NoSQL, vector, or other application data | **[Storage integrations from the Vercel Marketplace](https://vercel.com/marketplace/category/storage)** |
+| Files and user uploads | **[Vercel Blob](https://vercel.com/docs/storage/vercel-blob)** |
+| Global, read-heavy configuration | **[Edge Config](https://vercel.com/docs/storage/edge-config)** |
 
 Use Functions for the normal request/response backend. Use Services when independently built components should share one deployment, routing layer, preview URL, and rollback. Use separate Vercel projects when components need independent release cycles.
 
@@ -96,7 +96,7 @@ Keep the database close to the Functions region and use a serverless-compatible 
 
 ## Backend frameworks
 
-Vercel provides first-class backend examples and integrations for these frameworks:
+Vercel provides first-class [backend examples and integrations](https://vercel.com/docs/frameworks/backend) for these frameworks:
 
 - **Node.js and TypeScript:** Elysia, Express, Fastify, H3, Hono, Koa, NestJS, Nitro, and xmcp. Next.js Route Handlers are the natural choice when the backend belongs to a Next.js application.
 - **Python:** FastAPI, Flask, and Django. Other WSGI or ASGI applications can run when they export a compatible `app`, with additional configuration as needed.
