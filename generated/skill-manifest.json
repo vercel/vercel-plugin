@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T03:07:25.143Z",
+  "generatedAt": "2026-08-20T19:04:14.578Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1443,6 +1443,94 @@
           "add chat to my app",
           "create a messaging component"
         ]
+      }
+    },
+    "create-a-backend": {
+      "priority": 7,
+      "summary": "Match backend workloads to the right architecture",
+      "docs": [
+        "https://vercel.com/docs/frameworks/backend",
+        "https://vercel.com/docs/functions",
+        "https://vercel.com/docs/services",
+        "https://vercel.com/docs/queues",
+        "https://vercel.com/docs/workflow",
+        "https://vercel.com/docs/storage"
+      ],
+      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "pathPatterns": [
+        "Dockerfile.vercel",
+        "Containerfile.vercel"
+      ],
+      "bashPatterns": [],
+      "importPatterns": [],
+      "bodyPath": "skills/create-a-backend/SKILL.md",
+      "pathRegexSources": [
+        "^Dockerfile\\.vercel$",
+        "^Containerfile\\.vercel$"
+      ],
+      "bashRegexSources": [],
+      "importRegexSources": [],
+      "promptSignals": {
+        "phrases": [
+          "backend on vercel",
+          "vercel backend",
+          "build a backend",
+          "create a backend",
+          "deploy my backend",
+          "backend architecture"
+        ],
+        "allOf": [
+          [
+            "backend",
+            "vercel"
+          ],
+          [
+            "backend",
+            "docker"
+          ],
+          [
+            "backend",
+            "node"
+          ],
+          [
+            "backend",
+            "python"
+          ],
+          [
+            "backend",
+            "queue"
+          ]
+        ],
+        "anyOf": [
+          "api",
+          "database",
+          "service",
+          "workflow"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "Vercel backend",
+          "backend architecture",
+          "backend framework"
+        ],
+        "intents": [
+          "build a backend",
+          "choose backend products",
+          "deploy an existing API or server",
+          "select a Node.js or Python backend framework"
+        ],
+        "entities": [
+          "Vercel Functions",
+          "Vercel Services",
+          "Vercel Queues",
+          "Vercel Workflow",
+          "Vercel Marketplace",
+          "container images"
+        ],
+        "examples": []
       }
     },
     "deployments-cicd": {

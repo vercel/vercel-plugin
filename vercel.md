@@ -42,6 +42,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
 │   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⤳ skill: create-a-backend  (backend product and framework selection)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: routing-middleware
 │   ⤳ skill: runtime-cache
