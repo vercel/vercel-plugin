@@ -1,6 +1,6 @@
 ---
 name: create-a-backend
-description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, Docker containers, Workflow, Queues, and Marketplace databases; or selecting a supported Node.js or Python backend framework.
+description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, containers, Workflow, Queues, and Marketplace databases; or selecting a supported backend framework or runtime.
 summary: Match backend workloads to the right architecture
 metadata:
   priority: 7
@@ -102,7 +102,7 @@ Vercel provides first-class backend examples and integrations for these framewor
 - **Python:** FastAPI, Flask, and Django. Other WSGI or ASGI applications can run when they export a compatible `app`, with additional configuration as needed.
 - **Go:** supported as a Vercel Functions runtime.
 
-When paired with a frontend, these can be deployed together using Services.
+Frontend and backend combinations such as Next.js + FastAPI or Vite + Express can be deployed together in one project using Services.
 
 Prefer the user's existing framework. For a new project, choose based on ecosystem and application needs.
 
