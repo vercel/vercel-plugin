@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vercel Backends"
+  short_description: "Choose the right Vercel backend products"
+  default_prompt: "Use $create-a-backend to plan and build a backend on Vercel."
