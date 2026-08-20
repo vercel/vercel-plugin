@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T16:47:02.785Z",
+  "generatedAt": "2026-08-20T16:50:23.979Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1447,7 +1447,7 @@
     },
     "create-a-backend": {
       "priority": 7,
-      "summary": "Choose Vercel products and frameworks for a backend",
+      "summary": "Match backend workloads to the right architecture",
       "docs": [
         "https://vercel.com/docs/frameworks/backend",
         "https://vercel.com/docs/functions",

@@ -1,7 +1,7 @@
 ---
 name: create-a-backend
-description: Vercel backend architecture guidance. Use when planning, building, or migrating an API or backend on Vercel; choosing between Functions, Services, Docker containers, Workflow, Queues, and Marketplace databases; or selecting a supported Node.js or Python backend framework.
-summary: Choose Vercel products and frameworks for a backend
+description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, Docker containers, Workflow, Queues, and Marketplace databases; or selecting a supported Node.js or Python backend framework.
+summary: Match backend workloads to the right architecture
 metadata:
   priority: 7
   docs:
