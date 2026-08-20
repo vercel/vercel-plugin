@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T16:50:23.979Z",
+  "generatedAt": "2026-08-20T17:29:12.990Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1517,8 +1517,8 @@
           "backend framework"
         ],
         "intents": [
-          "build a backend on Vercel",
-          "choose Vercel backend products",
+          "build a backend",
+          "choose backend products",
           "deploy an existing API or server",
           "select a Node.js or Python backend framework"
         ],

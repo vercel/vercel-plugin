@@ -42,8 +42,8 @@ retrieval:
     - backend architecture
     - backend framework
   intents:
-    - build a backend on Vercel
-    - choose Vercel backend products
+    - build a backend
+    - choose backend products
     - deploy an existing API or server
     - select a Node.js or Python backend framework
   entities:
@@ -64,6 +64,7 @@ Help the user create a backend by choosing an architecture before reaching for i
 | Need | Vercel product |
 | --- | --- |
 | HTTP APIs, webhooks, streaming, or framework server code | **Vercel Functions with Fluid compute** |
+| Bidirectional realtime connections (WebSockets) | **Vercel Functions with Fluid compute**; no separate realtime service required |
 | A frontend and one or more backends that deploy together | **Vercel Services** |
 | An existing Dockerfile, custom runtime, or system dependencies | **Container images** on Vercel Functions, optionally composed with Services |
 | Durable multi-step work with retries, sleeps, or external events | **Vercel Workflow** |
@@ -84,6 +85,7 @@ Choose Queues for control over topics, messages, consumer groups, fan-out, and d
 Provision data stores through the Marketplace so credentials are injected into the project and environments stay connected. Check the current catalog before choosing a provider.
 
 - **Postgres:** Neon, Supabase, AWS/Aurora, Nile, Prisma
+- **MySQL:** AWS/Aurora
 - **Redis and key-value:** Upstash, Redis
 - **Document and NoSQL:** MongoDB Atlas, AWS
 - **SQLite:** Turso
