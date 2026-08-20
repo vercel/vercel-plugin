@@ -76,9 +76,9 @@ Help the user create a backend by choosing an architecture before reaching for i
 
 Use Functions for the normal request/response backend. Use Services when independently built components should share one deployment, routing layer, preview URL, and rollback. Use separate Vercel projects when components need independent release cycles.
 
-Use a `Dockerfile.vercel` or `Containerfile.vercel` for an HTTP server that needs an OCI image. Vercel builds and stores the image, then runs it as an autoscaling, stateless Function. This is not an always-on container host; keep persistent state in a database or storage service.
+Prefer a native Functions runtime for supported frameworks. Use container images when the application already has a Dockerfile or requires a custom runtime or system dependencies. They run as autoscaling, stateless Functions rather than always-on container hosts.
 
-Choose Queues for control over topics, messages, consumer groups, fan-out, and delivery. Choose Workflow for stateful business logic expressed as durable steps. Queue consumers must tolerate at-least-once delivery and be idempotent.
+Choose Queues for background jobs, buffering, fan-out, and message routing. Choose Workflow for durable multi-step business logic.
 
 ## Databases and data stores
 
