@@ -33,7 +33,7 @@ This plugin gives AI agents a **relational knowledge graph** of the Vercel ecosy
 
 ## How Do I Use This?
 
-After installing, the plugin keeps automatic behavior lightweight. Session-start activation now only kicks in for empty directories and detected Vercel, Next.js, or Eve projects, and Vercel skills are no longer auto-injected on every tool call or every prompt by default. The default post-tool path is now observer-only. The skills remain available for direct use, and the repo still keeps the injection engine for targeted or future opt-in workflows.
+After installing, the plugin keeps automatic behavior lightweight. Session-start activation now only kicks in for empty directories and detected Vercel, Next.js, or eve projects, and Vercel skills are no longer auto-injected on every tool call or every prompt by default. The default post-tool path is now observer-only. The skills remain available for direct use, and the repo still keeps the injection engine for targeted or future opt-in workflows.
 
 ## Components
 
@@ -46,7 +46,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (32 skills)
+### Skills (34 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -55,8 +55,10 @@ A text-form relational graph covering:
 | `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                      |
 | `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                                  |
 | `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands                                         |
+| `build-agents`          | Default eve-first agent builder — create AI agents, agent apps, tools, channels, schedules, and Slack agents                         |
 | `cdn-caching`           | Diagnose cache hit rate, stale content, revalidation behavior, per-request cache reasons, and ISR read/write cost across CDN/ISR/PPR |
 | `chat-sdk`              | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear                                              |
+| `create-a-backend`      | Backend product and framework selection — Functions, Services, containers, Workflow, Queues, and databases                          |
 | `deployments-cicd`      | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files                                                      |
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
 | `eve`                   | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients    |
@@ -74,14 +76,14 @@ A text-form relational graph covering:
 | `turbopack`             | Next.js bundler, HMR, configuration, Turbopack vs Webpack                                                                            |
 | `vercel-agent`          | AI-powered code review, incident investigation, SDK installation, PR analysis                                                        |
 | `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace                                         |
-| `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and Eve agents                                               |
+| `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
 | `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                                                 |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                                                      |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
-| `workflow`              | Workflow DevKit — durable execution, DurableAgent, steps, Worlds, pause/resume                                                       |
+| `workflow`              | Workflow SDK — durable execution, DurableAgent, steps, Worlds, pause/resume                                                          |
 
 ### Agents (3 specialists)
 
@@ -104,12 +106,12 @@ A text-form relational graph covering:
 
 Lifecycle hooks that run automatically during your session:
 
-- **Session start context injection** — Injects a thin Vercel session context plus the knowledge-update guidance for empty directories and detected Vercel, Next.js, or Eve projects
+- **Session start context injection** — Injects a thin Vercel session context plus the knowledge-update guidance for empty directories and detected Vercel, Next.js, or eve projects
 - **Session start repo profiler** — Scans config files and dependencies to set likely-skill hints, but only after that same activation check passes
 
 ## Usage
 
-After installing, session context is injected automatically only for empty directories and detected Vercel, Next.js, or Eve projects. Vercel skills are available on demand, and you can invoke them directly via slash commands:
+After installing, session context is injected automatically only for empty directories and detected Vercel, Next.js, or eve projects. Vercel skills are available on demand, and you can invoke them directly via slash commands:
 
 ```
 /vercel-plugin:nextjs
@@ -126,13 +128,15 @@ What is collected:
 - `dau:active_today`: sent at most once per UTC day when the plugin runs.
 - `plugin:first_use`: sent once per local user profile the first time the plugin successfully reports telemetry.
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
+- `plugin:install_id`: the locally stored random installation UUID.
+- `plugin:agent_harness`: each distinct detected agent harness category observed per installation per UTC day.
 
 Each telemetry event contains only:
 
 - `id`: a random event UUID.
 - `event_time`: the event timestamp.
 - `key`: one of the event names listed above.
-- `value`: currently `"1"`.
+- `value`: `"1"` for counters, the plugin version, the random installation UUID, or the detected harness, depending on the event key.
 
 The request also sends HTTP headers used by the telemetry bridge:
 
@@ -140,7 +144,9 @@ The request also sends HTTP headers used by the telemetry bridge:
 - `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
 
-Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, and skill-injection details are not collected.
+The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
+
+Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
 
 How it is tracked:
 
@@ -148,14 +154,16 @@ How it is tracked:
 - The bridge only forwards events from plugin versions `0.40.0` and newer.
 - Local throttle files are stored under `~/.config/vercel-plugin/`:
   - `dau-stamp` prevents sending `dau:active_today` more than once per UTC day.
+  - `harness-stamp-<harness>` prevents sending the same `plugin:agent_harness` value more than once per UTC day.
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
+  - `installation-id` stores the random installation UUID. It is used only by plugin telemetry and is not written to `active-session.json`.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
 - `active-session.json` is refreshed on session start with the plugin version and expiry timestamp. It lets Vercel CLI telemetry identify commands run while a recent Vercel plugin session marker is present. It contains no prompt text, file paths, project names, account IDs, tool-call contents, or skill-injection details.
 
 Behavior:
 
 - Unset `VERCEL_PLUGIN_TELEMETRY`: telemetry is enabled.
-- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`.
+- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`, and does not create an installation ID if one does not already exist.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
 
@@ -228,7 +236,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 32 skills
+├── skills/                          # 34 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
@@ -265,7 +273,7 @@ bun run build:from-skills # Stage 4: Resolve template includes
 - AI SDK v6 (Agents, MCP, DevTools, Reranking, Image Editing)
 - AI Elements (pre-built React components for AI interfaces)
 - Chat SDK (multi-platform chat bots — Slack, Telegram, Teams, Discord)
-- Workflow DevKit (DurableAgent, Worlds, open source)
+- Workflow SDK (DurableAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
 - Vercel Functions (Fluid Compute, streaming, Cron Jobs)
 - Vercel Services (multiple frontends and backends, public rewrites, private bindings)

@@ -1,6 +1,6 @@
 ---
 name: benchmark-agents
-description: Advanced AI agent benchmark scenarios that push Vercel's cutting-edge platform features — Workflow DevKit, AI Gateway, MCP, Chat SDK, Queues, Flags, Sandbox, and multi-agent orchestration. Designed to stress-test skill injection for complex, multi-system builds.
+description: Advanced AI agent benchmark scenarios that push Vercel's cutting-edge platform features — Workflow SDK, AI Gateway, MCP, Chat SDK, Queues, Flags, Sandbox, and multi-agent orchestration. Designed to stress-test skill injection for complex, multi-system builds.
 ---
 
 # Benchmark Agents — Advanced AI Systems
@@ -163,7 +163,7 @@ After sessions build, verify these patterns in the generated projects:
 
 ### Project structure
 ```bash
-echo -n "src/: "; test -d "$base/src" && echo YES || echo NO          # Should be NO for WDK projects
+echo -n "src/: "; test -d "$base/src" && echo YES || echo NO          # Should be NO for Workflow SDK projects
 echo -n "workflows/: "; test -d "$base/workflows" && echo YES || echo NO
 echo -n "withWorkflow: "; grep -q "withWorkflow" "$base"/next.config.* && echo YES || echo NO
 echo -n "components.json: "; test -f "$base/components.json" && echo YES || echo NO
@@ -204,7 +204,7 @@ head -5 "$wf"   # Should show: import { getWritable } from "workflow"
 - "store all designs in a gallery"
 
 ### DON'T:
-- "use Vercel Workflow DevKit with getWritable"
+- "use Vercel Workflow SDK with getWritable"
 - "use gateway('google/gemini-3.1-flash-image-preview')"
 - "install npx ai-elements"
 - "add withWorkflow to next.config.ts"
@@ -227,13 +227,13 @@ head -5 "$wf"   # Should show: import { getWritable } from "workflow"
 | Agent uses `dall-e-3` for images | Agent doesn't know about gemini image gen | PostToolUse validate warns, capabilities table in ai-sdk (v0.9.7) |
 | Agent uses `experimental_generateImage` | Old API | PostToolUse validate warns, recommend `generateText` + `result.files` (v0.9.9) |
 | Raw markdown rendering (`**bold**` visible) | Agent skips AI Elements | `MessageResponse` documented as universal renderer (v0.9.2) |
-| `@/../../workflows/` broken import | Workflows outside `@` alias root | Canonical structure docs: no `src/` for WDK (v0.8.3) |
+| `@/../../workflows/` broken import | Workflows outside `@` alias root | Canonical structure docs: no `src/` for Workflow SDK (v0.8.3) |
 | `withWorkflow` missing from next.config | Agent skipped setup step | Marked as "Required" in workflow skill (v0.8.1) |
 | `defineHook` but no resume route | Agent didn't wire the 3-piece pattern | Documented as 3 required pieces (v0.9.3) |
 | `generateObject()` used (removed in v6) | Agent's training data | PostToolUse validate catches as error (v0.9.3) |
 | `getWritable()` in workflow scope | Sandbox violation | Strengthened warning in skill (v0.8.1) |
 | Missing `vercel link` + `vercel env pull` | No OIDC credentials | Added as "Required" setup step (v0.9.1) |
-| `getStepMetadata().retryCount` undefined on first attempt | WDK quirk | Documented: guard with `?? 0` (v0.9.1) |
+| `getStepMetadata().retryCount` undefined on first attempt | Workflow SDK quirk | Documented: guard with `?? 0` (v0.9.1) |
 | shadcn not installed | No trigger for scaffolding | Added `create-next-app` bashPattern to shadcn (v0.8.0) |
 | Skill cap too low (3) | Only 3 skills injected per tool call | Raised to 5 with 18KB budget (v0.8.0) |
 
@@ -295,7 +295,7 @@ The standard improvement cycle:
 Scenarios 01, 04, 09 — AI SDK, Gateway, Sandbox, AI Elements without durable workflows.
 
 ### Tier 2 — Durable Agents (45-60 min)
-Scenarios 02, 03, 06, 10 — Workflow DevKit, multi-step durability, agent orchestration.
+Scenarios 02, 03, 06, 10 — Workflow SDK, multi-step durability, agent orchestration.
 
 ### Tier 3 — Platform Integration (45-60 min)
 Scenarios 05, 07, 08, 11, 12 — Chat SDK, Queues, Flags, Firewall, cross-platform messaging.

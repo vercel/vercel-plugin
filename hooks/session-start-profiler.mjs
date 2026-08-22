@@ -1,3 +1,361 @@
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
+var __commonJS = (cb, mod) => function __require2() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+
+// node_modules/detect-agent/dist/index.js
+var require_dist = __commonJS({
+  "node_modules/detect-agent/dist/index.js"(exports, module) {
+    "use strict";
+    var __defProp2 = Object.defineProperty;
+    var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp2 = Object.prototype.hasOwnProperty;
+    var __export = (target, all) => {
+      for (var name in all)
+        __defProp2(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps2 = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp2.call(to, key) && key !== except)
+            __defProp2(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc2(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS = (mod) => __copyProps2(__defProp2({}, "__esModule", { value: true }), mod);
+    var index_exports = {};
+    __export(index_exports, {
+      KNOWN_AGENTS: () => KNOWN_AGENTS,
+      determineAgent: () => determineAgent
+    });
+    module.exports = __toCommonJS(index_exports);
+    var agents_default = {
+      $schema: "./agents.schema.json",
+      version: 1,
+      description: "Language-agnostic specification for detecting AI agents and automated development environments. Agents are evaluated in array order; the first agent whose `match` condition is satisfied wins. Every agent's `match` is a combinator (`anyOf`/`allOf`) whose `conditions` are evaluated as a tree: combinators nest, and `env_set`/`env_value`/`file_exists` are leaf checks. See agents.schema.json for the full structure.",
+      aiAgentVar: "AI_AGENT",
+      agents: [
+        {
+          key: "CURSOR",
+          name: "cursor",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "CURSOR_TRACE_ID" }]
+          }
+        },
+        {
+          key: "CURSOR_CLI",
+          name: "cursor-cli",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "CURSOR_AGENT" },
+              {
+                type: "env_value",
+                name: "CURSOR_EXTENSION_HOST_ROLE",
+                value: "agent-exec"
+              }
+            ]
+          }
+        },
+        {
+          key: "KIMI",
+          name: "kimi",
+          description: "Kimi Code plugin hooks. KIMI_CODE_HOME may be configured outside an active Kimi session, so detection uses the plugin-scoped KIMI_PLUGIN_ROOT marker.",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "KIMI_PLUGIN_ROOT" }]
+          }
+        },
+        {
+          key: "GROK",
+          name: "grok",
+          description: "Grok Build plugin hooks. Evaluated before Claude Code because Grok supports Claude Code plugins and may expose compatibility markers.",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "GROK_PLUGIN_ROOT" },
+              { type: "env_set", name: "GROK_PLUGIN_DATA" }
+            ]
+          }
+        },
+        {
+          key: "GEMINI",
+          name: "gemini_cli",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "GEMINI_CLI" }]
+          }
+        },
+        {
+          key: "CLINE",
+          name: "cline",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "CLINE_ACTIVE" }]
+          }
+        },
+        {
+          key: "CODEX",
+          name: "codex_cli",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "CODEX_SANDBOX" },
+              { type: "env_set", name: "CODEX_CI" },
+              { type: "env_set", name: "CODEX_THREAD_ID" },
+              { type: "env_set", name: "CODEX_SANDBOX_NETWORK_DISABLED" }
+            ]
+          }
+        },
+        {
+          key: "ANTIGRAVITY",
+          name: "antigravity",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "ANTIGRAVITY_AGENT" },
+              { type: "env_set", name: "ANTIGRAVITY_CLI_ALIAS" }
+            ]
+          }
+        },
+        {
+          key: "AUGMENT_CLI",
+          name: "augment-cli",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "AUGMENT_AGENT" }]
+          }
+        },
+        {
+          key: "OPENCODE",
+          name: "open_code",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "OPENCODE_CLIENT" },
+              { type: "env_set", name: "OPENCODE" }
+            ]
+          }
+        },
+        {
+          key: "GOOSE",
+          name: "goose",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "GOOSE_PROVIDER" }]
+          }
+        },
+        {
+          key: "JUNIE",
+          name: "junie",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "JUNIE_DATA" },
+              { type: "env_set", name: "JUNIE_SHIM_PATH" }
+            ]
+          }
+        },
+        {
+          key: "PI",
+          name: "pi",
+          description: "Matches when the PATH contains a '.pi/agent' (or '.pi\\\\agent') segment.",
+          match: {
+            type: "anyOf",
+            conditions: [
+              {
+                type: "env_matches",
+                name: "PATH",
+                pattern: "\\.pi[\\\\/]agent"
+              }
+            ]
+          }
+        },
+        {
+          key: "COWORK",
+          name: "cowork",
+          description: "Claude Cowork. Evaluated before `claude_code` so the more specific COWORK marker wins. Requires CLAUDE_CODE_IS_COWORK plus a Claude Code marker.",
+          match: {
+            type: "allOf",
+            conditions: [
+              { type: "env_set", name: "CLAUDE_CODE_IS_COWORK" },
+              {
+                type: "anyOf",
+                conditions: [
+                  { type: "env_set", name: "CLAUDECODE" },
+                  { type: "env_set", name: "CLAUDE_CODE" }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          key: "CLAUDE",
+          name: "claude_code",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "CLAUDECODE" },
+              { type: "env_set", name: "CLAUDE_CODE" }
+            ]
+          }
+        },
+        {
+          key: "REPLIT",
+          name: "replit",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "REPL_ID" }]
+          }
+        },
+        {
+          key: "GITHUB_COPILOT",
+          name: "github-copilot",
+          match: {
+            type: "anyOf",
+            conditions: [
+              { type: "env_set", name: "COPILOT_MODEL" },
+              { type: "env_set", name: "COPILOT_ALLOW_ALL" },
+              { type: "env_set", name: "COPILOT_GITHUB_TOKEN" }
+            ]
+          }
+        },
+        {
+          key: "KIRO",
+          name: "kiro",
+          description: "AWS Kiro. TERM_PROGRAM=kiro is set by both the IDE terminal and the CLI agent, so gate on no_tty to avoid misdetecting a human at the integrated terminal.",
+          match: {
+            type: "allOf",
+            conditions: [
+              { type: "env_matches", name: "TERM_PROGRAM", pattern: "kiro" },
+              { type: "no_tty" }
+            ]
+          }
+        },
+        {
+          key: "OPENCLAW",
+          name: "openclaw",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "env_set", name: "OPENCLAW_SHELL" }]
+          }
+        },
+        {
+          key: "DEVIN",
+          name: "devin",
+          match: {
+            type: "anyOf",
+            conditions: [{ type: "file_exists", path: "/opt/.devin" }]
+          }
+        }
+      ]
+    };
+    var import_promises = __require("fs/promises");
+    var import_node_fs2 = __require("fs");
+    async function evaluateCondition(condition) {
+      switch (condition.type) {
+        case "env_set":
+          return Boolean(process.env[condition.name]);
+        case "env_value":
+          return process.env[condition.name] === condition.value;
+        case "env_matches": {
+          const value = process.env[condition.name];
+          if (!value) {
+            return false;
+          }
+          try {
+            return new RegExp(condition.pattern).test(value);
+          } catch {
+            return false;
+          }
+        }
+        case "no_tty":
+          return !process.stdout?.isTTY;
+        case "file_exists":
+          try {
+            await (0, import_promises.access)(condition.path, import_node_fs2.constants.F_OK);
+            return true;
+          } catch {
+            return false;
+          }
+        case "anyOf":
+          for (const sub of condition.conditions) {
+            if (await evaluateCondition(sub)) {
+              return true;
+            }
+          }
+          return false;
+        case "allOf":
+          for (const sub of condition.conditions) {
+            if (!await evaluateCondition(sub)) {
+              return false;
+            }
+          }
+          return true;
+        default:
+          return false;
+      }
+    }
+    var KNOWN_AGENTS = Object.fromEntries(
+      agents_default.agents.map(({ key, name }) => [key, name])
+    );
+    var agents = agents_default.agents;
+    var aiAgentVar = agents_default.aiAgentVar;
+    function resolveAiAgentStandard() {
+      const raw = process.env[aiAgentVar];
+      if (!raw) {
+        return void 0;
+      }
+      const value = raw.trim();
+      if (!value) {
+        return void 0;
+      }
+      return value;
+    }
+    async function determineAgent() {
+      const aiAgentStandard = resolveAiAgentStandard();
+      if (aiAgentStandard) {
+        return { isAgent: true, agent: { name: aiAgentStandard } };
+      }
+      for (const agent of agents) {
+        if (await evaluateCondition(agent.match)) {
+          return { isAgent: true, agent: { name: agent.name } };
+        }
+      }
+      return { isAgent: false, agent: void 0 };
+    }
+  }
+});
+
 // hooks/src/session-start-profiler.mts
 import {
   accessSync,
@@ -8,6 +366,7 @@ import {
 } from "fs";
 import { delimiter, join, resolve } from "path";
 import { execFileSync } from "child_process";
+import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import {
   formatOutput,
@@ -18,7 +377,10 @@ import { pluginRoot, safeReadJson, writeSessionFile } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
-import { refreshActiveSessionMarker, trackDauActiveToday } from "./telemetry.mjs";
+import {
+  refreshActiveSessionMarker,
+  trackDauActiveToday
+} from "./telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -322,6 +684,43 @@ function detectSessionStartPlatform(input, env = process.env) {
   }
   return "claude-code";
 }
+function normalizeDetectedAgentHarness(name) {
+  switch (name) {
+    case "cursor":
+    case "cursor-cli":
+      return "cursor";
+    case "claude_code":
+    case "cowork":
+      return "claude-code";
+    case "codex_cli":
+      return "codex";
+    case "github-copilot":
+      return "github-copilot";
+    case "kimi":
+      return "kimi";
+    case "grok":
+      return "grok";
+    default:
+      return name === void 0 ? "unknown" : "other";
+  }
+}
+async function determineAgentWithBundledPackage() {
+  const hookGlobal = globalThis;
+  hookGlobal.require ??= createRequire(import.meta.url);
+  const { determineAgent } = await Promise.resolve().then(() => __toESM(require_dist(), 1));
+  return determineAgent();
+}
+async function detectAgentHarness(input, detector = determineAgentWithBundledPackage) {
+  if (input && ("conversation_id" in input || "cursor_version" in input)) {
+    return "cursor";
+  }
+  try {
+    const result = await detector();
+    return normalizeDetectedAgentHarness(result.isAgent ? result.agent.name : void 0);
+  } catch {
+    return "unknown";
+  }
+}
 function normalizeSessionStartSessionId(input) {
   if (!input) return null;
   const sessionId = normalizeInput(input).sessionId;
@@ -415,6 +814,7 @@ function formatSessionStartProfilerCursorOutput(envVars, userMessages) {
 async function main() {
   const hookInput = parseSessionStartInput(readFileSync(0, "utf8"));
   const platform = detectSessionStartPlatform(hookInput);
+  const agentHarness = await detectAgentHarness(hookInput);
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
@@ -432,7 +832,7 @@ async function main() {
     if (platform === "cursor") {
       process.stdout.write(JSON.stringify(formatOutput("cursor", {})));
     }
-    await trackDauActiveToday().catch(() => {
+    await trackDauActiveToday(/* @__PURE__ */ new Date(), { agentHarness }).catch(() => {
     });
     process.exit(0);
   }
@@ -475,7 +875,7 @@ async function main() {
 
 `);
   }
-  await trackDauActiveToday().catch(() => {
+  await trackDauActiveToday(/* @__PURE__ */ new Date(), { agentHarness }).catch(() => {
   });
   if (cursorOutput) {
     process.stdout.write(cursorOutput);
@@ -491,9 +891,11 @@ export {
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   checkGreenfield,
+  detectAgentHarness,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
   logBrokenSkillFrontmatterSummary,
+  normalizeDetectedAgentHarness,
   normalizeSessionStartSessionId,
   parseSessionStartInput,
   profileBootstrapSignals,
