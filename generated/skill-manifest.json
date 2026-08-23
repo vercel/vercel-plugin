@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T19:04:14.578Z",
+  "generatedAt": "2026-08-23T09:09:37.122Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1861,6 +1861,31 @@
           "update skills based on recent runs"
         ]
       }
+    },
+    "is-agentic": {
+      "priority": 4,
+      "summary": "",
+      "docs": [
+        "https://is-agentic.com/docs",
+        "https://is-agentic.com/llms.txt"
+      ],
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\bnpx\\s+is-agentic\\b",
+        "\\bbunx\\s+is-agentic\\b",
+        "\\bskills\\s+add\\s+vercel-labs/is-agentic\\b",
+        "\\bcurl\\s+[^\\n]*is-agentic\\.com/api\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/is-agentic/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\bnpx\\s+is-agentic\\b",
+        "\\bbunx\\s+is-agentic\\b",
+        "\\bskills\\s+add\\s+vercel-labs/is-agentic\\b",
+        "\\bcurl\\s+[^\\n]*is-agentic\\.com/api\\b"
+      ],
+      "importRegexSources": []
     },
     "knowledge-update": {
       "priority": 10,
