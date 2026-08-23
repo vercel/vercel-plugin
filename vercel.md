@@ -350,6 +350,13 @@ eve (TypeScript, beta)                    ⤳ skill: eve  📖 docs: https://eve
     ↔ Vercel Sandbox (isolated agent workspaces)
     ↔ Vercel Connect (`@vercel/connect/eve` managed OAuth connections)
 
+IS AGENTIC (agent-readiness scoring)        ⤳ skill: is-agentic  📖 docs: https://is-agentic.com/docs
+├── Scores how ready a public website, domain, or MCP endpoint is for AI agents (0-100)
+│   ⊃ Report API (read-only JSON), official CLI (`npx is-agentic`), MCP server
+│   → Ora API (runs and scores every technical scan)
+└── Integrations
+    ↔ Agents that need to check or improve a site's agent readiness
+
 CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: https://chat-sdk.dev
 ├── Core
 │   ⊃ Chat class (event routing, adapter coordination)
