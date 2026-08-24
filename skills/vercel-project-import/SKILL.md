@@ -1,6 +1,6 @@
 ---
 name: vercel-project-import
-description: Import an existing Git repository into a new Vercel project, configure its basic build settings, connect Git, and trigger its first production deployment. Use when onboarding an unimported repository to Vercel without configuring environment variables, connectors, or Marketplace integrations.
+description: Import an existing Git repository into a new Vercel project, configure its build settings, connect Git, optionally configure approved environment variables and connectors, and optionally trigger its first production deployment.
 metadata:
   priority: 6
   docs:
@@ -50,9 +50,11 @@ This skill currently covers only:
 - project creation
 - Git connection
 - project build settings, including root directory
-- a one-shot Git-backed production deployment
+- optional environment variable setup without exposing secret values to the agent
+- optional attachment of existing Vercel Connect connectors
+- an optional one-shot Git-backed production deployment
 
-Do **not** configure environment variables, connectors, or Marketplace integrations in this workflow. Those require separate, explicit approval.
+Each stage is independently optional. Before any mutation, let the user choose to apply, skip, or defer project settings, Git connection, environment variables, connector attachments, and deployment. A skipped or deferred stage does not block the rest of the import unless the user chooses otherwise.
 
 ## Required Inputs
 
@@ -63,6 +65,8 @@ Collect or infer, then present for approval:
 - new Vercel project name
 - production branch (normally `main`)
 - app root relative to the repository root, if the app is in a monorepo
+- optional environment variable manifest: names, target environments, and sensitivity only
+- optional existing connector IDs or UIDs and their target environments
 
 Before mutations, summarize the intended import. Do not substitute a similarly named team, project, repository, branch, or root directory.
 
@@ -116,7 +120,43 @@ vc project update <project-name> \
   --scope <team>
 ```
 
-### 4. Connect the Git repository
+### 4. Configure environment variables (optional)
+
+Inspect `.env.example`, documentation, and source references only to build a manifest of variable **names**, target environments, and sensitivity. Never read `.env.local`, `.env.*.local`, secret-manager output, or any file that may contain secret values.
+
+Do not ask the user to paste values into chat, pass values through an agent tool, or put values in a command line. For each approved variable, give the user a command they run themselves so the CLI prompts locally:
+
+```bash
+vc env add <name> <production,preview,development> \
+  --project <project-name> \
+  --scope <team> \
+  --sensitive
+```
+
+The user may instead pipe a local secret-manager command directly into `vc env add`; do not run that pipeline or inspect its output. After the user confirms completion, verify only variable names, targets, and sensitivity metadata:
+
+```bash
+vc env ls --project <project-name> --scope <team> --format json
+```
+
+Mark any variable without a value as deferred. Do not treat a variable name found in source code as proof that it is required for the first deployment or that it belongs in every environment.
+
+### 5. Attach existing connectors (optional)
+
+Attach a connector only when the user names an existing connector ID or UID and explicitly approves the target environments. Do not create connectors, attach every team connector, or enable webhook triggers by default.
+
+```bash
+vc connect attach <connector-id-or-uid> \
+  --project <project-name> \
+  --environment production \
+  --environment preview \
+  --scope <team> \
+  --yes
+```
+
+Webhook trigger destinations require separate approval. When approved, include the exact branch or custom environment and path; otherwise omit `--triggers`.
+
+### 6. Connect the Git repository
 
 Connect Git using explicit project targeting; do not depend on whichever project happens to be linked in the current directory:
 
@@ -129,7 +169,7 @@ vc git connect <repository-url> \
 
 This requires the current Vercel account to have an applicable Git-provider connection. If Git connection fails due to authorization, stop and ask the user to complete the authorization rather than falling back to a local-source deployment.
 
-### 5. Verify the remote project
+### 7. Verify the remote project
 
 This workflow uses explicit project targeting and does not need to create local `.vercel` metadata. Verify the remote project before triggering a deployment:
 
@@ -139,7 +179,7 @@ vc project inspect <project-name> --non-interactive --scope <team>
 
 Confirm the result matches the approved project, owner, and root directory. Also verify that the Git connection's production branch is the approved branch. If it is not, stop: this skill does not change the Git production-branch setting.
 
-### 6. Trigger the first production deployment
+### 8. Trigger the first production deployment (optional)
 
 Use the one-shot Git deployment endpoint—not `vc --prod`. It invokes Vercel's Git pipeline for the configured production branch, preserving Git commit provenance and avoiding a persistent deploy-hook secret.
 
@@ -183,7 +223,7 @@ URL-encode a branch name that contains `/`. The branch and commit must belong to
 
 ## Completion Report
 
-Report the project name and ID, team, Git repository, production branch, configured root directory, deployment ID, and deployment URL. Call out any intentionally omitted setup: environment variables, connectors, and Marketplace integrations.
+Report the project name and ID, team, Git repository, production branch, configured root directory, and any deployment ID and URL. List each optional stage as applied, skipped, or deferred, including environment variable names and connector IDs only; never report secret values.
 
 ## Do Not Substitute Local Deploys
 
