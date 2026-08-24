@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vercel Project Import"
+  short_description: "Import a Git repository into Vercel"
+  default_prompt: "Use $vercel-project-import to import this Git repository into a new Vercel project and trigger its production deployment."
