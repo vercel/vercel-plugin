@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T19:04:14.578Z",
+  "generatedAt": "2026-08-24T19:48:20.805Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -4016,6 +4016,73 @@
           "streaming",
           "WebSockets",
           "Cron Jobs"
+        ],
+        "examples": []
+      }
+    },
+    "vercel-project-import": {
+      "priority": 6,
+      "summary": "",
+      "docs": [
+        "https://vercel.com/docs/projects/overview",
+        "https://vercel.com/docs/cli"
+      ],
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\b(?:vercel|vc)\\s+projects?\\s+import-candidates\\b",
+        "\\b(?:vercel|vc)\\s+git\\s+connect\\b",
+        "\\b(?:vercel|vc)\\s+api\\s+/trigger-git-deploy/"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/vercel-project-import/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\b(?:vercel|vc)\\s+projects?\\s+import-candidates\\b",
+        "\\b(?:vercel|vc)\\s+git\\s+connect\\b",
+        "\\b(?:vercel|vc)\\s+api\\s+/trigger-git-deploy/"
+      ],
+      "importRegexSources": [],
+      "promptSignals": {
+        "phrases": [
+          "import project to vercel",
+          "import repository to vercel",
+          "import git repository",
+          "deploy existing repository"
+        ],
+        "allOf": [
+          [
+            "import",
+            "vercel"
+          ],
+          [
+            "import",
+            "repository"
+          ]
+        ],
+        "anyOf": [
+          "git",
+          "repository",
+          "project"
+        ],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "import Vercel project",
+          "import Git repository",
+          "onboard repository"
+        ],
+        "intents": [
+          "import a repository to Vercel",
+          "deploy an existing Git repository",
+          "create a Vercel project from Git"
+        ],
+        "entities": [
+          "Vercel project",
+          "Git repository",
+          "root directory",
+          "production deployment"
         ],
         "examples": []
       }

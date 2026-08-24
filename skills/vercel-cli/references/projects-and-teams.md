@@ -9,6 +9,17 @@ vercel project inspect my-app        # inspect project
 vercel project rm my-app             # remove project
 ```
 
+## Import Candidates
+
+Discover up to five recently pushed Git repositories that have not been imported to Vercel:
+
+```bash
+vercel projects import-candidates --limit 5 --scope my-team
+vercel projects import-candidates --limit 5 --format json --scope my-team
+```
+
+The command is read-only. In agent workflows, use JSON output to seed context, then present the candidates and require the user to select one before creating a project, connecting Git, or deploying. Use `⤳ skill: vercel-project-import` for the approval-gated import workflow.
+
 ## Deployments
 
 ```bash

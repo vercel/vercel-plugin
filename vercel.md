@@ -33,6 +33,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: access-protected-vercel-deployment
 │   ⤳ skill: vercel-cli
 │   ⤳ skill: deployments-cicd
+│   ⤳ skill: vercel-project-import
 │
 ├── Edge Network (Global CDN, ~300ms propagation)
 │   ⊃ Edge Functions (V8 isolates, Web Standard APIs)
