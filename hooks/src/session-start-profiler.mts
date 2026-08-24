@@ -83,6 +83,7 @@ const FILE_MARKERS: FileMarker[] = [
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
   { file: "components.json", skills: ["shadcn"] },
+  { file: "flags.ts", skills: ["flags-sdk"] },
   { file: ".env.local", skills: ["env-vars"] },
 ];
 
@@ -103,6 +104,8 @@ const PACKAGE_MARKERS: Record<string, string[]> = {
   "@vercel/edge-config": ["vercel-storage"],
   "@vercel/workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
+  "flags": ["flags-sdk"],
+  "@flags-sdk/vercel": ["flags-sdk"],
   "@repo/auth": ["next-forge"],
   "@repo/database": ["next-forge"],
   "@repo/design-system": ["next-forge"],

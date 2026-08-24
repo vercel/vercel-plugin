@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T19:04:14.578Z",
+  "generatedAt": "2026-08-24T14:56:38.014Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1860,6 +1860,192 @@
           "show me the latest production Agent Runs for my project",
           "update skills based on recent runs"
         ]
+      }
+    },
+    "flags-sdk": {
+      "priority": 6,
+      "summary": "Flags SDK guidance — declare flags with flag(), connect provider adapters, manage Vercel Flags via the vercel flags CLI, precompute static variants, and set up the Flags Explorer.",
+      "docs": [
+        "https://vercel.com/docs/flags",
+        "https://flags-sdk.dev"
+      ],
+      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "pathPatterns": [
+        "flags.ts",
+        "flags.tsx",
+        "lib/flags.ts",
+        "src/flags.ts",
+        "lib/flags/**",
+        "src/flags/**",
+        ".well-known/vercel/flags/**"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+flags\\b",
+        "\\bvc\\s+flags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bflags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\byarn\\s+add\\s+[^\\n]*@flags-sdk/"
+      ],
+      "importPatterns": [
+        "flags/next",
+        "flags/sveltekit",
+        "flags/react",
+        "flags",
+        "@flags-sdk/*",
+        "@vercel/flags"
+      ],
+      "bodyPath": "skills/flags-sdk/SKILL.md",
+      "pathRegexSources": [
+        "^flags\\.ts$",
+        "^flags\\.tsx$",
+        "^lib\\/flags\\.ts$",
+        "^src\\/flags\\.ts$",
+        "^lib\\/flags\\/.*$",
+        "^src\\/flags\\/.*$",
+        "^\\.well-known\\/vercel\\/flags\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+flags\\b",
+        "\\bvc\\s+flags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bflags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\byarn\\s+add\\s+[^\\n]*@flags-sdk/"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags\\/next(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags\\/sveltekit(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags\\/react(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@flags-sdk\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/flags(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "precompute\\s*\\(|generatePermutations|flags/next.*precompute",
+          "targetSkill": "routing-middleware",
+          "message": "Precompute pattern detected — loading Routing Middleware guidance for the middleware rewrites that serve static flag variants."
+        },
+        {
+          "pattern": "@flags-sdk/edge-config|createEdgeConfigAdapter",
+          "targetSkill": "vercel-storage",
+          "message": "Edge Config flag adapter detected — loading Vercel storage guidance for Edge Config setup and limits."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "feature flag",
+          "feature flags",
+          "flags sdk",
+          "vercel flags",
+          "flags explorer",
+          "feature gate",
+          "feature gating",
+          "a/b test",
+          "a/b testing",
+          "ab test",
+          "ab testing",
+          "flag rollout",
+          "gradual rollout",
+          "percentage rollout",
+          "kill switch",
+          "flag variant",
+          "flag adapter",
+          "precompute flags"
+        ],
+        "allOf": [
+          [
+            "flag",
+            "rollout"
+          ],
+          [
+            "flag",
+            "variant"
+          ],
+          [
+            "flag",
+            "toggle"
+          ],
+          [
+            "flag",
+            "experiment"
+          ],
+          [
+            "experiment",
+            "variant"
+          ],
+          [
+            "split",
+            "test"
+          ]
+        ],
+        "anyOf": [
+          "flag",
+          "experiment",
+          "experimentation",
+          "rollout",
+          "variant"
+        ],
+        "noneOf": [
+          "command-line flag",
+          "command line flag",
+          "cli flag",
+          "compiler flag",
+          "flag emoji"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "feature flags",
+          "feature toggles",
+          "vercel flags",
+          "flags sdk",
+          "a/b testing"
+        ],
+        "intents": [
+          "add a feature flag",
+          "run an a/b test",
+          "gate a feature",
+          "roll out gradually",
+          "manage flags from cli"
+        ],
+        "entities": [
+          "Flags SDK",
+          "Vercel Flags",
+          "Flags Explorer",
+          "vercelAdapter",
+          "precompute",
+          "FLAGS_SECRET"
+        ],
+        "examples": []
       }
     },
     "knowledge-update": {

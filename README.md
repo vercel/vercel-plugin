@@ -46,7 +46,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (34 skills)
+### Skills (35 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -62,6 +62,7 @@ A text-form relational graph covering:
 | `deployments-cicd`      | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files                                                      |
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
 | `eve`                   | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients    |
+| `flags-sdk`             | Feature flags and A/B tests — Flags SDK, provider adapters, `vercel flags` CLI, precompute, Flags Explorer                           |
 | `knowledge-update`      | Knowledge update guidance for the plugin                                                                                             |
 | `marketplace`           | Integration discovery, installation, auto-provisioned env vars, unified billing                                                      |
 | `microfrontends`        | Multi-zone and microfrontend architecture, routing, deployment boundaries, and shared dependencies                                   |
@@ -182,7 +183,7 @@ setx VERCEL_PLUGIN_TELEMETRY off
 
 ## Upstream Skill Sync
 
-11 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:
+12 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:
 
 ```
 skills/<name>/
@@ -204,6 +205,7 @@ skills/<name>/
 | `ai-sdk`                | [vercel/ai](https://github.com/vercel/ai)                                 |
 | `chat-sdk`              | [vercel/chat](https://github.com/vercel/chat)                             |
 | `eve`                   | [vercel/eve](https://github.com/vercel/eve)                               |
+| `flags-sdk`             | [vercel/flags](https://github.com/vercel/flags)                           |
 | `next-cache-components` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
 | `next-forge`            | [vercel/next-forge](https://github.com/vercel/next-forge)                 |
 | `next-upgrade`          | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
@@ -236,7 +238,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 34 skills
+├── skills/                          # 35 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content

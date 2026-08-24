@@ -58,6 +58,13 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Marketplace Integrations (auto-provisioned)
 │   ⤳ skill:bootstrap
 │
+├── Vercel Flags (feature flags & experimentation)     ⤳ skill: flags-sdk  📖 docs: https://vercel.com/docs/flags
+│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)
+│   ⊃ Flags Explorer (override flags from the Vercel Toolbar)
+│   ⊃ Precompute pattern (static A/B variants via middleware rewrites)
+│   ↔ Vercel CLI (vercel flags — create, set, enable, disable, sdk-keys)
+│   ↔ Edge Config (alternative store via @flags-sdk/edge-config adapter)
+│
 ├── Secure Compute (isolated infrastructure for compliance workloads)
 │   → Deployment Engine (opt-in per project)
 │   ↔ Vercel Functions (dedicated execution environment)
@@ -77,7 +84,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (preview URLs)
 │   ↔ Preview Comments (inline annotation)
 │   ↔ Vercel Analytics (performance overlay)
-│   ↔ Edge Config (feature flag toggles)
+│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: flags-sdk
 │
 ├── Vercel Templates (starter kits and example repos)
 │   → Deployment Engine (one-click deploy)
@@ -460,9 +467,8 @@ VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs:
 
 VERCEL EDGE CONFIG (active, first-party)   ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/storage/edge-config
 ├── Purpose: Global low-latency key-value for config
-│   ⊃ Feature flags
-│   ⊃ A/B testing configuration
 │   ⊃ Dynamic routing rules
+│   ⊃ Flag storage via @flags-sdk/edge-config (prefer Vercel Flags ⤳ skill: flags-sdk)
 │   ⊃ @vercel/edge-config package (supports Next.js 16 cacheComponents)
 │
 └── Use When: Config that must be read at the edge instantly
@@ -659,7 +665,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Need                      | Use                             | Why                            |
 | ------------------------- | ------------------------------- | ------------------------------ |
 | File uploads, media       | Vercel Blob                     | First-party, up to 5TB         |
-| Feature flags, A/B config | Edge Config                     | Ultra-low latency at edge      |
+| Feature flags, A/B tests  | Vercel Flags (Flags SDK)        | First-party, CLI + Explorer    |
 | Relational database       | Neon (via Marketplace)          | Serverless Postgres, branching |
 | Key-value cache           | Upstash Redis (via Marketplace) | Serverless Redis, same billing |
 
@@ -783,7 +789,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 
 Next.js (App Router) → Neon Postgres (data) → Clerk (auth, via Marketplace)
 → Stripe (payments, via Marketplace) → Vercel Blob (uploads)
-→ Edge Config (feature flags) → Vercel Analytics
+→ Vercel Flags (feature flags) → Vercel Analytics
 
 ```
 
