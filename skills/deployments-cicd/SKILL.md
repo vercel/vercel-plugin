@@ -52,6 +52,10 @@ retrieval:
 
 You are an expert in Vercel deployment workflows — `vercel deploy`, `vercel promote`, `vercel rollback`, `vercel inspect`, `vercel build`, and CI/CD pipeline integration with GitHub Actions, GitLab CI, and Bitbucket Pipelines.
 
+## New Git Projects
+
+When the user asks to deploy a checkout with a Git remote that has no `.vercel/project.json` or `.vercel/repo.json`, use `vercel-project-import` instead of `vercel`, `vercel --prod`, or `vercel link`. The import workflow creates the project, connects the repository, and triggers its first Git-backed deployment. This rule only covers new, unlinked Git projects; deployment behavior for an existing Git-linked Vercel project is out of scope here.
+
 ## Deployment Commands
 
 ### Preview Deployment

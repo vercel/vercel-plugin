@@ -45,6 +45,8 @@ retrieval:
 
 Import an existing Git repository as a new Vercel project and create its first Git-backed production deployment. This is a deliberate, mutating workflow: confirm the repository, Vercel team, project name, root directory, and production branch before creating anything.
 
+Every import must target an existing Vercel team. Personal scope is not available: never offer it, infer it, or describe it as a fallback. If the user has not selected a team, ask them which existing Vercel team should own the project before preparing the import summary or running commands.
+
 This skill currently covers only:
 
 - project creation
@@ -55,6 +57,12 @@ This skill currently covers only:
 - an optional one-shot Git-backed production deployment
 
 Each stage is independently optional. Before any mutation, let the user choose to apply, skip, or defer project settings, Git connection, environment variables, connector attachments, and deployment. A skipped or deferred stage does not block the rest of the import unless the user chooses otherwise.
+
+## When This Workflow Applies
+
+Use this workflow for a local checkout that has a Git remote and is not already associated with the intended Vercel project. A matching entry from `vercel projects import-candidates` is a strong recommendation signal, but the repository's Git remote is sufficient to offer the workflow when no candidate is returned.
+
+Do not use this workflow merely because `.vercel` metadata is absent: that metadata may be missing from a checkout of an existing Vercel project. First confirm that the repository is not already connected to the intended project and team. When Git is unavailable or the user explicitly requests a local-source deployment, use the normal deployment workflow instead.
 
 ## Required Inputs
 
@@ -68,7 +76,7 @@ Collect or infer, then present for approval:
 - optional environment variable manifest: names, target environments, and sensitivity only
 - optional existing connector IDs or UIDs and their target environments
 
-Before mutations, summarize the intended import. Do not substitute a similarly named team, project, repository, branch, or root directory.
+Before mutations, summarize the intended import, including the required Vercel team. Do not substitute a similarly named team, project, repository, branch, or root directory. Do not describe the team as a personal account or imply that no team is needed.
 
 ## Discover Candidates
 
@@ -205,8 +213,16 @@ vc api /v1/integrations/job/<job-id> --scope <team>
 ```
 
 - `PENDING` or `RUNNING`: continue polling.
-- `FINISHED`: report `deploymentId` and `url`.
+- `FINISHED`: record the `deploymentId` and any public `url` returned by the job result. When the Vercel team slug, project name, and deployment ID have been verified, also report the Dashboard deployment details link:
+
+  ```text
+  https://vercel.com/<team-slug>/<project-name>/<deployment-id>
+  ```
+
+  This is the link to the deployment's build details in Vercel, not its public deployment URL.
 - `ERRORED` or `CANCELED`: report the failure without retrying or switching to a local-source deploy unless the user explicitly asks.
+
+Never construct a public deployment URL from the project name, team, or deployment ID. If a finished job has no public `url`, report the deployment ID and say that Vercel did not return a public deployment URL; omit it rather than guessing. The Dashboard deployment details link may be formed only from the verified team slug, project name, and deployment ID. Do not claim the deployment is `Ready`, serving the application, or accessible unless that status was returned by the job result or verified through a separate, successful inspection of the returned public deployment URL.
 
 ## Explicit Ref Deployment
 
@@ -223,7 +239,7 @@ URL-encode a branch name that contains `/`. The branch and commit must belong to
 
 ## Completion Report
 
-Report the project name and ID, team, Git repository, production branch, configured root directory, and any deployment ID and URL. List each optional stage as applied, skipped, or deferred, including environment variable names and connector IDs only; never report secret values.
+Report the project name and ID, team, Git repository, production branch, configured root directory, and any deployment ID and public URL actually returned by Vercel. For every deployment with verified team slug, project name, and deployment ID, include its Dashboard deployment details link: `https://vercel.com/<team-slug>/<project-name>/<deployment-id>`. List each optional stage as applied, skipped, or deferred, including environment variable names and connector IDs only; never report secret values. Do not invent a public deployment URL or report a deployment as available without a returned or separately verified URL.
 
 ## Do Not Substitute Local Deploys
 

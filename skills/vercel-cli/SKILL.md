@@ -92,6 +92,8 @@ The Vercel CLI (`vercel` or `vc`) deploys, manages, and develops projects on the
 
 ## Critical: Project Linking
 
+Before deploying, distinguish a new Git checkout from an existing Vercel project. If it has a Git remote but no `.vercel/project.json` or `.vercel/repo.json`, route to `vercel-project-import`; do not use `vercel link` or a direct `vercel` deployment. Direct CLI deployment applies after a project is linked or when the user explicitly requests a local-source deployment.
+
 Commands must be run from the directory containing the `.vercel` folder (or a subdirectory of it). How `.vercel` gets set up depends on your project structure:
 
 - **`.vercel/project.json`**: Created by `vercel link`. Links a single project. Fine for single-project repos, and can work in monorepos if there's only one project.

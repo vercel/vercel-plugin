@@ -1,5 +1,5 @@
 {
-  "name": "vercel",
+  "name": "vercel-plugin",
   "version": "0.48.1",
   "description": "Build and deploy web apps and agents",
   "author": {

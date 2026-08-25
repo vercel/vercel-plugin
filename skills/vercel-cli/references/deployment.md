@@ -1,6 +1,8 @@
 # Deployment
 
-Ensure `.vercel/` exists before deploying (via `vercel link` or `vercel link --repo`).
+For a checkout with a Git remote but no `.vercel/project.json` or `.vercel/repo.json`, use `vercel-project-import` instead of linking and directly deploying it. The import workflow creates a Vercel project, connects Git, and triggers the first Git-backed deployment.
+
+For an existing Vercel project or an explicitly requested local-source deployment, ensure `.vercel/` exists before deploying (via `vercel link` or `vercel link --repo`).
 
 ## Basic Usage
 

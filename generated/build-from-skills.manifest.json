@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-12T03:07:25.183Z",
+  "generatedAt": "2026-08-24T21:51:28.228Z",
   "templates": [
     {
       "template": "agents/ai-architect.md.tmpl",
@@ -183,35 +183,35 @@
           "skillName": "deployments-cicd",
           "target": "Deployment Commands > Preview Deployment",
           "type": "section",
-          "lineNumber": 56
+          "lineNumber": 62
         },
         {
           "marker": "{{include:skill:deployments-cicd:Deployment Commands > Production Deployment}}",
           "skillName": "deployments-cicd",
           "target": "Deployment Commands > Production Deployment",
           "type": "section",
-          "lineNumber": 61
+          "lineNumber": 67
         },
         {
           "marker": "{{include:skill:deployments-cicd:Deployment Commands > Inspect Deployments}}",
           "skillName": "deployments-cicd",
           "target": "Deployment Commands > Inspect Deployments",
           "type": "section",
-          "lineNumber": 78
+          "lineNumber": 84
         },
         {
           "marker": "{{include:skill:deployments-cicd:Deploy Summary Format}}",
           "skillName": "deployments-cicd",
           "target": "Deploy Summary Format",
           "type": "section",
-          "lineNumber": 132
+          "lineNumber": 138
         },
         {
           "marker": "{{include:skill:deployments-cicd:Deploy Next Steps}}",
           "skillName": "deployments-cicd",
           "target": "Deploy Next Steps",
           "type": "section",
-          "lineNumber": 137
+          "lineNumber": 143
         }
       ]
     },

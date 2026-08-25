@@ -6,14 +6,18 @@ description: Deploy the current project to Vercel. Pass "prod" or "production" a
 
 Deploy the current project to Vercel using the CLI, with preflight safety checks, explicit production confirmation, and post-deploy verification.
 
+For a Git-backed checkout that is not linked to a Vercel project, do not create a local-source deployment. Use `$vercel-project-import` to create the Vercel project, connect Git, and trigger its first Git-backed deployment. This command handles already-linked projects and explicit local-source deployments only.
+
 ## Preflight
 
 Run these checks before any deployment. Stop on failure and print actionable guidance.
 
 1. **CLI available?** — Confirm `vercel` is on PATH.
    - If missing: `npm i -g vercel` (or `pnpm add -g vercel` / `bun add -g vercel`).
-2. **Project linked?** — Check for `.vercel/project.json` in the current directory or nearest parent.
-   - If not found: run `vercel link` interactively, then re-run `/deploy`.
+2. **Import or deploy?** — Check for `.vercel/project.json` or `.vercel/repo.json` in the current directory or nearest parent, then check whether the checkout has a Git remote.
+   - If the checkout has a Git remote and no Vercel project metadata: use `$vercel-project-import`. Do not run `vercel link`, `vercel`, or `vercel --prod`.
+   - If the checkout is already linked: continue with this deployment workflow.
+   - If it has no Git remote: ask whether the user explicitly wants a local-source deployment. Only then run `vercel link` and continue.
 3. **Monorepo detection** — Look for `turbo.json` or `pnpm-workspace.yaml` at the repo root.
    - If detected: confirm which package is targeted. If ambiguous, ask the user before proceeding.
 4. **Uncommitted changes** — Run `git status --porcelain`.
@@ -37,6 +41,8 @@ State the intended action before executing:
 
 - **Preview deploy** (default): `vercel` — creates a preview deployment on a unique URL.
 - **Production deploy**: `vercel --prod` — deploys to production domains.
+
+These direct deploy commands do not apply to a new, unlinked Git checkout; use `$vercel-project-import` first.
 
 If "$ARGUMENTS" contains "prod" or "production":
 
