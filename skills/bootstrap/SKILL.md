@@ -31,6 +31,7 @@ metadata:
     - '@upstash/redis'
     - '@vercel/blob'
     - '@vercel/edge-config'
+    - '@vercel/global-config'
     - 'next-auth'
     - '@auth/core'
     - 'better-auth'

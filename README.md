@@ -82,7 +82,7 @@ A text-form relational graph covering:
 | `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                                                 |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
-| `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                                                      |
+| `vercel-storage`        | Blob, Global Config (formerly Edge Config), Neon Postgres, Upstash Redis, migration from sunset packages                             |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
 | `workflow`              | Workflow SDK — durable execution, DurableAgent, steps, Worlds, pause/resume                                                          |
 
@@ -279,7 +279,7 @@ bun run build:from-skills # Stage 4: Resolve template includes
 - AI Gateway (100+ models, provider routing, cost tracking)
 - Vercel Functions (Fluid Compute, streaming, Cron Jobs)
 - Vercel Services (multiple frontends and backends, public rewrites, private bindings)
-- Storage (Blob, Edge Config, Neon Postgres, Upstash Redis)
+- Storage (Blob, Global Config, Neon Postgres, Upstash Redis)
 - Routing Middleware (request interception, Edge/Node.js/Bun runtimes)
 - Runtime Cache API (per-region KV cache, tag-based invalidation)
 - Vercel Flags (feature flags, Flags Explorer, gradual rollouts, A/B testing)

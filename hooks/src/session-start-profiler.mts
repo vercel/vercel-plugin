@@ -102,6 +102,7 @@ const PACKAGE_MARKERS: Record<string, string[]> = {
   "@vercel/kv": ["vercel-storage"],
   "@vercel/postgres": ["vercel-storage"],
   "@vercel/edge-config": ["vercel-storage"],
+  "@vercel/global-config": ["vercel-storage"],
   "@vercel/workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
@@ -137,7 +138,8 @@ const SETUP_RESOURCE_DEPENDENCIES: Record<string, string> = {
   "drizzle-orm": "postgres",
   "@upstash/redis": "redis",
   "@vercel/blob": "blob",
-  "@vercel/edge-config": "edge-config",
+  "@vercel/edge-config": "global-config",
+  "@vercel/global-config": "global-config",
 };
 
 const SETUP_MODE_THRESHOLD = 3;

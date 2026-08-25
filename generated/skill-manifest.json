@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-25T09:59:43.549Z",
+  "generatedAt": "2026-08-25T10:09:21.722Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -859,6 +859,7 @@
         "@upstash/redis",
         "@vercel/blob",
         "@vercel/edge-config",
+        "@vercel/global-config",
         "next-auth",
         "@auth/core",
         "better-auth"
@@ -903,6 +904,10 @@
         },
         {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/edge-config(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/global-config(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         },
         {
@@ -1954,9 +1959,9 @@
           "message": "Precompute pattern detected — loading Routing Middleware guidance for the middleware rewrites that serve static flag variants."
         },
         {
-          "pattern": "@flags-sdk/edge-config|createEdgeConfigAdapter",
+          "pattern": "@flags-sdk/(edge|global)-config|create(Edge|Global)ConfigAdapter",
           "targetSkill": "vercel-storage",
-          "message": "Edge Config flag adapter detected — loading Vercel storage guidance for Edge Config setup and limits."
+          "message": "Global Config flag adapter detected — loading Vercel storage guidance for Global Config setup and limits."
         }
       ],
       "promptSignals": {
@@ -4524,9 +4529,11 @@
         "lib/blob.*",
         "lib/storage.*",
         "lib/edge-config.*",
+        "lib/global-config.*",
         "src/lib/blob.*",
         "src/lib/storage.*",
         "src/lib/edge-config.*",
+        "src/lib/global-config.*",
         "supabase/**",
         "lib/supabase.*",
         "src/lib/supabase.*",
@@ -4542,6 +4549,10 @@
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/global-config\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
@@ -4586,6 +4597,7 @@
       "importPatterns": [
         "@vercel/blob",
         "@vercel/edge-config",
+        "@vercel/global-config",
         "@neondatabase/serverless",
         "@upstash/redis",
         "@vercel/kv",
@@ -4602,9 +4614,11 @@
         "^lib\\/blob\\.[^/]*$",
         "^lib\\/storage\\.[^/]*$",
         "^lib\\/edge-config\\.[^/]*$",
+        "^lib\\/global-config\\.[^/]*$",
         "^src\\/lib\\/blob\\.[^/]*$",
         "^src\\/lib\\/storage\\.[^/]*$",
         "^src\\/lib\\/edge-config\\.[^/]*$",
+        "^src\\/lib\\/global-config\\.[^/]*$",
         "^supabase\\/.*$",
         "^lib\\/supabase\\.[^/]*$",
         "^src\\/lib\\/supabase\\.[^/]*$",
@@ -4620,6 +4634,10 @@
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/global-config\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
@@ -4671,6 +4689,10 @@
           "flags": "m"
         },
         {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/global-config(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@neondatabase\\/serverless(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         },
@@ -4713,6 +4735,12 @@
           "upgradeToSkill": "vercel-storage",
           "upgradeWhy": "Reload storage guidance for @vercel/postgres → @neondatabase/serverless migration steps, Marketplace provisioning, and drizzle-orm setup.",
           "upgradeMode": "soft"
+        },
+        {
+          "pattern": "from\\s+['\"]@vercel/edge-config['\"]",
+          "message": "Edge Config is now Global Config — @vercel/global-config is a drop-in replacement for @vercel/edge-config. The legacy package cannot read newly connected stores (it only reads EDGE_CONFIG).",
+          "severity": "recommended",
+          "skipIfFileContains": "@vercel/global-config"
         }
       ],
       "chainTo": [
@@ -4790,10 +4818,12 @@
           "add storage",
           "set up database",
           "configure blob storage",
+          "use global config",
           "use edge config"
         ],
         "entities": [
           "Blob",
+          "Global Config",
           "Edge Config",
           "Neon Postgres",
           "Upstash Redis",

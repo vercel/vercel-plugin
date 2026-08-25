@@ -127,7 +127,8 @@ const ALIASES: Record<string, string[]> = {
   Drains: ["Vercel Drains"],
   Alerts: ["Monitoring"],
   Blob: ["Vercel Blob"],
-  "Edge Config": ["Vercel Edge Config", "Edge Config"],
+  "Edge Config": ["Vercel Global Config", "Global Config", "Edge Config"],
+  "Global Config": ["Vercel Global Config", "Global Config", "Edge Config"],
   Firewall: ["Vercel Firewall"],
   "Bot Management": ["Bot Filter"],
 };

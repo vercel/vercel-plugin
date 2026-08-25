@@ -100,9 +100,9 @@ chainTo:
     targetSkill: routing-middleware
     message: 'Precompute pattern detected — loading Routing Middleware guidance for the middleware rewrites that serve static flag variants.'
   -
-    pattern: '@flags-sdk/edge-config|createEdgeConfigAdapter'
+    pattern: '@flags-sdk/(edge|global)-config|create(Edge|Global)ConfigAdapter'
     targetSkill: vercel-storage
-    message: 'Edge Config flag adapter detected — loading Vercel storage guidance for Edge Config setup and limits.'
+    message: 'Global Config flag adapter detected — loading Vercel storage guidance for Global Config setup and limits.'
 ---
 
 # Flags SDK
