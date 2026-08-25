@@ -6,7 +6,7 @@ metadata:
   docs:
     - "https://vercel.com/docs/getting-started-with-vercel"
     - "https://nextjs.org/docs/getting-started/installation"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - '.env.example'
     - '.env.sample'

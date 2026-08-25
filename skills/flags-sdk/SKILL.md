@@ -7,7 +7,7 @@ metadata:
   docs:
     - "https://vercel.com/docs/flags"
     - "https://flags-sdk.dev"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'flags.ts'
     - 'flags.tsx'

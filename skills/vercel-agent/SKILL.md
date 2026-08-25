@@ -6,7 +6,7 @@ metadata:
   docs:
     - "https://vercel.com/docs"
     - "https://sdk.vercel.ai/docs"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns: 
     - '.github/workflows/vercel*.yml'
     - '.github/workflows/vercel*.yaml'

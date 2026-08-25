@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-24T14:56:38.014Z",
+  "generatedAt": "2026-08-25T09:59:43.549Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -10,7 +10,7 @@
         "https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources",
         "https://vercel.com/docs/oidc#in-local-development"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\b(?:vercel|vc)\\s+curl\\b",
@@ -118,7 +118,7 @@
         "https://vercel.com/docs/ai-gateway",
         "https://sdk.vercel.ai/docs/ai-sdk-core/settings"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\bvercel\\s+env\\s+pull\\b",
@@ -832,7 +832,7 @@
         "https://vercel.com/docs/getting-started-with-vercel",
         "https://nextjs.org/docs/getting-started/installation"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".env.example",
         ".env.sample",
@@ -1456,7 +1456,7 @@
         "https://vercel.com/docs/workflow",
         "https://vercel.com/docs/storage"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "Dockerfile.vercel",
         "Containerfile.vercel"
@@ -1540,7 +1540,7 @@
         "https://vercel.com/docs/deployments/overview",
         "https://vercel.com/docs/git"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".github/workflows/*.yml",
         ".github/workflows/*.yaml",
@@ -1616,7 +1616,7 @@
       "docs": [
         "https://vercel.com/docs/environment-variables"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".env",
         ".env.*",
@@ -1869,7 +1869,7 @@
         "https://vercel.com/docs/flags",
         "https://flags-sdk.dev"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "flags.ts",
         "flags.tsx",
@@ -2084,7 +2084,7 @@
       "docs": [
         "https://vercel.com/docs/integrations"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "integration.json"
       ],
@@ -3513,7 +3513,7 @@
         "https://vercel.com/docs",
         "https://sdk.vercel.ai/docs"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".github/workflows/vercel*.yml",
         ".github/workflows/vercel*.yaml",
@@ -3574,7 +3574,7 @@
       "docs": [
         "https://vercel.com/docs/cli"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "vercel.json",
         "vercel.ts",
@@ -3718,7 +3718,7 @@
       "docs": [
         "https://vercel.com/docs/connect"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "agent/connections/**",
         "agent/channels/**"
@@ -3980,7 +3980,7 @@
         "https://vercel.com/docs/functions/runtimes",
         "https://vercel.com/docs/functions/websockets"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "api/**/*.*",
         "pages/api/**",
@@ -4212,7 +4212,7 @@
       "docs": [
         "https://vercel.com/docs/sandbox"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
@@ -4413,7 +4413,7 @@
         "https://vercel.com/docs/services/bindings",
         "https://vercel.com/docs/services/config-reference"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "vercel.json",
         "apps/*/vercel.json"
@@ -4515,7 +4515,7 @@
       "docs": [
         "https://vercel.com/docs/storage"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "lib/blob/**",
         "lib/storage/**",
@@ -4808,7 +4808,7 @@
       "docs": [
         "https://vercel.com/docs/projects/project-configuration"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\bnext\\s+dev\\b",
@@ -4956,7 +4956,7 @@
         "https://vercel.com/docs/workflow",
         "https://workflow-sdk.dev"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "lib/workflow/**",
         "src/lib/workflow/**",

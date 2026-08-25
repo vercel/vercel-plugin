@@ -7,7 +7,7 @@ metadata:
     - "https://vercel.com/docs/functions"
     - "https://vercel.com/docs/functions/runtimes"
     - "https://vercel.com/docs/functions/websockets"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'api/**/*.*'
     - 'pages/api/**'

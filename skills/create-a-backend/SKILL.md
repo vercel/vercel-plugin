@@ -11,7 +11,7 @@ metadata:
     - "https://vercel.com/docs/queues"
     - "https://vercel.com/docs/workflow"
     - "https://vercel.com/docs/storage"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'Dockerfile.vercel'
     - 'Containerfile.vercel'
