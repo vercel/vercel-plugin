@@ -5,7 +5,7 @@ import { join, dirname } from "path";
 import { homedir } from "os";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
-var PLUGIN_VERSION = true ? "0.48.1" : "0.48.1";
+var PLUGIN_VERSION = true ? "0.49.0" : "0.49.0";
 var ACTIVE_SESSION_TTL_MS = 60 * 60 * 1e3;
 var DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 var FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
@@ -156,12 +156,14 @@ function refreshActiveSessionMarker(now = /* @__PURE__ */ new Date()) {
     return;
   }
   const updatedAt = now.getTime();
+  const installId = getOrCreateInstallationId();
   const marker = {
     schema: 1,
     active: true,
     pluginVersion: PLUGIN_VERSION,
     updatedAt,
-    expiresAt: updatedAt + ACTIVE_SESSION_TTL_MS
+    expiresAt: updatedAt + ACTIVE_SESSION_TTL_MS,
+    ...installId ? { installId } : {}
   };
   try {
     mkdirSync(dirname(ACTIVE_SESSION_MARKER_PATH), { recursive: true });

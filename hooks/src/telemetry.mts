@@ -7,7 +7,7 @@ declare const __VERCEL_PLUGIN_VERSION__: string;
 
 const BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 const FLUSH_TIMEOUT_MS = 3_000;
-export const PLUGIN_VERSION = typeof __VERCEL_PLUGIN_VERSION__ === "string" ? __VERCEL_PLUGIN_VERSION__ : "0.48.1";
+export const PLUGIN_VERSION = typeof __VERCEL_PLUGIN_VERSION__ === "string" ? __VERCEL_PLUGIN_VERSION__ : "0.49.0";
 const ACTIVE_SESSION_TTL_MS = 60 * 60 * 1000;
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
@@ -44,6 +44,10 @@ export interface ActiveSessionMarker {
   pluginVersion: string;
   updatedAt: number;
   expiresAt: number;
+  // Optional so the marker stays schema 1. The shipped CLI reader rejects any
+  // other schema outright, so a bump would blank out the plugin cohort fields
+  // it already reads until every user upgrades their CLI.
+  installId?: string;
 }
 
 async function sendTelemetry(
@@ -237,12 +241,14 @@ export function refreshActiveSessionMarker(now: Date = new Date()): void {
   }
 
   const updatedAt = now.getTime();
+  const installId = getOrCreateInstallationId();
   const marker: ActiveSessionMarker = {
     schema: 1,
     active: true,
     pluginVersion: PLUGIN_VERSION,
     updatedAt,
     expiresAt: updatedAt + ACTIVE_SESSION_TTL_MS,
+    ...(installId ? { installId } : {}),
   };
 
   try {

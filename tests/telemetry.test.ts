@@ -145,9 +145,10 @@ describe("telemetry controls", () => {
     expect(result.activeSessionMarker).toEqual({
       schema: 1,
       active: true,
-      pluginVersion: "0.48.1",
+      pluginVersion: "0.49.0",
       updatedAt: Date.parse("2026-05-15T12:00:00.000Z"),
       expiresAt: Date.parse("2026-05-15T13:00:00.000Z"),
+      installId: result.installationId,
     });
     expect(result.dauPayloads).toEqual([
       [
@@ -161,7 +162,7 @@ describe("telemetry controls", () => {
         }),
         expect.objectContaining({
           key: "plugin:version",
-          value: "0.48.1",
+          value: "0.49.0",
         }),
         expect.objectContaining({
           key: "plugin:install_id",
@@ -198,6 +199,17 @@ describe("telemetry controls", () => {
         (event) => event.key === "plugin:install_id",
       )?.value,
     ).toBe(result.installationId);
+  });
+
+  test("active-session marker carries the same installation ID on schema 1", async () => {
+    const result = await runTelemetryProbe({ agentHarness: "codex" });
+    const marker = result.activeSessionMarker as {
+      schema: number;
+      installId?: string;
+    };
+
+    expect(marker.schema).toBe(1);
+    expect(marker.installId).toBe(result.installationId);
   });
 
   test("concurrent invalid-file repairs leave a valid installation ID", async () => {
