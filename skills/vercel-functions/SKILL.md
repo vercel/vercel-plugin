@@ -174,6 +174,11 @@ chainTo:
     message: 'Manual retry logic in serverless handler — loading Workflow SDK guidance for automatic retries with durable execution.'
     skipIfFileContains: 'use workflow|use step|@vercel/workflow|from\s+[''""](workflow)[''""]'
 
+  -
+    pattern: 'import\s*\{[^}]*\bmetric\b[^}]*\}\s*from\s*[''"]@vercel/functions[''"]'
+    targetSkill: custom-metrics
+    message: '@vercel/functions metric() detected — loading Custom Metrics guidance for naming, attributes, and vc metrics queries.'
+
 ---
 
 # Vercel Functions

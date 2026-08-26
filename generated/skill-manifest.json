@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T19:04:14.578Z",
+  "generatedAt": "2026-08-26T07:16:48.671Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -1531,6 +1531,99 @@
           "container images"
         ],
         "examples": []
+      }
+    },
+    "custom-metrics": {
+      "priority": 9,
+      "summary": "Emit numeric measurements from Functions and query them with vc metrics",
+      "docs": [
+        "https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package",
+        "https://vercel.com/docs/cli/metrics",
+        "https://vercel.com/docs/observability/observability-plus"
+      ],
+      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "pathPatterns": [],
+      "bashPatterns": [
+        "\\b(?:vercel|vc)\\s+metrics\\s+(?!schema(?:\\s|$)|vercel\\.)[A-Za-z_][A-Za-z0-9_./-]*\\b",
+        "\\b(?:vercel|vc)\\s+metrics\\s+schema\\s+(?!vercel\\.)[A-Za-z_][A-Za-z0-9_./-]*\\b"
+      ],
+      "importPatterns": [],
+      "bodyPath": "skills/custom-metrics/SKILL.md",
+      "pathRegexSources": [],
+      "bashRegexSources": [
+        "\\b(?:vercel|vc)\\s+metrics\\s+(?!schema(?:\\s|$)|vercel\\.)[A-Za-z_][A-Za-z0-9_./-]*\\b",
+        "\\b(?:vercel|vc)\\s+metrics\\s+schema\\s+(?!vercel\\.)[A-Za-z_][A-Za-z0-9_./-]*\\b"
+      ],
+      "importRegexSources": [],
+      "promptSignals": {
+        "phrases": [
+          "custom metric",
+          "custom metrics",
+          "emit a metric",
+          "emit metrics",
+          "report a metric",
+          "report metrics",
+          "application metrics",
+          "business metrics",
+          "@vercel/functions metric"
+        ],
+        "allOf": [
+          [
+            "emit",
+            "metric"
+          ],
+          [
+            "report",
+            "metric"
+          ],
+          [
+            "instrument",
+            "metric"
+          ],
+          [
+            "vercel",
+            "metric"
+          ]
+        ],
+        "anyOf": [
+          "observability",
+          "instrumentation",
+          "duration",
+          "counter",
+          "percentile"
+        ],
+        "noneOf": [
+          "font metrics",
+          "core web vitals"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "Vercel application metrics",
+          "Vercel business metrics",
+          "function metrics",
+          "vc metrics"
+        ],
+        "intents": [
+          "emit a custom metric",
+          "instrument a Vercel Function",
+          "query a custom metric",
+          "measure application behavior"
+        ],
+        "entities": [
+          "metric",
+          "@vercel/functions",
+          "Vercel Custom Metrics",
+          "vc metrics",
+          "Observability Plus"
+        ],
+        "examples": [
+          "emit checkout duration as a custom metric",
+          "add a business counter to this Vercel Function",
+          "query my custom metric with vc metrics",
+          "group an application metric by outcome"
+        ]
       }
     },
     "deployments-cicd": {
@@ -3971,6 +4064,11 @@
           "targetSkill": "workflow",
           "message": "Manual retry logic in serverless handler — loading Workflow SDK guidance for automatic retries with durable execution.",
           "skipIfFileContains": "use workflow|use step|@vercel/workflow|from\\s+[''\"\"](workflow)[''\"\"]"
+        },
+        {
+          "pattern": "import\\s*\\{[^}]*\\bmetric\\b[^}]*\\}\\s*from\\s*[''\"]@vercel/functions[''\"]",
+          "targetSkill": "custom-metrics",
+          "message": "@vercel/functions metric() detected — loading Custom Metrics guidance for naming, attributes, and vc metrics queries."
         }
       ],
       "promptSignals": {
