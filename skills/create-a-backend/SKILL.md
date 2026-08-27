@@ -11,7 +11,7 @@ metadata:
     - "https://vercel.com/docs/queues"
     - "https://vercel.com/docs/workflow"
     - "https://vercel.com/docs/storage"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'Dockerfile.vercel'
     - 'Containerfile.vercel'
@@ -72,7 +72,7 @@ Help the user create a backend by choosing an architecture before reaching for i
 | Scheduled HTTP work | **[Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)**; use Workflow when the job itself must be durable |
 | Postgres, Redis, NoSQL, vector, or other application data | **[Storage integrations from the Vercel Marketplace](https://vercel.com/marketplace/category/storage)** |
 | Files and user uploads | **[Vercel Blob](https://vercel.com/docs/storage/vercel-blob)** |
-| Global, read-heavy configuration | **[Edge Config](https://vercel.com/docs/storage/edge-config)** |
+| Global, read-heavy configuration | **[Global Config](https://vercel.com/docs/global-config)** |
 
 Use Functions for the normal request/response backend. Use Services when independently built components should share one deployment, routing layer, preview URL, and rollback. Use separate Vercel projects when components need independent release cycles.
 

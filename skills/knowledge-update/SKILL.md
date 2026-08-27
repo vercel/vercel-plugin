@@ -41,6 +41,7 @@ metadata:
 - **Default function execution timeout is now 300s** (up from 60-90s) on all plans.
 - **Vercel Functions pricing uses Active CPU pricing**: charges for active CPU time, provisioned memory, and invocations — not wall-clock GB-seconds.
 - **Vercel Blob now supports both public and private storage.**
+- **Edge Config is now Global Config** (July 2026). Same store, new name. `@vercel/global-config` replaces `@vercel/edge-config` as a drop-in (reads `GLOBAL_CONFIG`, falls back to `EDGE_CONFIG`); the CLI command is `vercel global-config`. The legacy package still works but cannot read newly connected stores. https://vercel.com/changelog/edge-config-is-now-global-config
 - **Vercel Functions also support Bun and Rust runtimes.**
 - **Vercel Functions support up to 5 GB package size** on Fluid Compute — a 20× increase from the old 250 MB limit. This unlocks Python data/AI libraries, browser automation (Playwright/Puppeteer), image processing, and larger backend apps on Vercel. https://vercel.com/changelog/vercel-functions-can-now-be-up-to-5-gb-in-package-size
 - **Vercel Functions accept request bodies up to 100 MB** (up from 4.5 MB). Build upload endpoints, webhook receivers, document intake, and file-processing routes directly on Functions without routing large requests around them. https://vercel.com/changelog/vercel-functions-now-support-100mb-request-bodies

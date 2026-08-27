@@ -1,0 +1,104 @@
+name: flags-sdk
+description: Flags SDK and Vercel Flags expert guidance. Use when declaring feature flags with flag(), wiring provider adapters (Vercel, Statsig, LaunchDarkly, PostHog, and others), managing flags with the vercel flags CLI, implementing the precompute pattern for static A/B tests, or integrating the Flags Explorer.
+summary: "Flags SDK guidance — declare flags with flag(), connect provider adapters, manage Vercel Flags via the vercel flags CLI, precompute static variants, and set up the Flags Explorer."
+metadata:
+  priority: 6
+  docs:
+    - "https://vercel.com/docs/flags"
+    - "https://flags-sdk.dev"
+  sitemap: "https://vercel.com/sitemap.xml"
+  pathPatterns:
+    - 'flags.ts'
+    - 'flags.tsx'
+    - 'lib/flags.ts'
+    - 'src/flags.ts'
+    - 'lib/flags/**'
+    - 'src/flags/**'
+    - '.well-known/vercel/flags/**'
+  importPatterns:
+    - 'flags/next'
+    - 'flags/sveltekit'
+    - 'flags/react'
+    - 'flags'
+    - '@flags-sdk/*'
+    - '@vercel/flags'
+  bashPatterns:
+    - '\bvercel\s+flags\b'
+    - '\bvc\s+flags\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*\bflags\b'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*\bflags\b'
+    - '\bbun\s+(install|i|add)\s+[^\n]*\bflags\b'
+    - '\byarn\s+add\s+[^\n]*\bflags\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
+    - '\bbun\s+(install|i|add)\s+[^\n]*@flags-sdk/'
+    - '\byarn\s+add\s+[^\n]*@flags-sdk/'
+  promptSignals:
+    phrases:
+      - "feature flag"
+      - "feature flags"
+      - "flags sdk"
+      - "vercel flags"
+      - "flags explorer"
+      - "feature gate"
+      - "feature gating"
+      - "a/b test"
+      - "a/b testing"
+      - "ab test"
+      - "ab testing"
+      - "flag rollout"
+      - "gradual rollout"
+      - "percentage rollout"
+      - "kill switch"
+      - "flag variant"
+      - "flag adapter"
+      - "precompute flags"
+    allOf:
+      - [flag, rollout]
+      - [flag, variant]
+      - [flag, toggle]
+      - [flag, experiment]
+      - [experiment, variant]
+      - [split, test]
+    anyOf:
+      - "flag"
+      - "experiment"
+      - "experimentation"
+      - "rollout"
+      - "variant"
+    noneOf:
+      - "command-line flag"
+      - "command line flag"
+      - "cli flag"
+      - "compiler flag"
+      - "flag emoji"
+    minScore: 6
+retrieval:
+  aliases:
+    - feature flags
+    - feature toggles
+    - vercel flags
+    - flags sdk
+    - a/b testing
+  intents:
+    - add a feature flag
+    - run an a/b test
+    - gate a feature
+    - roll out gradually
+    - manage flags from cli
+  entities:
+    - Flags SDK
+    - Vercel Flags
+    - Flags Explorer
+    - vercelAdapter
+    - precompute
+    - FLAGS_SECRET
+chainTo:
+  -
+    pattern: 'precompute\s*\(|generatePermutations|flags/next.*precompute'
+    targetSkill: routing-middleware
+    message: 'Precompute pattern detected — loading Routing Middleware guidance for the middleware rewrites that serve static flag variants.'
+  -
+    pattern: '@flags-sdk/(edge|global)-config|create(Edge|Global)ConfigAdapter'
+    targetSkill: vercel-storage
+    message: 'Global Config flag adapter detected — loading Vercel storage guidance for Global Config setup and limits.'

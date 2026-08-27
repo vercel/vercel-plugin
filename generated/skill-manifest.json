@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T19:04:14.578Z",
+  "generatedAt": "2026-08-25T10:09:21.722Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -10,7 +10,7 @@
         "https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources",
         "https://vercel.com/docs/oidc#in-local-development"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\b(?:vercel|vc)\\s+curl\\b",
@@ -118,7 +118,7 @@
         "https://vercel.com/docs/ai-gateway",
         "https://sdk.vercel.ai/docs/ai-sdk-core/settings"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\bvercel\\s+env\\s+pull\\b",
@@ -832,7 +832,7 @@
         "https://vercel.com/docs/getting-started-with-vercel",
         "https://nextjs.org/docs/getting-started/installation"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".env.example",
         ".env.sample",
@@ -859,6 +859,7 @@
         "@upstash/redis",
         "@vercel/blob",
         "@vercel/edge-config",
+        "@vercel/global-config",
         "next-auth",
         "@auth/core",
         "better-auth"
@@ -903,6 +904,10 @@
         },
         {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/edge-config(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/global-config(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         },
         {
@@ -1456,7 +1461,7 @@
         "https://vercel.com/docs/workflow",
         "https://vercel.com/docs/storage"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "Dockerfile.vercel",
         "Containerfile.vercel"
@@ -1540,7 +1545,7 @@
         "https://vercel.com/docs/deployments/overview",
         "https://vercel.com/docs/git"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".github/workflows/*.yml",
         ".github/workflows/*.yaml",
@@ -1616,7 +1621,7 @@
       "docs": [
         "https://vercel.com/docs/environment-variables"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".env",
         ".env.*",
@@ -1862,6 +1867,192 @@
         ]
       }
     },
+    "flags-sdk": {
+      "priority": 6,
+      "summary": "Flags SDK guidance — declare flags with flag(), connect provider adapters, manage Vercel Flags via the vercel flags CLI, precompute static variants, and set up the Flags Explorer.",
+      "docs": [
+        "https://vercel.com/docs/flags",
+        "https://flags-sdk.dev"
+      ],
+      "sitemap": "https://vercel.com/sitemap.xml",
+      "pathPatterns": [
+        "flags.ts",
+        "flags.tsx",
+        "lib/flags.ts",
+        "src/flags.ts",
+        "lib/flags/**",
+        "src/flags/**",
+        ".well-known/vercel/flags/**"
+      ],
+      "bashPatterns": [
+        "\\bvercel\\s+flags\\b",
+        "\\bvc\\s+flags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bflags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\byarn\\s+add\\s+[^\\n]*@flags-sdk/"
+      ],
+      "importPatterns": [
+        "flags/next",
+        "flags/sveltekit",
+        "flags/react",
+        "flags",
+        "@flags-sdk/*",
+        "@vercel/flags"
+      ],
+      "bodyPath": "skills/flags-sdk/SKILL.md",
+      "pathRegexSources": [
+        "^flags\\.ts$",
+        "^flags\\.tsx$",
+        "^lib\\/flags\\.ts$",
+        "^src\\/flags\\.ts$",
+        "^lib\\/flags\\/.*$",
+        "^src\\/flags\\/.*$",
+        "^\\.well-known\\/vercel\\/flags\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bvercel\\s+flags\\b",
+        "\\bvc\\s+flags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bflags\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bflags\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@flags-sdk/",
+        "\\byarn\\s+add\\s+[^\\n]*@flags-sdk/"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags\\/next(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags\\/sveltekit(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags\\/react(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]flags(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@flags-sdk\\/[^'\"]*(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/flags(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "precompute\\s*\\(|generatePermutations|flags/next.*precompute",
+          "targetSkill": "routing-middleware",
+          "message": "Precompute pattern detected — loading Routing Middleware guidance for the middleware rewrites that serve static flag variants."
+        },
+        {
+          "pattern": "@flags-sdk/(edge|global)-config|create(Edge|Global)ConfigAdapter",
+          "targetSkill": "vercel-storage",
+          "message": "Global Config flag adapter detected — loading Vercel storage guidance for Global Config setup and limits."
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "feature flag",
+          "feature flags",
+          "flags sdk",
+          "vercel flags",
+          "flags explorer",
+          "feature gate",
+          "feature gating",
+          "a/b test",
+          "a/b testing",
+          "ab test",
+          "ab testing",
+          "flag rollout",
+          "gradual rollout",
+          "percentage rollout",
+          "kill switch",
+          "flag variant",
+          "flag adapter",
+          "precompute flags"
+        ],
+        "allOf": [
+          [
+            "flag",
+            "rollout"
+          ],
+          [
+            "flag",
+            "variant"
+          ],
+          [
+            "flag",
+            "toggle"
+          ],
+          [
+            "flag",
+            "experiment"
+          ],
+          [
+            "experiment",
+            "variant"
+          ],
+          [
+            "split",
+            "test"
+          ]
+        ],
+        "anyOf": [
+          "flag",
+          "experiment",
+          "experimentation",
+          "rollout",
+          "variant"
+        ],
+        "noneOf": [
+          "command-line flag",
+          "command line flag",
+          "cli flag",
+          "compiler flag",
+          "flag emoji"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "feature flags",
+          "feature toggles",
+          "vercel flags",
+          "flags sdk",
+          "a/b testing"
+        ],
+        "intents": [
+          "add a feature flag",
+          "run an a/b test",
+          "gate a feature",
+          "roll out gradually",
+          "manage flags from cli"
+        ],
+        "entities": [
+          "Flags SDK",
+          "Vercel Flags",
+          "Flags Explorer",
+          "vercelAdapter",
+          "precompute",
+          "FLAGS_SECRET"
+        ],
+        "examples": []
+      }
+    },
     "knowledge-update": {
       "priority": 10,
       "summary": "",
@@ -1898,7 +2089,7 @@
       "docs": [
         "https://vercel.com/docs/integrations"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "integration.json"
       ],
@@ -3327,7 +3518,7 @@
         "https://vercel.com/docs",
         "https://sdk.vercel.ai/docs"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         ".github/workflows/vercel*.yml",
         ".github/workflows/vercel*.yaml",
@@ -3388,7 +3579,7 @@
       "docs": [
         "https://vercel.com/docs/cli"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "vercel.json",
         "vercel.ts",
@@ -3532,7 +3723,7 @@
       "docs": [
         "https://vercel.com/docs/connect"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "agent/connections/**",
         "agent/channels/**"
@@ -3794,7 +3985,7 @@
         "https://vercel.com/docs/functions/runtimes",
         "https://vercel.com/docs/functions/websockets"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "api/**/*.*",
         "pages/api/**",
@@ -4026,7 +4217,7 @@
       "docs": [
         "https://vercel.com/docs/sandbox"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/sandbox\\b",
@@ -4227,7 +4418,7 @@
         "https://vercel.com/docs/services/bindings",
         "https://vercel.com/docs/services/config-reference"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "vercel.json",
         "apps/*/vercel.json"
@@ -4329,7 +4520,7 @@
       "docs": [
         "https://vercel.com/docs/storage"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "lib/blob/**",
         "lib/storage/**",
@@ -4338,9 +4529,11 @@
         "lib/blob.*",
         "lib/storage.*",
         "lib/edge-config.*",
+        "lib/global-config.*",
         "src/lib/blob.*",
         "src/lib/storage.*",
         "src/lib/edge-config.*",
+        "src/lib/global-config.*",
         "supabase/**",
         "lib/supabase.*",
         "src/lib/supabase.*",
@@ -4356,6 +4549,10 @@
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/global-config\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
@@ -4400,6 +4597,7 @@
       "importPatterns": [
         "@vercel/blob",
         "@vercel/edge-config",
+        "@vercel/global-config",
         "@neondatabase/serverless",
         "@upstash/redis",
         "@vercel/kv",
@@ -4416,9 +4614,11 @@
         "^lib\\/blob\\.[^/]*$",
         "^lib\\/storage\\.[^/]*$",
         "^lib\\/edge-config\\.[^/]*$",
+        "^lib\\/global-config\\.[^/]*$",
         "^src\\/lib\\/blob\\.[^/]*$",
         "^src\\/lib\\/storage\\.[^/]*$",
         "^src\\/lib\\/edge-config\\.[^/]*$",
+        "^src\\/lib\\/global-config\\.[^/]*$",
         "^supabase\\/.*$",
         "^lib\\/supabase\\.[^/]*$",
         "^src\\/lib\\/supabase\\.[^/]*$",
@@ -4434,6 +4634,10 @@
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/edge-config\\b",
         "\\byarn\\s+add\\s+[^\\n]*@vercel/edge-config\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/global-config\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/global-config\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@neondatabase/serverless\\b",
@@ -4485,6 +4689,10 @@
           "flags": "m"
         },
         {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/global-config(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@neondatabase\\/serverless(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         },
@@ -4527,6 +4735,12 @@
           "upgradeToSkill": "vercel-storage",
           "upgradeWhy": "Reload storage guidance for @vercel/postgres → @neondatabase/serverless migration steps, Marketplace provisioning, and drizzle-orm setup.",
           "upgradeMode": "soft"
+        },
+        {
+          "pattern": "from\\s+['\"]@vercel/edge-config['\"]",
+          "message": "Edge Config is now Global Config — @vercel/global-config is a drop-in replacement for @vercel/edge-config. The legacy package cannot read newly connected stores (it only reads EDGE_CONFIG).",
+          "severity": "recommended",
+          "skipIfFileContains": "@vercel/global-config"
         }
       ],
       "chainTo": [
@@ -4604,10 +4818,12 @@
           "add storage",
           "set up database",
           "configure blob storage",
+          "use global config",
           "use edge config"
         ],
         "entities": [
           "Blob",
+          "Global Config",
           "Edge Config",
           "Neon Postgres",
           "Upstash Redis",
@@ -4622,7 +4838,7 @@
       "docs": [
         "https://vercel.com/docs/projects/project-configuration"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [],
       "bashPatterns": [
         "\\bnext\\s+dev\\b",
@@ -4770,7 +4986,7 @@
         "https://vercel.com/docs/workflow",
         "https://workflow-sdk.dev"
       ],
-      "sitemap": "https://vercel.com/sitemap/docs.xml",
+      "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
         "lib/workflow/**",
         "src/lib/workflow/**",

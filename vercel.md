@@ -58,6 +58,13 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Marketplace Integrations (auto-provisioned)
 │   ⤳ skill:bootstrap
 │
+├── Vercel Flags (feature flags & experimentation)     ⤳ skill: flags-sdk  📖 docs: https://vercel.com/docs/flags
+│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)
+│   ⊃ Flags Explorer (override flags from the Vercel Toolbar)
+│   ⊃ Precompute pattern (static A/B variants via middleware rewrites)
+│   ↔ Vercel CLI (vercel flags — create, set, enable, disable, sdk-keys)
+│   ↔ Global Config (alternative store via @flags-sdk/global-config adapter)
+│
 ├── Secure Compute (isolated infrastructure for compliance workloads)
 │   → Deployment Engine (opt-in per project)
 │   ↔ Vercel Functions (dedicated execution environment)
@@ -77,7 +84,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (preview URLs)
 │   ↔ Preview Comments (inline annotation)
 │   ↔ Vercel Analytics (performance overlay)
-│   ↔ Edge Config (feature flag toggles)
+│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: flags-sdk
 │
 ├── Vercel Templates (starter kits and example repos)
 │   → Deployment Engine (one-click deploy)
@@ -458,12 +465,12 @@ VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs:
 │
 └── Use When: Media files, user uploads, large assets
 
-VERCEL EDGE CONFIG (active, first-party)   ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/storage/edge-config
+VERCEL GLOBAL CONFIG (active, first-party) ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/global-config
 ├── Purpose: Global low-latency key-value for config
-│   ⊃ Feature flags
-│   ⊃ A/B testing configuration
+│   ⇢ renamed from: Edge Config (July 2026; @vercel/global-config replaces @vercel/edge-config as drop-in)
 │   ⊃ Dynamic routing rules
-│   ⊃ @vercel/edge-config package (supports Next.js 16 cacheComponents)
+│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: flags-sdk)
+│   ⊃ @vercel/global-config package (supports Next.js 16 cacheComponents)
 │
 └── Use When: Config that must be read at the edge instantly
 
@@ -659,7 +666,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Need                      | Use                             | Why                            |
 | ------------------------- | ------------------------------- | ------------------------------ |
 | File uploads, media       | Vercel Blob                     | First-party, up to 5TB         |
-| Feature flags, A/B config | Edge Config                     | Ultra-low latency at edge      |
+| Feature flags, A/B tests  | Vercel Flags (Flags SDK)        | First-party, CLI + Explorer    |
 | Relational database       | Neon (via Marketplace)          | Serverless Postgres, branching |
 | Key-value cache           | Upstash Redis (via Marketplace) | Serverless Redis, same billing |
 
@@ -720,7 +727,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 | ---------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **Next.js Cache** (`'use cache'`, `revalidate`, `revalidatePath/Tag`)              | Per-route or per-component, framework-managed | Time-based (`revalidate: N`), on-demand (`revalidateTag()`, `revalidatePath()`)    | Caching rendered pages, component trees, or data fetches within a Next.js app                                       | You need caching outside Next.js, or need to cache arbitrary key-value data                                             |
 | **Runtime Cache** (Vercel platform, per-region KV)                                 | Per-region key-value store, any framework     | Tag-based (`purgeByTag()`), key-based (`delete()`)                                 | Caching expensive computations, API responses, or shared data across functions — works with any framework on Vercel | You only need page-level caching (use Next.js Cache instead); you need global consistency (Runtime Cache is per-region) |
-| **CDN Cache + Purge-by-Tag** (Edge Network, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL, on-demand purge via Vercel API (`POST /v1/edge-config/purge`) | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
+| **CDN Cache + Purge-by-Tag** (Edge Network, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL, on-demand purge via `vercel cache purge --type cdn` | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
 
 > **Layering pattern**: A typical Next.js app uses all three — Next.js Cache for component/route-level freshness, Runtime Cache for shared cross-request data (e.g., product catalog), and CDN Cache for static assets and ISR pages. Each layer has its own invalidation strategy; tag-based invalidation can cascade across layers when configured.
 
@@ -783,7 +790,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 
 Next.js (App Router) → Neon Postgres (data) → Clerk (auth, via Marketplace)
 → Stripe (payments, via Marketplace) → Vercel Blob (uploads)
-→ Edge Config (feature flags) → Vercel Analytics
+→ Vercel Flags (feature flags) → Vercel Analytics
 
 ```
 
@@ -941,7 +948,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### Storage and Data
 
-- Prefer current Vercel data integrations such as Neon, Upstash, Blob, and Edge Config over sunset packages.
+- Prefer current Vercel data integrations such as Neon, Upstash, Blob, and Global Config over sunset packages.
 - Match storage advice to the active need: relational data, cache/queue-style access, blob assets, or low-latency config reads.
 - Avoid recommending data migrations unless the codebase is actually using deprecated Vercel storage packages.
 - Keep data-layer guidance practical: client choice, env setup, and runtime-fit over product catalog detail.

@@ -8,7 +8,7 @@ metadata:
     - "https://vercel.com/docs/cli/curl"
     - "https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources"
     - "https://vercel.com/docs/oidc#in-local-development"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns: []
   bashPatterns:
     # Match vc curl for every hostname, including custom aliases.

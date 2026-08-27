@@ -56,7 +56,7 @@ Build failed?
 │  ├─ Under 5 min → Use Fluid Compute with streaming
 │  ├─ Up to 15 min → Use Vercel Functions with `maxDuration` in vercel.json
 │  └─ Hours/days → Use Workflow SDK (DurableAgent or workflow steps)
-└─ DB query slow? → Add connection pooling, check cold start, use Edge Config
+└─ DB query slow? → Add connection pooling, check cold start, use Global Config
 ```
 
 <!-- Sourced from vercel-functions skill: Function Runtime Diagnostics > 500 Error Diagnostics -->

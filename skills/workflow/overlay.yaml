@@ -5,7 +5,7 @@ metadata:
   docs:
     - "https://vercel.com/docs/workflow"
     - "https://workflow-sdk.dev"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'lib/workflow/**'
     - 'src/lib/workflow/**'

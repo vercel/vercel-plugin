@@ -7,7 +7,7 @@ metadata:
     - "https://vercel.com/docs/functions"
     - "https://vercel.com/docs/functions/runtimes"
     - "https://vercel.com/docs/functions/websockets"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'api/**/*.*'
     - 'pages/api/**'
@@ -496,7 +496,7 @@ All plans now default to 300s execution time with Fluid Compute.
 │  ├─ Under 5 min → Use Fluid Compute with streaming
 │  ├─ Up to 15 min → Use Vercel Functions with `maxDuration` in vercel.json
 │  └─ Hours/days → Use Workflow SDK (DurableAgent or workflow steps)
-└─ DB query slow? → Add connection pooling, check cold start, use Edge Config
+└─ DB query slow? → Add connection pooling, check cold start, use Global Config
 ```
 
 ### 500 Error Diagnostics

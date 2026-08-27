@@ -9,7 +9,7 @@ metadata:
     - "https://vercel.com/docs/services/routing"
     - "https://vercel.com/docs/services/bindings"
     - "https://vercel.com/docs/services/config-reference"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'vercel.json'
     - 'apps/*/vercel.json'

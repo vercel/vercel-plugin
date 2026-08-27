@@ -182,10 +182,10 @@ export default function middleware(request: Request) {
 }
 ```
 
-### A/B Testing via Edge Config
+### A/B Testing via Global Config
 
 ```ts
-import { get } from '@vercel/edge-config';
+import { get } from '@vercel/global-config';
 import { rewrite } from '@vercel/functions';
 
 export default async function middleware(request: Request) {
@@ -270,7 +270,7 @@ CLI commands:
 ## When to Use
 
 - Geo-personalization of static pages (runs before cache)
-- A/B testing rewrites with Edge Config
+- A/B testing rewrites with Global Config
 - Custom redirects based on request properties
 - Header injection (CSP, CORS, custom headers)
 - Lightweight auth checks (defense-in-depth only — not sole auth layer)

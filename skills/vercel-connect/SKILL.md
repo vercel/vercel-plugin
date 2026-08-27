@@ -5,7 +5,7 @@ metadata:
   priority: 5
   docs:
     - "https://vercel.com/docs/connect"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'agent/connections/**'
     - 'agent/channels/**'

@@ -6,7 +6,7 @@ metadata:
   docs:
     - "https://vercel.com/docs/ai-gateway"
     - "https://sdk.vercel.ai/docs/ai-sdk-core/settings"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns: []
   importPatterns:
     - 'ai'
