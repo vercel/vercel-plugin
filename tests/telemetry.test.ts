@@ -145,7 +145,7 @@ describe("telemetry controls", () => {
     expect(result.activeSessionMarker).toEqual({
       schema: 1,
       active: true,
-      pluginVersion: "0.48.1",
+      pluginVersion: "0.49.0",
       updatedAt: Date.parse("2026-05-15T12:00:00.000Z"),
       expiresAt: Date.parse("2026-05-15T13:00:00.000Z"),
     });
@@ -161,7 +161,7 @@ describe("telemetry controls", () => {
         }),
         expect.objectContaining({
           key: "plugin:version",
-          value: "0.48.1",
+          value: "0.49.0",
         }),
         expect.objectContaining({
           key: "plugin:install_id",
