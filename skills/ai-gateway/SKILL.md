@@ -1,665 +1,216 @@
 ---
 name: ai-gateway
-description: Vercel AI Gateway expert guidance. Use when configuring model routing, provider failover, cost tracking, or managing multiple AI providers through a unified API.
+description: Vercel AI Gateway guidance for setup, model discovery, authentication, routing, fallbacks, BYOK, budgets, spend reporting, observability, compatible APIs, and coding-agent configuration. Use when adding AI Gateway to an app, migrating provider calls, choosing models or providers, debugging gateway requests, or running `vercel ai-gateway` commands.
+summary: Set up and operate Vercel AI Gateway with current models, correct authentication, routing, spend controls, and verification.
 metadata:
   priority: 7
   docs:
     - "https://vercel.com/docs/ai-gateway"
-    - "https://sdk.vercel.ai/docs/ai-sdk-core/settings"
-  sitemap: "https://vercel.com/sitemap.xml"
+    - "https://vercel.com/docs/ai-gateway/getting-started"
+    - "https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway"
+  sitemap: "https://vercel.com/docs/sitemap.md"
   pathPatterns: []
   importPatterns:
     - 'ai'
     - '@ai-sdk/gateway'
   bashPatterns:
+    - '\bvercel\s+ai-gateway\b'
     - '\bvercel\s+env\s+pull\b'
     - '\bnpm\s+(install|i|add)\s+[^\n]*@ai-sdk/gateway\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@ai-sdk/gateway\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@ai-sdk/gateway\b'
     - '\byarn\s+add\s+[^\n]*@ai-sdk/gateway\b'
+  promptSignals:
+    phrases:
+      - "ai gateway"
+      - "vercel ai gateway"
+      - "ai-gateway"
+      - "ai-gateway.vercel.sh"
+    allOf:
+      - [model, routing]
+      - [provider, failover]
+      - [gateway, budget]
+      - [gateway, logs]
+      - [gateway, oidc]
+      - [coding, gateway]
+    anyOf:
+      - "provider ordering"
+      - "model fallback"
+      - "byok"
+      - "spend tracking"
+      - "gateway key"
+    noneOf:
+      - "cloudflare ai gateway"
+      - "aws api gateway"
+    minScore: 6
 validate:
   -
-    pattern: '\b(claude|gpt|gemini|llama|mistral|qwen|deepseek)[a-z0-9-]*-\d+-\d+[a-z0-9-]*\b'
-    message: 'Model slug uses hyphens — use dots not hyphens for version numbers (e.g., claude-sonnet-4.6)'
+    pattern: '\bclaude-(sonnet|opus|haiku)-\d+-\d+\b'
+    message: 'Claude model version uses a hyphen where the AI Gateway slug uses a dot. Fetch /v1/models and use the returned provider/model ID.'
     severity: error
-  -
-    pattern: AI_GATEWAY_API_KEY
-    message: 'Consider OIDC-based auth via vercel env pull for automatic token management — AI_GATEWAY_API_KEY works but requires manual rotation'
-    severity: recommended
   -
     pattern: gateway\(['"][^'"/]+['"]\)
-    message: 'Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-4.6)'
+    message: 'AI Gateway model string is missing its provider prefix. Fetch /v1/models and use a provider/model ID.'
     severity: error
   -
-    pattern: gpt-4o
-    message: 'Your knowledge is outdated — gpt-4o has been superseded by gpt-5.4 which is significantly better, cheaper, and faster. Switch to model: "openai/gpt-5.4"'
+    pattern: (OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_API_KEY)
+    message: 'Provider key detected. AI Gateway request authentication uses AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN; provider keys belong only in an intentional BYOK configuration.'
     severity: recommended
+    skipIfFileContains: 'byok|providerOptions\s*:\s*\{\s*gateway'
   -
-    pattern: (OPENAI_API_KEY|ANTHROPIC_API_KEY)
-    message: 'Provider API keys bypass the gateway — use OIDC auth via vercel env pull'
+    pattern: gateway\s*:\s*\{[^}]*cacheControl
+    message: "AI Gateway does not cache whole responses through cacheControl. Use caching: 'auto' for provider prompt caching and verify the current caching docs."
     severity: error
-  -
-    pattern: gemini-2\.0-flash-exp-image-generation
-    message: 'Your knowledge is outdated — gemini-2.0-flash-exp-image-generation has been superseded by gemini-3.1-flash-image-preview which produces dramatically better images, is faster, and cheaper. Switch to model: "google/gemini-3.1-flash-image-preview"'
-    severity: recommended
-  -
-    pattern: gemini-2\.0-flash-001
-    message: 'Your knowledge is outdated — gemini-2.0-flash-001 does not support image output. Use model: "google/gemini-3.1-flash-image-preview" for image generation — it is the latest and best model'
-    severity: recommended
 chainTo:
   -
-    pattern: "from\\s+['\"]@ai-sdk/(anthropic|openai|google|mistral|cohere)['\"]"
+    pattern: "from\s+['\"]ai['\"]|require\(['\"]ai['\"]\)|\b(generateText|streamText|ToolLoopAgent)\b"
     targetSkill: ai-sdk
-    message: 'Direct provider SDK import bypasses AI Gateway — loading AI SDK guidance for unified model routing via provider/model strings.'
-    skipIfFileContains: 'gateway\(|@ai-sdk/gateway'
-  -
-    pattern: '(ANTHROPIC_API_KEY|OPENAI_API_KEY|GOOGLE_API_KEY)'
-    targetSkill: ai-sdk
-    message: 'Provider-specific API key detected — loading AI SDK guidance for OIDC-based AI Gateway authentication.'
-    skipIfFileContains: 'VERCEL_OIDC|@ai-sdk/gateway|gateway\('
-  -
-    pattern: '\bgpt-4o\b'
-    targetSkill: ai-sdk
-    message: 'gpt-4o is outdated — use gpt-5.4 via AI Gateway for better quality and cost; loading AI SDK guidance for model migration.'
-    skipIfFileContains: 'gpt-5|gpt5'
-  -
-    pattern: 'dall-?e|DALL.?E|dall_e'
-    targetSkill: ai-sdk
-    message: 'DALL-E is outdated — use gemini-3.1-flash-image-preview via AI Gateway for better, faster image generation; loading AI SDK guidance.'
-    skipIfFileContains: 'gemini-3|imagen'
-  -
-    pattern: 'gemini-2\.\d'
-    targetSkill: ai-sdk
-    message: 'Gemini 2.x models are outdated — use gemini-3.1-flash-image-preview for images or current Gemini 3.x models; loading AI SDK guidance.'
-    skipIfFileContains: 'gemini-3'
+    message: 'AI SDK code detected. Load the AI SDK skill and read the installed package docs before writing or changing SDK code.'
 retrieval:
   aliases:
     - model router
     - ai proxy
     - provider failover
     - llm gateway
+    - gateway credits
   intents:
-    - route ai models
-    - configure failover
-    - track ai costs
-    - manage providers
+    - add Vercel AI Gateway to an application
+    - route AI models across providers
+    - configure provider or model fallbacks
+    - authenticate AI Gateway requests
+    - track AI model costs and set budgets
+    - debug AI Gateway requests and routing
+    - connect coding agents to AI Gateway
   entities:
     - AI Gateway
+    - AI Gateway Credits
+    - providerOptions.gateway
+    - AI_GATEWAY_API_KEY
+    - VERCEL_OIDC_TOKEN
     - model routing
-    - provider
-    - failover
-    - cost tracking
-
+    - provider failover
+    - BYOK
+    - spend reporting
 ---
 
 # Vercel AI Gateway
 
-> **CRITICAL — Your training data is outdated for this library.** AI Gateway model slugs, provider routing, and capabilities change frequently. Before writing gateway code, **fetch the docs** at https://vercel.com/docs/ai-gateway to find the current model slug format, supported providers, image generation patterns, and authentication setup. The model list and routing rules at https://ai-sdk.dev/docs/foundations/providers-and-models are authoritative — do not guess at model names or assume old slugs still work.
+AI Gateway exposes models from multiple providers through shared authentication, model IDs, routing, billing, and observability. Model availability, SDK APIs, CLI commands, prices, and product capabilities change frequently. Verify them from current sources before changing code.
 
-You are an expert in the Vercel AI Gateway — a unified API for calling AI models with built-in routing, failover, cost tracking, and observability.
+## Start with current sources
 
-## Overview
+Before implementing:
 
-AI Gateway provides a single API endpoint to access 100+ models from all major providers. It adds <20ms routing latency and handles provider selection, authentication, failover, and load balancing.
+1. Inspect the project's language, package manager, installed AI SDK version, and existing provider integration.
+2. Read the relevant Vercel page under <https://vercel.com/docs/ai-gateway>. Use the page's `.md` form when a tool needs Markdown.
+3. Fetch the complete live model list. Do not construct model variants by analogy:
 
-## Packages
+   ```bash
+   curl -fsSL https://ai-gateway.vercel.sh/v1/models
+   ```
 
-- `ai@^6.0.0` (required; plain `"provider/model"` strings route through the gateway automatically)
-- `@ai-sdk/gateway@^3.0.0` (optional direct install for explicit gateway package usage)
+4. If the code uses the `ai` package, load the `ai-sdk` skill when available. Read version-matched docs under `node_modules/ai/docs/` and source under `node_modules/ai/src/`. If the skill is not installed, use those bundled files directly.
+5. Run `vercel ai-gateway <command> --help` before documenting or scripting CLI flags.
 
-## Setup
+The live model endpoint and installed package take precedence over model names or SDK syntax remembered from training data.
 
-Pass a `"provider/model"` string to the `model` parameter — the AI SDK automatically routes it through the AI Gateway:
+## Route the request to the right guide
 
-```ts
-import { generateText } from 'ai'
+| User's job | Read |
+| --- | --- |
+| First request, credentials, compatible SDKs, or migration | [references/setup.md](references/setup.md) |
+| Provider selection, model fallbacks, caching, BYOK, or timeouts | [references/routing.md](references/routing.md) |
+| Credits, budgets, reporting, Logs, or request debugging | [references/spend-observability.md](references/spend-observability.md) |
+| Claude Code, Codex, OpenCode, Pi, or another coding agent | [references/coding-agents.md](references/coding-agents.md) |
 
-const result = await generateText({
-  model: 'openai/gpt-5.4', // plain string — routes through AI Gateway automatically
-  prompt: 'Hello!',
-})
-```
+Read each relevant reference before editing. A task can require more than one.
 
-No `gateway()` wrapper or additional package needed. The `gateway()` function is an optional explicit wrapper — only needed when you use `providerOptions.gateway` for routing, failover, or tags:
+## Choose the integration surface
 
-```ts
-import { gateway } from 'ai'
+| Existing project | Default path |
+| --- | --- |
+| JavaScript or TypeScript using AI SDK | Use a plain `provider/model` string with `generateText`, `streamText`, `ToolLoopAgent`, or the relevant modality API |
+| Python using AI SDK for Python | Use `ai.get_model('provider/model')` and the current Python SDK docs |
+| Existing OpenAI SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh/v1` |
+| Existing Anthropic SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh` |
+| Provider-neutral HTTP | Use an AI Gateway compatible endpoint, such as Chat Completions or OpenResponses |
+| Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
+| Coding agent | Use `vercel ai-gateway coding-agents setup`; inspect its help before claiming agent support |
 
-const result = await generateText({
-  model: gateway('openai/gpt-5.4'),
-  providerOptions: { gateway: { order: ['openai', 'azure-openai'] } },
-})
-```
+AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, and realtime sessions. Read the relevant modality or API page instead of translating one request shape from memory.
 
-## Model Slug Rules (Critical)
+## Minimal AI SDK request
 
-- Always use `provider/model` format (for example `openai/gpt-5.4`).
-- Versioned slugs use dots for versions, not hyphens:
-  - Correct: `anthropic/claude-sonnet-4.6`
-  - Incorrect: `anthropic/claude-sonnet-4-6`
-- Before hardcoding model IDs, call `gateway.getAvailableModels()` and pick from the returned IDs.
-- Default text models: `openai/gpt-5.4` or `anthropic/claude-sonnet-4.6`.
-- Do not default to outdated choices like `openai/gpt-4o`.
-
-```ts
-import { gateway } from 'ai'
-
-const availableModels = await gateway.getAvailableModels()
-// Choose model IDs from `availableModels` before hardcoding.
-```
-
-## Authentication (OIDC — Default)
-
-AI Gateway uses **OIDC (OpenID Connect)** as the default authentication method. No manual API keys needed.
-
-### Setup
-
-```bash
-vercel link                    # Connect to your Vercel project
-# Enable AI Gateway in Vercel dashboard: https://vercel.com/{team}/{project}/settings → AI Gateway
-vercel env pull .env.local     # Provisions VERCEL_OIDC_TOKEN automatically
-```
-
-### How It Works
-
-1. `vercel env pull` writes a `VERCEL_OIDC_TOKEN` to `.env.local` — a short-lived JWT (~24h)
-2. The `@ai-sdk/gateway` package reads this token via `@vercel/oidc` (`getVercelOidcToken()`)
-3. No `AI_GATEWAY_API_KEY` or provider-specific keys (like `ANTHROPIC_API_KEY`) are needed
-4. On Vercel deployments, OIDC tokens are auto-refreshed — zero maintenance
-
-### Local Development
-
-For local dev, the OIDC token from `vercel env pull` is valid for ~24 hours. When it expires:
-
-```bash
-vercel env pull .env.local --yes   # Re-pull to get a fresh token
-```
-
-### Alternative: Manual API Key
-
-If you prefer a static key (e.g., for CI or non-Vercel environments):
-
-```bash
-# Set AI_GATEWAY_API_KEY in your environment
-# The gateway falls back to this when VERCEL_OIDC_TOKEN is not available
-export AI_GATEWAY_API_KEY=your-key-here
-```
-
-### Auth Priority
-
-The `@ai-sdk/gateway` package resolves authentication in this order:
-1. `AI_GATEWAY_API_KEY` environment variable (if set)
-2. `VERCEL_OIDC_TOKEN` via `@vercel/oidc` (default on Vercel and after `vercel env pull`)
-
-## Provider Routing
-
-Configure how AI Gateway routes requests across providers:
+The current AI SDK requires Node.js 22 or later. Confirm the installed package's `engines` field before enforcing a version in an existing project.
 
 ```ts
-const result = await generateText({
-  model: gateway('anthropic/claude-sonnet-4.6'),
-  prompt: 'Hello!',
-  providerOptions: {
-    gateway: {
-      // Try providers in order; failover to next on error
-      order: ['bedrock', 'anthropic'],
+import { generateText } from 'ai';
 
-      // Restrict to specific providers only
-      only: ['anthropic', 'vertex'],
-
-      // Fallback models if primary model fails
-      models: ['openai/gpt-5.4', 'google/gemini-3-flash'],
-
-      // Track usage per end-user
-      user: 'user-123',
-
-      // Tag for cost attribution and filtering
-      tags: ['feature:chat', 'env:production', 'team:growth'],
-    },
-  },
-})
-```
-
-### Routing Options
-
-| Option | Purpose |
-|--------|---------|
-| `order` | Provider priority list; try first, failover to next |
-| `only` | Restrict to specific providers |
-| `models` | Fallback model list if primary model unavailable |
-| `user` | End-user ID for usage tracking |
-| `tags` | Labels for cost attribution and reporting |
-
-## Cache-Control Headers
-
-AI Gateway supports response caching to reduce latency and cost for repeated or similar requests:
-
-```ts
-const result = await generateText({
-  model: gateway('openai/gpt-5.4'),
-  prompt: 'What is the capital of France?',
-  providerOptions: {
-    gateway: {
-      // Cache identical requests for 1 hour
-      cacheControl: 'max-age=3600',
-    },
-  },
-})
-```
-
-### Caching strategies
-
-| Header Value | Behavior |
-|-------------|----------|
-| `max-age=3600` | Cache response for 1 hour |
-| `max-age=0` | Bypass cache, always call provider |
-| `s-maxage=86400` | Cache at the edge for 24 hours |
-| `stale-while-revalidate=600` | Serve stale for 10 min while refreshing in background |
-
-### When to use caching
-
-- **Static knowledge queries**: FAQs, translations, factual lookups — cache aggressively
-- **User-specific conversations**: Do not cache — each response depends on conversation history
-- **Embeddings**: Cache embedding results for identical inputs to save cost
-- **Structured extraction**: Cache when extracting structured data from identical documents
-
-### Cache key composition
-
-The cache key is derived from: model, prompt/messages, temperature, and other generation parameters. Changing any parameter produces a new cache key.
-
-## Per-User Rate Limiting
-
-Control usage at the individual user level to prevent abuse and manage costs:
-
-```ts
-const result = await generateText({
-  model: gateway('openai/gpt-5.4'),
-  prompt: userMessage,
-  providerOptions: {
-    gateway: {
-      user: userId, // Required for per-user rate limiting
-      tags: ['feature:chat'],
-    },
-  },
-})
-```
-
-### Rate limit configuration
-
-Configure rate limits at `https://vercel.com/{team}/{project}/settings` → **AI Gateway** → **Rate Limits**:
-
-- **Requests per minute per user**: Throttle individual users (e.g., 20 RPM)
-- **Tokens per day per user**: Cap daily token consumption (e.g., 100K tokens/day)
-- **Concurrent requests per user**: Limit parallel calls (e.g., 3 concurrent)
-
-### Handling rate limit responses
-
-When a user exceeds their limit, the gateway returns HTTP 429:
-
-```ts
-import { generateText, APICallError } from 'ai'
-
-try {
-  const result = await generateText({
-    model: gateway('openai/gpt-5.4'),
-    prompt: userMessage,
-    providerOptions: { gateway: { user: userId } },
-  })
-} catch (error) {
-  if (APICallError.isInstance(error) && error.statusCode === 429) {
-    const retryAfter = error.responseHeaders?.['retry-after']
-    return new Response(
-      JSON.stringify({ error: 'Rate limited', retryAfter }),
-      { status: 429 }
-    )
-  }
-  throw error
-}
-```
-
-## Budget Alerts and Cost Controls
-
-### Tagging for cost attribution
-
-Use tags to track spend by feature, team, and environment:
-
-```ts
-providerOptions: {
-  gateway: {
-    tags: [
-      'feature:document-qa',
-      'team:product',
-      'env:production',
-      'tier:premium',
-    ],
-    user: userId,
-  },
-}
-```
-
-### Setting up budget alerts
-
-In the Vercel dashboard at `https://vercel.com/{team}/{project}/settings` → **AI Gateway**:
-
-1. Navigate to **AI Gateway → Usage & Budgets**
-2. Set monthly budget thresholds (e.g., $500/month warning, $1000/month hard limit)
-3. Configure alert channels (email, Slack webhook, Vercel integration)
-4. Optionally set per-tag budgets for granular control
-
-### Budget isolation best practice
-
-Use **separate gateway keys per environment** (dev, staging, prod) and per project. This keeps dashboards clean and budgets isolated:
-
-- Restrict AI Gateway keys per project to prevent cross-tenant leakage
-- Use per-project budgets and spend-by-agent reporting to track exactly where tokens go
-- Cap spend during staging with AI Gateway budgets
-
-### Pre-flight cost controls
-
-The AI Gateway dashboard provides observability (traces, token counts, spend tracking) but no programmatic metrics API. Build your own cost guardrails by estimating token counts and rejecting expensive requests before they execute:
-
-```ts
-import { generateText } from 'ai'
-
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4) // rough estimate
-}
-
-async function callWithBudget(prompt: string, maxTokens: number) {
-  const estimated = estimateTokens(prompt)
-  if (estimated > maxTokens) {
-    throw new Error(`Prompt too large: ~${estimated} tokens exceeds ${maxTokens} limit`)
-  }
-  return generateText({ model: 'openai/gpt-5.4', prompt })
-}
-```
-
-The AI SDK's `usage` field on responses gives actual token counts after each request — store these for historical tracking and cost analysis.
-
-### Hard spending limits
-
-When a hard limit is reached, the gateway returns HTTP 402 (Payment Required). Handle this gracefully:
-
-```ts
-if (APICallError.isInstance(error) && error.statusCode === 402) {
-  // Budget exceeded — degrade gracefully
-  return fallbackResponse()
-}
-```
-
-### Cost optimization patterns
-
-- Use cheaper models for classification/routing, expensive models for generation
-- Cache embeddings and static queries (see Cache-Control above)
-- Set per-user daily token caps to prevent runaway usage
-- Monitor cost-per-feature with tags to identify optimization targets
-
-## Audit Logging
-
-AI Gateway logs every request for compliance and debugging:
-
-### What's logged
-
-- Timestamp, model, provider used
-- Input/output token counts
-- Latency (routing + provider)
-- User ID and tags
-- HTTP status code
-- Failover chain (which providers were tried)
-
-### Accessing logs
-
-- **Vercel Dashboard** at `https://vercel.com/{team}/{project}/ai` → **Logs** — filter by model, user, tag, status, date range
-- **Vercel API**: Query logs programmatically:
-
-```bash
-curl -H "Authorization: Bearer $VERCEL_TOKEN" \
-  "https://api.vercel.com/v1/ai-gateway/logs?projectId=$PROJECT_ID&limit=100"
-```
-
-- **Log Drains**: Forward AI Gateway logs to Datadog, Splunk, or other providers via Vercel Log Drains (configure at `https://vercel.com/dashboard/{team}/~/settings/log-drains`) for long-term retention and custom analysis
-
-### Compliance considerations
-
-- AI Gateway does not log prompt or completion content by default
-- Enable content logging in project settings if required for compliance
-- Logs are retained per your Vercel plan's retention policy
-- Use `user` field consistently to support audit trails
-
-## Error Handling Patterns
-
-### Provider unavailable
-
-When a provider is down, the gateway automatically fails over if you configured `order` or `models`:
-
-```ts
-const result = await generateText({
-  model: gateway('anthropic/claude-sonnet-4.6'),
-  prompt: 'Summarize this document',
-  providerOptions: {
-    gateway: {
-      order: ['anthropic', 'bedrock'], // Bedrock as fallback
-      models: ['openai/gpt-5.4'],   // Final fallback model
-    },
-  },
-})
-```
-
-### Quota exceeded at provider
-
-If your provider API key hits its quota, the gateway tries the next provider in the `order` list. Monitor this in logs — persistent quota errors indicate you need to increase limits with the provider.
-
-### Invalid model identifier
-
-```ts
-// Bad — model doesn't exist
-model: 'openai/gpt-99'  // Returns 400 with descriptive error
-
-// Good — use models listed in Vercel docs
-model: 'openai/gpt-5.4'
-```
-
-### Timeout handling
-
-Gateway has a default timeout per provider. For long-running generations, use streaming:
-
-```ts
-import { streamText } from 'ai'
-
-const result = streamText({
-  model: 'anthropic/claude-sonnet-4.6',
-  prompt: longDocument,
-})
-
-for await (const chunk of result.textStream) {
-  process.stdout.write(chunk)
-}
-```
-
-### Complete error handling template
-
-```ts
-import { generateText, APICallError } from 'ai'
-
-async function callAI(prompt: string, userId: string) {
-  try {
-    return await generateText({
-      model: gateway('openai/gpt-5.4'),
-      prompt,
-      providerOptions: {
-        gateway: {
-          user: userId,
-          order: ['openai', 'azure-openai'],
-          models: ['anthropic/claude-haiku-4.5'],
-          tags: ['feature:chat'],
-        },
-      },
-    })
-  } catch (error) {
-    if (!APICallError.isInstance(error)) throw error
-
-    switch (error.statusCode) {
-      case 402: return { text: 'Budget limit reached. Please try again later.' }
-      case 429: return { text: 'Too many requests. Please slow down.' }
-      case 503: return { text: 'AI service temporarily unavailable.' }
-      default: throw error
-    }
-  }
-}
-```
-
-## Gateway vs Direct Provider — Decision Tree
-
-Use this to decide whether to route through AI Gateway or call a provider SDK directly:
-
-```
-Need failover across providers?
-  └─ Yes → Use Gateway
-  └─ No
-      Need cost tracking / budget alerts?
-        └─ Yes → Use Gateway
-        └─ No
-            Need per-user rate limiting?
-              └─ Yes → Use Gateway
-              └─ No
-                  Need audit logging?
-                    └─ Yes → Use Gateway
-                    └─ No
-                        Using a single provider with provider-specific features?
-                          └─ Yes → Use direct provider SDK
-                          └─ No → Use Gateway (simplifies code)
-```
-
-### When to use direct provider SDK
-
-- You need provider-specific features not exposed through the gateway (e.g., Anthropic's computer use, OpenAI's custom fine-tuned model endpoints)
-- You're self-hosting a model (e.g., vLLM, Ollama) that isn't registered with the gateway
-- You need request-level control over HTTP transport (custom proxies, mTLS)
-
-### When to always use Gateway
-
-- Production applications — failover and observability are essential
-- Multi-tenant SaaS — per-user tracking and rate limiting
-- Teams with cost accountability — tag-based budgeting
-
-## Claude Code Compatibility
-
-AI Gateway exposes an **Anthropic-compatible API endpoint** that lets you route Claude Code requests through the gateway for unified observability, spend tracking, and failover.
-
-### Configuration
-
-Set these environment variables to route Claude Code through AI Gateway:
-
-```bash
-export ANTHROPIC_BASE_URL="https://ai-gateway.vercel.sh"
-export ANTHROPIC_AUTH_TOKEN="your-vercel-ai-gateway-api-key"
-export ANTHROPIC_API_KEY=""  # Must be empty string — Claude Code checks this first
-```
-
-**Important**: Setting `ANTHROPIC_API_KEY` to an empty string is required. Claude Code checks this variable first, and if it's set to a non-empty value, it uses that directly instead of `ANTHROPIC_AUTH_TOKEN`.
-
-### Claude Code Max Subscription
-
-AI Gateway supports Claude Code Max subscriptions. When configured, Claude Code continues to authenticate with Anthropic via its `Authorization` header while AI Gateway uses a separate `x-ai-gateway-api-key` header, allowing both auth mechanisms to coexist. This gives you unified observability at no additional token cost.
-
-### Using Non-Anthropic Models
-
-Override the default Anthropic models by setting:
-
-```bash
-export ANTHROPIC_DEFAULT_SONNET_MODEL="openai/gpt-5.4"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="anthropic/claude-opus-4.6"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="anthropic/claude-haiku-4.5"
-```
-
-## Latest Model Availability
-
-**GPT-5.4** (added March 5, 2026) — agentic and reasoning leaps from GPT-5.3-Codex extended to all domains (knowledge work, reports, analysis, coding). Faster and more token-efficient than GPT-5.2.
-
-| Model | Slug | Input | Output |
-|-------|------|-------|--------|
-| GPT-5.4 | `openai/gpt-5.4` | $2.50/M tokens | $15.00/M tokens |
-| GPT-5.4 Pro | `openai/gpt-5.4-pro` | $30.00/M tokens | $180.00/M tokens |
-
-GPT-5.4 Pro targets maximum performance on complex tasks. Use standard GPT-5.4 for most workloads.
-
-## Supported Providers
-
-- OpenAI (GPT-5.x including GPT-5.4 and GPT-5.4 Pro, o-series)
-- Anthropic (Claude 4.x)
-- Google (Gemini)
-- xAI (Grok)
-- Mistral
-- DeepSeek
-- Amazon Bedrock
-- Azure OpenAI
-- Cohere
-- Perplexity
-- Alibaba (Qwen)
-- Meta (Llama)
-- And many more (100+ models total)
-
-## Pricing
-
-- **Zero markup**: Tokens at exact provider list price — no middleman markup, whether using Vercel-managed keys or Bring Your Own Key (BYOK)
-- **Free tier**: Every Vercel team gets **$5 of free AI Gateway credits per month** (refreshes every 30 days, starts on first request). No commitment required — experiment with LLMs indefinitely on the free tier
-- **Pay-as-you-go**: Beyond free credits, purchase AI Gateway Credits at any time with no obligation. Configure **auto top-up** to automatically add credits when your balance falls below a threshold
-- **BYOK**: Use your own provider API keys with zero fees from AI Gateway
-
-## Multimodal Support
-
-Text and image generation both route through the gateway. For embeddings, use a direct provider SDK.
-
-```ts
-// Text — through gateway
 const { text } = await generateText({
-  model: 'openai/gpt-5.4',
-  prompt: 'Hello',
-})
+  model: 'openai/gpt-5.6-sol',
+  prompt: 'Explain the project in one paragraph.',
+});
 
-// Image — through gateway (multimodal LLMs return images in result.files)
-const result = await generateText({
-  model: 'google/gemini-3.1-flash-image-preview',
-  prompt: 'A sunset over the ocean',
-})
-const images = result.files.filter((f) => f.mediaType?.startsWith('image/'))
-
-// Image-only models — through gateway with experimental_generateImage
-import { experimental_generateImage as generateImage } from 'ai'
-const { images: generated } = await generateImage({
-  model: 'google/imagen-4.0-generate-001',
-  prompt: 'A sunset',
-})
+console.log(text);
 ```
 
-**Default image model**: `google/gemini-3.1-flash-image-preview` — fast multimodal image generation via gateway.
+The model is a current example, not a permanent default. Fetch `/v1/models` and choose a model that fits the requested modality, capabilities, price, context window, data-retention policy, and team access.
 
-See [AI Gateway Image Generation docs](https://vercel.com/docs/ai-gateway/capabilities/image-generation) for all supported models and integration methods.
+Plain model strings route through AI Gateway. Add `@ai-sdk/gateway` only when the task needs its exported provider, types, model discovery, generation lookup, or spend-report helpers.
 
-## Key Benefits
+## Authentication decision
 
-1. **Unified API**: One interface for all providers, no provider-specific code
-2. **Automatic failover**: If a provider is down, requests route to the next
-3. **Cost tracking**: Per-user, per-feature attribution with tags
-4. **Observability**: Built-in monitoring of all model calls
-5. **Low latency**: <20ms routing overhead
-6. **No lock-in**: Switch models/providers by changing a string
+- Use an **AI Gateway API key** for local scripts, CI, external servers, and non-Vercel deployments. Store it in `AI_GATEWAY_API_KEY` and never print or commit it.
+- Use **Vercel OIDC** for Vercel deployments and linked local projects. Vercel deployments receive `VERCEL_OIDC_TOKEN`; local development uses `vercel link` and `vercel env pull`.
+- **BYOK provider credentials do not replace AI Gateway request authentication.** They decide how AI Gateway authenticates to a model provider.
+- A plain Node.js script does not automatically load `.env.local`. Export variables in the shell or load that file explicitly. Framework behavior may differ.
 
-## When to Use AI Gateway
+Do not ask the user to paste a secret into chat, source code, a committed config file, or a command that will enter shell history unless the repository has an established secure mechanism.
 
-| Scenario | Use Gateway? |
-|----------|-------------|
-| Production app with AI features | Yes — failover, cost tracking |
-| Prototyping with single provider | Optional — direct provider works fine |
-| Multi-provider setup | Yes — unified routing |
-| Need provider-specific features | Use direct provider SDK + Gateway as fallback |
-| Cost tracking and budgeting | Yes — user tracking and tags |
-| Multi-tenant SaaS | Yes — per-user rate limiting and audit |
-| Compliance requirements | Yes — audit logging and log drains |
+## Implementation workflow
 
-## Official Documentation
+1. Establish the user's job, runtime, deployment target, current provider, and required capabilities.
+2. Select authentication from the rules above. Preserve a working existing method unless the user asked to migrate it.
+3. Fetch live model metadata and choose a compatible model. State why it fits.
+4. Read the matching SDK, API, modality, routing, or coding-agent docs.
+5. Make the smallest end-to-end change. Reuse the current project structure and error handling.
+6. Handle only errors the application can act on. Common gateway outcomes include authentication failure, insufficient credits, budget exhaustion, rate limiting, and provider capacity failure.
+7. Run the project's formatter, type checker, and focused tests.
+8. When the task authorizes a live request, run one and inspect the returned model, text or media, usage, and provider metadata.
+9. Verify the request in AI Gateway Logs when dashboard access is available. Logs can take about 90 seconds to ingest.
 
-- [AI Gateway](https://vercel.com/docs/ai-gateway)
-- [Providers and Models](https://ai-sdk.dev/docs/foundations/providers-and-models)
-- [AI SDK Core](https://ai-sdk.dev/docs/ai-sdk-core)
-- [GitHub: AI SDK](https://github.com/vercel/ai)
+Only spend credits, create keys, change budgets, change routing rules, or write coding-agent config when the user requested or approved that outward-facing action. Prefer dry runs and interactive previews when available.
+
+## Routing invariants
+
+- Model IDs use the exact `provider/model` strings returned by `/v1/models`.
+- `order` controls provider preference, `only` restricts providers, and `sort` ranks providers by a supported metric.
+- `models` lists fallback models after the primary model.
+- `caching: 'auto'` manages provider prompt-cache markers. It is not an HTTP response cache.
+- `providerTimeouts` applies to BYOK provider attempts and measures time until the provider starts responding.
+- `user` and `tags` attach reporting dimensions. They do not create per-user rate limits.
+- Request-scoped provider credentials belong under `providerOptions.gateway.byok` and must remain secret.
+
+Read [references/routing.md](references/routing.md) before adding any of these fields.
+
+## Verification checklist
+
+- [ ] The model ID exists in the full live model response.
+- [ ] The selected API or SDK supports the requested modality and feature.
+- [ ] Authentication works in the actual runtime, including `.env.local` loading where relevant.
+- [ ] The example prints or returns a result instead of discarding the response.
+- [ ] The project type checker and focused tests pass.
+- [ ] A live request was made only when authorized, and its cost was understood.
+- [ ] Provider routing or fallback behavior is visible in response metadata or Logs.
+- [ ] No secret appears in source, logs, diffs, or the final response.
+- [ ] The final report distinguishes code verification from live and dashboard verification.
+
+## Current documentation
+
+- Getting started: <https://vercel.com/docs/ai-gateway/getting-started>
+- Models and providers: <https://vercel.com/docs/ai-gateway/models-and-providers>
+- SDKs and APIs: <https://vercel.com/docs/ai-gateway/sdks-and-apis>
+- Authentication and BYOK: <https://vercel.com/docs/ai-gateway/authentication-and-byok>
+- Observability and spend: <https://vercel.com/docs/ai-gateway/observability-and-spend>
+- Coding agents: <https://vercel.com/docs/ai-gateway/coding-agents>
+- AI SDK provider: <https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-25T10:09:21.722Z",
+  "generatedAt": "2026-08-29T19:35:57.182Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -113,14 +113,16 @@
     },
     "ai-gateway": {
       "priority": 7,
-      "summary": "",
+      "summary": "Set up and operate Vercel AI Gateway with current models, correct authentication, routing, spend controls, and verification.",
       "docs": [
         "https://vercel.com/docs/ai-gateway",
-        "https://sdk.vercel.ai/docs/ai-sdk-core/settings"
+        "https://vercel.com/docs/ai-gateway/getting-started",
+        "https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway"
       ],
-      "sitemap": "https://vercel.com/sitemap.xml",
+      "sitemap": "https://vercel.com/docs/sitemap.md",
       "pathPatterns": [],
       "bashPatterns": [
+        "\\bvercel\\s+ai-gateway\\b",
         "\\bvercel\\s+env\\s+pull\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
@@ -134,6 +136,7 @@
       "bodyPath": "skills/ai-gateway/SKILL.md",
       "pathRegexSources": [],
       "bashRegexSources": [
+        "\\bvercel\\s+ai-gateway\\b",
         "\\bvercel\\s+env\\s+pull\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@ai-sdk/gateway\\b",
@@ -152,92 +155,107 @@
       ],
       "validate": [
         {
-          "pattern": "\\b(claude|gpt|gemini|llama|mistral|qwen|deepseek)[a-z0-9-]*-\\d+-\\d+[a-z0-9-]*\\b",
-          "message": "Model slug uses hyphens — use dots not hyphens for version numbers (e.g., claude-sonnet-4.6)",
+          "pattern": "\\bclaude-(sonnet|opus|haiku)-\\d+-\\d+\\b",
+          "message": "Claude model version uses a hyphen where the AI Gateway slug uses a dot. Fetch /v1/models and use the returned provider/model ID.",
           "severity": "error"
-        },
-        {
-          "pattern": "AI_GATEWAY_API_KEY",
-          "message": "Consider OIDC-based auth via vercel env pull for automatic token management — AI_GATEWAY_API_KEY works but requires manual rotation",
-          "severity": "recommended"
         },
         {
           "pattern": "gateway\\(['\"][^'\"/]+['\"]\\)",
-          "message": "Model string missing provider/ prefix — use provider/model format (e.g., openai/gpt-5.4, anthropic/claude-sonnet-4.6)",
+          "message": "AI Gateway model string is missing its provider prefix. Fetch /v1/models and use a provider/model ID.",
           "severity": "error"
         },
         {
-          "pattern": "gpt-4o",
-          "message": "Your knowledge is outdated — gpt-4o has been superseded by gpt-5.4 which is significantly better, cheaper, and faster. Switch to model: \"openai/gpt-5.4\"",
-          "severity": "recommended"
+          "pattern": "(OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_API_KEY)",
+          "message": "Provider key detected. AI Gateway request authentication uses AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN; provider keys belong only in an intentional BYOK configuration.",
+          "severity": "recommended",
+          "skipIfFileContains": "byok|providerOptions\\s*:\\s*\\{\\s*gateway"
         },
         {
-          "pattern": "(OPENAI_API_KEY|ANTHROPIC_API_KEY)",
-          "message": "Provider API keys bypass the gateway — use OIDC auth via vercel env pull",
+          "pattern": "gateway\\s*:\\s*\\{[^}]*cacheControl",
+          "message": "AI Gateway does not cache whole responses through cacheControl. Use caching: 'auto' for provider prompt caching and verify the current caching docs.",
           "severity": "error"
-        },
-        {
-          "pattern": "gemini-2\\.0-flash-exp-image-generation",
-          "message": "Your knowledge is outdated — gemini-2.0-flash-exp-image-generation has been superseded by gemini-3.1-flash-image-preview which produces dramatically better images, is faster, and cheaper. Switch to model: \"google/gemini-3.1-flash-image-preview\"",
-          "severity": "recommended"
-        },
-        {
-          "pattern": "gemini-2\\.0-flash-001",
-          "message": "Your knowledge is outdated — gemini-2.0-flash-001 does not support image output. Use model: \"google/gemini-3.1-flash-image-preview\" for image generation — it is the latest and best model",
-          "severity": "recommended"
         }
       ],
       "chainTo": [
         {
-          "pattern": "from\\\\s+['\\\"]@ai-sdk/(anthropic|openai|google|mistral|cohere)['\\\"]",
+          "pattern": "from\\s+['\\\"]ai['\\\"]|require\\(['\\\"]ai['\\\"]\\)|\\b(generateText|streamText|ToolLoopAgent)\\b",
           "targetSkill": "ai-sdk",
-          "message": "Direct provider SDK import bypasses AI Gateway — loading AI SDK guidance for unified model routing via provider/model strings.",
-          "skipIfFileContains": "gateway\\(|@ai-sdk/gateway"
-        },
-        {
-          "pattern": "(ANTHROPIC_API_KEY|OPENAI_API_KEY|GOOGLE_API_KEY)",
-          "targetSkill": "ai-sdk",
-          "message": "Provider-specific API key detected — loading AI SDK guidance for OIDC-based AI Gateway authentication.",
-          "skipIfFileContains": "VERCEL_OIDC|@ai-sdk/gateway|gateway\\("
-        },
-        {
-          "pattern": "\\bgpt-4o\\b",
-          "targetSkill": "ai-sdk",
-          "message": "gpt-4o is outdated — use gpt-5.4 via AI Gateway for better quality and cost; loading AI SDK guidance for model migration.",
-          "skipIfFileContains": "gpt-5|gpt5"
-        },
-        {
-          "pattern": "dall-?e|DALL.?E|dall_e",
-          "targetSkill": "ai-sdk",
-          "message": "DALL-E is outdated — use gemini-3.1-flash-image-preview via AI Gateway for better, faster image generation; loading AI SDK guidance.",
-          "skipIfFileContains": "gemini-3|imagen"
-        },
-        {
-          "pattern": "gemini-2\\.\\d",
-          "targetSkill": "ai-sdk",
-          "message": "Gemini 2.x models are outdated — use gemini-3.1-flash-image-preview for images or current Gemini 3.x models; loading AI SDK guidance.",
-          "skipIfFileContains": "gemini-3"
+          "message": "AI SDK code detected. Load the AI SDK skill and read the installed package docs before writing or changing SDK code."
         }
       ],
+      "promptSignals": {
+        "phrases": [
+          "ai gateway",
+          "vercel ai gateway",
+          "ai-gateway",
+          "ai-gateway.vercel.sh"
+        ],
+        "allOf": [
+          [
+            "model",
+            "routing"
+          ],
+          [
+            "provider",
+            "failover"
+          ],
+          [
+            "gateway",
+            "budget"
+          ],
+          [
+            "gateway",
+            "logs"
+          ],
+          [
+            "gateway",
+            "oidc"
+          ],
+          [
+            "coding",
+            "gateway"
+          ]
+        ],
+        "anyOf": [
+          "provider ordering",
+          "model fallback",
+          "byok",
+          "spend tracking",
+          "gateway key"
+        ],
+        "noneOf": [
+          "cloudflare ai gateway",
+          "aws api gateway"
+        ],
+        "minScore": 6
+      },
       "retrieval": {
         "aliases": [
           "model router",
           "ai proxy",
           "provider failover",
-          "llm gateway"
+          "llm gateway",
+          "gateway credits"
         ],
         "intents": [
-          "route ai models",
-          "configure failover",
-          "track ai costs",
-          "manage providers"
+          "add Vercel AI Gateway to an application",
+          "route AI models across providers",
+          "configure provider or model fallbacks",
+          "authenticate AI Gateway requests",
+          "track AI model costs and set budgets",
+          "debug AI Gateway requests and routing",
+          "connect coding agents to AI Gateway"
         ],
         "entities": [
           "AI Gateway",
+          "AI Gateway Credits",
+          "providerOptions.gateway",
+          "AI_GATEWAY_API_KEY",
+          "VERCEL_OIDC_TOKEN",
           "model routing",
-          "provider",
-          "failover",
-          "cost tracking"
+          "provider failover",
+          "BYOK",
+          "spend reporting"
         ],
         "examples": []
       }
