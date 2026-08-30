@@ -16,6 +16,13 @@ For provider endpoints serving one model:
 GET https://ai-gateway.vercel.sh/v1/models/{creator}/{model}/endpoints
 ```
 
+When the user is working from a terminal, the CLI exposes the same catalog:
+
+```bash
+vercel ai-gateway models list
+vercel ai-gateway models endpoints <provider/model>
+```
+
 The AI SDK provider also exposes current catalog helpers. Read the installed SDK docs for exact method names and types.
 
 Choose based on:

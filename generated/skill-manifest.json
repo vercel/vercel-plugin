@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T19:35:57.182Z",
+  "generatedAt": "2026-08-30T21:46:20.046Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -174,6 +174,12 @@
           "pattern": "gateway\\s*:\\s*\\{[^}]*cacheControl",
           "message": "AI Gateway does not cache whole responses through cacheControl. Use caching: 'auto' for provider prompt caching and verify the current caching docs.",
           "severity": "error"
+        },
+        {
+          "pattern": "ANTHROPIC_BASE_URL\\s*=\\s*[\"']?https://ai-gateway\\.vercel\\.sh",
+          "message": "Claude Code through AI Gateway needs ANTHROPIC_API_KEY set to an empty value and the gateway key in ANTHROPIC_AUTH_TOKEN. A non-empty ANTHROPIC_API_KEY is used instead of the gateway token.",
+          "severity": "recommended",
+          "skipIfFileContains": "ANTHROPIC_AUTH_TOKEN"
         }
       ],
       "chainTo": [

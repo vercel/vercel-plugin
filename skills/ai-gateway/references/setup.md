@@ -30,7 +30,13 @@ Use the CLI when the user asks for CLI management:
 vercel ai-gateway api-keys create --name my-api-key
 ```
 
-Run `vercel ai-gateway api-keys create --help` first because available quota, expiration, and alert flags can change.
+The CLI can bind a budget, spend alerts, and an expiry at creation, which beats re-editing the key later:
+
+```bash
+vercel ai-gateway api-keys create --budget 500 --alert-thresholds 75,100 --expiration 90d
+```
+
+`inspect` shows a key's budget, spend, BYOK spend, alerts, and expiry; `list` shows every key. Run `vercel ai-gateway api-keys create --help` before scripting because available quota, expiration, alert, and restriction-exemption flags change.
 
 ## OIDC setup
 

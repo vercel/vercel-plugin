@@ -61,6 +61,11 @@ validate:
     pattern: gateway\s*:\s*\{[^}]*cacheControl
     message: "AI Gateway does not cache whole responses through cacheControl. Use caching: 'auto' for provider prompt caching and verify the current caching docs."
     severity: error
+  -
+    pattern: ANTHROPIC_BASE_URL\s*=\s*["']?https://ai-gateway\.vercel\.sh
+    message: 'Claude Code through AI Gateway needs ANTHROPIC_API_KEY set to an empty value and the gateway key in ANTHROPIC_AUTH_TOKEN. A non-empty ANTHROPIC_API_KEY is used instead of the gateway token.'
+    severity: recommended
+    skipIfFileContains: 'ANTHROPIC_AUTH_TOKEN'
 chainTo:
   -
     pattern: "from\s+['\"]ai['\"]|require\(['\"]ai['\"]\)|\b(generateText|streamText|ToolLoopAgent)\b"
@@ -113,6 +118,22 @@ Before implementing:
 5. Run `vercel ai-gateway <command> --help` before documenting or scripting CLI flags.
 
 The live model endpoint and installed package take precedence over model names or SDK syntax remembered from training data.
+
+## Vercel CLI inventory
+
+The `vercel ai-gateway` command manages gateway resources for the current team. Agents often discover only `coding-agents setup`; the rest of the CLI covers the jobs that previously required dashboard work:
+
+| Command | What it does |
+| --- | --- |
+| `api-keys create/list/inspect/remove` | Create and manage AI Gateway API keys, with budgets, spend alerts, expiry, and restriction exemptions |
+| `budgets set/list/inspect/remove` | Set metered spend limits for the team, a project, a user, or an API key |
+| `budgets defaults set/list/remove` | Set per-scope default limits covering projects, keys, or members without a custom budget |
+| `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
+| `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them |
+| `coding-agents setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
+| `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
+
+Use the CLI for credential and spend management when the user is working from a terminal or in CI. Check `vercel ai-gateway <command> --help` for current flags before scripting; do not copy a flag list from this skill into generated code.
 
 ## Route the request to the right guide
 

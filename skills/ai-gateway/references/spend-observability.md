@@ -47,14 +47,18 @@ BYOK spend is metered separately and does not count toward any budget.
 
 ### CLI and API
 
-The Vercel CLI manages budgets per scope. Confirm flags against the installed CLI before scripting:
+The Vercel CLI manages budgets per scope. `set` creates or updates, `list` shows every scope's limit and spend, `inspect` shows one scope, and `remove` lifts a cap (falling back to the scope's default when one exists). Defaults get their own `defaults` subcommand:
 
 ```bash
 vercel ai-gateway budgets set team --limit 500 --refresh-period monthly
 vercel ai-gateway budgets set project my-project --limit 200
+vercel ai-gateway budgets set api-key my-key --limit 50
 vercel ai-gateway budgets defaults set api-key --limit 50 --refresh-period monthly
+vercel ai-gateway budgets inspect team
 vercel ai-gateway budgets list
 ```
+
+Check `vercel ai-gateway budgets set --help` for the current flag set before scripting.
 
 Budget changes take effect after a short delay, typically tens of seconds and up to about 5 minutes for an actively used key.
 
