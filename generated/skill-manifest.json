@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T21:53:16.236Z",
+  "generatedAt": "2026-08-30T22:25:13.790Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -229,7 +229,8 @@
           "spend tracking",
           "gateway key",
           "credit balance",
-          "safety identifier"
+          "safety identifier",
+          "reasoning effort"
         ],
         "noneOf": [
           "cloudflare ai gateway",
@@ -254,7 +255,8 @@
           "debug AI Gateway requests and routing",
           "connect coding agents to AI Gateway",
           "find a model by modality, capability, price, or data retention",
-          "check AI Gateway credit balance or generation cost"
+          "check AI Gateway credit balance or generation cost",
+          "configure reasoning or extended thinking across providers and API formats"
         ],
         "entities": [
           "AI Gateway",

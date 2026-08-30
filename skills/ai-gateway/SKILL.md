@@ -41,6 +41,7 @@ metadata:
       - "gateway key"
       - "credit balance"
       - "safety identifier"
+      - "reasoning effort"
     noneOf:
       - "cloudflare ai gateway"
       - "aws api gateway"
@@ -90,6 +91,7 @@ retrieval:
     - connect coding agents to AI Gateway
     - find a model by modality, capability, price, or data retention
     - check AI Gateway credit balance or generation cost
+    - configure reasoning or extended thinking across providers and API formats
   entities:
     - AI Gateway
     - AI Gateway Credits
@@ -215,6 +217,7 @@ Only spend credits, create keys, change budgets, change routing rules, or write 
 - `models` lists fallback models after the primary model.
 - `caching: 'auto'` manages provider prompt-cache markers. It is not an HTTP response cache.
 - `providerTimeouts` applies to BYOK provider attempts and measures time until the provider starts responding.
+- A reasoning entry in `providerOptions` overrides the AI SDK top-level `reasoning` value entirely; the two never merge.
 - `user` and `tags` attach reporting dimensions. They do not create per-user rate limits.
 - Request-scoped provider credentials belong under `providerOptions.gateway.byok` and must remain secret.
 

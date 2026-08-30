@@ -104,6 +104,24 @@ The `has` option restricts routing to models with specific capabilities, using t
 
 Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/model-filtering>
 
+## Reasoning across providers and API formats
+
+Reasoning configuration is not portable between providers by memory. A model's `reasoning_options` field in `/v1/models` declares what it accepts: a `toggle`, an `effort` list whose values vary per model (for example `low` through `high`, or `none` through `xhigh` and beyond), or `budget_tokens` with a minimum and maximum. Read it before setting a level.
+
+Whichever API format a request uses, AI Gateway maps its reasoning parameter to the serving provider's native configuration:
+
+- AI SDK 7 and later: the top-level `reasoning` level works across providers. The SDK coerces unsupported levels for the target model and warns.
+- Chat Completions and Responses: the `reasoning` object (`effort`, plus `max_tokens` for a token budget in Chat Completions).
+- Anthropic Messages: the `thinking` parameter.
+
+Each format's parameter works with any reasoning model, not only models from the provider that defined the format. Effort-based providers receive the level directly (coerced when the model supports fewer levels); budget-based providers receive a share of the model's maximum output tokens. Claude 4.6 accepts deprecated token budgets, Claude 4.7 and later do not accept budgets at all, and the per-provider mapping table in the reasoning docs is the source of truth.
+
+Precedence footgun: a reasoning-related entry in `providerOptions` (such as `reasoningEffort`, `thinking`, or `thinkingConfig`) takes full precedence over the top-level `reasoning` value. The two are never merged, so remove overlapping settings when migrating.
+
+Usage and streaming differ by provider: OpenAI reports `reasoning_tokens` separately, while Anthropic counts thinking tokens as output tokens with no separate breakdown. Whether reasoning text is returned at all depends on the model and provider configuration, and `useChat` streams it to the client unless `sendReasoning` is disabled.
+
+Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/reasoning> and the per-format reasoning references linked from it.
+
 ## Automatic prompt caching
 
 ```ts
