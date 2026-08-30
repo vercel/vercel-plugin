@@ -122,6 +122,21 @@ Usage and streaming differ by provider: OpenAI reports `reasoning_tokens` separa
 
 Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/reasoning> and the per-format reasoning references linked from it.
 
+## Tools across API formats
+
+A model's tool support is discoverable: the `tool-use` tag marks tool-capable models, and `supported_parameters` lists `tools` and `tool_choice` when the model accepts them. Check both before promising tool calling on a model.
+
+Each API format's tool schema works with any tool-capable model, not only models from the provider that defined the format. The gateway translates tool definitions and tool calls to the serving provider; the Chat Completions reference, for example, runs an OpenAI-style `tools` array against an Anthropic model. Per-format entry points:
+
+- AI SDK: `tools` and `toolChoice`; load the `ai-sdk` skill for agent loops and multi-step control
+- Chat Completions: `tools` with function schemas, `tool_choice` (`auto`, `none`, or a forced function)
+- Responses and OpenResponses: `tools`
+- Anthropic Messages: `tools`
+
+Web search is also available as a built-in tool for supported models instead of an application-defined function: <https://vercel.com/docs/ai-gateway/models-and-providers/web-search>
+
+Read the per-format tool-calling page before writing schemas; argument serialization and streaming deltas differ by format.
+
 ## Automatic prompt caching
 
 ```ts

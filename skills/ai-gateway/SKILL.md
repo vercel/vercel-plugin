@@ -42,6 +42,7 @@ metadata:
       - "credit balance"
       - "safety identifier"
       - "reasoning effort"
+      - "tool calling"
     noneOf:
       - "cloudflare ai gateway"
       - "aws api gateway"
@@ -92,6 +93,7 @@ retrieval:
     - find a model by modality, capability, price, or data retention
     - check AI Gateway credit balance or generation cost
     - configure reasoning or extended thinking across providers and API formats
+    - add tool calling or function calling across API formats
   entities:
     - AI Gateway
     - AI Gateway Credits
