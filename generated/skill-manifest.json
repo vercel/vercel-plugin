@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T22:27:02.744Z",
+  "generatedAt": "2026-08-30T23:33:09.108Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -231,7 +231,8 @@
           "credit balance",
           "safety identifier",
           "reasoning effort",
-          "tool calling"
+          "tool calling",
+          "structured outputs"
         ],
         "noneOf": [
           "cloudflare ai gateway",
@@ -258,7 +259,9 @@
           "find a model by modality, capability, price, or data retention",
           "check AI Gateway credit balance or generation cost",
           "configure reasoning or extended thinking across providers and API formats",
-          "add tool calling or function calling across API formats"
+          "add tool calling or function calling across API formats",
+          "get structured JSON output matching a schema",
+          "send images or PDFs to a model"
         ],
         "entities": [
           "AI Gateway",

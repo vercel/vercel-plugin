@@ -43,6 +43,7 @@ metadata:
       - "safety identifier"
       - "reasoning effort"
       - "tool calling"
+      - "structured outputs"
     noneOf:
       - "cloudflare ai gateway"
       - "aws api gateway"
@@ -94,6 +95,8 @@ retrieval:
     - check AI Gateway credit balance or generation cost
     - configure reasoning or extended thinking across providers and API formats
     - add tool calling or function calling across API formats
+    - get structured JSON output matching a schema
+    - send images or PDFs to a model
   entities:
     - AI Gateway
     - AI Gateway Credits

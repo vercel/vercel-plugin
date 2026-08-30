@@ -137,6 +137,29 @@ Web search is also available as a built-in tool for supported models instead of 
 
 Read the per-format tool-calling page before writing schemas; argument serialization and streaming deltas differ by format.
 
+## Structured outputs across API formats
+
+Each language API format accepts a JSON schema for the response, applied to whichever provider serves the request:
+
+- Chat Completions: `response_format` with `type: 'json_schema'` and a named `json_schema.schema`. A legacy `type: 'json'` form exists for backward compatibility; use `json_schema` for new code.
+- Responses, OpenResponses, and Anthropic Messages: each has its own structured-outputs page with the format's parameter shape.
+- AI SDK: use its structured-data generation APIs; load the `ai-sdk` skill for exact exports.
+
+With streaming, structured output arrives as ordinary content deltas; accumulate the full stream and parse once it finishes. Model support varies, so verify a schema-heavy flow with a live request before building on it.
+
+Docs: <https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions/structured-outputs>
+
+## File attachments
+
+Models with image or file input accept attachments as a content-part array in place of a plain string message, mixed with text parts in one message:
+
+- Images: an `image_url` part carrying a data URI, with an optional `detail` field.
+- PDFs: a `file` part carrying the document as a data URI.
+
+Discovery: the model's `modalities.input` array and the `vision` and `file-input` tags in `/v1/models`. Each API format has its own attachments page, and part types differ by format, so read the one matching the request shape before writing payloads.
+
+Docs: <https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions/images>
+
 ## Automatic prompt caching
 
 ```ts
