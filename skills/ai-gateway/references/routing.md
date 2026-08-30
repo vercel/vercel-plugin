@@ -8,13 +8,28 @@ Read current docs and fetch live model metadata before adding routing policy. Th
 curl -fsSL https://ai-gateway.vercel.sh/v1/models
 ```
 
-The public list includes model IDs, modalities, capabilities, context windows, and pricing. Use the full response. Filter it after fetching rather than truncating before inspection.
+The public list carries enough to shortlist a model without opening the dashboard. Each entry includes:
 
-For provider endpoints serving one model:
+- `type` and `modalities`: language, embedding, image, video, speech, transcription, realtime, or reranking, with input and output arrays
+- `tags`: capability flags such as `reasoning`, `tool-use`, `vision`, `web-search`, `implicit-caching`, and `fast`
+- `pricing`: per-token input and output prices
+- `context_window`, `max_tokens`, `supported_parameters`, and `supported_specifications`
+- `zdr` and `no_training`: `all`, `some`, or `none` across the model's provider endpoints
+
+Use the full response. Filter it after fetching rather than truncating before inspection:
+
+```bash
+curl -fsSL https://ai-gateway.vercel.sh/v1/models |
+  jq '.data[] | select(.zdr == "all" and ((.tags // []) | contains(["tool-use"]))) | .id'
+```
+
+For per-provider detail on one model:
 
 ```text
 GET https://ai-gateway.vercel.sh/v1/models/{creator}/{model}/endpoints
 ```
+
+Each endpoint adds `has_zdr` and `has_no_training` booleans, full pricing (cache reads and writes, per-region prices, any `discount`), `inference_regions`, live uptime plus `latency_last_1h` and `throughput_last_1h` measurements, and per-endpoint `tags`. A model with `zdr: "some"` needs this response to find which providers qualify.
 
 When the user is working from a terminal, the CLI exposes the same catalog:
 
@@ -23,7 +38,7 @@ vercel ai-gateway models list
 vercel ai-gateway models endpoints <provider/model>
 ```
 
-The AI SDK provider also exposes current catalog helpers. Read the installed SDK docs for exact method names and types.
+The AI SDK provider also exposes current catalog helpers. Read the installed SDK docs for exact method names and types. Every endpoint above, plus credit balance and generation lookup, is in the REST API reference: <https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api>
 
 Choose based on:
 
@@ -75,6 +90,19 @@ The primary `model` is attempted first. If all eligible providers for it fail, A
 Do not imply that fallback is limited to one provider error class. Inspect current provider metadata and Logs to verify which model and provider succeeded.
 
 Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/model-fallbacks>
+
+## Service tiers and fast mode
+
+Service tiers control processing priority and cost for providers that support them (currently OpenAI, Google AI Studio, Google Vertex AI, and SpaceXAI), and fast mode requests the faster serving path for a supported model through the `speed` option or the fast model slug, with fallback to the base model. Both change price and latency, so read the current pages before setting either:
+
+- <https://vercel.com/docs/ai-gateway/models-and-providers/service-tiers>
+- <https://vercel.com/docs/ai-gateway/models-and-providers/fast-mode>
+
+## Model filtering by capability
+
+The `has` option restricts routing to models with specific capabilities, using the same tags the model list reports, such as `vision` or `implicit-caching`.
+
+Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/model-filtering>
 
 ## Automatic prompt caching
 
@@ -150,6 +178,8 @@ providerOptions: {
 
 `user` and `tags` add Custom Reporting dimensions. They do not enforce application rate limits or budgets by themselves. Reporting writes and queries are billed separately, and the reporting endpoint is currently Pro/Enterprise.
 
+App attribution is separate: it identifies the calling application to Vercel so the app can be featured on public AI Gateway pages. Read <https://vercel.com/docs/ai-gateway/ecosystem/app-attribution> before adding attribution headers.
+
 Limits from current docs:
 
 - up to 10 tags after deduplication
@@ -161,6 +191,12 @@ Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/custom-reporti
 ## Compliance and routing policy
 
 AI Gateway supports request-level and team-level controls for provider restrictions, no-training routing, ZDR, HIPAA, regional inference, and model allowlists. These controls differ in availability, plan requirements, and price.
+
+To find models that satisfy a retention policy, use the `zdr` and `no_training` fields in `/v1/models` (`all`, `some`, or `none`) and the per-endpoint `has_zdr` and `has_no_training` booleans in the model's endpoints response. Do not rely on a memorized list of compliant models.
+
+`safetyIdentifier` in `providerOptions.gateway` sends an opaque per-end-user ID (at most 64 characters, hashed rather than personal information) so provider-side abuse action isolates one user instead of the team's whole traffic. AI Gateway forwards it as OpenAI's `safety_identifier` or Anthropic's `metadata.user_id`, and it follows provider and model fallbacks. Docs: <https://vercel.com/docs/ai-gateway/security-and-compliance/safety-identifiers>
+
+A virtual model config saves a routing setup (base model, fallbacks, provider order and filters, caching, service tier, ZDR, HIPAA, and no-training constraints) under a team slug that requests then use as the model ID. Management is currently REST-only under `/v1/ai-gateway/virtual-model-configs`; check for a docs page or CLI support before recommending one. Reference: <https://vercel.com/docs/rest-api/api-ai-gateway/create-virtual-model-config>
 
 Do not invent option names. Read the exact page for the requested policy:
 

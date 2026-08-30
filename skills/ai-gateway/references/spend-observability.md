@@ -4,7 +4,7 @@ Use this reference for AI Gateway Credits, spend caps, usage reporting, request 
 
 ## AI Gateway Credits and pricing
 
-AI Gateway charges provider list price with no platform markup. Requests draw on AI Gateway Credits unless BYOK credentials are used.
+AI Gateway adds no platform markup to provider pricing, and some models are priced below provider list for every team; browse current ones at <https://vercel.com/ai-gateway/models?discount=true>. Volume commitments can negotiate custom discounts with invoice payment. Requests draw on AI Gateway Credits unless BYOK credentials are used. Docs: <https://vercel.com/docs/ai-gateway/pricing/discounts>
 
 - A team needs a valid payment method to unlock free AI Gateway Credits. The gateway returns `customer_verification_required` with an action link when verification is missing.
 - Free-tier requests use a subset of models and have lower per-model rate limits. Exceeding one returns `429`; buying credits moves the team to the paid tier and raises limits.
@@ -39,7 +39,7 @@ Each of project, API key, and user scopes can have one default that covers every
 
 ### Spend alerts
 
-Custom budgets can email on 50%, 75%, or 100% of the limit, at most once per period per threshold. Recipients depend on scope: team and project budgets notify the team's usage-alert recipients, an API key budget notifies the key's creator, and a user budget notifies that member. Alerts are informational; a threshold below 100% never blocks requests.
+Custom budgets can email on 50%, 75%, or 100% of the limit, at most once per period per threshold. Recipients depend on scope: team and project budgets email team owners and members with the Billing role, an API key budget emails the key's creator, and a user budget emails that member. Alerts are informational; a threshold below 100% never blocks requests.
 
 Default budgets do not send spend alerts; set a custom budget on a resource to get alerts for it.
 
@@ -68,11 +68,17 @@ Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/budgets> and <
 
 Team budgets count every request. Project budgets apply only to OIDC-authenticated requests from that project's deployments. API key and user budgets apply to key usage. BYOK requests are metered but never counted against a limit. Read the budgets page before changing attribution or defaults; metering is not retroactive for a re-created budget.
 
+### Spend attribution and permissions
+
+Each API key is attributed to the team or to the member who created it. Only member-attributed keys count toward a user budget; OIDC tokens, personal access tokens, and app tokens never do. Attribution is editable: <https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys#spend-attribution>
+
+Every team role except Contributor can view budgets. An Owner can grant a member the AI Gateway Budget Manager permission, which covers budget writes at every scope except API key budgets, which follow key-editing permission.
+
 ## Observability
 
-The AI Gateway Overview shows usage, spend, time to first token, and token counts by model, plus request summaries by project and API key. AI Traces and Trace Drains cover OpenTelemetry tracing and export for Pro and Enterprise.
+The AI Gateway Overview shows usage, spend, time to first token, and token counts by model, plus request summaries by project and API key. AI Traces and Trace Drains cover OpenTelemetry tracing and export for Pro and Enterprise (<https://vercel.com/docs/ai-gateway/observability-and-spend/trace-drains>).
 
-For individual requests, use the Logs page. It lists every request and asynchronous job newest first with status, model, provider, usage, cost, duration, and authentication, and supports filters for status, model, provider, authentication, routing, modality, latency, tokens, cost, and date range. Filters live in the URL, so a filtered view can be shared. Live mode tails new requests as they arrive; requests take about 90 seconds to fully ingest.
+For individual requests, use the Logs page. It lists every request and asynchronous job newest first with status, model, provider, usage, cost, duration, and authentication, and supports filters for status, model, provider, authentication, routing, modality, latency, tokens, cost, and date range. Filters live in the URL, so a filtered view can be shared. Live mode tails new requests as they arrive; requests take about 90 seconds to fully ingest. Logs also exist at project scope under `/[team]/[project]/ai-gateway/logs`, and the page copies visible rows or exports loaded rows as CSV or JSON.
 
 One request's details panel shows every provider attempt, including retries, credential source, time to first token, timing spans, status, and provider response, plus usage and cost breakdowns. Routing attempt details are kept for 30 days; the list allows up to 36 days. Transcript content appears only when content capture is available; Zero Data Retention, privacy settings, size limits, or capture failures can make it unavailable.
 
@@ -92,6 +98,17 @@ curl "https://ai-gateway.vercel.sh/v1/report?start_date=2026-01-01&end_date=2026
 Results can take a few minutes to appear. The AI SDK exposes equivalent helpers, such as `gateway.getSpendReport()` and `gateway.getGenerationInfo()`; confirm names against the installed package.
 
 Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/custom-reporting>
+
+## Usage and billing endpoints
+
+Two REST endpoints cover balance and per-request cost without opening the dashboard:
+
+- `GET /v1/credits` returns the team's remaining credit balance and lifetime spend.
+- `GET /v1/generation` returns cost, latency, finish reason, and token usage for one generation.
+
+Every response carries its generation ID: the `id` field on a chat completion, injected into the first chunk of a stream, and `providerMetadata.gateway.generationId` in the AI SDK. Capture it when the application may need a cost lookup later.
+
+Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/usage> and the REST API reference at <https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api>
 
 ## Debugging checklist
 

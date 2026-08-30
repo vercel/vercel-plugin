@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T21:46:20.046Z",
+  "generatedAt": "2026-08-30T21:53:16.236Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -227,7 +227,9 @@
           "model fallback",
           "byok",
           "spend tracking",
-          "gateway key"
+          "gateway key",
+          "credit balance",
+          "safety identifier"
         ],
         "noneOf": [
           "cloudflare ai gateway",
@@ -250,7 +252,9 @@
           "authenticate AI Gateway requests",
           "track AI model costs and set budgets",
           "debug AI Gateway requests and routing",
-          "connect coding agents to AI Gateway"
+          "connect coding agents to AI Gateway",
+          "find a model by modality, capability, price, or data retention",
+          "check AI Gateway credit balance or generation cost"
         ],
         "entities": [
           "AI Gateway",
@@ -261,7 +265,9 @@
           "model routing",
           "provider failover",
           "BYOK",
-          "spend reporting"
+          "spend reporting",
+          "safetyIdentifier",
+          "Usage & Billing API"
         ],
         "examples": []
       }

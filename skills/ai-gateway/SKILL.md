@@ -39,6 +39,8 @@ metadata:
       - "byok"
       - "spend tracking"
       - "gateway key"
+      - "credit balance"
+      - "safety identifier"
     noneOf:
       - "cloudflare ai gateway"
       - "aws api gateway"
@@ -86,6 +88,8 @@ retrieval:
     - track AI model costs and set budgets
     - debug AI Gateway requests and routing
     - connect coding agents to AI Gateway
+    - find a model by modality, capability, price, or data retention
+    - check AI Gateway credit balance or generation cost
   entities:
     - AI Gateway
     - AI Gateway Credits
@@ -96,6 +100,8 @@ retrieval:
     - provider failover
     - BYOK
     - spend reporting
+    - safetyIdentifier
+    - Usage & Billing API
 ---
 
 # Vercel AI Gateway
@@ -129,7 +135,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | `budgets set/list/inspect/remove` | Set metered spend limits for the team, a project, a user, or an API key |
 | `budgets defaults set/list/remove` | Set per-scope default limits covering projects, keys, or members without a custom budget |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
-| `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them |
+| `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `/v1/ai-gateway/rules` |
 | `coding-agents setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
 
@@ -158,7 +164,7 @@ Read each relevant reference before editing. A task can require more than one.
 | Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
 | Coding agent | Use `vercel ai-gateway coding-agents setup`; inspect its help before claiming agent support |
 
-AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, and realtime sessions. Read the relevant modality or API page instead of translating one request shape from memory.
+AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, and realtime sessions. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Read the relevant modality or API page instead of translating one request shape from memory.
 
 ## Minimal AI SDK request
 
@@ -233,5 +239,7 @@ Read [references/routing.md](references/routing.md) before adding any of these f
 - SDKs and APIs: <https://vercel.com/docs/ai-gateway/sdks-and-apis>
 - Authentication and BYOK: <https://vercel.com/docs/ai-gateway/authentication-and-byok>
 - Observability and spend: <https://vercel.com/docs/ai-gateway/observability-and-spend>
+- Modalities: <https://vercel.com/docs/ai-gateway/modalities>
+- REST API reference: <https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api>
 - Coding agents: <https://vercel.com/docs/ai-gateway/coding-agents>
 - AI SDK provider: <https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway>
