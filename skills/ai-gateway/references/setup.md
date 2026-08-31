@@ -135,5 +135,5 @@ Migration guide: <https://vercel.com/docs/ai-gateway/getting-started/migrate-to-
 | `402 insufficient_funds` | No positive AI Gateway Credits balance | Add credits |
 | `402 quota_for_entity_exceeded` | A team, project, API key, or user budget is exhausted | Wait for refresh or raise the budget |
 | `403 customer_verification_required` | A valid payment method is required for free credits | Use the action URL in the error |
-| `429` | Gateway or provider rate limit | Honor `retry-after` when present and retry with backoff |
+| `429` | Gateway or provider rate limit | Honor `retry-after` when present and retry with backoff; see the [rate limits page](https://vercel.com/docs/ai-gateway/rate-limits) |
 | `503` | Provider capacity or gateway service unavailable | Retry if safe; inspect provider attempts before changing routing |
