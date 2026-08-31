@@ -249,5 +249,6 @@ Read [references/routing.md](references/routing.md) before adding any of these f
 - Observability and spend: <https://vercel.com/docs/ai-gateway/observability-and-spend>
 - Modalities: <https://vercel.com/docs/ai-gateway/modalities>
 - REST API reference: <https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api>
+- FAQ: <https://vercel.com/docs/ai-gateway/faq>
 - Coding agents: <https://vercel.com/docs/ai-gateway/coding-agents>
 - AI SDK provider: <https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway>
