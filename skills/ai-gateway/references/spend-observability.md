@@ -80,7 +80,7 @@ The AI Gateway Overview shows usage, spend, time to first token, and token count
 
 For individual requests, use the Logs page. It lists every request and asynchronous job newest first with status, model, provider, usage, cost, duration, and authentication, and supports filters for status, model, provider, authentication, routing, modality, latency, tokens, cost, and date range. Filters live in the URL, so a filtered view can be shared. Live mode tails new requests as they arrive; requests take about 90 seconds to fully ingest. Logs also exist at project scope under `/[team]/[project]/ai-gateway/logs`, and the page copies visible rows or exports loaded rows as CSV or JSON.
 
-One request's details panel shows every provider attempt, including retries, credential source, time to first token, timing spans, status, and provider response, plus usage and cost breakdowns. Routing attempt details are kept for 30 days; the list allows up to 36 days. Transcript content appears only when content capture is available; Zero Data Retention, privacy settings, size limits, or capture failures can make it unavailable.
+One request's details panel shows every provider attempt, including retries, credential source, time to first token, timing spans, status, and provider response, plus usage and cost breakdowns. Routing attempt details are kept for 30 days; the list allows up to 36 days.
 
 Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/logs> and <https://vercel.com/docs/ai-gateway/observability-and-spend/observability>
 
