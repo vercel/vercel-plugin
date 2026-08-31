@@ -20,7 +20,7 @@ Use the full response. Filter it after fetching rather than truncating before in
 
 ```bash
 curl -fsSL https://ai-gateway.vercel.sh/v1/models |
-  jq '.data[] | select(.zdr == "all" and ((.tags // []) | contains(["tool-use"]))) | .id'
+  jq '.data[] | select(.zdr == "all" and ((.tags // []) | index("tool-use"))) | .id'
 ```
 
 For per-provider detail on one model:

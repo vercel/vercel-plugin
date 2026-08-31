@@ -32,7 +32,7 @@ CLI docs: <https://vercel.com/docs/cli/ai-gateway#setup>. Coding-agents guide: <
 
 ## When the CLI does not cover an agent
 
-Agents with a first-party AI Gateway provider, such as Cline, OpenCode, Pi, and omp, already know the gateway URL and only need the key. Other agents take manual configuration. Do not promise CLI support for an agent not in the current `--help` output.
+Some agents the CLI does not configure, such as Cline and omp, ship a first-party AI Gateway provider and only need the key. Everything else takes manual configuration. Do not promise CLI support for an agent not in the current `--help` output.
 
 The docs keep a per-agent setup page for each supported agent under <https://vercel.com/docs/ai-gateway/coding-agents>, including agents the CLI does not configure. Prefer the current page over remembered config keys.
 

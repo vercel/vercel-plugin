@@ -61,7 +61,7 @@ validate:
     pattern: (OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_API_KEY)
     message: 'Provider key detected. AI Gateway request authentication uses AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN; provider keys belong only in an intentional BYOK configuration.'
     severity: recommended
-    skipIfFileContains: 'byok|providerOptions\s*:\s*\{\s*gateway'
+    skipIfFileContains: '[Bb][Yy][Oo][Kk]|providerOptions\s*:\s*\{[^}]*gateway'
   -
     pattern: gateway\s*:\s*\{[^}]*cacheControl
     message: "AI Gateway does not cache whole responses through cacheControl. Use caching: 'auto' for provider prompt caching and verify the current caching docs."
@@ -73,7 +73,7 @@ validate:
     skipIfFileContains: 'ANTHROPIC_AUTH_TOKEN'
 chainTo:
   -
-    pattern: "from\s+['\"]ai['\"]|require\(['\"]ai['\"]\)|\b(generateText|streamText|ToolLoopAgent)\b"
+    pattern: 'from\s+[''"]ai[''"]|require\([''"]ai[''']\)|\b(generateText|streamText|ToolLoopAgent)\b'
     targetSkill: ai-sdk
     message: 'AI SDK code detected. Load the AI SDK skill and read the installed package docs before writing or changing SDK code.'
 retrieval:
