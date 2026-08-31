@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
+const PLUGIN_VERSION = JSON.parse(
+  readFileSync(join(ROOT, ".plugin", "plugin.json"), "utf-8"),
+).version as string;
 const TELEMETRY_MODULE = join(ROOT, "hooks", "telemetry.mjs");
 const NODE_BIN = Bun.which("node") || "node";
 
@@ -145,7 +148,7 @@ describe("telemetry controls", () => {
     expect(result.activeSessionMarker).toEqual({
       schema: 1,
       active: true,
-      pluginVersion: "0.48.1",
+      pluginVersion: PLUGIN_VERSION,
       updatedAt: Date.parse("2026-05-15T12:00:00.000Z"),
       expiresAt: Date.parse("2026-05-15T13:00:00.000Z"),
     });
@@ -161,7 +164,7 @@ describe("telemetry controls", () => {
         }),
         expect.objectContaining({
           key: "plugin:version",
-          value: "0.48.1",
+          value: PLUGIN_VERSION,
         }),
         expect.objectContaining({
           key: "plugin:install_id",
