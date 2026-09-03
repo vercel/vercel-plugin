@@ -131,23 +131,36 @@ What is collected:
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
 - `plugin:install_id`: the locally stored random installation UUID.
 - `plugin:agent_harness`: each distinct detected agent harness category observed per installation per UTC day.
+- `skill:invoked`: the name of a skill or command that ships with this plugin (for example `nextjs`, `ai-sdk`, `deploy`) each time it is loaded through the agent's `Skill` tool. See [Skill invocation telemetry](#skill-invocation-telemetry) below.
 
 Each telemetry event contains only:
 
 - `id`: a random event UUID.
 - `event_time`: the event timestamp.
 - `key`: one of the event names listed above.
-- `value`: `"1"` for counters, the plugin version, the random installation UUID, or the detected harness, depending on the event key.
+- `value`: `"1"` for counters, the plugin version, the random installation UUID, the detected harness, or the plugin skill name, depending on the event key.
 
 The request also sends HTTP headers used by the telemetry bridge:
 
-- `x-vercel-plugin-topic-id: dau`
-- `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
+- `x-vercel-plugin-topic-id`: `dau` for the daily ping, `generic` for skill invocations.
+- `x-vercel-plugin-session-id`: for the daily ping, a random UUID generated for that telemetry request; for skill invocations, a random UUID the plugin mints once per agent session (see below).
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
 
 The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
 
-Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
+Prompt text, bash commands, tool-call contents, skill arguments, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
+
+### Skill invocation telemetry
+
+The plugin reports which of *its own* skills get used so we can see which guidance is valuable and which is not. It is deliberately narrow:
+
+- **Only plugin-shipped skills are reported.** When the agent loads a skill (for example `/vercel:nextjs`), a `PostToolUse` hook on the `Skill` tool strips the plugin namespace and checks the bare name against the `skills/` and `commands/` directories that ship with this plugin. Anything not on that list — your personal skills, other plugins' skills, typos — is dropped entirely; nothing is sent, not even an "other" bucket.
+- **Only the skill name is sent.** Skill arguments, the tool's response, the prompt that triggered the skill, and anything else in the tool call are never read past the name check and never leave your machine.
+- **No harness identifiers.** Events from one agent session share a random UUID the plugin mints itself and stores in a session-scoped temp file (`<tmpdir>/vercel-plugin-<session>-telemetry-session-id.txt`, removed at session end). Your agent's own session ID is never sent, so skill usage cannot be joined to any other telemetry the agent produces.
+- **It never slows the agent down.** The hook validates the name and exits immediately (a few milliseconds); the network request runs in a detached background process with a 3-second timeout. If the bridge is unreachable the event is simply lost — there is no retry queue and nothing is persisted.
+- **Same off switch.** `VERCEL_PLUGIN_TELEMETRY=off` disables it along with everything else.
+
+Each `skill:invoked` request also carries `plugin:version` and `plugin:install_id` so usage can be grouped by version and installation, exactly as the daily ping does.
 
 How it is tracked:
 
@@ -159,12 +172,13 @@ How it is tracked:
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
   - `installation-id` stores the random installation UUID. It is used only by plugin telemetry and is not written to `active-session.json`.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
+- Skill invocations are not throttled or stamped; each load of a plugin skill is one event, sent once and never retried.
 - `active-session.json` is refreshed on session start with the plugin version and expiry timestamp. It lets Vercel CLI telemetry identify commands run while a recent Vercel plugin session marker is present. It contains no prompt text, file paths, project names, account IDs, tool-call contents, or skill-injection details.
 
 Behavior:
 
 - Unset `VERCEL_PLUGIN_TELEMETRY`: telemetry is enabled.
-- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`, and does not create an installation ID if one does not already exist.
+- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today`, `plugin:first_use`, and `skill:invoked`, and does not create an installation ID if one does not already exist.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
 

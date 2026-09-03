@@ -10,7 +10,7 @@ function main() {
   }
   process.stdout.write(
     [
-      "The default telemetry profile is a once-per-day DAU phone-home that sends only dau:active_today.",
+      "The default telemetry profile sends a once-per-day DAU phone-home (dau:active_today) and the name of each vercel-plugin skill loaded via the Skill tool (skill:invoked). Skill arguments and non-plugin skill names are never sent.",
       "To disable all telemetry, set VERCEL_PLUGIN_TELEMETRY=off.",
       ""
     ].join("\n")

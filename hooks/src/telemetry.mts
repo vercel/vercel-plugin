@@ -7,8 +7,15 @@ declare const __VERCEL_PLUGIN_VERSION__: string;
 
 const BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 const FLUSH_TIMEOUT_MS = 3_000;
-export const PLUGIN_VERSION = typeof __VERCEL_PLUGIN_VERSION__ === "string" ? __VERCEL_PLUGIN_VERSION__ : "0.48.1";
+export const PLUGIN_VERSION = typeof __VERCEL_PLUGIN_VERSION__ === "string" ? __VERCEL_PLUGIN_VERSION__ : "0.49.0";
 const ACTIVE_SESSION_TTL_MS = 60 * 60 * 1000;
+
+const DAU_TOPIC_ID = "dau";
+// The bridge routes on this header; "generic" is the topic provisioned for
+// non-DAU plugin events.
+const SKILL_TOPIC_ID = "generic";
+export const SKILL_INVOKED_EVENT_KEY = "skill:invoked";
+const SKILL_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 const FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
@@ -46,8 +53,15 @@ export interface ActiveSessionMarker {
   expiresAt: number;
 }
 
+interface SendTelemetryOptions {
+  topicId: string;
+  /** Defaults to a fresh random UUID so requests cannot be linked to each other. */
+  sessionId?: string;
+}
+
 async function sendTelemetry(
   events: TelemetryEvent[],
+  options: SendTelemetryOptions = { topicId: DAU_TOPIC_ID },
 ): Promise<boolean> {
   if (events.length === 0) return false;
 
@@ -56,8 +70,8 @@ async function sendTelemetry(
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "x-vercel-plugin-topic-id": "dau",
-      "x-vercel-plugin-session-id": randomUUID(),
+      "x-vercel-plugin-topic-id": options.topicId,
+      "x-vercel-plugin-session-id": options.sessionId ?? randomUUID(),
       "x-vercel-plugin-version": PLUGIN_VERSION,
     };
 
@@ -321,4 +335,90 @@ export async function trackDauActiveToday(
       if (event.key === "plugin:agent_harness") markAgentHarnessPingSent(agentHarness);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Skill invocation telemetry (default-on, opt-out via VERCEL_PLUGIN_TELEMETRY=off)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reduce a Skill tool input (e.g. "vercel:nextjs", "/vercel-plugin:deploy",
+ * "nextjs") to a bare plugin skill slug. Returns null unless the slug is one of
+ * the skills or commands shipped by this plugin, so third-party skill names and
+ * arbitrary strings are never sent.
+ */
+export function normalizeSkillInvocation(
+  rawSkill: unknown,
+  knownSkills: ReadonlySet<string>,
+): string | null {
+  if (typeof rawSkill !== "string") return null;
+
+  const trimmed = rawSkill.trim().replace(/^\/+/, "");
+  if (!trimmed) return null;
+
+  const slug = trimmed.slice(trimmed.lastIndexOf(":") + 1).toLowerCase();
+  if (!SKILL_SLUG_RE.test(slug)) return null;
+
+  return knownSkills.has(slug) ? slug : null;
+}
+
+export function isValidTelemetrySessionId(value: unknown): value is string {
+  return typeof value === "string" && UUID_V4_RE.test(value);
+}
+
+export function buildSkillInvocationEvents(
+  skill: string,
+  now: Date = new Date(),
+  installationId: string | null = readInstallationId(),
+): TelemetryEvent[] {
+  const eventTime = now.getTime();
+  const events: TelemetryEvent[] = [
+    {
+      id: randomUUID(),
+      event_time: eventTime,
+      key: SKILL_INVOKED_EVENT_KEY,
+      value: skill,
+    },
+    {
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:version",
+      value: PLUGIN_VERSION,
+    },
+  ];
+
+  if (installationId) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:install_id",
+      value: installationId,
+    });
+  }
+
+  return events;
+}
+
+export interface SkillInvocationContext {
+  /**
+   * Plugin-generated random UUID shared by every skill event in one agent
+   * session. Never the harness's own session identifier.
+   */
+  telemetrySessionId?: string;
+}
+
+export async function trackSkillInvocation(
+  skill: string,
+  context: SkillInvocationContext = {},
+  now: Date = new Date(),
+): Promise<boolean> {
+  if (!isDauTelemetryEnabled()) return false;
+
+  const events = buildSkillInvocationEvents(skill, now, getOrCreateInstallationId());
+  return sendTelemetry(events, {
+    topicId: SKILL_TOPIC_ID,
+    sessionId: isValidTelemetrySessionId(context.telemetrySessionId)
+      ? context.telemetrySessionId
+      : undefined,
+  });
 }

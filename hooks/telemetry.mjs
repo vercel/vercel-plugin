@@ -5,22 +5,26 @@ import { join, dirname } from "path";
 import { homedir } from "os";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
-var PLUGIN_VERSION = true ? "0.48.2" : "0.48.1";
+var PLUGIN_VERSION = true ? "0.49.0" : "0.49.0";
 var ACTIVE_SESSION_TTL_MS = 60 * 60 * 1e3;
+var DAU_TOPIC_ID = "dau";
+var SKILL_TOPIC_ID = "generic";
+var SKILL_INVOKED_EVENT_KEY = "skill:invoked";
+var SKILL_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 var DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 var FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
 var INSTALLATION_ID_PATH = join(homedir(), ".config", "vercel-plugin", "installation-id");
 var ACTIVE_SESSION_MARKER_PATH = join(homedir(), ".config", "vercel-plugin", "active-session.json");
 var UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-async function sendTelemetry(events) {
+async function sendTelemetry(events, options = { topicId: DAU_TOPIC_ID }) {
   if (events.length === 0) return false;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
   try {
     const headers = {
       "Content-Type": "application/json",
-      "x-vercel-plugin-topic-id": "dau",
-      "x-vercel-plugin-session-id": randomUUID(),
+      "x-vercel-plugin-topic-id": options.topicId,
+      "x-vercel-plugin-session-id": options.sessionId ?? randomUUID(),
       "x-vercel-plugin-version": PLUGIN_VERSION
     };
     const response = await fetch(BRIDGE_ENDPOINT, {
@@ -226,8 +230,55 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date(), context = {
     }
   }
 }
+function normalizeSkillInvocation(rawSkill, knownSkills) {
+  if (typeof rawSkill !== "string") return null;
+  const trimmed = rawSkill.trim().replace(/^\/+/, "");
+  if (!trimmed) return null;
+  const slug = trimmed.slice(trimmed.lastIndexOf(":") + 1).toLowerCase();
+  if (!SKILL_SLUG_RE.test(slug)) return null;
+  return knownSkills.has(slug) ? slug : null;
+}
+function isValidTelemetrySessionId(value) {
+  return typeof value === "string" && UUID_V4_RE.test(value);
+}
+function buildSkillInvocationEvents(skill, now = /* @__PURE__ */ new Date(), installationId = readInstallationId()) {
+  const eventTime = now.getTime();
+  const events = [
+    {
+      id: randomUUID(),
+      event_time: eventTime,
+      key: SKILL_INVOKED_EVENT_KEY,
+      value: skill
+    },
+    {
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:version",
+      value: PLUGIN_VERSION
+    }
+  ];
+  if (installationId) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:install_id",
+      value: installationId
+    });
+  }
+  return events;
+}
+async function trackSkillInvocation(skill, context = {}, now = /* @__PURE__ */ new Date()) {
+  if (!isDauTelemetryEnabled()) return false;
+  const events = buildSkillInvocationEvents(skill, now, getOrCreateInstallationId());
+  return sendTelemetry(events, {
+    topicId: SKILL_TOPIC_ID,
+    sessionId: isValidTelemetrySessionId(context.telemetrySessionId) ? context.telemetrySessionId : void 0
+  });
+}
 export {
   PLUGIN_VERSION,
+  SKILL_INVOKED_EVENT_KEY,
+  buildSkillInvocationEvents,
   getActiveSessionMarkerPath,
   getAgentHarnessStampPath,
   getDauStampPath,
@@ -235,13 +286,16 @@ export {
   getInstallationIdPath,
   getTelemetryOverride,
   isDauTelemetryEnabled,
+  isValidTelemetrySessionId,
   markAgentHarnessPingSent,
   markDauPingSent,
   markFirstUsePingSent,
+  normalizeSkillInvocation,
   refreshActiveSessionMarker,
   removeActiveSessionMarker,
   shouldSendAgentHarnessPing,
   shouldSendDauPing,
   shouldSendFirstUsePing,
-  trackDauActiveToday
+  trackDauActiveToday,
+  trackSkillInvocation
 };
