@@ -4,51 +4,50 @@
  * invoked in the current session.
  *
  * Privacy contract:
- * - Only the bare slug of a skill or command shipped by this plugin is sent.
- *   Third-party skill names, skill arguments, prompt text, and file paths are
- *   never read past the allowlist check and never leave the machine.
+ * - Only the bare slug of a skill or command shipped by this plugin, invoked
+ *   under this plugin's namespace, is sent. Other plugins' skills, personal
+ *   skills, skill arguments, prompt text, and file paths are never read past
+ *   the allowlist check and never leave the machine.
  * - Honors VERCEL_PLUGIN_TELEMETRY=off.
- * - The network request runs in a detached background process so the hook
- *   returns immediately and never delays the agent.
+ * - The network request runs in a detached background process (this same file
+ *   re-invoked with `--send`) so the hook returns immediately and never delays
+ *   the agent.
+ *
+ * Payloads are normalized through compat.mts, so Claude Code (`session_id`,
+ * `tool_response`) and Cursor's Claude-compatible hook bridge
+ * (`conversation_id`, `tool_output`) are both accepted.
  */
 
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dedupFilePath, pluginRoot, readSessionFile, writeSessionFile } from "./hook-env.mjs";
+import { normalizeInput } from "./compat.mjs";
+import { pluginRoot } from "./hook-env.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import {
-  isDauTelemetryEnabled,
-  isValidTelemetrySessionId,
+  buildSkillTelemetryPayload,
+  parseSendPayload,
+  spawnDetachedSkillTelemetrySender,
+  type SkillTelemetryPayload,
+} from "./skill-telemetry.mjs";
+import {
+  SKILL_INVOKED_EVENT_KEY,
   normalizeSkillInvocation,
-  trackSkillInvocation,
+  trackSkillEvents,
 } from "./telemetry.mjs";
 
 const log = createLogger();
 
-const SEND_FLAG = "--send";
-const TELEMETRY_SESSION_ID_KIND = "telemetry-session-id";
+/** Tool names that load a skill, across the harnesses that speak this hook contract. */
+const SKILL_TOOL_NAMES: ReadonlySet<string> = new Set(["Skill"]);
 
-interface SkillTelemetryHookInput {
-  session_id?: string;
-  hook_event_name?: string;
-  tool_name?: string;
-  tool_input?: unknown;
-  [key: string]: unknown;
-}
-
-export interface SkillInvocationPayload {
-  skill: string;
-  telemetrySessionId?: string;
-}
-
-export function parseSkillTelemetryHookInput(raw: string): SkillTelemetryHookInput | null {
+export function parseSkillTelemetryHookInput(raw: string): Record<string, unknown> | null {
   try {
     if (!raw.trim()) return null;
     const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as SkillTelemetryHookInput) : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
@@ -85,85 +84,32 @@ export function loadKnownPluginSkills(root: string = pluginRoot(import.meta.url)
 }
 
 /**
- * Random UUID minted once per agent session and stored in a session-scoped temp
- * file (removed by session-end-cleanup). Lets skill events from one session be
- * grouped without ever sending the harness's own session identifier.
- */
-export function resolveTelemetrySessionId(sessionId: string | null): string | undefined {
-  if (!sessionId) return undefined;
-
-  if (existsSync(dedupFilePath(sessionId, TELEMETRY_SESSION_ID_KIND))) {
-    const existing = readSessionFile(sessionId, TELEMETRY_SESSION_ID_KIND).trim();
-    if (isValidTelemetrySessionId(existing)) return existing;
-  }
-
-  const minted = randomUUID();
-  writeSessionFile(sessionId, TELEMETRY_SESSION_ID_KIND, minted);
-  return minted;
-}
-
-/**
  * Decide what (if anything) to report for a hook payload. Returns null when
- * telemetry is disabled, the tool is not `Skill`, or the skill is not one
- * shipped by this plugin.
+ * telemetry is disabled, the tool is not a skill loader, or the skill is not
+ * one shipped by this plugin under its own namespace.
  */
 export function buildSkillInvocationPayload(
-  input: SkillTelemetryHookInput | null,
+  input: Record<string, unknown> | null,
   knownSkills: ReadonlySet<string>,
   env: NodeJS.ProcessEnv = process.env,
-): SkillInvocationPayload | null {
-  if (!input || !isDauTelemetryEnabled(env)) return null;
-  if (input.tool_name !== "Skill") return null;
+): SkillTelemetryPayload | null {
+  if (!input) return null;
 
-  const toolInput = input.tool_input;
-  const rawSkill = toolInput && typeof toolInput === "object"
-    ? (toolInput as { skill?: unknown }).skill
-    : undefined;
+  const normalized = normalizeInput(input);
+  if (!normalized.toolName || !SKILL_TOOL_NAMES.has(normalized.toolName)) return null;
 
-  const skill = normalizeSkillInvocation(rawSkill, knownSkills);
+  const skill = normalizeSkillInvocation(normalized.toolInput?.skill, knownSkills);
   if (!skill) return null;
 
-  const sessionId = typeof input.session_id === "string" && input.session_id ? input.session_id : null;
-  const telemetrySessionId = resolveTelemetrySessionId(sessionId);
-
-  return telemetrySessionId ? { skill, telemetrySessionId } : { skill };
-}
-
-export function parseSendPayload(argv: readonly string[]): SkillInvocationPayload | null {
-  const flagIndex = argv.indexOf(SEND_FLAG);
-  if (flagIndex === -1) return null;
-
-  try {
-    const parsed: unknown = JSON.parse(argv[flagIndex + 1] ?? "");
-    if (!parsed || typeof parsed !== "object") return null;
-    const { skill, telemetrySessionId } = parsed as Partial<SkillInvocationPayload>;
-    if (typeof skill !== "string") return null;
-    return isValidTelemetrySessionId(telemetrySessionId)
-      ? { skill, telemetrySessionId }
-      : { skill };
-  } catch {
-    return null;
-  }
-}
-
-function spawnDetachedSender(entrypoint: string, payload: SkillInvocationPayload): void {
-  try {
-    const child = spawn(process.execPath, [entrypoint, SEND_FLAG, JSON.stringify(payload)], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    child.unref();
-  } catch (error) {
-    logCaughtError(log, "skill-telemetry:spawn-failed", error, { skill: payload.skill });
-  }
+  return buildSkillTelemetryPayload(SKILL_INVOKED_EVENT_KEY, [skill], normalized.sessionId || null, env);
 }
 
 async function main(entrypoint: string): Promise<void> {
   const sendPayload = parseSendPayload(process.argv);
   if (sendPayload) {
-    await trackSkillInvocation(sendPayload.skill, {
+    await trackSkillEvents(sendPayload.key, sendPayload.skills, {
       telemetrySessionId: sendPayload.telemetrySessionId,
+      agentHarness: sendPayload.agentHarness,
     }).catch(() => false);
     process.exit(0);
   }
@@ -172,8 +118,8 @@ async function main(entrypoint: string): Promise<void> {
   const payload = buildSkillInvocationPayload(input, loadKnownPluginSkills());
 
   if (payload) {
-    log.debug("skill-telemetry:queued", { skill: payload.skill });
-    spawnDetachedSender(entrypoint, payload);
+    log.debug("skill-telemetry:queued", { key: payload.key, skills: payload.skills, agentHarness: payload.agentHarness });
+    spawnDetachedSkillTelemetrySender(payload, entrypoint);
   }
 
   process.exit(0);

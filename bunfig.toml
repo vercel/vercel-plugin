@@ -1,0 +1,5 @@
+[test]
+# Hooks under test must never phone home. The telemetry test files opt back in
+# explicitly (with fetch mocked) by deleting this variable from the env they
+# pass to their probes.
+preload = ["./tests/_preload-telemetry-off.ts"]

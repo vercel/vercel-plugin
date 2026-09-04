@@ -15,7 +15,15 @@ const DAU_TOPIC_ID = "dau";
 // non-DAU plugin events.
 const SKILL_TOPIC_ID = "generic";
 export const SKILL_INVOKED_EVENT_KEY = "skill:invoked";
+export const SKILL_INJECTED_EVENT_KEY = "skill:injected";
+export type SkillTelemetryKey = typeof SKILL_INVOKED_EVENT_KEY | typeof SKILL_INJECTED_EVENT_KEY;
 const SKILL_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+/**
+ * Namespaces the harness prefixes onto this plugin's skills: the plugin name in
+ * `.claude-plugin/plugin.json` / `.cursor-plugin/plugin.json` and the
+ * marketplace / `.plugin/plugin.json` name.
+ */
+const PLUGIN_SKILL_NAMESPACES: ReadonlySet<string> = new Set(["vercel", "vercel-plugin"]);
 
 const DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 const FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
@@ -33,6 +41,25 @@ export type AgentHarness =
   | "grok"
   | "other"
   | "unknown";
+
+const AGENT_HARNESSES: ReadonlySet<string> = new Set<AgentHarness>([
+  "claude-code",
+  "cursor",
+  "codex",
+  "github-copilot",
+  "kimi",
+  "grok",
+  "other",
+  "unknown",
+]);
+
+export function isAgentHarness(value: unknown): value is AgentHarness {
+  return typeof value === "string" && AGENT_HARNESSES.has(value);
+}
+
+export function isSkillTelemetryKey(value: unknown): value is SkillTelemetryKey {
+  return value === SKILL_INVOKED_EVENT_KEY || value === SKILL_INJECTED_EVENT_KEY;
+}
 
 export interface TelemetryContext {
   agentHarness?: AgentHarness;
@@ -338,13 +365,14 @@ export async function trackDauActiveToday(
 }
 
 // ---------------------------------------------------------------------------
-// Skill invocation telemetry (default-on, opt-out via VERCEL_PLUGIN_TELEMETRY=off)
+// Skill telemetry (default-on, opt-out via VERCEL_PLUGIN_TELEMETRY=off)
 // ---------------------------------------------------------------------------
 
 /**
- * Reduce a Skill tool input (e.g. "vercel:nextjs", "/vercel-plugin:deploy",
- * "nextjs") to a bare plugin skill slug. Returns null unless the slug is one of
- * the skills or commands shipped by this plugin, so third-party skill names and
+ * Reduce a Skill tool input (e.g. "vercel:nextjs", "/vercel-plugin:deploy") to
+ * a bare plugin skill slug. Returns null unless the namespace is one of this
+ * plugin's and the slug is a skill or command it ships, so other plugins'
+ * skills (`other-plugin:deploy`), un-namespaced personal skills (`deploy`), and
  * arbitrary strings are never sent.
  */
 export function normalizeSkillInvocation(
@@ -354,9 +382,13 @@ export function normalizeSkillInvocation(
   if (typeof rawSkill !== "string") return null;
 
   const trimmed = rawSkill.trim().replace(/^\/+/, "");
-  if (!trimmed) return null;
+  const separator = trimmed.indexOf(":");
+  if (separator === -1) return null;
 
-  const slug = trimmed.slice(trimmed.lastIndexOf(":") + 1).toLowerCase();
+  const namespace = trimmed.slice(0, separator).toLowerCase();
+  if (!PLUGIN_SKILL_NAMESPACES.has(namespace)) return null;
+
+  const slug = trimmed.slice(separator + 1).toLowerCase();
   if (!SKILL_SLUG_RE.test(slug)) return null;
 
   return knownSkills.has(slug) ? slug : null;
@@ -366,26 +398,43 @@ export function isValidTelemetrySessionId(value: unknown): value is string {
   return typeof value === "string" && UUID_V4_RE.test(value);
 }
 
-export function buildSkillInvocationEvents(
-  skill: string,
+export interface SkillTelemetryContext {
+  /**
+   * Plugin-generated random UUID shared by every skill event in one agent
+   * session. Never the harness's own session identifier.
+   */
+  telemetrySessionId?: string;
+  /** Harness category detected at session start, if known. */
+  agentHarness?: AgentHarness;
+}
+
+/**
+ * One `<key>` event per skill plus the version / installation / harness
+ * envelope that lets the batch be grouped like the DAU ping.
+ */
+export function buildSkillEvents(
+  key: SkillTelemetryKey,
+  skills: readonly string[],
+  context: SkillTelemetryContext = {},
   now: Date = new Date(),
   installationId: string | null = readInstallationId(),
 ): TelemetryEvent[] {
+  if (skills.length === 0) return [];
+
   const eventTime = now.getTime();
-  const events: TelemetryEvent[] = [
-    {
-      id: randomUUID(),
-      event_time: eventTime,
-      key: SKILL_INVOKED_EVENT_KEY,
-      value: skill,
-    },
-    {
-      id: randomUUID(),
-      event_time: eventTime,
-      key: "plugin:version",
-      value: PLUGIN_VERSION,
-    },
-  ];
+  const events: TelemetryEvent[] = skills.map((skill) => ({
+    id: randomUUID(),
+    event_time: eventTime,
+    key,
+    value: skill,
+  }));
+
+  events.push({
+    id: randomUUID(),
+    event_time: eventTime,
+    key: "plugin:version",
+    value: PLUGIN_VERSION,
+  });
 
   if (installationId) {
     events.push({
@@ -396,25 +445,27 @@ export function buildSkillInvocationEvents(
     });
   }
 
+  if (context.agentHarness) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:agent_harness",
+      value: context.agentHarness,
+    });
+  }
+
   return events;
 }
 
-export interface SkillInvocationContext {
-  /**
-   * Plugin-generated random UUID shared by every skill event in one agent
-   * session. Never the harness's own session identifier.
-   */
-  telemetrySessionId?: string;
-}
-
-export async function trackSkillInvocation(
-  skill: string,
-  context: SkillInvocationContext = {},
+export async function trackSkillEvents(
+  key: SkillTelemetryKey,
+  skills: readonly string[],
+  context: SkillTelemetryContext = {},
   now: Date = new Date(),
 ): Promise<boolean> {
-  if (!isDauTelemetryEnabled()) return false;
+  if (!isDauTelemetryEnabled() || skills.length === 0) return false;
 
-  const events = buildSkillInvocationEvents(skill, now, getOrCreateInstallationId());
+  const events = buildSkillEvents(key, skills, context, now, getOrCreateInstallationId());
   return sendTelemetry(events, {
     topicId: SKILL_TOPIC_ID,
     sessionId: isValidTelemetrySessionId(context.telemetrySessionId)
