@@ -5,22 +5,44 @@ import { join, dirname } from "path";
 import { homedir } from "os";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
-var PLUGIN_VERSION = true ? "0.48.2" : "0.48.1";
+var PLUGIN_VERSION = true ? "0.49.0" : "0.49.0";
 var ACTIVE_SESSION_TTL_MS = 60 * 60 * 1e3;
+var DAU_TOPIC_ID = "dau";
+var SKILL_TOPIC_ID = "generic";
+var SKILL_INVOKED_EVENT_KEY = "skill:invoked";
+var SKILL_INJECTED_EVENT_KEY = "skill:injected";
+var SKILL_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+var PLUGIN_SKILL_NAMESPACES = /* @__PURE__ */ new Set(["vercel", "vercel-plugin"]);
 var DAU_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "dau-stamp");
 var FIRST_USE_STAMP_PATH = join(homedir(), ".config", "vercel-plugin", "first-use-stamp");
 var INSTALLATION_ID_PATH = join(homedir(), ".config", "vercel-plugin", "installation-id");
 var ACTIVE_SESSION_MARKER_PATH = join(homedir(), ".config", "vercel-plugin", "active-session.json");
 var UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-async function sendTelemetry(events) {
+var AGENT_HARNESSES = /* @__PURE__ */ new Set([
+  "claude-code",
+  "cursor",
+  "codex",
+  "github-copilot",
+  "kimi",
+  "grok",
+  "other",
+  "unknown"
+]);
+function isAgentHarness(value) {
+  return typeof value === "string" && AGENT_HARNESSES.has(value);
+}
+function isSkillTelemetryKey(value) {
+  return value === SKILL_INVOKED_EVENT_KEY || value === SKILL_INJECTED_EVENT_KEY;
+}
+async function sendTelemetry(events, options = { topicId: DAU_TOPIC_ID }) {
   if (events.length === 0) return false;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FLUSH_TIMEOUT_MS);
   try {
     const headers = {
       "Content-Type": "application/json",
-      "x-vercel-plugin-topic-id": "dau",
-      "x-vercel-plugin-session-id": randomUUID(),
+      "x-vercel-plugin-topic-id": options.topicId,
+      "x-vercel-plugin-session-id": options.sessionId ?? randomUUID(),
       "x-vercel-plugin-version": PLUGIN_VERSION
     };
     const response = await fetch(BRIDGE_ENDPOINT, {
@@ -226,22 +248,85 @@ async function trackDauActiveToday(now = /* @__PURE__ */ new Date(), context = {
     }
   }
 }
+function normalizeSkillInvocation(rawSkill, knownSkills) {
+  if (typeof rawSkill !== "string") return null;
+  const trimmed = rawSkill.trim().replace(/^\/+/, "");
+  const separator = trimmed.indexOf(":");
+  if (separator === -1) return null;
+  const namespace = trimmed.slice(0, separator).toLowerCase();
+  if (!PLUGIN_SKILL_NAMESPACES.has(namespace)) return null;
+  const slug = trimmed.slice(separator + 1).toLowerCase();
+  if (!SKILL_SLUG_RE.test(slug)) return null;
+  return knownSkills.has(slug) ? slug : null;
+}
+function isValidTelemetrySessionId(value) {
+  return typeof value === "string" && UUID_V4_RE.test(value);
+}
+function buildSkillEvents(key, skills, context = {}, now = /* @__PURE__ */ new Date(), installationId = readInstallationId()) {
+  if (skills.length === 0) return [];
+  const eventTime = now.getTime();
+  const events = skills.map((skill) => ({
+    id: randomUUID(),
+    event_time: eventTime,
+    key,
+    value: skill
+  }));
+  events.push({
+    id: randomUUID(),
+    event_time: eventTime,
+    key: "plugin:version",
+    value: PLUGIN_VERSION
+  });
+  if (installationId) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:install_id",
+      value: installationId
+    });
+  }
+  if (context.agentHarness) {
+    events.push({
+      id: randomUUID(),
+      event_time: eventTime,
+      key: "plugin:agent_harness",
+      value: context.agentHarness
+    });
+  }
+  return events;
+}
+async function trackSkillEvents(key, skills, context = {}, now = /* @__PURE__ */ new Date()) {
+  if (!isDauTelemetryEnabled() || skills.length === 0) return false;
+  const events = buildSkillEvents(key, skills, context, now, getOrCreateInstallationId());
+  return sendTelemetry(events, {
+    topicId: SKILL_TOPIC_ID,
+    sessionId: isValidTelemetrySessionId(context.telemetrySessionId) ? context.telemetrySessionId : void 0
+  });
+}
 export {
   PLUGIN_VERSION,
+  SKILL_INJECTED_EVENT_KEY,
+  SKILL_INVOKED_EVENT_KEY,
+  buildSkillEvents,
   getActiveSessionMarkerPath,
   getAgentHarnessStampPath,
   getDauStampPath,
   getFirstUseStampPath,
   getInstallationIdPath,
   getTelemetryOverride,
+  isAgentHarness,
   isDauTelemetryEnabled,
+  isSkillTelemetryKey,
+  isValidTelemetrySessionId,
   markAgentHarnessPingSent,
   markDauPingSent,
   markFirstUsePingSent,
+  normalizeSkillInvocation,
   refreshActiveSessionMarker,
   removeActiveSessionMarker,
   shouldSendAgentHarnessPing,
   shouldSendDauPing,
   shouldSendFirstUsePing,
-  trackDauActiveToday
+  trackDauActiveToday,
+  trackSkillEvents
 };

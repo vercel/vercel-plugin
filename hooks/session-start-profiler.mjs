@@ -378,9 +378,11 @@ import { createLogger, logCaughtError } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import {
+  isDauTelemetryEnabled,
   refreshActiveSessionMarker,
   trackDauActiveToday
 } from "./telemetry.mjs";
+import { writeSessionAgentHarness } from "./skill-telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -690,6 +692,7 @@ function detectSessionStartPlatform(input, env = process.env) {
   return "claude-code";
 }
 function normalizeDetectedAgentHarness(name) {
+  if (name === void 0) return "unknown";
   switch (name) {
     case "cursor":
     case "cursor-cli":
@@ -705,9 +708,15 @@ function normalizeDetectedAgentHarness(name) {
       return "kimi";
     case "grok":
       return "grok";
-    default:
-      return name === void 0 ? "unknown" : "other";
   }
+  const agentSegment = name.toLowerCase().split("_")[0] ?? "";
+  if (agentSegment === "claude-code" || agentSegment === "claude" || agentSegment === "cowork") return "claude-code";
+  if (agentSegment === "cursor" || agentSegment === "cursor-cli") return "cursor";
+  if (agentSegment === "codex" || agentSegment === "codex-cli") return "codex";
+  if (agentSegment === "github-copilot" || agentSegment === "copilot") return "github-copilot";
+  if (agentSegment === "kimi") return "kimi";
+  if (agentSegment === "grok") return "grok";
+  return "other";
 }
 async function determineAgentWithBundledPackage() {
   const hookGlobal = globalThis;
@@ -823,6 +832,9 @@ async function main() {
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
+  if (sessionId && isDauTelemetryEnabled()) {
+    writeSessionAgentHarness(sessionId, agentHarness);
+  }
   const greenfield = checkGreenfield(projectRoot);
   const shouldActivate = greenfield !== null || !existsSync(projectRoot) || hasSessionStartActivationMarkers(projectRoot);
   if (!shouldActivate) {
