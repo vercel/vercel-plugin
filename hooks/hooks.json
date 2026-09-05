@@ -6,15 +6,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-profiler.mjs\""
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-start-profiler.mjs\""
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\""
+            "command": "node \"${PLUGIN_ROOT}/hooks/inject-claude-md.mjs\""
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-end-cleanup.mjs\""
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-end-cleanup.mjs\""
           }
         ]
       }
