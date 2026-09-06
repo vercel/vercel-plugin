@@ -1,6 +1,6 @@
 ---
 name: verification
-description: "Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: browser → API → data → response. Triggers on dev server start and 'why isn't this working' signals."
+description: "Verify a requested user flow across its relevant browser, API, and data boundaries, including rechecking an authorized repair."
 summary: "Verify full user story: browser + server + data flow + env"
 metadata:
   priority: 7
@@ -177,20 +177,20 @@ Summarize findings in a structured report:
 - [What was confirmed working with evidence]
 ```
 
-## Stop Conditions
+## Scope
 
-**Stop verifying when**:
-- All boundaries in the flow are confirmed working with evidence — report success
-- You find the **first broken boundary** — report it with evidence and a specific fix, do not continue past the break
-- Two consecutive layers return no useful signal (e.g., no logs, no errors, no output) — flag the observability gap and recommend adding logging before continuing
+A dev server starting or a generic troubleshooting signal does not expand the user's requested scope. Choose the relevant boundaries and authorized environment before testing.
 
-**Do not**:
-- Run the same check more than twice
-- Continue past a confirmed broken boundary
-- Verify unrelated features — stay on the inferred story
-- Spend time on cosmetic issues (styling, spacing) unless the user specifically asked
+## Completion and blocked boundaries
 
-## Suggest Verification After Implementation
+Keep verification scoped to the requested story and authorized environment.
 
-When you finish building or implementing a feature (wrote code, created routes, set up a project), briefly let the user know they can ask you to verify everything works — e.g. browser verification or end-to-end flow check. One sentence is enough. Don't force it if only a small fix or question was involved.
+- When every relevant boundary has evidence, report success and identify any layers that were not exercised.
+- At a broken boundary, capture the failure and its likely cause. For an audit-only request, report findings without changing code. For an authorized fix-and-verify request, repair the boundary, recheck it, and resume the remaining flow checks.
+- If a layer provides no useful signal, choose another proportionate check or improve observability when that is in scope. Report a blocker when a needed dependency, credential, environment, or decision has no safe authorized alternative.
+- Repeat a check after a relevant change or when it resolves an uncertainty. Do not repeat an unchanged check that provides no new evidence.
+- Keep unrelated features and cosmetic work outside the verification scope unless requested.
 
+## Verification after implementation
+
+Complete proportionate checks as part of the requested implementation. Do not defer already-authorized verification to another user prompt. Additional hosted mutations or tests in another environment require their own authorization; report any such untested layer clearly.
