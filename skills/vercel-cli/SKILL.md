@@ -1,6 +1,6 @@
 ---
 name: vercel-cli
-description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, managing domains, or interacting with the Vercel platform from the command line.
+description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, managing domains, managing feature flags with vercel flags, or interacting with the Vercel platform from the command line.
 metadata:
   priority: 4
   docs:
@@ -133,7 +133,7 @@ Use this to route to the correct reference file:
 - **Node.js backends (Express, Hono, etc.)** → `references/node-backends.md`
 - **Monorepos (Turborepo, Nx, workspaces)** → `references/monorepos.md`
 - **Bun runtime** → `references/bun.md`
-- **Feature flags** → `references/flags.md`
+- **Feature flags (`vercel flags`: create, inspect, set, split, rollout, rules, segments, sdk-keys)** → `references/flags.md`
 - **Advanced (API, webhooks)** → `references/advanced.md`
 - **Global flags** → `references/global-options.md`
 - **First-time setup** → `references/getting-started.md`

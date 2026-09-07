@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T06:36:27.856Z",
+  "generatedAt": "2026-09-09T07:34:01.295Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -2020,7 +2020,15 @@
           "kill switch",
           "flag variant",
           "flag adapter",
-          "precompute flags"
+          "precompute flags",
+          "traffic split",
+          "targeting rules",
+          "flag rules",
+          "flag segments",
+          "flag targeting",
+          "flag evaluations",
+          "flag overrides",
+          "existing flag"
         ],
         "allOf": [
           [
@@ -2060,7 +2068,8 @@
           "command line flag",
           "cli flag",
           "compiler flag",
-          "flag emoji"
+          "flag emoji",
+          "rolling release"
         ],
         "minScore": 6
       },
