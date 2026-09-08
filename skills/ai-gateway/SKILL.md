@@ -73,7 +73,7 @@ validate:
     skipIfFileContains: 'ANTHROPIC_AUTH_TOKEN'
 chainTo:
   -
-    pattern: 'from\s+[''"]ai[''"]|require\([''"]ai[''']\)|\b(generateText|streamText|ToolLoopAgent)\b'
+    pattern: 'from\s+[''"]ai[''"]|require\([''"]ai[''"]\)|\b(generateText|streamText|ToolLoopAgent)\b'
     targetSkill: ai-sdk
     message: 'AI SDK code detected. Load the AI SDK skill and read the installed package docs before writing or changing SDK code.'
 retrieval:
