@@ -36,6 +36,25 @@ function countSkillDirs(): number {
   }).length;
 }
 
+describe("skill frontmatter portability", () => {
+  test("all skill frontmatter is valid standard YAML", () => {
+    const invalidSkills: string[] = [];
+
+    for (const skillDir of readdirSync(SKILLS_DIR)) {
+      const skillPath = join(SKILLS_DIR, skillDir, "SKILL.md");
+      if (!existsSync(skillPath)) continue;
+
+      try {
+        Bun.YAML.parse(readSkillFrontmatter(skillDir));
+      } catch (error) {
+        invalidSkills.push(`${skillDir}: ${String(error)}`);
+      }
+    }
+
+    expect(invalidSkills).toEqual([]);
+  });
+});
+
 // ─── Migration regression: skill-map.json must not exist ─────────
 
 describe("migration regression", () => {
