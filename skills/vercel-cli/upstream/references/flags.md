@@ -24,6 +24,7 @@ vercel flags split <flag>         # weighted traffic split across variants
 vercel flags rollout <flag>       # staged rollout from one variant to another
 vercel flags rules <flag>         # targeting rules (subcommands: list, add, update, remove, move)
 vercel flags segments             # reusable audience segments (subcommands: list, inspect, create, update, remove)
+vercel flags entities             # entity schemas for targeting (subcommands: ls, create, update, rm)
 
 # Lifecycle
 vercel flags create <flag>        # new flag (alias: add)
