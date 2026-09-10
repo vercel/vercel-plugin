@@ -1,88 +1,51 @@
 # Feature Flags
 
-`vercel flags` manages [Vercel Flags](https://vercel.com/docs/flags/vercel-flags) — create, inspect, update, set, enable, disable, archive, and delete feature flags, plus manage SDK keys.
+`vercel flags` manages [Vercel Flags](https://vercel.com/docs/flags/vercel-flags) for the linked project.
 
-## Creating Flags
+`--help` is the source of truth for options and examples. Run `vercel flags --help` for the current subcommand list and `vercel flags <cmd> --help` before using a subcommand. The map below routes by task and carries no options on purpose.
 
-`create` is the primary command; `add` is an alias.
-
-```bash
-vercel flags create my-feature                            # create boolean flag
-vercel flags create my-feature --kind string --description "My flag"  # string flag with description
-vercel flags create my-feature --kind string --variant control="Welcome back" --variant treatment="New onboarding"  # with explicit variants
-```
-
-Flag kinds: `boolean` (default), `string`, `number`. Boolean flags get `true`/`false` variants automatically; use `--variant VALUE[=LABEL]` (repeatable) for string/number flags.
-
-## Listing and Inspecting
+## Subcommand Map
 
 ```bash
-vercel flags list                                         # list active flags
-vercel flags list --state archived                        # list archived flags
-vercel flags list --json                                  # output as JSON
-vercel flags inspect my-feature                           # show flag details
+# Read
+vercel flags list                 # flags in the project (alias: ls)
+vercel flags inspect <flag>       # kind, variants, what each environment serves
+vercel flags versions <flag>      # revision history (subcommands: list, diff)
+vercel flags evaluations <flag>   # evaluation metrics
+
+# Change what an environment serves
+vercel flags set <flag>           # serve one variant (all kinds)
+vercel flags enable <flag>        # boolean shortcut for true
+vercel flags disable <flag>       # boolean shortcut for false
+vercel flags use-targeting <flag> # enable targeting for an environment
+
+# Targeting
+vercel flags split <flag>         # weighted traffic split across variants
+vercel flags rollout <flag>       # staged rollout from one variant to another
+vercel flags rules <flag>         # targeting rules (subcommands: list, add, update, remove, move)
+vercel flags segments             # reusable audience segments (subcommands: list, inspect, create, update, remove)
+vercel flags entities             # entity schemas for targeting (subcommands: ls, create, update, rm)
+
+# Lifecycle
+vercel flags create <flag>        # new flag (alias: add)
+vercel flags update <flag>        # variant values and labels
+vercel flags archive <flag>       # required before rm
+vercel flags unarchive <flag>
+vercel flags rm <flag>            # delete an archived flag (alias of remove)
+
+# Tooling
+vercel flags sdk-keys             # SDK keys (subcommands: list, add, remove)
+vercel flags prepare              # flag definition fallbacks for builds outside Vercel
+vercel flags override             # encrypt or decrypt a vercel-flag-overrides cookie token
+vercel flags open [flag]          # open the dashboard
 ```
 
-## Opening in Dashboard
+## CLI Contracts
 
-```bash
-vercel flags open                                         # open project flags dashboard
-vercel flags open my-feature                              # open a specific flag
-```
+- Flags commands need a linked project. Confirm the target with `vercel project inspect --non-interactive` first (see `SKILL.md`).
+- Use `--json` where a subcommand offers it and parse only stdout.
+- Commands that ask for confirmation (`archive`, `unarchive`, `rm`, `sdk-keys rm`, and others that list `--yes` in `--help`) need `--yes` in non-interactive runs.
 
-## Updating Flags
+## Flags SDK Skill
 
-Update variant values, labels, or both on an existing flag.
-
-```bash
-vercel flags update my-feature --variant control --value welcome-back --label "Welcome back"
-vercel flags update my-feature --variant control --label "Control" --message "Rename control variant"
-vercel flags update my-feature --variant false --label "Disabled"
-```
-
-Options: `--variant` (variant ID or value), `--value` (new value), `--label`/`-l` (new label), `--message` (revision message).
-
-## Setting Served Variant
-
-`set` controls which variant is served in a given environment. Works with all flag kinds.
-
-```bash
-vercel flags set welcome-message -e production --variant control
-vercel flags set bucket-size -e preview --variant 20
-vercel flags set my-feature -e development --variant true
-```
-
-Options: `--environment`/`-e`, `--variant`/`-v`, `--message`.
-
-## Enable / Disable (Boolean Shortcut)
-
-Only works with **boolean** flags. Shortcuts that set the served variant to `true` or `false`.
-
-```bash
-vercel flags enable my-feature -e production
-vercel flags enable my-feature -e production --message "Resume production rollout"
-vercel flags disable my-feature -e production
-vercel flags disable my-feature -e production --variant off
-vercel flags disable my-feature -e production --message "Pause rollout"
-```
-
-Environments: `production`, `preview`, `development`. Omit `-e` to choose interactively.
-
-## Archive / Delete
-
-```bash
-vercel flags archive my-feature --yes                     # archive (skip prompt)
-vercel flags rm my-feature --yes                          # delete (must be archived first)
-```
-
-## SDK Keys
-
-SDK keys authenticate your application when evaluating flags. The full key value is only shown at creation time.
-
-```bash
-vercel flags sdk-keys ls                                  # list SDK keys
-vercel flags sdk-keys ls --json                           # list as JSON
-vercel flags sdk-keys add --type server -e production     # create server key
-vercel flags sdk-keys add --type client -e preview --label "Preview App"  # client key with label
-vercel flags sdk-keys rm <hash-key> --yes                 # delete key
-```
+Everything flags-specific lives in the `flags-sdk` skill (`npx skills add vercel/flags@flags-sdk`): declaring flags with `flag()` and `vercelAdapter`, matching a CLI flag key to the `key` in code, `identify()` entities and the `--by` / `--condition` attribute contract, adopting a flag that already exists (`inspect` first), lifecycle and production safety, `FLAGS` / `FLAGS_SECRET`, `prepare`, and `override`. Use that skill for those topics; this reference does not repeat them.

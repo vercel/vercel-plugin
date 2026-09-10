@@ -1,6 +1,6 @@
 ---
 name: vercel-cli
-description: Deploy, manage, and develop projects on Vercel from the command line
+description: Deploy, manage, and develop projects on Vercel from the command line, including feature flags (`vercel flags`).
 ---
 
 # Vercel CLI Skill
@@ -50,7 +50,7 @@ Use this to route to the correct reference file:
 - **Node.js backends (Express, Hono, etc.)** → `references/node-backends.md`
 - **Monorepos (Turborepo, Nx, workspaces)** → `references/monorepos.md`
 - **Bun runtime** → `references/bun.md`
-- **Feature flags** → `references/flags.md`
+- **Feature flags (`vercel flags`: create, inspect, set, split, rollout, rules, segments, sdk-keys)** → `references/flags.md`
 - **Advanced (API, webhooks)** → `references/advanced.md`
 - **Global flags** → `references/global-options.md`
 - **First-time setup** → `references/getting-started.md`
