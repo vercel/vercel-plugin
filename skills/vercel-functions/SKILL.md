@@ -1,7 +1,7 @@
 ---
 name: vercel-functions
 description: Vercel Functions expert guidance — Node.js/Bun/Python runtimes, Fluid Compute, long-duration (30 min) functions, large functions (5 GB bundles), Docker/OCI container images, plan limits, streaming, WebSockets, and Cron Jobs. Use when configuring, debugging, or optimizing server-side code running on Vercel.
-summary: "Vercel Functions run on Fluid Compute with Node.js as the default runtime — never set `runtime = 'edge'` (Vercel recommends migrating off it, and Next.js 16.3+ rejects it). Duration: 300s default on every plan including Hobby, 800s max on Pro/Enterprise, 1800s (30 min) per-function in the extended beta; beyond that use Vercel Workflow. Bundles: 250 MB standard (500 MB Python), 5 GB via the large functions beta (`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`). Request/response bodies cap at 4.5 MB. Memory is dashboard-only (Standard 2 GB/1 vCPU, Performance 4 GB/2 vCPU; Hobby fixed). Docker works: add `Dockerfile.vercel` to run an OCI image as an autoscaling, stateless, scale-to-zero Function."
+summary: "Vercel Functions run on Fluid Compute with Node.js as the default runtime — strongly prefer it over `runtime = 'edge'` (Vercel recommends migrating off Edge, and Next.js 16.3+ no longer supports it). Duration: 300s default on every plan including Hobby, 800s max on Pro/Enterprise, 1800s (30 min) per-function in the extended beta; beyond that use Vercel Workflow. Bundles: 250 MB standard (500 MB Python), 5 GB via the large functions beta (`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`). Request/response bodies cap at 4.5 MB. Memory is dashboard-only (Standard 2 GB/1 vCPU, Performance 4 GB/2 vCPU; Hobby fixed). Docker works: add `Dockerfile.vercel` to run an OCI image as an autoscaling, stateless, scale-to-zero Function."
 metadata:
   priority: 8
   docs:
@@ -103,12 +103,13 @@ validate:
     message: 'NextApiRequest/NextApiResponse are Pages Router types — use Web API Request/Response'
     severity: error
   -
-    # The Edge runtime is deprecated guidance: Vercel docs say to migrate off it,
-    # and Next.js 16.3+ rejects it outright. Flag every occurrence, including
-    # `"runtime": "edge"` in vercel.json.
+    # Vercel's docs recommend migrating off the Edge runtime, and Next.js 16.3+
+    # doesn't support it. Surfaced as a recommendation rather than an error:
+    # existing Edge functions still work, so this is a nudge, not a blocker.
+    # Matches `"runtime": "edge"` in vercel.json too.
     pattern: 'runtime[''"]?\s*[=:]\s*[''"]edge[''"]'
-    message: 'Remove `runtime = "edge"`. Vercel recommends migrating from Edge to Node.js, and Next.js 16.3+ no longer supports it. Node.js on Fluid Compute runs in the same regions at the same price with full Node.js APIs, longer durations, and larger bundles.'
-    severity: error
+    message: 'Consider dropping `runtime = "edge"`. Vercel recommends migrating from Edge to Node.js, and Next.js 16.3+ no longer supports it. Node.js on Fluid Compute runs in the same regions at the same price with full Node.js APIs, longer durations, and larger bundles.'
+    severity: recommended
   -
     pattern: 'from\s+[''"](openai|@anthropic-ai/sdk|anthropic)[''"]|new\s+(OpenAI|Anthropic)\('
     message: 'Direct AI provider SDK detected in route handler. Use the Vercel AI SDK for streaming, tools, and provider abstraction.'
@@ -240,18 +241,18 @@ chainTo:
 
 You are an expert in Vercel Functions — the compute layer of the Vercel platform.
 
-## Rule #1: Node.js, never Edge
+## Prefer Node.js over the Edge runtime
 
-**Do not write `runtime = 'edge'`. Do not suggest it. When you see it in existing code, remove it.**
+**Strongly prefer Node.js. Don't reach for `runtime = 'edge'` in new code, and recommend migrating off it when you find it in existing code.**
 
-This is not a preference — it is Vercel's documented recommendation ("we recommend migrating from edge to Node.js for improved performance and reliability") and, as of **Next.js 16.3, `runtime = 'edge'` is no longer supported at all**: routes and pages run on Node.js regardless.
+This follows Vercel's own documented guidance — *"we recommend migrating from edge to Node.js for improved performance and reliability"* — and one hard constraint: as of **Next.js 16.3, `runtime = 'edge'` is no longer supported**. Routes and pages there run on Node.js regardless of what you write, so on 16.3+ this stops being a recommendation and becomes a migration you have to do.
 
-Both runtimes run on the same Fluid Compute infrastructure, in the same regions, under the same Active CPU pricing. Edge buys you nothing and costs you the entire Node.js API surface.
+Everywhere else it is a strong default, not a prohibition. Both runtimes run on the same Fluid Compute infrastructure, in the same regions, under the same Active CPU pricing — so in nearly every case Edge gains you nothing while costing you most of the Node.js API surface. If you have a specific, tested reason to stay on Edge, that's a legitimate call; just make it deliberately rather than by habit.
 
-### The only correct default
+### The default to reach for
 
 ```ts
-// app/api/hello/route.ts — no runtime export. This is the whole point.
+// app/api/hello/route.ts — no runtime export needed.
 export async function GET() {
   return Response.json({ message: 'Hello from Node.js on Fluid Compute' })
 }
@@ -280,7 +281,9 @@ Node.js is the default. Omit `export const runtime` entirely rather than writing
 
 ### Migrating an existing Edge function
 
-1. Delete `export const runtime = 'edge'` (or `runtime: 'edge'` in `vercel.json` / the `config` object).
+Worth doing when you're already touching the file, and required on Next.js 16.3+. An Edge function that works today isn't an emergency.
+
+1. Remove `export const runtime = 'edge'` (or `runtime: 'edge'` in `vercel.json` / the `config` object).
 2. Replace `next/server` Edge-only imports where applicable; the Web `Request`/`Response` handler signature is unchanged, so most route handlers need no other edit.
 3. If you pinned execution with the Edge-only `preferredRegion`, use `regions` in `vercel.json` instead.
 4. Confirm Fluid Compute is on (default since April 23, 2025) and redeploy.
@@ -307,8 +310,8 @@ Rust functions run on Fluid Compute with HTTP streaming and Active CPU pricing. 
 ### Container images (Docker)
 Any OCI image via `Dockerfile.vercel`. See [Docker and Container Images](#docker-and-container-images) below.
 
-### Edge (legacy — do not choose this)
-V8 isolates with a subset of Web APIs. Retained for existing deployments only. See [Rule #1](#rule-1-nodejs-never-edge).
+### Edge (legacy — not recommended)
+V8 isolates with a subset of Web APIs. Fine to leave in place on existing deployments, but not the runtime to pick for new work. See [Prefer Node.js over the Edge runtime](#prefer-nodejs-over-the-edge-runtime).
 
 ### Choosing a Runtime
 
@@ -325,7 +328,7 @@ V8 isolates with a subset of Web APIs. Retained for existing deployments only. S
 | Auth, redirects, A/B tests before the cache | Routing Middleware | Runs on Node.js, framework-agnostic |
 | Hours-to-months of execution | Vercel Workflow | Durable steps, no duration limit |
 
-Note that `edge` appears nowhere in this table. That is deliberate.
+`edge` is deliberately absent: there's no row here where it's the better answer for new code.
 
 ## Fluid Compute
 
@@ -496,7 +499,7 @@ const msRemaining = getDeadline().getTime() - Date.now()
 
 ### Cost of long functions
 
-Active CPU pricing is what makes this viable: a 25-minute function that spends 24 minutes awaiting an LLM bills almost no Active CPU, only Provisioned Memory for the instance while the request is in flight. Long *and* CPU-busy is what gets expensive — not long and idle.
+Active CPU pricing is what makes this viable: a 25-minute function that spends 24 minutes awaiting an LLM bills almost no Active CPU, only Provisioned Memory for the instance while the request is in flight.
 
 ### When 30 minutes is not enough
 
@@ -515,7 +518,7 @@ Workflow steps themselves support extended function durations, so a single step 
 
 | Runtime | Uncompressed bundle limit |
 |---------|---------------------------|
-| Node.js, Bun, Rust, Go | 250 MB (includes runtime layers; enforced by AWS) |
+| Node.js, Bun, Rust, Go | 250 MB (includes runtime layers) |
 | Python | 500 MB |
 | Edge runtime | 1 MB Hobby / 2 MB Pro / 4 MB Enterprise, **after gzip** |
 
@@ -852,14 +855,15 @@ The `vercel.json` equivalent:
 
 What you **cannot** put here:
 - `memory` — with Fluid Compute (the default), set it in the dashboard; Pro/Enterprise only, and `vercel.json` warns at build time
-- `runtime: "edge"` — see [Rule #1](#rule-1-nodejs-never-edge)
 - A project-wide default above 800s — extended durations are per-function only
+
+`runtime: "edge"` is accepted here, but prefer leaving it out — see [Prefer Node.js over the Edge runtime](#prefer-nodejs-over-the-edge-runtime).
 
 ## Common Pitfalls
 
 1. **`waitUntil` given a callback**: it takes a Promise. `waitUntil(fn())`, never `waitUntil(fn)` or `waitUntil(async () => {})` — the latter silently does nothing
 2. **Cold starts with DB connections**: use connection pooling (e.g. Neon's `@neondatabase/serverless`)
-3. **Reaching for the Edge runtime**: don't — see [Rule #1](#rule-1-nodejs-never-edge)
+3. **Reaching for the Edge runtime**: prefer Node.js — see [Prefer Node.js over the Edge runtime](#prefer-nodejs-over-the-edge-runtime)
 4. **Timeout exceeded**: raise `maxDuration` (800s Pro/Ent, 1800s in beta), or move to Workflow for anything longer
 5. **Bundle size**: standard limit is 250 MB uncompressed (500 MB Python). 5 GB needs the large functions beta, which existing projects must opt into with `VERCEL_SUPPORT_LARGE_FUNCTIONS=1`
 6. **Payload size**: request and response bodies cap at **4.5 MB** (`413 FUNCTION_PAYLOAD_TOO_LARGE`) — use Blob client uploads or streaming, not a bigger function
@@ -918,7 +922,7 @@ What you **cannot** put here:
 
 ```
 Cold start latency > 1s?
-├─ Do NOT "fix" this by moving to the Edge runtime — Vercel recommends migrating off it
+├─ Moving to the Edge runtime is not the fix — Vercel recommends migrating off it
 ├─ Fluid Compute enabled? → Reuses warm instances across concurrent invocations
 ├─ Measuring in preview? → Bytecode caching is production-only; re-measure in prod
 ├─ Large function bundle? → Audit imports, use dynamic imports, tree-shake
@@ -932,9 +936,9 @@ Cold start latency > 1s?
 "EDGE_FUNCTION_INVOCATION_TIMEOUT"?
 ├─ Edge must START the response within 25s (then may stream up to 300s)
 ├─ `maxDuration` does NOT apply to the Edge runtime — there is no way to raise this
-├─ Correct fix: delete `runtime = 'edge'` and run on Node.js
+├─ Recommended fix: drop `runtime = 'edge'` and run on Node.js
 │  └─ Node.js gives you 300s by default, 800s on Pro/Ent, 1800s in the beta
-└─ Next.js 16.3+ rejects `runtime = 'edge'` outright — migrate now
+└─ On Next.js 16.3+, `runtime = 'edge'` is unsupported — migration is required there
 ```
 
 ## Official Documentation
