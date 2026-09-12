@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T07:34:01.295Z",
+  "generatedAt": "2026-09-12T22:53:48.662Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -4025,10 +4025,14 @@
     },
     "vercel-functions": {
       "priority": 8,
-      "summary": "",
+      "summary": "Vercel Functions run on Fluid Compute with Node.js as the default runtime — strongly prefer it over `runtime = 'edge'` (Vercel recommends migrating off Edge, and Next.js 16.3+ no longer supports it). Duration: 300s default on every plan including Hobby, 800s max on Pro/Enterprise, 1800s (30 min) per-function in the extended beta; beyond that use Vercel Workflow. Bundles: 250 MB standard (500 MB Python), 5 GB via the large functions beta (`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`). Request/response bodies cap at 4.5 MB. Memory is dashboard-only (Standard 2 GB/1 vCPU, Performance 4 GB/2 vCPU; Hobby fixed). Docker works: add `Dockerfile.vercel` to run an OCI image as an autoscaling, stateless, scale-to-zero Function.",
       "docs": [
         "https://vercel.com/docs/functions",
         "https://vercel.com/docs/functions/runtimes",
+        "https://vercel.com/docs/functions/limitations",
+        "https://vercel.com/docs/functions/configuring-functions/duration",
+        "https://vercel.com/docs/functions/container-images",
+        "https://vercel.com/docs/fluid-compute",
         "https://vercel.com/docs/functions/websockets"
       ],
       "sitemap": "https://vercel.com/sitemap.xml",
@@ -4043,11 +4047,18 @@
         "apps/*/src/app/**/route.*",
         "apps/*/pages/api/**",
         "vercel.json",
-        "apps/*/vercel.json"
+        "apps/*/vercel.json",
+        "vercel.ts",
+        "apps/*/vercel.ts",
+        "Dockerfile.vercel",
+        "*/Dockerfile.vercel",
+        "Containerfile.vercel",
+        "*/Containerfile.vercel"
       ],
       "bashPatterns": [
         "\\bvercel\\s+dev\\b",
-        "\\bvercel\\s+logs\\b"
+        "\\bvercel\\s+logs\\b",
+        "\\bvercel\\s+vcr\\b"
       ],
       "importPatterns": [
         "ws",
@@ -4066,11 +4077,18 @@
         "^apps\\/[^/]*\\/src\\/app\\/(?:[^/]+\\/)*route\\.[^/]*$",
         "^apps\\/[^/]*\\/pages\\/api\\/.*$",
         "^vercel\\.json$",
-        "^apps\\/[^/]*\\/vercel\\.json$"
+        "^apps\\/[^/]*\\/vercel\\.json$",
+        "^vercel\\.ts$",
+        "^apps\\/[^/]*\\/vercel\\.ts$",
+        "^Dockerfile\\.vercel$",
+        "^[^/]*\\/Dockerfile\\.vercel$",
+        "^Containerfile\\.vercel$",
+        "^[^/]*\\/Containerfile\\.vercel$"
       ],
       "bashRegexSources": [
         "\\bvercel\\s+dev\\b",
-        "\\bvercel\\s+logs\\b"
+        "\\bvercel\\s+logs\\b",
+        "\\bvercel\\s+vcr\\b"
       ],
       "importRegexSources": [
         {
@@ -4097,6 +4115,11 @@
           "pattern": "NextApiRequest|NextApiResponse",
           "message": "NextApiRequest/NextApiResponse are Pages Router types — use Web API Request/Response",
           "severity": "error"
+        },
+        {
+          "pattern": "runtime[''\"]?\\s*[=:]\\s*[''\"]edge[''\"]",
+          "message": "Consider dropping `runtime = \"edge\"`. Vercel recommends migrating from Edge to Node.js, and Next.js 16.3+ no longer supports it. Node.js on Fluid Compute runs in the same regions at the same price with full Node.js APIs, longer durations, and larger bundles.",
+          "severity": "recommended"
         },
         {
           "pattern": "from\\s+[''\"](openai|@anthropic-ai/sdk|anthropic)[''\"]|new\\s+(OpenAI|Anthropic)\\(",
@@ -4217,15 +4240,43 @@
           "web socket",
           "socket.io",
           "long polling",
-          "long-polling"
+          "long-polling",
+          "maxduration",
+          "max duration",
+          "function timeout",
+          "function times out",
+          "long-running function",
+          "long running function",
+          "504",
+          "unzipped maximum size",
+          "250mb",
+          "250 mb",
+          "large function",
+          "bundle size limit",
+          "dockerfile",
+          "container image",
+          "container registry",
+          "runtime edge",
+          "edge runtime"
         ],
-        "allOf": [],
+        "allOf": [
+          [
+            "docker",
+            "vercel"
+          ],
+          [
+            "hobby",
+            "limit"
+          ]
+        ],
         "anyOf": [
           "realtime",
           "bidirectional",
           "ws server",
           "polling",
-          "server-sent events"
+          "server-sent events",
+          "fluid compute",
+          "active cpu"
         ],
         "noneOf": [],
         "minScore": 6
@@ -4237,19 +4288,34 @@
           "edge functions",
           "lambda",
           "websockets",
-          "socket.io"
+          "socket.io",
+          "docker",
+          "dockerfile",
+          "container images",
+          "function timeout",
+          "max duration",
+          "bundle size",
+          "hobby limits"
         ],
         "intents": [
           "create serverless function",
           "configure function runtime",
           "optimize cold starts",
           "add api route",
-          "serve a websocket connection"
+          "serve a websocket connection",
+          "run a function for longer than 5 minutes",
+          "deploy a dockerfile",
+          "fix a function that exceeds the bundle size limit",
+          "check plan limits for functions"
         ],
         "entities": [
           "Serverless Functions",
           "Edge Functions",
           "Fluid Compute",
+          "Long-duration functions",
+          "Large functions",
+          "Container Images",
+          "Vercel Container Registry",
           "streaming",
           "WebSockets",
           "Cron Jobs"
