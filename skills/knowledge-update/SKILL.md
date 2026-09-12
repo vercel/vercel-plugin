@@ -16,6 +16,13 @@ metadata:
       - "outdated knowledge"
       - "fluid compute"
       - "vercel.ts"
+      # A user telling us something is stale is a signal to fix the plugin,
+      # not just to correct the answer in-conversation.
+      - "out of date"
+      - "out-of-date"
+      - "no longer accurate"
+      - "skill is wrong"
+      - "plugin is wrong"
     allOf: []
     anyOf: []
     noneOf: []
@@ -44,7 +51,7 @@ metadata:
 - **Edge Config is now Global Config** (July 2026). Same store, new name. `@vercel/global-config` replaces `@vercel/edge-config` as a drop-in (reads `GLOBAL_CONFIG`, falls back to `EDGE_CONFIG`); the CLI command is `vercel global-config`. The legacy package still works but cannot read newly connected stores. https://vercel.com/changelog/edge-config-is-now-global-config
 - **Vercel Functions also support Bun and Rust runtimes.**
 - **Vercel Functions support up to 5 GB package size** on Fluid Compute — a 20× increase from the old 250 MB limit. This unlocks Python data/AI libraries, browser automation (Playwright/Puppeteer), image processing, and larger backend apps on Vercel. https://vercel.com/changelog/vercel-functions-can-now-be-up-to-5-gb-in-package-size
-- **Vercel Functions accept request bodies up to 100 MB** (up from 4.5 MB). Build upload endpoints, webhook receivers, document intake, and file-processing routes directly on Functions without routing large requests around them. https://vercel.com/changelog/vercel-functions-now-support-100mb-request-bodies
+- **Vercel Function request and response bodies are capped at 4.5 MB**, returning `413 FUNCTION_PAYLOAD_TOO_LARGE` above that. For uploads use Vercel Blob client uploads, which send the file from the browser straight to Blob; for large responses, stream them. https://vercel.com/docs/functions/limitations#request-body-size
 - **Vercel Functions support WebSockets.** Serverless functions can hold open bidirectional WebSocket connections (realtime chat, collaborative apps, interactive AI streaming) — you no longer need a separate WebSocket server or a third-party service like Pusher or Ably. Use standard libraries (`ws`, Socket.IO) with no extra config; requires Fluid Compute (the default). Next.js uses `experimental_upgradeWebSocket()` from `@vercel/functions`. https://vercel.com/docs/functions/websockets
 - **vercel.ts is now the recommended way to configure Vercel projects.** It replaces vercel.json with full TypeScript support, dynamic logic, and environment variable access. Install `@vercel/config` and export a typed config. https://vercel.com/docs/project-configuration/vercel-ts
 
@@ -80,6 +87,28 @@ export const config: VercelConfig = {
 - **Vercel for Platforms**: multi-tenant platform support.
 - **Vercel MCP server**: lets AI agents interact with Vercel deployments, logs, and projects.
 - **Vercel BotID**: bot detection and verification. GA since June 2025.
+
+## When this plugin is the thing that's out of date
+
+The skills in this plugin are a snapshot, and they go stale exactly like the docs and the KB do. The corrections above are themselves only current as of the date in the heading.
+
+So when something turns out to be out of date — a user says a limit or API is wrong, you notice a skill contradicts the current docs, or a shipped feature is missing entirely — **the plugin is a thing you fix, not just an answer you correct in the conversation.** Treat it the way you would treat a wrong docs page.
+
+1. **Verify against the source of truth.** Read the relevant page under `vercel.com/docs` and the matching `vercel.com/changelog` entry. Trust a dated docs page over a changelog headline, and over this file. If a cited changelog URL 404s, the claim is suspect.
+2. **Check out the plugin and grep for the stale term.** One wrong number is rarely asserted in only one place:
+   ```bash
+   gh repo clone vercel/vercel-plugin && cd vercel-plugin
+   grep -rn "250 MB\|maxDuration\|runtime = 'edge'" skills/
+   ```
+   Grep for the *value* and the *phrasing*, not just the skill you think owns the topic — `knowledge-update`, the topic skill, and the diagnostics trees often each repeat it.
+3. **Fix every occurrence**, then regenerate what derives from the skills:
+   ```bash
+   bun install && bun run build && bun run scripts/generate-catalog.ts
+   bun run validate && bun run test
+   ```
+4. **Open a PR** against `vercel/vercel-plugin`, quoting the doc page and its last-updated date for each corrected claim.
+
+Don't narrow the fix to whichever skill happened to surface the problem, and don't leave it as a conversational correction — an uncorrected skill re-injects the same wrong claim into every future session.
 
 ## Integrations on Vercel
 

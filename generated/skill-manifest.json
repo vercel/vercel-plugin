@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T07:34:01.295Z",
+  "generatedAt": "2026-09-12T23:01:27.635Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -2121,7 +2121,12 @@
           "knowledge update",
           "outdated knowledge",
           "fluid compute",
-          "vercel.ts"
+          "vercel.ts",
+          "out of date",
+          "out-of-date",
+          "no longer accurate",
+          "skill is wrong",
+          "plugin is wrong"
         ],
         "allOf": [],
         "anyOf": [],
