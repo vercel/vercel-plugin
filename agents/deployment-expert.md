@@ -83,7 +83,7 @@ Build failed?
 "FUNCTION_INVOCATION_FAILED"?
 ├─ Memory exceeded (OOM)?
 │  ├─ Pro/Enterprise → switch to Performance (4 GB / 2 vCPU) in Settings → Functions
-│  ├─ NOT settable in vercel.json — that produces a build warning and is ignored
+│  │   └─ With Fluid compute, set it there, not in vercel.json (which warns at build)
 │  └─ Hobby → fixed at 2 GB / 1 vCPU; reduce per-request memory or upgrade
 ├─ Crashed during init? → Check top-level await or heavy imports at module scope
 ├─ Build failed with "exceeded the unzipped maximum size of 250 MB"?
