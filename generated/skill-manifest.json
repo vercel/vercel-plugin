@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T07:34:01.295Z",
+  "generatedAt": "2026-09-13T03:55:21.532Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -4259,7 +4259,7 @@
     },
     "vercel-sandbox": {
       "priority": 4,
-      "summary": "",
+      "summary": "Run untrusted/AI-generated code in ephemeral Firecracker microVMs via @vercel/sandbox. Core loop: `const s = await Sandbox.create(); try { const r = await s.runCommand('python3', ['-c', code]); } finally { await s.stop(); }`. runCommand has no shell (wrap pipes/redirects in `bash -c`) and does not throw on non-zero exit (check r.exitCode). Default image is Ubuntu (`apt-get update` before install). Persistence is on by default (auto-snapshot on stop, resume by name; only the filesystem survives). For untrusted code use `networkPolicy: 'deny-all'`, a short `timeout`, and `persistent: false`. Credential brokering: a firewall `transform` injects a secret header on egress so the VM never holds it. AI agents reach models with no API key via the AI Gateway (`https://ai-gateway.vercel.sh`, `Authorization: Bearer $VERCEL_OIDC_TOKEN`) — the token is not auto-injected, so pass it via `env` or broker it. Full docs: https://vercel.com/docs/sandbox",
       "docs": [
         "https://vercel.com/docs/sandbox"
       ],
