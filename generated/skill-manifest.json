@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T20:42:15.935Z",
+  "generatedAt": "2026-09-13T21:01:30.628Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -729,7 +729,8 @@
       "summary": "",
       "docs": [
         "https://authjs.dev/getting-started",
-        "https://nextjs.org/docs/app/building-your-application/authentication"
+        "https://nextjs.org/docs/app/building-your-application/authentication",
+        "https://better-auth.com/llms.txt"
       ],
       "sitemap": "https://authjs.dev/sitemap.xml",
       "pathPatterns": [
@@ -746,7 +747,15 @@
         "src/app/(auth)/**",
         "auth.config.*",
         "auth.ts",
-        "auth.js"
+        "auth.js",
+        "lib/auth.ts",
+        "src/lib/auth.ts",
+        "lib/auth-client.ts",
+        "src/lib/auth-client.ts",
+        "app/api/auth/[...all]/**",
+        "src/app/api/auth/[...all]/**",
+        "proxy.ts",
+        "src/proxy.ts"
       ],
       "bashPatterns": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@clerk/nextjs\\b",
@@ -760,9 +769,16 @@
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b"
+        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\b(npx|bunx|pnpm\\s+dlx)\\s+(auth@latest|@better-auth/cli)\\b"
       ],
-      "importPatterns": [],
+      "importPatterns": [
+        "better-auth"
+      ],
       "bodyPath": "skills/auth/SKILL.md",
       "pathRegexSources": [
         "^middleware\\.ts$",
@@ -778,7 +794,15 @@
         "^src\\/app\\/\\(auth\\)\\/.*$",
         "^auth\\.config\\.[^/]*$",
         "^auth\\.ts$",
-        "^auth\\.js$"
+        "^auth\\.js$",
+        "^lib\\/auth\\.ts$",
+        "^src\\/lib\\/auth\\.ts$",
+        "^lib\\/auth-client\\.ts$",
+        "^src\\/lib\\/auth-client\\.ts$",
+        "^app\\/api\\/auth\\/\\[\\.\\.\\.all\\]\\/.*$",
+        "^src\\/app\\/api\\/auth\\/\\[\\.\\.\\.all\\]\\/.*$",
+        "^proxy\\.ts$",
+        "^src\\/proxy\\.ts$"
       ],
       "bashRegexSources": [
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@clerk/nextjs\\b",
@@ -792,15 +816,25 @@
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b"
+        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\byarn\\s+add\\s+[^\\n]*\\bbetter-auth\\b",
+        "\\b(npx|bunx|pnpm\\s+dlx)\\s+(auth@latest|@better-auth/cli)\\b"
       ],
-      "importRegexSources": [],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]better-auth(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
       "validate": [
         {
           "pattern": "VERCEL_CLIENT_(ID|SECRET)|vercel\\.com/oauth/(authorize|access_token|token)",
-          "message": "Hand-rolled Vercel OAuth detected. Use the Sign in with Vercel OIDC provider instead of manual token exchange.",
+          "message": "Hand-rolled Vercel OAuth detected. Use the Sign in with Vercel OIDC provider (or the built-in `vercel` social provider in Better Auth) instead of manual token exchange.",
           "severity": "recommended",
-          "skipIfFileContains": "signInWithVercel|@vercel/auth"
+          "skipIfFileContains": "signInWithVercel|@vercel/auth|better-auth|socialProviders"
         }
       ],
       "chainTo": [
@@ -812,7 +846,8 @@
         {
           "pattern": "from\\s+[''\\\"](jsonwebtoken)[''\"]|require\\s*\\(\\s*[''\\\"](jsonwebtoken)[''\"]|jwt\\.sign\\s*\\(",
           "targetSkill": "auth",
-          "message": "Manual JWT handling with jsonwebtoken detected — use Clerk or Auth.js for managed auth with built-in JWT session handling, CSRF protection, and token rotation."
+          "message": "Manual JWT handling with jsonwebtoken detected — use Clerk, Better Auth, or Auth.js for built-in session handling, CSRF protection, and token rotation.",
+          "skipIfFileContains": "better-auth|@clerk|next-auth"
         },
         {
           "pattern": "from\\s+[''\\\"](next-auth)[''\"]|NextAuthOptions|authOptions\\s*:",
@@ -828,8 +863,14 @@
         {
           "pattern": "bcrypt|argon2",
           "targetSkill": "auth",
-          "message": "Manual password hashing detected (bcrypt/argon2) — use Clerk or Auth0 for managed authentication with built-in password hashing, rate limiting, and breach detection.",
-          "skipIfFileContains": "@clerk|@auth0"
+          "message": "Manual password hashing detected (bcrypt/argon2) — use Clerk, Better Auth, or Auth0 for authentication with built-in password hashing and rate limiting.",
+          "skipIfFileContains": "@clerk|@auth0|better-auth"
+        },
+        {
+          "pattern": "from\\\\s+['\\\"]better-auth['\\\"]|betterAuth\\\\s*\\\\(",
+          "targetSkill": "auth",
+          "message": "Better Auth config detected — loading Auth guidance for the Next.js route handler, nextCookies plugin, cookie-only middleware checks, cookie cache, and Marketplace Postgres/Redis wiring.",
+          "skipIfFileContains": "nextCookies|toNextJsHandler"
         }
       ],
       "retrieval": {
@@ -849,6 +890,9 @@
         "entities": [
           "NextAuth",
           "Auth.js",
+          "Better Auth",
+          "betterAuth",
+          "authClient",
           "JWT",
           "OAuth",
           "session",
@@ -858,7 +902,9 @@
         "examples": [
           "add login to my app",
           "protect this route with auth",
-          "set up NextAuth"
+          "set up NextAuth",
+          "set up Better Auth",
+          "add better auth to my next app"
         ]
       }
     },

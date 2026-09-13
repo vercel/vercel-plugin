@@ -53,7 +53,7 @@ A text-form relational graph covering:
 | `access-protected-vercel-deployment` | Authenticated CLI and browser access to protected preview and production deployments using `vc curl`, OIDC, and Trusted Sources |
 | `ai-gateway`            | Unified model API, provider routing, failover, cost tracking, 100+ models                                                            |
 | `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                      |
-| `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                                  |
+| `auth`                  | Authentication integrations — Better Auth, Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                     |
 | `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands                                         |
 | `build-agents`          | Default eve-first agent builder — create AI agents, agent apps, tools, channels, schedules, and Slack agents                         |
 | `cdn-caching`           | Diagnose cache hit rate, stale content, revalidation behavior, per-request cache reasons, and ISR read/write cost across CDN/ISR/PPR |
