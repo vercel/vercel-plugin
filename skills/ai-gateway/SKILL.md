@@ -134,7 +134,7 @@ The live model endpoint and installed package take precedence over model names o
 
 ## Vercel CLI inventory
 
-The `vercel ai-gateway` command manages gateway resources for the current team. Agents often discover only `coding-agents setup`; the rest of the CLI covers the jobs that previously required dashboard work:
+The `vercel ai-gateway` command manages gateway resources for the current team. The `setup` subcommand connects local coding agents; the rest of the CLI covers the jobs that previously required dashboard work:
 
 | Command | What it does |
 | --- | --- |
@@ -143,7 +143,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | `budgets defaults set/list/remove` | Set per-scope default limits covering projects, keys, or members without a custom budget |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
 | `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `/v1/ai-gateway/rules` |
-| `coding-agents setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
+| `setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
 
 Use the CLI for credential and spend management when the user is working from a terminal or in CI. Check `vercel ai-gateway <command> --help` for current flags before scripting; do not copy a flag list from this skill into generated code.
@@ -152,10 +152,10 @@ Use the CLI for credential and spend management when the user is working from a 
 
 | User's job | Read |
 | --- | --- |
-| First request, credentials, compatible SDKs, or migration | [references/setup.md](references/setup.md) |
+| Ask a coding agent to make one Gateway request, or handle first-request credentials, compatible SDKs, or migration | [references/setup.md](references/setup.md) |
 | Provider selection, model fallbacks, caching, BYOK, or timeouts | [references/routing.md](references/routing.md) |
 | Credits, budgets, reporting, Logs, or request debugging | [references/spend-observability.md](references/spend-observability.md) |
-| Claude Code, Codex, OpenCode, Pi, or another coding agent | [references/coding-agents.md](references/coding-agents.md) |
+| Route Claude Code, Codex, OpenCode, Pi, or another coding agent's own model traffic through Gateway | [references/coding-agents.md](references/coding-agents.md) |
 
 Read each relevant reference before editing. A task can require more than one.
 
@@ -169,7 +169,7 @@ Read each relevant reference before editing. A task can require more than one.
 | Existing Anthropic SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh` |
 | Provider-neutral HTTP | Use an AI Gateway compatible endpoint, such as Chat Completions or OpenResponses |
 | Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
-| Coding agent | Use `vercel ai-gateway coding-agents setup`; inspect its help before claiming agent support |
+| Coding agent | Use `vercel ai-gateway setup`; inspect its help before claiming agent support |
 
 AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, and realtime sessions. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Read the relevant modality or API page instead of translating one request shape from memory.
 
@@ -180,15 +180,20 @@ The current AI SDK requires Node.js 22 or later. Confirm the installed package's
 ```ts
 import { generateText } from 'ai';
 
+const model = process.env.AI_GATEWAY_MODEL;
+if (!model) {
+  throw new Error('Set AI_GATEWAY_MODEL to an ID returned by /v1/models');
+}
+
 const { text } = await generateText({
-  model: 'openai/gpt-5.6-sol',
+  model,
   prompt: 'Explain the project in one paragraph.',
 });
 
 console.log(text);
 ```
 
-The model is a current example, not a permanent default. Fetch `/v1/models` and choose a model that fits the requested modality, capabilities, price, context window, data-retention policy, and team access.
+Honor an exact model the user or task specifies after confirming it exists. Otherwise fetch `/v1/models`, choose a model that fits the requested modality, capabilities, price, context window, data-retention policy, and team access, and set `AI_GATEWAY_MODEL` to that ID. Do not put a time-sensitive model recommendation in reusable examples.
 
 Plain model strings route through AI Gateway. Add `@ai-sdk/gateway` only when the task needs its exported provider, types, model discovery, generation lookup, or spend-report helpers.
 

@@ -2,22 +2,31 @@
 
 Use this reference when routing a coding agent's model traffic through AI Gateway.
 
+## Distinguish the two coding-agent workflows
+
+| Workflow | Meaning |
+| --- | --- |
+| Ask a coding agent to make a Gateway request | The agent writes and runs an application or HTTP request. The agent itself can use any model or provider; the request's `provider/model` is a separate target. Use the first-request guide routed from `SKILL.md`. |
+| Route a coding agent through Gateway | Configure the agent's own inference traffic, model picker, credentials, and spend tracking to use AI Gateway. Continue with this reference. |
+
+Do not describe the target model in a one-off Gateway request as "the coding agent." Name the controlling tool separately, such as Codex or Claude Code.
+
 ## Recommended setup
 
 One CLI command configures supported coding agents. It provisions or reuses an AI Gateway API key, detects installed agents, previews every planned config change, and asks for confirmation before writing:
 
 ```bash
-vercel ai-gateway coding-agents setup
+vercel ai-gateway setup
 ```
 
-The current CLI configures Claude Code, OpenAI Codex, OpenCode, and Pi. Check `vercel ai-gateway coding-agents setup --help` before documenting flags or agent support; the CLI is the source of truth for the current list.
+Check `vercel ai-gateway setup --help` before documenting flags or agent support; the CLI is the source of truth for the current command shape.
 
 Useful flags from the shipped help:
 
 - `--agent <NAME>`: configure one agent; repeatable for a subset.
 - `--all`: configure every supported agent.
 - `--dry-run`: print the planned diff without writing.
-- `--key <KEY>`: reuse an existing AI Gateway key instead of creating one.
+- `--key <KEY>`: reuse an existing AI Gateway key instead of creating one. Do not put a literal key in a saved command or agent transcript; prefer the CLI's interactive or OS credential-store path.
 - `--budget <AMOUNT>` and `--refresh-period <PERIOD>`: set a spend limit on a newly created key.
 - `--expiration <PERIOD>`: expire a newly created key after a fixed period.
 - `--apply prompt`: emit an agent prompt instead of writing files, for setups handled by another coding agent.
@@ -32,9 +41,9 @@ CLI docs: <https://vercel.com/docs/cli/ai-gateway#setup>. Coding-agents guide: <
 
 ## When the CLI does not cover an agent
 
-Some agents the CLI does not configure, such as Cline and omp, ship a first-party AI Gateway provider and only need the key. Everything else takes manual configuration. Do not promise CLI support for an agent not in the current `--help` output.
+Some agents may support AI Gateway without being configurable by the CLI. Do not infer CLI coverage from provider support or a remembered agent list.
 
-The docs keep a per-agent setup page for each supported agent under <https://vercel.com/docs/ai-gateway/coding-agents>, including agents the CLI does not configure. Prefer the current page over remembered config keys.
+The docs keep a per-agent setup page under <https://vercel.com/docs/ai-gateway/coding-agents>. Prefer the current page over remembered config keys, and use manual configuration when the current setup command does not cover an agent.
 
 ## Manual configuration
 
