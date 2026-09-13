@@ -348,7 +348,7 @@ Key behaviors:
 | Standard (default) | 2 GB / 1 vCPU | Predictable performance for production workloads |
 | Performance | 4 GB / 2 vCPU | Latency-sensitive applications and SSR workloads |
 
-- **You cannot set memory in `vercel.json`.** Trying to produces a build-time warning. Set it in the dashboard: Settings → Functions → Advanced Settings → **Function CPU**, then redeploy.
+- **With Fluid Compute enabled, memory cannot be set in `vercel.json`** — setting it there produces a build-time warning. Set it in the dashboard instead: Settings → Functions → Advanced Settings → **Function CPU**, then redeploy. (The `memory` key still exists for legacy non-Fluid deployments, which is why you will find older examples using it.)
 - **Pro/Enterprise only.** Hobby always runs Standard (2 GB / 1 vCPU) and cannot configure it. The Basic instance has been removed.
 - More memory also means more CPU, which can *reduce* Active CPU billing for CPU-bound work by finishing sooner — but it raises Provisioned Memory cost while requests are in flight.
 - Projects created before 2019-11-08 may still sit on legacy sizes (1024 MB / 0.6 vCPU on Hobby, 3008 MB / 1.67 vCPU on Pro) until you pick a size in the dashboard.
@@ -851,7 +851,7 @@ The `vercel.json` equivalent:
 ```
 
 What you **cannot** put here:
-- `memory` — dashboard only, Pro/Enterprise only (build-time warning if you try)
+- `memory` — with Fluid Compute (the default), set it in the dashboard; Pro/Enterprise only, and `vercel.json` warns at build time
 - `runtime: "edge"` — see [Rule #1](#rule-1-nodejs-never-edge)
 - A project-wide default above 800s — extended durations are per-function only
 
@@ -864,7 +864,7 @@ What you **cannot** put here:
 5. **Bundle size**: standard limit is 250 MB uncompressed (500 MB Python). 5 GB needs the large functions beta, which existing projects must opt into with `VERCEL_SUPPORT_LARGE_FUNCTIONS=1`
 6. **Payload size**: request and response bodies cap at **4.5 MB** (`413 FUNCTION_PAYLOAD_TOO_LARGE`) — use Blob client uploads or streaming, not a bigger function
 7. **In-memory state**: Fluid shares instances across invocations and scales to zero — never keep sessions, rooms, or caches in process memory
-8. **Setting `memory` in `vercel.json`**: silently ignored with a build warning; use the dashboard
+8. **Setting `memory` in `vercel.json`**: with Fluid Compute enabled this is not the place for it and the build warns — set it in the dashboard
 9. **Environment variables**: available in all functions automatically; use `vercel env pull` for local dev
 
 ## Function Runtime Diagnostics
@@ -904,7 +904,7 @@ What you **cannot** put here:
 "FUNCTION_INVOCATION_FAILED"?
 ├─ Memory exceeded (OOM)?
 │  ├─ Pro/Enterprise → switch to Performance (4 GB / 2 vCPU) in Settings → Functions
-│  ├─ NOT settable in vercel.json — that produces a build warning and is ignored
+│  │   └─ With Fluid compute, set it there, not in vercel.json (which warns at build)
 │  └─ Hobby → fixed at 2 GB / 1 vCPU; reduce per-request memory or upgrade
 ├─ Crashed during init? → Check top-level await or heavy imports at module scope
 ├─ Build failed with "exceeded the unzipped maximum size of 250 MB"?
