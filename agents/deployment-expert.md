@@ -98,7 +98,7 @@ Build failed?
 
 ```
 Cold start latency > 1s?
-├─ Do NOT "fix" this by moving to the Edge runtime — Vercel recommends migrating off it
+├─ Moving to the Edge runtime is not the fix — Vercel recommends migrating off it
 ├─ Fluid Compute enabled? → Reuses warm instances across concurrent invocations
 ├─ Measuring in preview? → Bytecode caching is production-only; re-measure in prod
 ├─ Large function bundle? → Audit imports, use dynamic imports, tree-shake
@@ -113,9 +113,9 @@ Cold start latency > 1s?
 "EDGE_FUNCTION_INVOCATION_TIMEOUT"?
 ├─ Edge must START the response within 25s (then may stream up to 300s)
 ├─ `maxDuration` does NOT apply to the Edge runtime — there is no way to raise this
-├─ Correct fix: delete `runtime = 'edge'` and run on Node.js
+├─ Recommended fix: drop `runtime = 'edge'` and run on Node.js
 │  └─ Node.js gives you 300s by default, 800s on Pro/Ent, 1800s in the beta
-└─ Next.js 16.3+ rejects `runtime = 'edge'` outright — migrate now
+└─ On Next.js 16.3+, `runtime = 'edge'` is unsupported — migration is required there
 ```
 
 ### 3. Environment Variable Issues
