@@ -49,13 +49,19 @@ Build failed?
 #### Timeout Errors
 
 ```
-504 Gateway Timeout?
+504 FUNCTION_INVOCATION_TIMEOUT?
 ├─ All plans default to 300s with Fluid Compute
-├─ Pro/Enterprise: configurable up to 800s
-├─ Long-running task?
-│  ├─ Under 5 min → Use Fluid Compute with streaming
-│  ├─ Up to 15 min → Use Vercel Functions with `maxDuration` in vercel.json
-│  └─ Hours/days → Use Workflow SDK (DurableAgent or workflow steps)
+├─ How long does the work actually need?
+│  ├─ ≤ 300s → Already allowed on every plan; the timeout is a bug, not a limit
+│  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
+│  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
+│  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
+│  │   ├─ Runtimes: nodejs20/22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   └─ Blocked if the project uses Secure Compute or Static IPs
+│  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
+├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
+├─ Client disconnected before the function finished?
+│  └─ HTTP/1.1 drops idle connections → stream heartbeat/progress data
 └─ DB query slow? → Add connection pooling, check cold start, use Global Config
 ```
 
@@ -75,9 +81,16 @@ Build failed?
 
 ```
 "FUNCTION_INVOCATION_FAILED"?
-├─ Memory exceeded? → Increase `memory` in vercel.json (up to 3008 MB on Pro)
+├─ Memory exceeded (OOM)?
+│  ├─ Pro/Enterprise → switch to Performance (4 GB / 2 vCPU) in Settings → Functions
+│  ├─ NOT settable in vercel.json — that produces a build warning and is ignored
+│  └─ Hobby → fixed at 2 GB / 1 vCPU; reduce per-request memory or upgrade
 ├─ Crashed during init? → Check top-level await or heavy imports at module scope
-└─ Edge Function crash? → Check for Node.js APIs not available in Edge runtime
+├─ Build failed with "exceeded the unzipped maximum size of 250 MB"?
+│  ├─ Trim with excludeFiles / outputFileTracingExcludes first
+│  └─ Then large functions beta: VERCEL_SUPPORT_LARGE_FUNCTIONS=1 (5 GB, Node/Bun/Python)
+├─ 413 FUNCTION_PAYLOAD_TOO_LARGE? → 4.5 MB body cap; use Blob client uploads or streaming
+└─ Container image? → Is it listening on port 80 (or $PORT)? Is it holding state between requests?
 ```
 
 <!-- Sourced from vercel-functions skill: Function Runtime Diagnostics > Cold Start Diagnostics -->
@@ -85,10 +98,12 @@ Build failed?
 
 ```
 Cold start latency > 1s?
-├─ Using Node.js runtime? → Consider Edge Functions for latency-sensitive routes
+├─ Do NOT "fix" this by moving to the Edge runtime — Vercel recommends migrating off it
+├─ Fluid Compute enabled? → Reuses warm instances across concurrent invocations
+├─ Measuring in preview? → Bytecode caching is production-only; re-measure in prod
 ├─ Large function bundle? → Audit imports, use dynamic imports, tree-shake
 ├─ DB connection in cold start? → Use connection pooling (Neon serverless driver)
-└─ Enable Fluid Compute to reuse warm instances across requests
+└─ Container image? → Scales to zero after 5 min idle (30 s in preview); expect cold starts
 ```
 
 <!-- Sourced from vercel-functions skill: Function Runtime Diagnostics > Edge Function Timeout Diagnostics -->
@@ -96,9 +111,11 @@ Cold start latency > 1s?
 
 ```
 "EDGE_FUNCTION_INVOCATION_TIMEOUT"?
-├─ Edge Functions have 25s hard limit (not configurable)
-├─ Move heavy computation to Node.js Serverless Functions
-└─ Use streaming to start response early, process in background with `waitUntil`
+├─ Edge must START the response within 25s (then may stream up to 300s)
+├─ `maxDuration` does NOT apply to the Edge runtime — there is no way to raise this
+├─ Correct fix: delete `runtime = 'edge'` and run on Node.js
+│  └─ Node.js gives you 300s by default, 800s on Pro/Ent, 1800s in the beta
+└─ Next.js 16.3+ rejects `runtime = 'edge'` outright — migrate now
 ```
 
 ### 3. Environment Variable Issues
