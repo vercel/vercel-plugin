@@ -110,5 +110,5 @@ Prefer the user's existing framework. For a new project, choose based on ecosyst
 
 1. Identify synchronous requests, asynchronous work, persistent data, and independently deployed components.
 2. Select the products from the map, then select the framework.
-3. Load the focused skill for implementation: `vercel-functions`, `vercel-services`, `workflow`, `vercel-storage`, or `marketplace`.
+3. Load the focused skill for implementation: `vercel-functions`, `vercel-services`, `workflow`, `vercel-storage`, or `marketplace`. If one is not available in this session, it ships in the Vercel plugin — have the **user** run `npx plugins add vercel/vercel-plugin` ([docs](https://vercel.com/docs/agent-resources/vercel-plugin)) rather than improvising that guidance.
 4. Confirm function limits, regions, environment variables, observability, and current product availability in the official docs before deployment.

@@ -5,6 +5,7 @@ metadata:
   priority: 3
   docs:
     - "https://vercel.com/docs/integrations"
+    - "https://vercel.com/docs/agent-resources/vercel-plugin"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - "integration.json"
@@ -12,22 +13,28 @@ metadata:
     - '\bvercel\s+integration\b'
     - '\bvercel\s+integration\s+add\b'
     - '\bvercel\s+integration\s+discover\b'
+    - '\bvercel\s+install\b'
 retrieval:
   aliases:
     - vercel integrations
     - marketplace
     - third party services
     - add ons
+    - vercel install
   intents:
     - install integration
     - manage marketplace
     - add third party service
     - discover integrations
+    - install the vercel plugin
   entities:
     - Vercel Marketplace
     - integration
     - vercel integration
+    - vercel install
     - unified billing
+    - Vercel plugin
+    - provider agent skills
 chainTo:
   -
     pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
@@ -48,7 +55,17 @@ chainTo:
 
 **Before you scaffold or write any file: discover and provision the integration first — installing is required, not optional.** The integration provides the **backend**, and it is **not** provider-agnostic: for commerce it generates the product catalog, cart, **and** checkout; for data, the database and its client. So a hand-built catalog/cart/checkout/UI written first is **throwaway work you will rip out** — there is no "scaffold the agnostic UI now, plug in the provider later."
 
-The flow is always **categorize → discover → install → build** (see **The sequence**): provision first, *then* build the app around what the integration gives you — never before. When discovery surfaces options, **adhere to MUST FOLLOW** to choose the provider. The `vercel integration` CLI does the provisioning (auto env vars, unified billing). Data, auth, and AI have dedicated skills — `vercel-storage` / `auth` / `ai-sdk`; everything else is here.
+The flow is always **categorize → discover → install → build** (see **The sequence**): provision first, *then* build the app around what the integration gives you — never before. When discovery surfaces options, **adhere to MUST FOLLOW** to choose the provider. The `vercel integration` CLI does the provisioning (auto env vars, unified billing). Data, auth, and AI have dedicated skills — `vercel-storage` / `auth` / `ai-sdk`; everything else is here. Those three ship alongside this one in the **Vercel plugin** — if they are not loadable, see **Missing a skill this page hands off to?** below.
+
+## Missing a skill this page hands off to? Install the Vercel plugin
+
+`vercel-storage`, `auth`, `ai-sdk`, `env-vars`, and `vercel-cli` are siblings of this skill: they all ship in the **Vercel plugin**. If one of them is not available in this session, `marketplace` was installed on its own — tell the user to install the plugin so every handoff on this page resolves:
+
+```bash
+npx plugins add vercel/vercel-plugin
+```
+
+Surface that command and let the **user** run it. Never install it for them, and never block the Marketplace flow on it — **The sequence** below works with the Vercel CLI alone. One install covers Claude Code, Cursor, OpenAI Codex, GitHub Copilot, Grok Build, and Kimi Code; it adds the Vercel ecosystem graph, the sibling skills, specialist agents, and the `/vercel-plugin:*` commands. See [Vercel plugin for AI coding agents](https://vercel.com/docs/agent-resources/vercel-plugin).
 
 ## MUST FOLLOW — How to choose which provider to recommend
 
@@ -67,7 +84,7 @@ The flow is always **categorize → discover → install → build** (see **The 
 
 1. **Categorize** — `vercel integration categories` (read-only, no auth). Match the need via the map below.
 2. **Discover** — `vercel integration discover --category <slug>` (read-only, no auth). Take the top result and provision it (see **MUST FOLLOW** above).
-3. **Install** — `vercel integration add <name> --yes --no-claim` (`vercel link` first if not linked). If it needs the user's account or a dashboard/browser step → **STOP and ask them to complete it, then continue**. Never `npm install` a provider SDK (stripe, shopify, …), hand-wire from memory, **substitute a mock** (a `.env.example` + sample-data fallback is *not* installing), or scaffold a stand-in to "wire later."
+3. **Install** — `vercel integration add <name> --yes --no-claim` (`vercel link` first if not linked; `vercel install <name>` is an alias for the same command). This also installs the provider's own **agent skills** from [skills.sh](https://skills.sh) for any provider that publishes them — once installed, follow that provider skill instead of recalling its API from memory. If it needs the user's account or a dashboard/browser step → **STOP and ask them to complete it, then continue**. Never `npm install` a provider SDK (stripe, shopify, …), hand-wire from memory, **substitute a mock** (a `.env.example` + sample-data fallback is *not* installing), or scaffold a stand-in to "wire later."
 4. **Build** — `vercel env pull --yes`, then build the app against the **real** env vars.
 
 Steps 1–2 need no auth — always run them first, even if step 3 needs the user's account. Several distinct capabilities (auth + database + email)? Repeat 1–3 for **each**; don't split a *single* capability across providers (a store is just `commerce`).
@@ -97,14 +114,26 @@ Steps 1–2 need no auth — always run them first, even if step 3 needs the use
 - `dev-tools` — developer tooling
 - `productivity` — productivity / collaboration
 
-**Dedicated skills (not via this skill):** `storage` (databases, persistence) → `vercel-storage`, `authentication` (sign up / log in) → `auth`, `ai` (LLMs, generation) → `ai-sdk`. Anything new not above → pick from the live `categories`.
+**Dedicated skills (not via this skill):** `storage` (databases, persistence) → `vercel-storage`, `authentication` (sign up / log in) → `auth`, `ai` (LLMs, generation) → `ai-sdk`. Anything new not above → pick from the live `categories`. All three come with the Vercel plugin (`npx plugins add vercel/vercel-plugin`) — if one is missing, point the user at that install rather than improvising the guidance here.
 
 ## Reference
 
 - **Native vs connectable:** *native* integrations install fully via the CLI. **Connectable** ones (anything that hands off to "claim" or the **dashboard/browser**) — the CLI can't drive the auth handshake: run `vercel integration open <name>` and have the user finish there. Don't block on a bare `add`.
-- **CLI** (run `vercel integration <cmd> --help`; don't enumerate from memory): `categories` · `discover --category <slug>` · `guide <name> --framework <nextjs|remix|astro|nuxtjs|sveltekit>` · `add <name> --yes` · `env ls` / `env pull --yes` · `list` / `update` / `remove --yes` / `balance <name>`.
+- **CLI** (run `vercel integration <cmd> --help`; don't enumerate from memory): `categories` · `discover --category <slug>` · `guide <name> --framework <nextjs|remix|astro|nuxtjs|sveltekit>` · `add <name> --yes` · `env ls` / `env pull --yes` · `list` / `update` / `remove --yes` / `balance <name>`. `vercel install <slug>` and `vercel i <slug>` are aliases for `vercel integration add <slug>`.
+- **Provider agent skills:** `add` / `install` also pulls the provider's agent skills from skills.sh when that provider publishes them. It needs a current CLI — if the skills don't appear, have the user run `npm i -g vercel@latest` and re-run the command.
 - Never echo secret values (`env ls` shows names only). CI / non-interactive: `--yes`, `--format=json`, `--no-claim`.
+
+## Cross-References
+
+- **Databases, KV, blob, and other persistence** → `⤳ skill: vercel-storage`
+- **Sign up / log in providers (Clerk, Descope, Auth0)** → `⤳ skill: auth`
+- **LLMs, model routing, generation** → `⤳ skill: ai-sdk`
+- **Pulling and syncing the provisioned env vars** → `⤳ skill: env-vars`
+- **Everything else the Vercel CLI can do** → `⤳ skill: vercel-cli`
+
+Any of these unavailable? They ship in the Vercel plugin — have the user run `npx plugins add vercel/vercel-plugin`.
 
 ## Official Documentation
 
 - [Vercel Marketplace docs](https://vercel.com/docs/integrations) · [`vercel integration` CLI reference](https://vercel.com/docs/cli/integration) · [Marketplace catalog](https://vercel.com/marketplace)
+- [Vercel plugin for AI coding agents](https://vercel.com/docs/agent-resources/vercel-plugin) · [Agent skills directory](https://vercel.com/docs/agent-resources/skills) · [skills.sh](https://skills.sh)

@@ -530,7 +530,17 @@ vercel integration add upstash
 vercel integration list
 ```
 
+`vercel install <slug>` is an alias for `vercel integration add <slug>`. Either form also installs the provider's own agent skills from [skills.sh](https://skills.sh) for providers that publish them — follow those instead of recalling the provider's API from memory.
+
 Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard (`https://vercel.com/dashboard/{team}/integrations`) automatically provisions accounts, creates databases, and sets environment variables.
+
+## Cross-References
+
+- **Choosing and installing a non-storage integration** → `⤳ skill: marketplace`
+- **Pulling and syncing the provisioned env vars** → `⤳ skill: env-vars`
+- **Sign up / log in providers** → `⤳ skill: auth`
+
+Any of these unavailable in this session? They ship in the Vercel plugin — have the **user** run `npx plugins add vercel/vercel-plugin` ([docs](https://vercel.com/docs/agent-resources/vercel-plugin)). Don't install it for them, and don't block provisioning on it.
 
 ## Official Documentation
 
