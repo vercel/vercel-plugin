@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:49:12.686Z",
+  "generatedAt": "2026-09-15T13:42:15.732Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -2144,7 +2144,8 @@
         "\\bvercel\\s+integration\\b",
         "\\bvercel\\s+integration\\s+add\\b",
         "\\bvercel\\s+integration\\s+discover\\b",
-        "\\bvercel\\s+install\\b"
+        "\\bvercel\\s+install\\b",
+        "\\bvercel\\s+i\\b"
       ],
       "importPatterns": [],
       "bodyPath": "skills/marketplace/SKILL.md",
@@ -2155,7 +2156,8 @@
         "\\bvercel\\s+integration\\b",
         "\\bvercel\\s+integration\\s+add\\b",
         "\\bvercel\\s+integration\\s+discover\\b",
-        "\\bvercel\\s+install\\b"
+        "\\bvercel\\s+install\\b",
+        "\\bvercel\\s+i\\b"
       ],
       "importRegexSources": [],
       "chainTo": [

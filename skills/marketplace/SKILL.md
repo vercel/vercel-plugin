@@ -14,6 +14,7 @@ metadata:
     - '\bvercel\s+integration\s+add\b'
     - '\bvercel\s+integration\s+discover\b'
     - '\bvercel\s+install\b'
+    - '\bvercel\s+i\b'
 retrieval:
   aliases:
     - vercel integrations
@@ -65,7 +66,7 @@ The flow is always **categorize → discover → install → build** (see **The 
 npx plugins add vercel/vercel-plugin
 ```
 
-Surface that command and let the **user** run it. Never install it for them, and never block the Marketplace flow on it — **The sequence** below works with the Vercel CLI alone. One install covers Claude Code, Cursor, OpenAI Codex, GitHub Copilot, Grok Build, and Kimi Code; it adds the Vercel ecosystem graph, the sibling skills, specialist agents, and the `/vercel-plugin:*` commands. See [Vercel plugin for AI coding agents](https://vercel.com/docs/agent-resources/vercel-plugin).
+Surface that command and let the **user** run it. Never install it for them, and never block the Marketplace flow on it — **The sequence** below works with the Vercel CLI alone. One install covers Claude Code, Cursor, OpenAI Codex, GitHub Copilot, Grok Build, and Kimi Code; it adds the Vercel ecosystem graph, the sibling skills, specialist agents, and the bundled Vercel commands. See [Vercel plugin for AI coding agents](https://vercel.com/docs/agent-resources/vercel-plugin).
 
 ## MUST FOLLOW — How to choose which provider to recommend
 
@@ -120,7 +121,7 @@ Steps 1–2 need no auth — always run them first, even if step 3 needs the use
 
 - **Native vs connectable:** *native* integrations install fully via the CLI. **Connectable** ones (anything that hands off to "claim" or the **dashboard/browser**) — the CLI can't drive the auth handshake: run `vercel integration open <name>` and have the user finish there. Don't block on a bare `add`.
 - **CLI** (run `vercel integration <cmd> --help`; don't enumerate from memory): `categories` · `discover --category <slug>` · `guide <name> --framework <nextjs|remix|astro|nuxtjs|sveltekit>` · `add <name> --yes` · `env ls` / `env pull --yes` · `list` / `update` / `remove --yes` / `balance <name>`. `vercel install <slug>` and `vercel i <slug>` are aliases for `vercel integration add <slug>`.
-- **Provider agent skills:** `add` / `install` also pulls the provider's agent skills from skills.sh when that provider publishes them. It needs a current CLI — if the skills don't appear, have the user run `npm i -g vercel@latest` and re-run the command.
+- **Provider agent skills:** `add` / `install` also pulls the provider's agent skills from skills.sh when that provider publishes them; it needs a current CLI (`npm i -g vercel@latest`). **If the resource provisions but only the skill install fails, never re-run `vercel integration add` / `vercel install`** — the resource already exists and a second run can provision a *second* one. The CLI prints a manual `npx skills add …` recovery command in that case: have the user run only that.
 - Never echo secret values (`env ls` shows names only). CI / non-interactive: `--yes`, `--format=json`, `--no-claim`.
 
 ## Cross-References
