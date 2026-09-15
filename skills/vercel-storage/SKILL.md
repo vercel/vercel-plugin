@@ -530,7 +530,15 @@ vercel integration add upstash
 vercel integration list
 ```
 
+`vercel install <slug>` (or `vercel i <slug>`) is an alias for `vercel integration add <slug>`. Either form also installs the provider's own agent skills from [skills.sh](https://skills.sh) for providers that publish them — follow those instead of recalling the provider's API from memory. If the database provisions but only the skill install fails, don't re-run the command — that can create a *second* database. Have the user run the `npx skills add …` recovery command the CLI prints instead.
+
 Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard (`https://vercel.com/dashboard/{team}/integrations`) automatically provisions accounts, creates databases, and sets environment variables.
+
+## Cross-References
+
+- **Choosing and installing a non-storage integration** → `⤳ skill: marketplace`
+- **Pulling and syncing the provisioned env vars** → `⤳ skill: env-vars`
+- **Sign up / log in providers** → `⤳ skill: auth`
 
 ## Official Documentation
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T14:59:40.496Z",
+  "generatedAt": "2026-09-15T19:12:21.043Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -2133,7 +2133,8 @@
       "priority": 3,
       "summary": "",
       "docs": [
-        "https://vercel.com/docs/integrations"
+        "https://vercel.com/docs/integrations",
+        "https://vercel.com/docs/agent-resources/vercel-plugin"
       ],
       "sitemap": "https://vercel.com/sitemap.xml",
       "pathPatterns": [
@@ -2142,7 +2143,9 @@
       "bashPatterns": [
         "\\bvercel\\s+integration\\b",
         "\\bvercel\\s+integration\\s+add\\b",
-        "\\bvercel\\s+integration\\s+discover\\b"
+        "\\bvercel\\s+integration\\s+discover\\b",
+        "\\bvercel\\s+install\\b",
+        "\\bvercel\\s+i\\b"
       ],
       "importPatterns": [],
       "bodyPath": "skills/marketplace/SKILL.md",
@@ -2152,7 +2155,9 @@
       "bashRegexSources": [
         "\\bvercel\\s+integration\\b",
         "\\bvercel\\s+integration\\s+add\\b",
-        "\\bvercel\\s+integration\\s+discover\\b"
+        "\\bvercel\\s+integration\\s+discover\\b",
+        "\\bvercel\\s+install\\b",
+        "\\bvercel\\s+i\\b"
       ],
       "importRegexSources": [],
       "chainTo": [
@@ -2177,7 +2182,8 @@
           "vercel integrations",
           "marketplace",
           "third party services",
-          "add ons"
+          "add ons",
+          "vercel install"
         ],
         "intents": [
           "install integration",
@@ -2189,7 +2195,9 @@
           "Vercel Marketplace",
           "integration",
           "vercel integration",
-          "unified billing"
+          "vercel install",
+          "unified billing",
+          "provider agent skills"
         ],
         "examples": []
       }
