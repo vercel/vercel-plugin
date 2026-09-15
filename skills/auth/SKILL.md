@@ -399,8 +399,6 @@ Clerk provides an upgrade CLI that scans your codebase and applies codemods: `np
 - **Middleware routing patterns** → `⤳ skill: routing-middleware`
 - **Environment variable management** → `⤳ skill: env-vars`
 
-Any of these unavailable in this session? They ship in the Vercel plugin — have the **user** run `npx plugins add vercel/vercel-plugin` ([docs](https://vercel.com/docs/agent-resources/vercel-plugin)). Don't install it for them, and don't block the auth setup on it.
-
 ## Official Documentation
 
 - [Clerk + Vercel Marketplace](https://clerk.com/docs/deployments/vercel)
