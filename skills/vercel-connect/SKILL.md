@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake) on behalf of apps or users via Vercel OIDC. Use when wiring up third-party API access, connecting to MCP servers, sending Slack messages, accessing GitHub APIs, receiving webhook events from Slack/Linear/GitHub and forwarding them to your agents and apps, or building eve agent connections.
+description: Vercel Connect expert guidance for securely obtaining scoped credentials for third-party services on behalf of apps or users. Use when wiring up provider API access, OAuth, API-key services, MCP servers, triggers, framework adapters, or eve agent connections.
 metadata:
   priority: 5
   docs:
@@ -12,6 +12,10 @@ metadata:
   importPatterns:
     - '@vercel/connect'
     - '@vercel/connect/eve'
+    - '@vercel/connect/ai-sdk'
+    - '@vercel/connect/mcp'
+    - '@vercel/connect/tanstack-ai'
+    - '@vercel/connect/chat'
     - '@vercel/connect/authjs'
     - '@vercel/connect/betterauth'
   bashPatterns:
@@ -38,6 +42,12 @@ metadata:
       - "mcp connection"
       - "mcp server"
       - "snowflake connection"
+      - "microsoft graph token"
+      - "teams bot token"
+      - "discord bot token"
+      - "notion token"
+      - "salesforce connection"
+      - "api key connector"
     allOf:
       - [slack, token]
       - [github, token]
@@ -49,6 +59,9 @@ metadata:
       - "@vercel/connect"
       - "oauth"
       - "mcp"
+      - "discord"
+      - "notion"
+      - "salesforce"
     noneOf:
       - "supabase auth"
       - "clerk"
@@ -71,6 +84,8 @@ retrieval:
     - connect to mcp server
     - set up mcp connection
     - add snowflake connection
+    - connect an AI SDK app to an authenticated MCP server
+    - configure Connect triggers
   entities:
     - Vercel Connect
     - getToken
@@ -82,6 +97,8 @@ retrieval:
     - Snowflake
     - eve
     - connector
+    - project link
+    - installation
   examples:
     - send a slack message from my app
     - get a github oauth token
@@ -92,11 +109,11 @@ chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/eve['\"]"
     targetSkill: eve
-    message: 'eve + Vercel Connect import detected — loading eve framework guidance alongside the connect() helper and channel credential patterns.'
+    message: 'eve + Vercel Connect import detected: loading eve framework guidance alongside the connect() helper and channel credential patterns.'
   -
-    pattern: 'SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(API_KEY|WEBHOOK_SECRET)'
+    pattern: 'SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(ACCESS_TOKEN|WEBHOOK_SECRET)'
     targetSkill: vercel-connect
-    message: 'Hand-managed Slack/GitHub/Linear secrets detected — use Vercel Connect + connectSlackCredentials() / connectGitHubCredentials() / connectLinearCredentials() to remove the need for these env vars.'
+    message: 'Hand-managed Slack/GitHub/Linear secrets detected. For eve projects, use Vercel Connect channel credential helpers to remove these provider secrets from project environment variables.'
     skipIfFileContains: 'connectSlackCredentials|connectGitHubCredentials|connectLinearCredentials|@vercel/connect'
 ---
 
@@ -104,7 +121,9 @@ chainTo:
 
 ## Overview
 
-Vercel Connect enables to securely obtain scoped tokens for accessing third-party services on behalf of apps or users. It uses Vercel OIDC tokens to authenticate and exchange for Vercel Connect tokens via the Vercel API.
+Vercel Connect gives applications short-lived provider credentials without storing provider API keys or refresh tokens in project environment variables. A Vercel deployment authenticates with its project OIDC token. External CI or non-Vercel runtimes can pass a scoped Vercel access token through `options.vercelToken`.
+
+Connectors are owned by a Vercel team. A consuming project and environment must be linked to the connector before it can request credentials. The connector UID, such as `slack/acme-slack`, is the stable identifier used by the SDK and CLI. Always use the UID or `scl_...` ID returned by `create` or `list`.
 
 ## When to Use Vercel Connect
 
@@ -113,64 +132,48 @@ Use Vercel Connect when you need to:
 - Send messages via Slack (as a bot or on behalf of a user)
 - Access GitHub repositories or APIs
 - Connect to any third-party system that requires OAuth tokens or API credentials
-- Obtain tokens for authenticated API calls
+- Obtain scoped, short-lived provider credentials for authenticated API calls
+- Forward provider events to applications through Vercel Connect triggers
 
 ## Modes of tokens
 
-The SDK supports three subject types — pick based on what's acting:
+The SDK supports three subject types. Pick based on what's acting:
 
-- **`user`** — actions performed on behalf of a specific end user (e.g., post a Slack message as the user). Requires a user `id` and optional `issuer`.
-- **`app`** — actions performed as the app itself (e.g., post as a Slack bot, app-level GitHub access). No consent flow — fails terminally if the connector is not installed.
-- **`jwt-bearer`** — RFC 7523 JWT-bearer exchange for connectors that accept a caller-minted assertion. Pass `sub` (required), plus optional `iss`, `aud`, and `additionalClaims`. Use when the third-party expects you to vouch for the subject via a signed JWT rather than an interactive OAuth grant.
+- **`user`**: actions performed on behalf of a specific end user (e.g., post a Slack message as the user). Requires a user `id` and optional `issuer`.
+- **`app`**: actions performed as the app itself (e.g., post as a Slack bot or use a GitHub installation). It skips per-user consent but may still require a provider installation or supported app grant.
+- **`jwt-bearer`**: federated identity through the OAuth JWT-bearer grant. Pass `sub` (required), plus optional `iss`, `aud`, and `additionalClaims`.
 
-## Available Tools
+For user subjects, derive `subject.id` from a stable identity in the authenticated server-side session. Never accept it from a request body or other client input. Keep `getToken()`, Connect auth providers, and MCP clients on the server.
 
-All tools have `--format=json` option for machine-readable output.
+## CLI
 
-### 1. Vercel Connect CLI (for Bash/Shell)
+The `vercel connect` CLI is currently beta. It operates in the selected Vercel team and supports machine-readable output with `--format=json` or `-F json`.
 
-Use the `vercel connect` CLI for command-line operations. Use `vercel connect --help` to get available commands. The user needs to be authenticated to the Vercel CLI and the commands work within the scope of the user's currently selected Vercel team. For eg it will create & list Connect connectors created within the currently selected Vercel team.
-
-Important! Always run `vercel connect` commands from the **project or agent folder** that will consume the connection (the directory containing `package.json` / `vercel.json`). Vercel Connect reads the local project context to auto-configure the connection — for example, picking a sensible connector name and `uid`, setting up project access to the connection, configuring webhooks and triggers. Running from the repo root or an unrelated directory skips this auto-configuration and you'll have to wire things up by hand. If the user invokes a `vc connect` command from elsewhere, `cd` into the closest matching project/agent folder first (or pass `--cwd <DIR>`).
-
-Example commands:
+Use the full lifecycle instead of assuming connector creation also authorizes a project:
 
 ```bash
-# Create new Connect connector
+# Inspect connectors linked to the current project, or all team connectors
+vercel connect list
+vercel connect list --all-projects
+
+# Inspect supported setup options, then create a connector
+vercel connect create <service> --help
 vercel connect create <service>
 
-# List existing Connect connectors
-vercel connect list
+# Link the connector to the current project and selected environments
+vercel connect attach <connector>
 
-# Get token
-vercel connect token <connector> --subject user|app
+# Request a scoped provider token
+vercel connect token <connector> --subject app
 ```
 
-Important! The `vercel connect create` and `vercel connect token` commands may open the browser for the user if there's a manual registration required (for eg completing the OAuth consent or installing a slack app to a workspace). The user must visit the browser to complete the process while you wait for the process to complete.
+The CLI also supports `detach`, `update`, `remove`, and `open`. Run `vercel connect <command> --help` before using optional installation, scope, trigger, branch, or custom-environment flags.
 
-#### Available Services
+Use current-project behavior from a Vercel-linked project directory. Creating a connector and attaching it are distinct operations. Connector creation or token authorization may open a browser. Show the returned URL and wait for the person to finish the provider flow. `--yes` permits automatic browser opening; it does not force reauthorization.
 
-| Service                | Modes      | Description                                |
-| ---------------------- | ---------- | ------------------------------------------ |
-| `slack`                | user, bot  | Slack API access                           |
-| `github`               | user, app  | GitHub API access                          |
-| MCP servers            | user, app  | Any MCP server (`mcp.<host>/<path>`)       |
-| `snowflake`            | user       | Snowflake data access                      |
-| Generic OAuth provider | user, app  | Any OAuth 2.0 server registered via `vercel connect create` |
+Supported connectors include managed Slack, GitHub, Linear, Microsoft, Microsoft Teams, Snowflake, and Salesforce connectors, plus Custom OAuth/OIDC, API-key services, and MCP servers. This list can grow. Use `vercel connect create <service> --help` and the live connector catalog instead of treating a fixed list as exhaustive.
 
-For MCP servers, pass the full endpoint URL when registering (e.g. `vercel connect create https://mcp.linear.app/mcp`). The connector ID then takes the form `mcp.<host>/<name>` (for example `mcp.linear.app/myagent`).
-
-#### Example: Send a Slack message using curl
-
-```bash
-TOKEN=$(vercel connect token <connector>)
-curl -X POST https://slack.com/api/chat.postMessage \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "C1234567890", "text": "Hello from Vercel Connect!"}'
-```
-
-### 2. JavaScript/TypeScript SDK (`@vercel/connect`)
+## JavaScript/TypeScript SDK (`@vercel/connect`)
 
 For JavaScript/TypeScript code, use the `@vercel/connect` package directly:
 
@@ -178,7 +181,7 @@ For JavaScript/TypeScript code, use the `@vercel/connect` package directly:
 import { getToken } from "@vercel/connect";
 
 // Get a token for Slack bot
-const token = await getToken("scl_abc123", {
+const token = await getToken("slack/acme-slack", {
   subject: { type: "app" }, // If sending as a bot, or else use "user"
 });
 
@@ -196,11 +199,21 @@ const response = await fetch("https://slack.com/api/chat.postMessage", {
 });
 ```
 
-The SDK uses the user's Vercel OIDC token to authenticate. The user should have run `vc env pull` to pull the OIDC token env variables locally (or `vc link` pulls it automatically)
+On Vercel, the SDK reads `VERCEL_OIDC_TOKEN` automatically. For local development, run `vercel link` followed by `vercel env pull`. Development OIDC tokens expire, so pull again when authentication fails. For external CI or non-Vercel hosting, pass a scoped Vercel access token through the third `options` argument.
 
-#### eve agents — `@vercel/connect/eve`
+Use `getToken()` immediately before calling the provider and let the SDK cache identical requests. Scope each SDK request to what it needs with `installationId`, `scopes`, `audience`, `resources`, or `authorizationDetails`. The CLI supports subject, installation, and scopes, but not every SDK field. Do not invent CLI flags for SDK-only parameters.
 
-When the project is built on [eve](https://eve.dev), prefer the `connect` helper over calling `getToken` directly inside connection definitions. The helper wires the full token / start-authorization / complete-authorization lifecycle into eve's connection runtime, so a Vercel Connect-backed connection becomes a single declaration:
+Use these root APIs when needed:
+
+- `getTokenResponse()` for token metadata such as expiry and connector details.
+- `getConnectorMetadata()` to inspect connector metadata and provider-specific public configuration.
+- `startAuthorization()` after `UserAuthorizationRequiredError` to begin user consent.
+- `revokeToken()` and `deleteTokenCacheEntry()` for revocation and cache eviction.
+- `forceRefresh` and `validityBufferMs` only when the default cache behavior does not fit the call.
+
+#### eve agents: `@vercel/connect/eve`
+
+When the project is built on [eve](https://eve.dev), prefer the `connect` helper over calling `getToken` directly inside connection definitions. It wires token requests and interactive authorization into eve's connection runtime:
 
 ```typescript
 // agent/connections/linear.ts
@@ -209,85 +222,94 @@ import { connect } from "@vercel/connect/eve";
 
 export default defineMcpClientConnection({
   url: "https://mcp.linear.app/mcp",
-  description: "Linear workspace — issues, projects, cycles, and comments.",
-  auth: connect("mcp.linear.app/myagent"),
+  description: "Linear workspace: issues, projects, cycles, and comments.",
+  auth: connect("linear/my-agent"),
 });
 ```
 
 Key points for the agent:
 
-- Omit `principalType` for the default per-user OAuth flow, or set `"app"` for app-scoped tokens (no consent flow — fail terminally if not installed).
-- Pass the connector id directly with `connect("mcp.linear.app/myagent")`, or use `connect({ connector: "mcp.linear.app/myagent" })` when you need options.
+- Omit `principalType` for the default per-user OAuth flow, or set `principalType: "app"` for app-scoped tokens.
+- Pass the connector UID directly with `connect("linear/my-agent")`, or use `connect({ connector: "linear/my-agent" })` when you need options.
 - For scopes, audiences, or `authorizationDetails`, pass them through `tokenParams`. For a custom challenge prompt, pass `instructions`. Both are optional.
 - `eve` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-eve consumers.
 
-##### Slack channel — `connectSlackCredentials`
+##### Slack channel: `connectSlackCredentials`
 
-For eve Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `SlackChannelCredentials` object — both the bot token and inbound webhook verification are handled by Vercel Connect, so you do **not** need `SLACK_BOT_TOKEN` or `SLACK_SIGNING_SECRET` env vars:
+For eve Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `SlackChannelCredentials` object. Both the bot token and inbound webhook verification are handled by Vercel Connect, so you do **not** need `SLACK_BOT_TOKEN` or `SLACK_SIGNING_SECRET` env vars:
 
 ```typescript
 // agent/channels/slack.ts
-import { slackRoute } from "eve/channels/slack";
+import { slackChannel } from "eve/channels/slack";
 import { connectSlackCredentials } from "@vercel/connect/eve";
 
-export default slackRoute({
-  credentials: connectSlackCredentials("slack/myagent"),
+export default slackChannel({
+  credentials: connectSlackCredentials("slack/my-agent", {
+    installationId: "inst_workspace_xyz",
+  }),
 });
 ```
 
 What the helper wires up:
 
-- `botToken`: a function that calls `getToken(connector, { subject: { type: "app" } })` on each inbound webhook, so token rotation, refresh, and multi-workspace tenancy are handled server-side.
+- `botToken`: a function that requests an app token when the channel needs it. Connect stores and refreshes installation credentials.
 - `webhookVerifier`: a Vercel OIDC verifier (`vercelOidc()`). Vercel Connect forwards verified Slack webhooks to your app as signed Vercel OIDC requests; the helper verifies that signature instead of the raw Slack signing secret.
 
-Use this whenever the project is on eve + Vercel Connect — it's the one-liner for both outbound posts and inbound webhook auth.
+Without an explicit `installationId`, a channel helper uses the connector's default installation. It does not infer the correct installation from an inbound workspace or organization. Multi-tenant applications must resolve a trusted installation mapping and pass the resulting ID as the helper's second argument.
 
-##### GitHub channel — `connectGitHubCredentials`
+Use this whenever the project is on eve + Vercel Connect. It is the one-liner for both outbound posts and inbound webhook auth.
 
-For eve GitHub channels (`agent/channels/github.ts`), use `connectGitHubCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `GitHubChannelCredentials` object — eve uses the installation token directly (skipping its native GitHub App JWT exchange) and Vercel Connect handles rotation, refresh, and multi-installation tenancy server-side. You do **not** need `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, or `GITHUB_WEBHOOK_SECRET` env vars:
+##### GitHub channel: `connectGitHubCredentials`
+
+For eve GitHub channels (`agent/channels/github.ts`), use `connectGitHubCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `GitHubChannelCredentials` object. eve uses the installation token directly, while Vercel Connect stores and refreshes provider credentials. Pass an explicit trusted `installationId` for multi-tenant routing. You do **not** need `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, or `GITHUB_WEBHOOK_SECRET` env vars:
 
 ```typescript
 // agent/channels/github.ts
-import { githubRoute } from "eve/channels/github";
+import { githubChannel } from "eve/channels/github";
 import { connectGitHubCredentials } from "@vercel/connect/eve";
 
-export default githubRoute({
+export default githubChannel({
+  botName: "my-agent",
   credentials: connectGitHubCredentials("github/myagent"),
 });
 ```
 
 What the helper wires up:
 
-- `installationToken`: a function that calls `getToken(connector, { subject: { type: "app" } })`. The helper pins `subject` to `"app"` — GitHub installation tokens are app-scoped.
+- `installationToken`: a function that calls `getToken(connector, { subject: { type: "app" } })`. The helper pins `subject` to `"app"` because GitHub installation tokens are app-scoped.
 - `webhookVerifier`: a Vercel OIDC verifier (`vercelOidc()`). Vercel Connect forwards verified GitHub webhooks to your app as signed Vercel OIDC requests; the helper verifies that signature instead of the raw GitHub webhook secret.
 
-##### Linear channel — `connectLinearCredentials`
+##### Linear channel: `connectLinearCredentials`
 
-For eve Linear channels (`agent/channels/linear.ts`), use `connectLinearCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `LinearChannelCredentials` object — Vercel Connect manages the Linear app access token and webhook auth, so you do **not** need `LINEAR_API_KEY` or `LINEAR_WEBHOOK_SECRET` env vars:
+For eve Linear channels (`agent/channels/linear.ts`), use `connectLinearCredentials(connector)` from `@vercel/connect/eve`. It returns a complete `LinearChannelCredentials` object. Vercel Connect manages the Linear app access token and webhook auth, so you do **not** need `LINEAR_ACCESS_TOKEN` or `LINEAR_WEBHOOK_SECRET` env vars:
 
 ```typescript
 // agent/channels/linear.ts
-import { linearRoute } from "eve/channels/linear";
+import { linearChannel } from "eve/channels/linear";
 import { connectLinearCredentials } from "@vercel/connect/eve";
 
-export default linearRoute({
+export default linearChannel({
   credentials: connectLinearCredentials("linear/myagent"),
 });
 ```
 
 What the helper wires up:
 
-- `accessToken`: a function that calls `getToken(connector, { subject: { type: "app" } })`. The helper pins `subject` to `"app"` — Linear Agent tokens are app-scoped.
+- `accessToken`: a function that calls `getToken(connector, { subject: { type: "app" } })`. The helper pins `subject` to `"app"` because Linear Agent tokens are app-scoped.
 - `webhookVerifier`: a Vercel OIDC verifier (`vercelOidc()`). Vercel Connect forwards verified Linear webhooks to your app as signed Vercel OIDC requests; the helper verifies that signature instead of the raw Linear webhook secret.
 
-### 3. HTTP API (for other languages)
+The eve entrypoint also provides Connect credential helpers for Discord, Microsoft Teams, Linq, and Photon channels. `connectOAuth()` verifies Connect OAuth-gateway bearer tokens for inbound routes; use `connect()` for MCP client connection authorization. Check the current eve integration docs for subject creation, automatic provisioning, validation, eviction, and revocation options instead of copying configuration between connector types.
 
-For other languages, make HTTP requests directly to the Vercel Connect server. The request must be authenticated with the project's Vercel OIDC token (`VERCEL_OIDC_TOKEN` env var — pulled by `vc env pull` or injected at runtime):
+## HTTP API
+
+For other languages, request a token directly from the Vercel API. Authenticate with the project's Vercel OIDC token or a scoped Vercel access token. A connector UID containing `/` must be URL-encoded as one path segment:
+
+With a Vercel access token, request only an `app` subject or the access-token owner's own user subject. Use a project OIDC token to request a provider credential for a different user subject.
 
 ```bash
 # Get a token via HTTP
-POST https://api.vercel.com/v1/connect/token/<connector>
-Authorization: Bearer <VERCEL_OIDC_TOKEN>
+POST https://api.vercel.com/v1/connect/token/slack%2Facme-slack
+Authorization: Bearer <VERCEL_OIDC_TOKEN | Vercel access token>
 Content-Type: application/json
 
 { "subject": { "type": "user", "id": "user_123" } }
@@ -303,7 +325,7 @@ import requests
 
 # Get token from Vercel Connect
 connect_response = requests.post(
-    "https://api.vercel.com/v1/connect/token/slack1234",
+    "https://api.vercel.com/v1/connect/token/slack%2Facme-slack",
     headers={"Authorization": f"Bearer {os.environ['VERCEL_OIDC_TOKEN']}"},
     json={
         "subject": {"type": "app"},
@@ -319,16 +341,26 @@ slack_response = requests.post(
 )
 ```
 
-### 4. BetterAuth and AuthJS support
+## Framework adapters
 
-When the app already uses [Better Auth](https://www.better-auth.com/) or [Auth.js](https://authjs.dev/) for end-user authentication, you can plug a Vercel Connect connector in as an OAuth provider instead of calling `getToken` directly. The `connect` helper on each subpath handles the token exchange so provider credentials stay in Vercel Connect rather than in framework config or env vars.
+Choose the adapter by job:
 
-#### Better Auth — `@vercel/connect/betterauth`
+- `@vercel/connect/ai-sdk` and `@vercel/connect/mcp`: use `connectAuthProvider()` to authenticate MCP clients and coordinate consent. Provider consent and AI SDK tool approval are separate decisions.
+- `@vercel/connect/tanstack-ai`: use its Connect transport and consent helpers with TanStack AI.
+- `@vercel/connect/chat`: supply credentials for supported Chat SDK adapters. Connect-trigger OIDC verification applies to Slack, Discord, Microsoft Teams, GitHub, and Linear. Notion and Telegram use their native inbound mechanisms.
+- `@vercel/connect/eve`: authorize eve connections, supply channel credentials, and authenticate inbound OAuth routes.
+- `@vercel/connect/betterauth` and `@vercel/connect/authjs`: sign users into your application through a Connect OAuth provider.
+
+### Better Auth and Auth.js
+
+These adapters sign users into the application. They do not return a provider API token. If the app also needs to call the provider API, use the root SDK's `getToken()` with the appropriate subject and scopes.
+
+#### Better Auth: `@vercel/connect/betterauth`
 
 Optional peer dependency: `better-auth`. Pass the connector through Better Auth's `genericOAuth` plugin. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Better Auth additionally requires a `providerId`:
 
 ```typescript
-import { genericOAuth } from "better-auth/plugins";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { connect } from "@vercel/connect/betterauth";
 
 genericOAuth({
@@ -336,7 +368,7 @@ genericOAuth({
 });
 ```
 
-#### Auth.js — `@vercel/connect/authjs`
+#### Auth.js: `@vercel/connect/authjs`
 
 Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Auth.js additionally requires an `id`:
 
@@ -346,65 +378,36 @@ import { connect } from "@vercel/connect/authjs";
 const providers = [connect({ id: "linear", connector: "linear/myagent" })];
 ```
 
-## Workflow
+## Project links, installations, and environments
 
-All tools have `--json` option for machine-readable output.
+- `vercel connect attach <connector>` grants the linked project access in selected environments. Use `detach` to remove that link.
+- Project links authorize token requests. They do not isolate a connector's provider installations. Use separate connectors when production and non-production must be isolated at the provider level.
+- Installation-backed connectors may require `installationId`. Never guess one when multiple installations are available.
+- Custom Environments and branch targeting are configured through project-link and trigger options. Inspect current CLI help before changing them.
 
-Before running any `vercel connect` step below, make sure your shell cwd is the project or agent folder that will use the connection (see the CLI section above). Vercel Connect uses that context to auto-configure the project, so running from the right directory removes follow-up wiring work.
+## Triggers and observability
 
-1. **Check existing Connect connectors**: See if a required Connect connector is already present
+Triggers are opt-in destinations that forward supported provider events to an application. Connect signs forwarded requests, retries documented 5xx failures, and limits the number of destinations per connector. Configure trigger paths and environment or branch targeting explicitly rather than assuming connector creation adds them.
 
-   ```bash
-   vercel connect list
-   vercel connect token <connector>
-   ```
+Use connector event history, correlation IDs, and configured drains when diagnosing token, installation, authorization, or trigger failures. Do not log raw provider tokens.
 
-Important! If more than one connector found, allow user to make the choice between them, or ask to create a new one
+## Recommended workflow
 
-2. **Register**: If the provider you need is not registered of if the user asked to create a new connector / app / bot, follow the instructions to register it (this may involve setting up credentials on browser in the third-party service and then registering them with Vercel Connect).
+1. Link the local directory with `vercel link`, then pull a development OIDC token with `vercel env pull`.
+2. Run `vercel connect list` and, when needed, `vercel connect list --all-projects`.
+3. If no suitable connector exists, inspect `vercel connect create <service> --help`, create it, and capture the returned UID or ID.
+4. Attach the connector to the consuming project and required environments.
+5. For CLI token requests, choose the narrowest practical subject, installation, and scopes. In SDK code, also use `audience`, `resources`, or `authorizationDetails` when the provider requires them.
+6. If user consent or provider installation is required, surface the authorization URL or typed error and wait for completion.
+7. Call the provider with the short-lived credential. In SDK code, request it at use time and let the cache refresh it.
+8. Configure triggers separately when inbound events are required, then verify delivery with event history and correlation IDs.
 
-   ```bash
-   vercel connect create <service> [--name <app-name>]
-   ```
+## Sources of truth
 
-Important! Provide the most precise server URL for the service, including the complete connection URL (e.g. `https://mcp.linear.app/mcp` rather than just `linear`). Short service aliases may resolve to a default endpoint that does not match the transport or path the user actually wants. When in doubt, run `vercel connect create --help` to confirm which service names and URL forms are accepted before picking one.
+Vercel Connect changes quickly. Before generating commands or framework code, consult:
 
-Important! This command will give you a URL or directly open it to complete the registration process. User must visit that URL and follow the instructions to link their third-party account with Vercel Connect. The command will not complete until they finish the registration. The agent must clearly show the URL to the user and prompt them to complete the registration.
-
-Important! Once `vercel connect create` completes, it will print a successful message. You must capture that connector ID for the next step.
-
-Important! The `vercel connect create` command may open the browser so it's better to get the user approval before running it.
-
-3. **Get token**: Obtain a token for the provider you need:
-   On CLI, you can get the token via
-
-   ```bash
-   vercel connect token <connector> [--subject <subject>]
-   ```
-
-The default subject is user. Use app for getting app scoped tokens. It's recommended to run this command with the `--yes` in case an re-authorization or installation is required. This will trigger the reauthorization flow for the user.
-
-Important! Always put the token value into a variable and use the variable in the subsequent commands to avoid accidentally echoing the token in the terminal or logs. Avoid combining this command with other commands using `&&`. For example:
-
-```bash
-TOKEN=$(vercel connect token)
-```
-
-Important! Try to reuse tokens as much as possible. If you already have a token with the required scopes, use it instead of requesting a new one, even when fewer scopes are needed. This will reduce friction for the user and avoid unnecessary authorization prompts.
-
-When working with a JavaScript/TypeScript code, use the `@vercel/connect` package directly:
-
-4. **Use token**: Use the token to authenticate with the third-party service.
-   For example:
-
-```typescript
-import { getToken } from "@vercel/connect";
-
-const token = await getToken(
-  "connector-id",
-  // Optional params:
-  {
-    subject: { ... },
-  },
-);
-```
+- [Vercel Connect docs](https://vercel.com/docs/connect)
+- [CLI reference](https://vercel.com/docs/cli/connect)
+- [TypeScript SDK reference](https://vercel.com/docs/connect/ts-sdk-reference)
+- [Frameworks and adapters](https://vercel.com/docs/connect/frameworks)
+- [Connector catalog](https://vercel.com/connect/browse)

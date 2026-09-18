@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T20:23:30.660Z",
+  "generatedAt": "2026-09-18T20:57:10.884Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -3972,6 +3972,10 @@
       "importPatterns": [
         "@vercel/connect",
         "@vercel/connect/eve",
+        "@vercel/connect/ai-sdk",
+        "@vercel/connect/mcp",
+        "@vercel/connect/tanstack-ai",
+        "@vercel/connect/chat",
         "@vercel/connect/authjs",
         "@vercel/connect/betterauth"
       ],
@@ -3998,6 +4002,22 @@
           "flags": "m"
         },
         {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/ai-sdk(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/mcp(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/tanstack-ai(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/chat(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        },
+        {
           "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/connect\\/authjs(?:\\/[^'\"]*)?['\"]",
           "flags": "m"
         },
@@ -4010,12 +4030,12 @@
         {
           "pattern": "from\\\\s+['\\\"]@vercel/connect/eve['\\\"]",
           "targetSkill": "eve",
-          "message": "eve + Vercel Connect import detected — loading eve framework guidance alongside the connect() helper and channel credential patterns."
+          "message": "eve + Vercel Connect import detected: loading eve framework guidance alongside the connect() helper and channel credential patterns."
         },
         {
-          "pattern": "SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(API_KEY|WEBHOOK_SECRET)",
+          "pattern": "SLACK_(BOT|SIGNING)_(TOKEN|SECRET)|SLACK_WEBHOOK_URL|GITHUB_(APP_PRIVATE_KEY|APP_ID|INSTALLATION_ID|WEBHOOK_SECRET)|LINEAR_(ACCESS_TOKEN|WEBHOOK_SECRET)",
           "targetSkill": "vercel-connect",
-          "message": "Hand-managed Slack/GitHub/Linear secrets detected — use Vercel Connect + connectSlackCredentials() / connectGitHubCredentials() / connectLinearCredentials() to remove the need for these env vars.",
+          "message": "Hand-managed Slack/GitHub/Linear secrets detected. For eve projects, use Vercel Connect channel credential helpers to remove these provider secrets from project environment variables.",
           "skipIfFileContains": "connectSlackCredentials|connectGitHubCredentials|connectLinearCredentials|@vercel/connect"
         }
       ],
@@ -4035,7 +4055,13 @@
           "connect to mcp",
           "mcp connection",
           "mcp server",
-          "snowflake connection"
+          "snowflake connection",
+          "microsoft graph token",
+          "teams bot token",
+          "discord bot token",
+          "notion token",
+          "salesforce connection",
+          "api key connector"
         ],
         "allOf": [
           [
@@ -4063,7 +4089,10 @@
           "vercel connect",
           "@vercel/connect",
           "oauth",
-          "mcp"
+          "mcp",
+          "discord",
+          "notion",
+          "salesforce"
         ],
         "noneOf": [
           "supabase auth",
@@ -4089,7 +4118,9 @@
           "obtain api credentials",
           "connect to mcp server",
           "set up mcp connection",
-          "add snowflake connection"
+          "add snowflake connection",
+          "connect an AI SDK app to an authenticated MCP server",
+          "configure Connect triggers"
         ],
         "entities": [
           "Vercel Connect",
@@ -4101,7 +4132,9 @@
           "MCP",
           "Snowflake",
           "eve",
-          "connector"
+          "connector",
+          "project link",
+          "installation"
         ],
         "examples": [
           "send a slack message from my app",
