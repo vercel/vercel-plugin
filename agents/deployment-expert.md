@@ -194,7 +194,7 @@ vercel rollback <deployment-url-or-id>
 **Additional rollback strategies:**
 
 - **Git revert**: `git revert HEAD` → push → triggers new deploy. Safer than force-push; preserves history.
-- **Canary / gradual rollout**: Use Skew Protection to run old + new deployments simultaneously. Traffic splitting via Edge Middleware (custom A/B routing). Monitor error rates before full promotion.
+- **Canary / gradual rollout**: Use Rolling Releases to split production traffic across deployment stages. Monitor error rates before advancing or completing the release. Use Skew Protection separately to keep client and server assets compatible during a rollout.
 - **Emergency**: Set `functions` to empty in vercel.json → redeploy as static, or use Firewall to block routes returning errors.
 
 ---
@@ -210,7 +210,7 @@ vercel rollback <deployment-url-or-id>
 | Preview for every PR | Default behavior | Auto-creates preview URL per branch |
 | Promote preview to production | CLI promotion | `vercel promote <url>` |
 | Atomic deploys with DB migrations | Two-phase | Run migration → verify → `vercel promote` |
-| Edge-first architecture | Edge Functions | Set `runtime: 'edge'` in route config |
+| Latency-sensitive regional data | Vercel Functions | Keep the Node.js default; set the function region near the data |
 
 ---
 

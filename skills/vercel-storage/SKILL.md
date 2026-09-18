@@ -217,8 +217,11 @@ const blob = await put('images/photo.jpg', file, {
 const privateBlob = await put('docs/secret.pdf', file, {
   access: 'private',
 })
-// Read private file back
-const privateFile = await get(privateBlob.url) // returns ReadableStream + metadata
+// Read a private file by pathname
+const privateFile = await get('docs/secret.pdf', { access: 'private' })
+if (privateFile?.statusCode === 200) {
+  // privateFile.stream contains the body; privateFile.blob contains metadata
+}
 
 // Client upload (up to 5 TB)
 import { upload } from '@vercel/blob/client'
@@ -232,9 +235,10 @@ const { blobs } = await list()
 
 // Conditional get with ETags
 const response = await get('images/photo.jpg', {
+  access: 'public', // `access` is required and must match the store
   ifNoneMatch: previousETag,
 })
-if (response.statusCode === 304) {
+if (response?.statusCode === 304) {
   // Not modified, use cached version
 }
 
@@ -242,7 +246,7 @@ if (response.statusCode === 304) {
 await del('images/photo.jpg')
 ```
 
-**Private Storage** (public beta): Use `access: 'private'` for files that should not be publicly accessible. Read them back with `get()`. Do NOT use private access for files that need to be served publicly — it leads to slow delivery and high egress costs.
+**Private Storage** (generally available): Create a private store with `vercel blob create-store <name> --access private`. Connected projects use short-lived OIDC credentials and `BLOB_STORE_ID` by default. Use `access: 'private'` for uploads and reads. To deliver a private file, authenticate the request in your own route, call `get(pathname, { access: 'private' })`, return 404 when the result is `null`, and otherwise stream `result.stream` to the caller. Use `presignUrl()` when a caller needs temporary direct access. Pass `useCache: false` only when a read must reflect an overwrite immediately.
 
 **Blob Data Transfer**: Vercel Blob uses two delivery strategies — **Fast Data Transfer** (94 cities, latency-optimized) and **Blob Data Transfer** (18 hubs, volume-optimized for large assets). The system automatically routes via the optimal path.
 

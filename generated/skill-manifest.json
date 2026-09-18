@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T20:05:52.814Z",
+  "generatedAt": "2026-09-18T20:19:40.135Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -3639,7 +3639,9 @@
       "retrieval": {
         "aliases": [
           "ai code review",
-          "incident debugger",
+          "production debugger",
+          "dashboard chat",
+          "slack agent",
           "vercel ai tools",
           "pr analyzer"
         ],
@@ -3653,7 +3655,7 @@
           "Vercel Agent",
           "code review",
           "incident investigation",
-          "SDK"
+          "approved actions"
         ],
         "examples": []
       }
