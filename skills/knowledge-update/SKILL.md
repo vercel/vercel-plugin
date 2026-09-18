@@ -28,7 +28,7 @@ metadata:
 
 ## Common outdated knowledge in LLMs
 
-- **The Edge runtime is deprecated for Next.js route segments.** Prefer the default Node.js runtime on Fluid Compute and remove `export const runtime = 'edge'` from Next.js routes. The Edge runtime remains available for the legacy `middleware.ts` Routing Middleware convention, but new Next.js 16 projects use `proxy.ts` on Node.js.
+- **The Edge runtime is deprecated.** Prefer the default Node.js runtime on Fluid Compute and remove `export const runtime = 'edge'` from Next.js routes.
 - **Streaming and SSE are NOT Edge-exclusive.** Streaming responses (`ReadableStream`, Server-Sent Events / `text/event-stream`, AI token streaming) work on the default Node.js runtime with zero config. You do **not** need `runtime = 'edge'` to stream — a common LLM misconception. Stay on Node.js (Fluid Compute) to keep full Node.js APIs and longer durations.
 - **Middleware supports full Node.js** (not edge-only). Use Fluid Compute.
 - **Vercel supports Python 3.12, 3.13, and 3.14** via Fluid Compute.
