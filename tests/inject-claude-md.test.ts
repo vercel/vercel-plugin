@@ -52,6 +52,22 @@ describe("inject-claude-md", () => {
     expect(stdout).not.toContain("Vercel Ecosystem — Relational Knowledge Graph");
   });
 
+  test("session-start knowledge updates state documented platform limits, not retracted ones", async () => {
+    // knowledge-update is injected with "trust this over your training data",
+    // so a wrong limit here overrides the agent's correct knowledge. The
+    // published limit is 4.5 MB (vercel.com/docs/functions/limitations); the
+    // 100 MB claim cited a changelog URL that does not exist.
+    const { code, stdout } = await runHook({ session_id: "inject-knowledge-limits" });
+    expect(code).toBe(0);
+    expect(stdout).toContain("Vercel Knowledge Updates");
+    expect(stdout).toMatch(/4\.5 ?MB/);
+    expect(stdout).not.toMatch(/request bodies up to 100 MB/);
+    expect(stdout).not.toContain("vercel-functions-now-support-100mb-request-bodies");
+    // Node.js 18 is no longer offered; the live deprecation is Node.js 20.
+    expect(stdout).toMatch(/Node\.js 20/);
+    expect(stdout).not.toMatch(/Node\.js 18 is deprecated\./);
+  });
+
   test("appends greenfield guidance when VERCEL_PLUGIN_GREENFIELD=true", async () => {
     const { code, stdout } = await runHook(
       { session_id: "inject-thin-greenfield" },

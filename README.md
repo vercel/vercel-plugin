@@ -52,7 +52,7 @@ A text-form relational graph covering:
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `access-protected-vercel-deployment` | Authenticated CLI and browser access to protected preview and production deployments using `vc curl`, OIDC, and Trusted Sources |
 | `ai-gateway`            | Unified model API, provider routing, failover, cost tracking, 100+ models                                                            |
-| `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                      |
+| `ai-sdk`                | AI SDK 7 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                       |
 | `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                                  |
 | `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands                                         |
 | `build-agents`          | Default eve-first agent builder — create AI agents, agent apps, tools, channels, schedules, and Slack agents                         |
@@ -84,7 +84,7 @@ A text-form relational graph covering:
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Global Config (formerly Edge Config), Neon Postgres, Upstash Redis, migration from sunset packages                             |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
-| `workflow`              | Workflow SDK — durable execution, DurableAgent, steps, Worlds, pause/resume                                                          |
+| `workflow`              | Workflow SDK — durable execution, WorkflowAgent, steps, Worlds, pause/resume                                                         |
 
 ### Agents (3 specialists)
 
@@ -260,9 +260,9 @@ vercel-plugin/
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
 │   │   │   ├── SKILL.md
-│   │   │   └── references/
+│   │   │   └── references/          #   Only when the upstream repo ships them
 │   │   ├── SKILL.md                 #   Build output (overlay + upstream)
-│   │   └── references/              #   Copied from upstream at build time
+│   │   └── references/              #   Copied from upstream at build time (when present)
 │   ├── ai-elements/                 # Plugin-only skill example:
 │   │   └── SKILL.md                 #   Entirely ours
 │   └── ...
@@ -289,10 +289,10 @@ bun run build:from-skills # Stage 4: Resolve template includes
 ## Ecosystem Coverage (March 2026)
 
 - Next.js 16 (App Router, Cache Components, Proxy, View Transitions)
-- AI SDK v6 (Agents, MCP, DevTools, Reranking, Image Editing)
+- AI SDK 7 (Agents, WorkflowAgent, harnesses, MCP, DevTools, telemetry)
 - AI Elements (pre-built React components for AI interfaces)
 - Chat SDK (multi-platform chat bots — Slack, Telegram, Teams, Discord)
-- Workflow SDK (DurableAgent, Worlds, open source)
+- Workflow SDK (WorkflowAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
 - Vercel Functions (Fluid Compute, streaming, Cron Jobs)
 - Vercel Services (multiple frontends and backends, public rewrites, private bindings)
