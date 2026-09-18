@@ -1,6 +1,6 @@
 ---
 name: auth
-description: Authentication integration guidance — Clerk (native Vercel Marketplace), Descope, and Auth0 setup for Next.js applications. Covers middleware auth patterns, sign-in/sign-up flows, and Marketplace provisioning. Use when implementing user authentication.
+description: Authentication integration guidance — Clerk (native Vercel Marketplace), Descope, and Auth0 setup for Next.js applications, plus Sign in with Vercel, Vercel Passport, and Vercel KMS. Covers proxy.ts auth patterns, sign-in/sign-up flows, and Marketplace provisioning. Use when implementing user authentication or protecting deployments.
 metadata:
   priority: 6
   docs:
@@ -8,6 +8,10 @@ metadata:
     - "https://nextjs.org/docs/app/building-your-application/authentication"
   sitemap: "https://authjs.dev/sitemap.xml"
   pathPatterns:
+    - 'proxy.ts'
+    - 'proxy.js'
+    - 'src/proxy.ts'
+    - 'src/proxy.js'
     - 'middleware.ts'
     - 'middleware.js'
     - 'src/middleware.ts'
@@ -35,6 +39,12 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@auth0/nextjs-auth0\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@auth0/nextjs-auth0\b'
     - '\byarn\s+add\s+[^\n]*@auth0/nextjs-auth0\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/kms\b'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/kms\b'
+    - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/kms\b'
+    - '\byarn\s+add\s+[^\n]*@vercel/kms\b'
+  importPatterns:
+    - "@vercel/kms"
 validate:
   -
     pattern: 'VERCEL_CLIENT_(ID|SECRET)|vercel\.com/oauth/(authorize|access_token|token)'
@@ -47,6 +57,9 @@ retrieval:
     - login system
     - sign in
     - auth flow
+    - sign in with vercel
+    - passport
+    - kms
   intents:
     - add auth
     - protect routes
@@ -61,6 +74,11 @@ retrieval:
     - session
     - middleware
     - getServerSession
+    - Vercel Passport
+    - Okta
+    - Microsoft Entra ID
+    - Vercel KMS
+    - signToken
   examples:
     - add login to my app
     - protect this route with auth
@@ -69,7 +87,7 @@ chainTo:
   -
     pattern: 'export\s+(default\s+)?function\s+middleware'
     targetSkill: routing-middleware
-    message: 'Auth logic in middleware.ts — loading Routing Middleware guidance for proxy.ts migration in Next.js 16.'
+    message: 'Auth logic in a middleware() export — Next.js 16 uses proxy.ts with a proxy() export. Loading Routing Middleware guidance for the migration.'
   -
     pattern: 'from\s+[''\"](jsonwebtoken)[''"]|require\s*\(\s*[''\"](jsonwebtoken)[''"]|jwt\.sign\s*\('
     targetSkill: auth
@@ -92,7 +110,9 @@ chainTo:
 
 # Authentication Integrations
 
-You are an expert in authentication for Vercel-deployed applications — covering Clerk (native Vercel Marketplace integration), Descope, and Auth0.
+You are an expert in authentication for Vercel-deployed applications — covering Clerk (native Vercel Marketplace integration), Descope, and Auth0 for application sign-in, plus Vercel's own primitives: Sign in with Vercel (OAuth/OIDC provider), Passport (deployment protection with your identity provider), and KMS (managed signing keys).
+
+All Next.js examples target Next.js 16, where the request-interception file is `proxy.ts` (exporting `proxy`). On Next.js 15 or earlier the same code lives in `middleware.ts` (exporting `middleware`).
 
 ## Clerk (Recommended — Native Marketplace Integration)
 
@@ -116,10 +136,10 @@ Auto-provisioned environment variables:
 npm install @clerk/nextjs
 ```
 
-### Middleware Configuration
+### Proxy Configuration
 
 ```ts
-// middleware.ts
+// proxy.ts (Next.js 16; middleware.ts on Next.js 15 and earlier)
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 export default clerkMiddleware();
@@ -137,7 +157,7 @@ export const config = {
 ### Protect Routes
 
 ```ts
-// middleware.ts — protect specific routes
+// proxy.ts — protect specific routes
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)", "/api(.*)"]);
@@ -154,7 +174,7 @@ export default clerkMiddleware(async (auth, req) => {
 Proxy Clerk's Frontend API through your own domain to avoid third-party requests:
 
 ```ts
-// middleware.ts
+// proxy.ts
 export default clerkMiddleware({
   frontendApiProxy: { enabled: true },
 });
@@ -263,7 +283,7 @@ vercel integration add descope
 npm install @descope/nextjs-sdk
 ```
 
-### Provider and Middleware
+### Provider and Proxy
 
 ```tsx
 // app/layout.tsx
@@ -285,7 +305,7 @@ export default function RootLayout({
 ```
 
 ```ts
-// middleware.ts
+// proxy.ts
 import { authMiddleware } from "@descope/nextjs-sdk/server";
 
 export default authMiddleware({
@@ -334,14 +354,14 @@ AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
 ```
 
-### Middleware
+### Proxy
 
 ```ts
-// middleware.ts
+// proxy.ts
 import { auth0 } from "@/lib/auth0";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await auth0.middleware(request);
 }
 
@@ -368,6 +388,22 @@ export default async function Page() {
 }
 ```
 
+## Vercel-Native Identity Primitives
+
+These are not replacements for Clerk, Descope, or Auth0. They cover cases where the identity comes from Vercel itself or where you need Vercel to hold the keys.
+
+### Sign in with Vercel
+
+Let users log in with their Vercel account. Vercel's Identity Provider implements OAuth 2.0 and OpenID Connect: register an App in the dashboard, redirect to `https://vercel.com/oauth/authorize` with PKCE (`code_challenge_method: 'S256'`), `state`, and `nonce`, then exchange the `code` at `https://api.vercel.com/login/oauth/token`. Access tokens last 1 hour; refresh tokens last 30 days and rotate on use. Never hand-roll the token exchange without PKCE, state, and nonce checks. Docs: https://vercel.com/docs/sign-in-with-vercel/getting-started
+
+### Vercel Passport (deployment protection)
+
+Passport protects whole deployments behind your own OIDC identity provider (Okta, Microsoft Entra ID, Auth0, or any OIDC-compatible provider). Vercel Connect stores the OAuth application configuration, and Vercel redirects unauthenticated visitors before any request reaches your code. Use it for internal tools and previews instead of application-level auth. Your app can read the verified visitor identity server-side or verify a forwarded Passport token as a JWT. Enterprise plan; GA since July 2026. Docs: https://vercel.com/docs/passport
+
+### Vercel KMS (managed signing keys)
+
+KMS signs JWTs and messages with keys that never leave Vercel. Create an issuer in the team's Key Management settings, install `@vercel/kms`, and call `signToken({ issuerId, claims, ttl })` inside a route handler or Server Component; the function's OIDC token authorizes the request automatically. Relying parties verify against the published JWKS at `https://kms.vercel.com/<issuerId>/jwks.json`. Use it instead of storing private signing keys in environment variables. Docs: https://vercel.com/docs/kms
+
 ## Decision Matrix
 
 | Need | Recommended | Why |
@@ -377,6 +413,9 @@ export default async function Page() {
 | Enterprise SSO / SAML / multi-tenant | Auth0 | Deep enterprise identity support |
 | Pre-built UI components | Clerk | Drop-in `<SignIn />`, `<UserButton />` |
 | Vercel unified billing | Clerk or Descope | Both are native Marketplace integrations |
+| "Log in with Vercel" for a developer tool | Sign in with Vercel | Vercel is the identity provider |
+| Restrict a deployment to employees behind Okta/Entra | Vercel Passport | Platform-level, no app code |
+| Sign JWTs without storing private keys | Vercel KMS | Managed keys, OIDC-authorized signing |
 
 ## Clerk Core 3 Breaking Changes (March 2026)
 
@@ -396,7 +435,8 @@ Clerk provides an upgrade CLI that scans your codebase and applies codemods: `np
 ## Cross-References
 
 - **Marketplace install and env var provisioning** → `⤳ skill: marketplace`
-- **Middleware routing patterns** → `⤳ skill: routing-middleware`
+- **Proxy and Routing Middleware patterns** → `⤳ skill: routing-middleware`
+- **Accessing protected deployments from CLI or tests** → `⤳ skill: access-protected-vercel-deployment`
 - **Environment variable management** → `⤳ skill: env-vars`
 
 ## Official Documentation
@@ -405,3 +445,6 @@ Clerk provides an upgrade CLI that scans your codebase and applies codemods: `np
 - [Clerk Next.js Quickstart](https://clerk.com/docs/quickstarts/nextjs)
 - [Descope Next.js SDK](https://docs.descope.com/getting-started/nextjs)
 - [Auth0 Next.js SDK](https://auth0.com/docs/quickstart/webapp/nextjs)
+- [Sign in with Vercel](https://vercel.com/docs/sign-in-with-vercel)
+- [Vercel Passport](https://vercel.com/docs/passport)
+- [Vercel KMS](https://vercel.com/docs/kms)
