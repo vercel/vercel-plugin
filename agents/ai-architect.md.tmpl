@@ -20,7 +20,7 @@ What does the AI feature need to do?
 │  ├─ Single tool call → `generateText` with `tools` parameter
 │  ├─ Multi-step reasoning with tools → AI SDK `ToolLoopAgent` class
 │  │  ├─ Short-lived (< 60s) → Agent in Route Handler
-│  │  └─ Long-running (minutes to hours) → Workflow SDK `DurableAgent`
+│  │  └─ Long-running (minutes to hours) → `WorkflowAgent` from `@ai-sdk/workflow` (Workflow SDK)
 │  └─ MCP server integration → `@ai-sdk/mcp` StreamableHTTPClientTransport
 │
 ├─ Process files / images / audio
@@ -30,7 +30,7 @@ What does the AI feature need to do?
 │
 ├─ RAG (Retrieval-Augmented Generation)
 │  ├─ Embed documents → `embedMany` with embedding model
-│  ├─ Query similar → Vector store (Vercel Postgres + pgvector, or Pinecone)
+│  ├─ Query similar → Vector store (Neon Postgres + pgvector via Marketplace, or Pinecone)
 │  └─ Generate with context → `generateText` with retrieved chunks in prompt
 │
 └─ Multi-agent system
@@ -79,10 +79,12 @@ Choosing a model?
 
 ---
 
-## AI SDK v6 Agent Class Patterns
+## AI SDK Agent Class Patterns
 
-<!-- Sourced from ai-sdk skill: references/type-safe-agents.md -->
-{{include:skill:ai-sdk:file:references/type-safe-agents.md}}
+<!-- Sourced from ai-sdk skill: Building and Consuming Agents -->
+{{include:skill:ai-sdk:Building and Consuming Agents}}
+
+Type-safe rendering: export `InferAgentUIMessage<typeof agent>` from the agent module and pass it to `useChat<...>()` so `tool-<toolName>` parts carry typed `input`/`output`. AI SDK 7 requires Node.js 22+ and ESM.
 
 ---
 
@@ -114,14 +116,14 @@ AI feature failing?
 │  ├─ Schema mismatch? → Ensure `inputSchema` matches what model sends
 │  ├─ Tool execution error? → Wrap in try/catch, return error as tool result
 │  ├─ Model not calling tools? → Check system prompt instructs tool usage
-│  └─ Using deprecated `parameters`? → Migrate to `inputSchema` (AI SDK v6)
+│  └─ Using deprecated `parameters`? → Migrate to `inputSchema`
 │
 ├─ Agent stuck in loop
-│  ├─ No step limit? → Add `stopWhen: stepCountIs(N)` to prevent infinite loops (v6; `maxSteps` was removed)
+│  ├─ No step limit? → Add `stopWhen: isStepCount(N)` to prevent infinite loops (`stepCountIs` in AI SDK 6; `maxSteps` was removed)
 │  ├─ Tool always returns same result? → Add variation or "give up" condition
 │  └─ Circular tool dependency? → Redesign tool set to break cycle
 │
-└─ DurableAgent / Workflow failures
+└─ WorkflowAgent / Workflow failures
    ├─ "Step already completed" → Idempotency conflict; check step naming
    ├─ Workflow timeout → Increase `maxDuration` or break into sub-workflows
    └─ State too large → Reduce world state size, store data externally
@@ -165,7 +167,7 @@ Use when: Chat that can take actions (search, CRUD, calculations).
 ### Pattern 3: Background Agent
 
 ```
-Client → Route Handler → Workflow SDK (DurableAgent)
+Client → Route Handler → Workflow SDK (WorkflowAgent)
               ↓                    ↓ tool calls
          Returns runId       External APIs / DB
               ↓                    ↓
@@ -197,11 +199,13 @@ Use when: Q&A over custom documents, knowledge bases, semantic search.
 
 ## Migration from Older AI SDK Patterns
 
-<!-- Sourced from ai-sdk skill: references/common-errors.md -->
-{{include:skill:ai-sdk:file:references/common-errors.md}}
+<!-- Sourced from ai-sdk skill: Keep the SDK Current -->
+{{include:skill:ai-sdk:Keep the SDK Current}}
+
+Common renames when upgrading: `parameters` → `inputSchema`, `maxSteps` → `stopWhen: isStepCount(n)` (`stepCountIs` in AI SDK 6), `generateObject`/`streamObject` → `generateText`/`streamText` with `Output.object()`, `toDataStreamResponse()` → `toUIMessageStreamResponse()`, `useChat({ api })` → `useChat({ transport: new DefaultChatTransport({ api }) })`, `tool-invocation` parts → `tool-<toolName>` parts, `DurableAgent` (`@workflow/ai`) → `WorkflowAgent` (`@ai-sdk/workflow`). For AI SDK 7 specifically (Node.js 22 minimum, ESM-only, `telemetry`, `finalStep`, `runtimeContext`, `toolsContext`), run the v7 codemods and follow https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0.
 
 ---
 
-Always recommend the simplest architecture that meets requirements. A `streamText` call is better than an Agent when tools aren't needed. An Agent is better than a DurableAgent when the task completes in seconds.
+Always recommend the simplest architecture that meets requirements. A `streamText` call is better than an Agent when tools aren't needed. An Agent is better than a WorkflowAgent when the task completes in seconds.
 
 Reference the **AI SDK skill** (`⤳ skill: ai-sdk`), **Workflow skill** (`⤳ skill: vercel-workflow`), and **AI Gateway skill** (`⤳ skill: ai-gateway`) for detailed implementation guidance.
