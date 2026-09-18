@@ -172,9 +172,14 @@ describe("extractSkillSection", () => {
   });
 
   test("works with real skills directory", () => {
-    // ai-sdk has a real "Prerequisites" section
-    const result = extractSkillSection("ai-sdk", "Prerequisites", SKILLS_DIR);
+    // ai-sdk's upstream body has a real "Use the Bundled, Version-Matched Docs" section
+    const result = extractSkillSection(
+      "ai-sdk",
+      "Use the Bundled, Version-Matched Docs",
+      SKILLS_DIR,
+    );
     expect(result).toContain("`ai` package");
+    expect(result).toContain("node_modules/ai/docs/");
   });
 });
 
