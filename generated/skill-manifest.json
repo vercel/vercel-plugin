@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T19:12:21.043Z",
+  "generatedAt": "2026-09-18T11:56:52.616Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -3152,6 +3152,152 @@
           "configure caching for this data fetch",
           "set up server rendering for my pages"
         ]
+      }
+    },
+    "queues": {
+      "priority": 6,
+      "summary": "Vercel Queues (beta) publishes JSON messages to durable topics with `send()` from `@vercel/queue`; consumers are Vercel Functions exported with `handleCallback()` and registered in vercel.json under `functions.<path>.experimentalTriggers` as `{ type: 'queue/v2beta', topic: '<name>' }`. Delivery is at-least-once with automatic retries; use Workflows instead for multi-step durable logic.",
+      "docs": [
+        "https://vercel.com/docs/queues",
+        "https://vercel.com/docs/queues/sdk"
+      ],
+      "sitemap": "https://vercel.com/sitemap.xml",
+      "pathPatterns": [
+        "app/api/queues/**",
+        "src/app/api/queues/**",
+        "pages/api/queues/**",
+        "lib/queue.*",
+        "src/lib/queue.*",
+        "lib/queues/**",
+        "src/lib/queues/**"
+      ],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/queue\\b",
+        "\\b(pip|uv)\\s+(install|add)\\s+[^\\n]*vercel-queue\\b"
+      ],
+      "importPatterns": [
+        "@vercel/queue"
+      ],
+      "bodyPath": "skills/queues/SKILL.md",
+      "pathRegexSources": [
+        "^app\\/api\\/queues\\/.*$",
+        "^src\\/app\\/api\\/queues\\/.*$",
+        "^pages\\/api\\/queues\\/.*$",
+        "^lib\\/queue\\.[^/]*$",
+        "^src\\/lib\\/queue\\.[^/]*$",
+        "^lib\\/queues\\/.*$",
+        "^src\\/lib\\/queues\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/queue\\b",
+        "\\b(pip|uv)\\s+(install|add)\\s+[^\\n]*vercel-queue\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/queue(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "\"use workflow\"|\"use step\"|from\\s+[''\"]workflow[''\"]",
+          "targetSkill": "workflow",
+          "message": "Workflow SDK code alongside Queues — Workflows is built on Queues and adds durable steps, sleep, and hooks. Loading Workflow guidance."
+        },
+        {
+          "pattern": "from\\s+[''\"](bullmq|bull|bee-queue|agenda)[''\"]|@aws-sdk/client-sqs",
+          "targetSkill": "queues",
+          "message": "Third-party job queue detected — Vercel Queues provides durable topics with retries and fan-out without running a broker. Loading Queues guidance.",
+          "skipIfFileContains": "@vercel/queue"
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel queues",
+          "@vercel/queue",
+          "background job",
+          "background jobs",
+          "message queue",
+          "job queue",
+          "consumer group"
+        ],
+        "allOf": [
+          [
+            "vercel",
+            "queues"
+          ],
+          [
+            "queue",
+            "topic"
+          ],
+          [
+            "queue",
+            "consumer"
+          ],
+          [
+            "queue",
+            "buffer"
+          ],
+          [
+            "fan",
+            "out"
+          ]
+        ],
+        "anyOf": [
+          "queue",
+          "topic",
+          "retry",
+          "consumer",
+          "buffer",
+          "background"
+        ],
+        "noneOf": [
+          "build queue",
+          "deployment queue",
+          "queued deployment",
+          "deployments stuck",
+          "queues up deployments",
+          "queue up deployments",
+          "queues my deployments",
+          "queues our deployments",
+          "queues your deployments",
+          "queues the deployments",
+          "queues deployments",
+          "queues builds",
+          "queues my builds"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "queues",
+          "message queue",
+          "background jobs",
+          "event streaming",
+          "pub sub"
+        ],
+        "intents": [
+          "defer work to a queue",
+          "process background jobs",
+          "fan out events to consumers",
+          "retry failed jobs",
+          "buffer traffic spikes"
+        ],
+        "entities": [
+          "Vercel Queues",
+          "@vercel/queue",
+          "topic",
+          "consumer group",
+          "handleCallback",
+          "experimentalTriggers"
+        ],
+        "examples": []
       }
     },
     "react-best-practices": {

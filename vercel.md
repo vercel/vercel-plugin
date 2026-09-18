@@ -42,10 +42,12 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
 │   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⊃ Vercel Queues (durable topics, at-least-once delivery, consumer groups; beta — the primitive under Workflows)
 │   ⤳ skill: create-a-backend  (backend product and framework selection)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: routing-middleware
 │   ⤳ skill: runtime-cache
+│   ⤳ skill: queues
 │
 ├── Domains & DNS
 │   → Deployment Engine
@@ -322,6 +324,7 @@ WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https
     ↔ AI SDK 6 (DurableAgent)
     ↔ Vercel Functions (automatic step isolation)
     ↔ Next.js (API routes as workflow endpoints)
+    ↔ Vercel Queues (underlying transport; use `@vercel/queue` directly for plain publish/consume)   ⤳ skill: queues
 
 AGENT BUILDING DEFAULTS                   ⤳ skill: build-agents
 ├── Default entrypoint for generic "build/create/scaffold an agent" requests
@@ -701,6 +704,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | AI streaming responses | Streaming Functions | SSE, zero config |
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
 | Scheduled execution | Cron Jobs | vercel.json schedule config |
+| Background jobs, buffering, fan-out to consumers | Vercel Queues (`@vercel/queue`) | Durable topics, at-least-once delivery, retries; Workflows for multi-step logic |
 
 ### Disambiguation: Interception Compute
 
