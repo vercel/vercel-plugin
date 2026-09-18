@@ -1,4 +1,4 @@
-# Vercel Ecosystem — Relational Knowledge Graph (as of Aug 5, 2026)
+# Vercel Ecosystem — Relational Knowledge Graph (as of Sep 18, 2026)
 
 > This document is the master reference for understanding the entire Vercel ecosystem.
 > It maps every product, library, CLI, API, and service — how they relate, when to use each,
@@ -34,10 +34,10 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: vercel-cli
 │   ⤳ skill: deployments-cicd
 │
-├── Edge Network (Global CDN, ~300ms propagation)
-│   ⊃ Edge Functions (V8 isolates, Web Standard APIs)
-│   ⊃ Serverless Functions (Node.js, Python, Go, Ruby)
-│   ⊃ Fluid Compute (unified execution model)
+├── Vercel CDN (global network, ~300ms propagation; formerly "Edge Network")
+│   ⊃ Vercel Functions (Node.js default, Bun, Python, Rust; Edge runtime is legacy)
+│   ⊃ Fluid Compute (default execution model: instance reuse, Active CPU pricing)
+│   ⊃ Container images (Dockerfile → Vercel Functions via Vercel Container Registry)
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
@@ -98,7 +98,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 ├── Microfrontends (multi-zone routing across independent Vercel projects)
 │   ⊃ microfrontends.json (routing config deployed with default app)
 │   ⊃ Local dev proxy (routes requests to local apps or fallbacks)
-│   ↔ Edge Network (routing resolved at network layer)
+│   ↔ Vercel CDN (routing resolved at network layer)
 │   ↔ @vercel/microfrontends (Next.js, SvelteKit, React Router, Vite)
 │   ⤳ skill: microfrontends
 │
@@ -403,15 +403,17 @@ CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: http
     ⊃ Test context factories (createSlackTestContext, etc.)
     ⊃ Assertion helpers (expectValidMention, expectSentMessage)
 
-VERCEL AGENT                               ⤳ skill: vercel-agent  📖 docs: https://vercel.com/docs/workflow/agent
+VERCEL AGENT (public beta, Pro/Enterprise)  ⤳ skill: vercel-agent  📖 docs: https://vercel.com/docs/agent
 ├── Capabilities
+│   ⊃ Chat (dashboard and Slack; read-only by default, approved actions on request)
 │   ⊃ Automated code review (PR analysis, security, logic errors)
-│   ⊃ Incident investigation (anomaly debugging)
-│   ⊃ SDK installation assistance
+│   ⊃ Investigations (anomaly alerts, failed deploys, runtime errors, cost/perf)
+│   ⊃ Installation (adds supported Vercel products via PR)
 │   ⊃ Vercel Sandbox (secure patch validation)   ⤳ skill: vercel-sandbox
 │
 └── Integrations
     ↔ GitHub (PR triggers, @vercel mentions)
+    ↔ Slack (chat and investigations)
     ↔ Vercel Sandbox (isolated code execution)
     ↔ AI SDK (underlying AI capabilities)
 ```
@@ -633,7 +635,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ----------------------------------- | -------------------------------- | ------------------------------------------------ |
 | Form submissions, in-app mutations  | Server Actions                   | Integrated with caching, progressive enhancement |
 | Public API, webhooks, large uploads | Route Handlers                   | REST semantics, streaming support                |
-| Scheduled tasks                     | Cron Jobs + Serverless Functions | Reliable scheduling                              |
+| Scheduled tasks                     | Cron Jobs + Vercel Functions     | Reliable scheduling                              |
 
 ### AI Features
 
@@ -685,7 +687,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ---------------------------------- | ----------------------------- | ------------------------------------------- |
 | DDoS protection                    | Vercel Firewall (automatic)   | Always on, all plans                        |
 | Custom traffic rules               | WAF rules engine              | Framework-aware, 300ms propagation          |
-| Bot blocking                       | Bot Filter                    | One-click, public beta                      |
+| Bot blocking                       | BotID + bot protection ruleset | Kasada-powered detection; managed ruleset challenges non-browser traffic |
 | Rate limiting                      | WAF rate limiting             | Per-endpoint control                        |
 | OWASP protection                   | Managed rulesets (Enterprise) | Industry-standard rules                     |
 | Compliance isolation (SOC2, HIPAA) | Secure Compute                | Dedicated infrastructure, no shared tenancy |
@@ -695,28 +697,28 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 
 | Need | Use | Why |
 |------|-----|-----|
-| Standard server logic | Serverless Functions (Node.js) | Full Node.js, up to 14min (paid) |
-| Ultra-low latency, simple logic | Edge Functions | <1ms cold start, global |
-| Long-running with I/O waits | Fluid Compute | Shared instances, waitUntil |
+| Standard server logic | Vercel Functions (Node.js on Fluid Compute) | Full Node.js; 300s default, 800s max on Pro/Enterprise (1800s beta) |
+| Low-latency reads near users | Vercel Functions + Global Config or Runtime Cache | Keep Node.js; the Edge runtime is deprecated in Next.js 16.3 |
+| Long-running with I/O waits | Fluid Compute (default) | Shared instances, Active CPU pricing, waitUntil |
 | AI streaming responses | Streaming Functions | SSE, zero config |
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
 | Scheduled execution | Cron Jobs | vercel.json schedule config |
 
 ### Disambiguation: Interception Compute
 
-These three mechanisms all intercept or handle requests before your application logic runs.
+These mechanisms all intercept or handle requests before your application logic runs.
 Choose based on **where** the interception happens and **what** you need to do.
 
 | Mechanism                                                 | Layer                                       | Runtime                         | Use When                                                                                              | Avoid When                                                                      |
 | --------------------------------------------------------- | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Routing Middleware** (`middleware.ts` / platform-level) | Edge Network, before cache                  | V8 isolates (Web Standard APIs) | Auth checks, geo-redirects, A/B routing, header rewriting — any framework                             | You need Node.js APIs, heavy computation, or database access                    |
+| **Routing Middleware** (`proxy.entrypoint` in vercel.json or `middleware.ts`) | Vercel CDN, before cache                    | Node.js (`proxy` entrypoint) or Edge (`middleware.ts` default; `runtime: 'nodejs'` to switch) | Geo-redirects, A/B routing, header rewriting, defense-in-depth auth checks — any framework            | Heavy computation, database access, or auth as the sole protection layer        |
 | **`proxy.ts`** (Next.js 16+)                              | Application layer, replaces `middleware.ts` | Node.js                         | Same use cases as Routing Middleware but you need `node:*` modules, ORM calls, or full Node.js compat | You're not on Next.js 16+; prefer Routing Middleware for non-Next.js frameworks |
-| **Edge Functions**                                        | Edge Network, handles the full request      | V8 isolates (Web Standard APIs) | Ultra-low-latency API endpoints, simple compute at the edge, streaming responses                      | You need Node.js runtime, long execution times, or large dependencies           |
+| **Vercel Functions**                                      | Handles the full request                    | Node.js (default), Bun, Python, Rust | API endpoints, streaming and SSE responses, WebSockets, background work with `waitUntil`                   | Rewrites or redirects that must run before the cache (use Routing Middleware)   |
 
-> **Key distinction**: Routing Middleware and `proxy.ts` are _interceptors_ — they rewrite, redirect, or annotate requests before the handler runs. Edge Functions _are_ the handler — they produce the response. If you previously used Next.js `middleware.ts` and are upgrading to Next.js 16, rename to `proxy.ts` (see § Migration Awareness).
+> **Key distinction**: Routing Middleware and `proxy.ts` are _interceptors_ — they rewrite, redirect, or annotate requests before the handler runs. Vercel Functions _are_ the handler — they produce the response. If you previously used Next.js `middleware.ts` and are upgrading to Next.js 16, rename to `proxy.ts` (see § Migration Awareness).
 
 ⤳ skill: routing-middleware — Platform-level request interception
-⤳ skill: vercel-functions — Edge Functions and Serverless Functions
+⤳ skill: vercel-functions — Vercel Functions runtimes, streaming, and Fluid Compute
 ⤳ skill: nextjs — `proxy.ts` in Next.js 16
 
 ### Disambiguation: Caching Layers
@@ -726,8 +728,8 @@ Three distinct caching systems serve different purposes. They can be used indepe
 | Mechanism                                                                          | Scope                                         | Invalidation                                                                       | Use When                                                                                                            | Avoid When                                                                                                              |
 | ---------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **Next.js Cache** (`'use cache'`, `revalidate`, `revalidatePath/Tag`)              | Per-route or per-component, framework-managed | Time-based (`revalidate: N`), on-demand (`revalidateTag()`, `revalidatePath()`)    | Caching rendered pages, component trees, or data fetches within a Next.js app                                       | You need caching outside Next.js, or need to cache arbitrary key-value data                                             |
-| **Runtime Cache** (Vercel platform, per-region KV)                                 | Per-region key-value store, any framework     | Tag-based (`purgeByTag()`), key-based (`delete()`)                                 | Caching expensive computations, API responses, or shared data across functions — works with any framework on Vercel | You only need page-level caching (use Next.js Cache instead); you need global consistency (Runtime Cache is per-region) |
-| **CDN Cache + Purge-by-Tag** (Edge Network, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL, on-demand purge via `vercel cache purge --type cdn` | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
+| **Runtime Cache** (Vercel platform, per-region KV)                                 | Per-region key-value store, any framework     | Tag-based (`expireTag()`), key-based (`delete()`)                                 | Caching expensive computations, API responses, or shared data across functions — works with any framework on Vercel | You only need page-level caching (use Next.js Cache instead); you need global consistency (Runtime Cache is per-region) |
+| **CDN Cache + Purge-by-Tag** (Vercel CDN, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL; `invalidateByTag()` / `vercel cache invalidate --tag` (stale-while-revalidate) or `dangerouslyDeleteByTag()` (hard delete); `vercel cache purge --type cdn` for everything | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
 
 > **Layering pattern**: A typical Next.js app uses all three — Next.js Cache for component/route-level freshness, Runtime Cache for shared cross-request data (e.g., product catalog), and CDN Cache for static assets and ISR pages. Each layer has its own invalidation strategy; tag-based invalidation can cascade across layers when configured.
 
