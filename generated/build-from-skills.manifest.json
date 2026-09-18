@@ -10,18 +10,18 @@
       ],
       "includes": [
         {
-          "marker": "{{include:skill:ai-sdk:file:references/type-safe-agents.md}}",
+          "marker": "{{include:skill:ai-sdk:Building and Consuming Agents}}",
           "skillName": "ai-sdk",
-          "target": "file:references/type-safe-agents.md",
+          "target": "Building and Consuming Agents",
           "type": "section",
           "lineNumber": 85
         },
         {
-          "marker": "{{include:skill:ai-sdk:file:references/common-errors.md}}",
+          "marker": "{{include:skill:ai-sdk:Keep the SDK Current}}",
           "skillName": "ai-sdk",
-          "target": "file:references/common-errors.md",
+          "target": "Keep the SDK Current",
           "type": "section",
-          "lineNumber": 201
+          "lineNumber": 203
         }
       ]
     },
