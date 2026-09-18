@@ -97,7 +97,7 @@ AI feature failing?
 │  │  ├─ OpenAI: `OPENAI_API_KEY`
 │  │  ├─ Anthropic: `ANTHROPIC_API_KEY`
 │  │  ├─ Google: `GOOGLE_GENERATIVE_AI_API_KEY`
-│  │  └─ AI Gateway: `VERCEL_AI_GATEWAY_API_KEY`
+│  │  └─ AI Gateway: `AI_GATEWAY_API_KEY` (or OIDC via `vercel env pull`, no key needed)
 │  ├─ Key has correct permissions? → Check provider dashboard
 │  └─ Using AI Gateway? → Verify gateway config in Vercel dashboard
 │
@@ -107,8 +107,8 @@ AI feature failing?
 │  └─ Cost cap hit? → Check AI Gateway cost limits
 │
 ├─ Streaming not working
-│  ├─ Using Edge runtime? → Streaming works by default
-│  ├─ Using Node.js runtime? → Ensure `supportsResponseStreaming: true`
+│  ├─ Streaming works on the default Node.js runtime with no config — do not add `runtime = 'edge'`
+│  ├─ Not returning a stream? → Use `streamText(...).toUIMessageStreamResponse()` (chat) or `toTextStreamResponse()`
 │  ├─ Proxy or CDN buffering? → Check for buffering headers
 │  └─ Client not consuming stream? → Use `useChat` or `readableStream` correctly
 │
@@ -135,7 +135,7 @@ AI feature failing?
 
 | Scenario | Configuration | Rationale |
 |----------|--------------|-----------|
-| Development / prototyping | Direct provider SDK | Simplest setup, fast iteration |
+| Development / prototyping | AI Gateway with `provider/model` strings | No provider keys after `vercel env pull`; swap models without code changes |
 | Single-provider production | AI Gateway with monitoring | Cost tracking, usage analytics |
 | Multi-provider production | AI Gateway with ordered fallbacks | High availability, auto-failover |
 | Cost-sensitive | AI Gateway with model routing | Cheap model for simple, expensive for complex |
