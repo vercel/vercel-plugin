@@ -213,7 +213,7 @@ chainTo:
   -
     pattern: 'generateObject\s*\(|streamObject\s*\(|toDataStreamResponse|maxSteps\b|CoreMessage\b'
     targetSkill: ai-sdk
-    message: 'Deprecated AI SDK v5 API detected — loading AI SDK v6 guidance for migration.'
+    message: 'Deprecated AI SDK v5 API detected — loading AI SDK guidance for migration.'
   -
     pattern: 'while\s*\(\s*true\s*\)\s*\{|for\s*\(\s*;\s*;\s*\)\s*\{|setInterval\s*\(\s*async'
     targetSkill: workflow

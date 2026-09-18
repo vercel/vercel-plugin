@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T19:12:21.043Z",
+  "generatedAt": "2026-09-18T09:02:00.392Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -429,11 +429,11 @@
         },
         {
           "pattern": "\\bmaxSteps\\s*:",
-          "message": "maxSteps was removed in AI SDK v6 — use stopWhen: stepCountIs(N) instead (import stepCountIs from ai). Run Skill(ai-sdk) for migration guidance.",
+          "message": "maxSteps was removed in AI SDK v6 — use stopWhen: isStepCount(N) instead (import isStepCount from ai; stepCountIs in AI SDK 6). Run Skill(ai-sdk) for migration guidance.",
           "severity": "recommended",
-          "skipIfFileContains": "stepCountIs",
+          "skipIfFileContains": "stepCountIs|isStepCount",
           "upgradeToSkill": "ai-sdk",
-          "upgradeWhy": "Guides the migration from maxSteps to stopWhen: stepCountIs(N) with correct imports and patterns.",
+          "upgradeWhy": "Guides the migration from maxSteps to stopWhen: isStepCount(N) with correct imports and patterns.",
           "upgradeMode": "soft"
         },
         {
@@ -629,25 +629,25 @@
         {
           "pattern": "from\\\\s+['\\\"]langchain['\\\"]|from\\\\s+['\\\"]@langchain/",
           "targetSkill": "ai-sdk",
-          "message": "LangChain import detected — AI SDK v6 provides equivalent capabilities (agents, tool calling, structured output, streaming) with better Vercel integration, smaller bundle, and AI Gateway routing.",
+          "message": "LangChain import detected — the AI SDK provides equivalent capabilities (agents, tool calling, structured output, streaming) with better Vercel integration, smaller bundle, and AI Gateway routing.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|@ai-sdk/"
         },
         {
           "pattern": "from\\\\s+['\\\"]llamaindex['\\\"]",
           "targetSkill": "ai-sdk",
-          "message": "LlamaIndex import detected — AI SDK v6 provides RAG-compatible patterns (embeddings, reranking, tool calling) with native Vercel integration and AI Gateway routing.",
+          "message": "LlamaIndex import detected — the AI SDK provides RAG-compatible patterns (embeddings, reranking, tool calling) with native Vercel integration and AI Gateway routing.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|@ai-sdk/"
         },
         {
           "pattern": "from\\\\s+['\\\"]@pinecone-database/pinecone['\\\"]",
           "targetSkill": "ai-sdk",
-          "message": "Pinecone vector DB detected — AI SDK v6 provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
+          "message": "Pinecone vector DB detected — the AI SDK provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|embed\\(|embedMany\\("
         },
         {
           "pattern": "from\\\\s+['\\\"]weaviate-client['\\\"]|from\\\\s+['\\\"]weaviate-ts-client['\\\"]",
           "targetSkill": "ai-sdk",
-          "message": "Weaviate vector DB detected — AI SDK v6 provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
+          "message": "Weaviate vector DB detected — the AI SDK provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|embed\\(|embedMany\\("
         },
         {
@@ -4214,7 +4214,7 @@
         {
           "pattern": "generateObject\\s*\\(|streamObject\\s*\\(|toDataStreamResponse|maxSteps\\b|CoreMessage\\b",
           "targetSkill": "ai-sdk",
-          "message": "Deprecated AI SDK v5 API detected — loading AI SDK v6 guidance for migration."
+          "message": "Deprecated AI SDK v5 API detected — loading AI SDK guidance for migration."
         },
         {
           "pattern": "while\\s*\\(\\s*true\\s*\\)\\s*\\{|for\\s*\\(\\s*;\\s*;\\s*\\)\\s*\\{|setInterval\\s*\\(\\s*async",
@@ -4999,7 +4999,7 @@
         {
           "pattern": "streamText\\s*\\(|generateText\\s*\\(|useChat\\s*\\(",
           "targetSkill": "ai-sdk",
-          "message": "AI SDK calls detected during verification — loading AI SDK v6 guidance for streaming, transport, and error handling patterns.",
+          "message": "AI SDK calls detected during verification — loading AI SDK guidance for streaming, transport, and error handling patterns.",
           "skipIfFileContains": "toUIMessageStreamResponse|DefaultChatTransport"
         }
       ],
@@ -5266,7 +5266,7 @@
         {
           "pattern": "DurableAgent|@workflow/ai",
           "targetSkill": "ai-sdk",
-          "message": "DurableAgent detected without AI SDK context — loading AI SDK guidance for tool calling, Agent class, and model configuration.",
+          "message": "DurableAgent (@workflow/ai) is deprecated — use WorkflowAgent from @ai-sdk/workflow. Loading AI SDK guidance for tool calling, the Agent class, and model configuration.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|@ai-sdk/|streamText|generateText"
         },
         {
