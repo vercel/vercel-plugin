@@ -1,12 +1,15 @@
 ---
 name: ai-gateway
-description: Vercel AI Gateway guidance for setup, model discovery, authentication, routing, fallbacks, BYOK, budgets, spend reporting, observability, compatible APIs, and coding-agent configuration. Use when adding AI Gateway to an app, migrating provider calls, choosing models or providers, debugging gateway requests, or running `vercel ai-gateway` commands.
-summary: Set up and operate Vercel AI Gateway with current models, correct authentication, routing, spend controls, and verification.
+description: Vercel AI Gateway guidance for setup, model discovery, authentication, routing, fallbacks, virtual models, evaluation models, BYOK, budgets, spend reporting, observability, compatible APIs, and coding-agent configuration. Use when adding AI Gateway to an app, migrating provider calls, choosing models or providers, centralizing model configuration, evaluating application state, debugging gateway requests, or running `vercel ai-gateway` commands.
+summary: Set up and operate Vercel AI Gateway with current models, virtual models, evaluation, authentication, routing, spend controls, and verification.
 metadata:
   priority: 7
   docs:
     - "https://vercel.com/docs/ai-gateway"
     - "https://vercel.com/docs/ai-gateway/getting-started"
+    - "https://vercel.com/docs/ai-gateway/models-and-providers/virtual-models"
+    - "https://vercel.com/docs/ai-gateway/modalities/evaluation"
+    - "https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe"
     - "https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway"
   sitemap: "https://vercel.com/docs/sitemap.md"
   pathPatterns: []
@@ -26,6 +29,11 @@ metadata:
       - "vercel ai gateway"
       - "ai-gateway"
       - "ai-gateway.vercel.sh"
+      - "virtual model"
+      - "evaluation model"
+      - "vmc/"
+      - "typesafe api"
+      - "typesafe compat"
     allOf:
       - [model, routing]
       - [provider, failover]
@@ -44,6 +52,10 @@ metadata:
       - "reasoning effort"
       - "tool calling"
       - "structured outputs"
+      - "experimental_evaluate"
+      - "central model configuration"
+      - "systemone"
+      - "v1/evaluate"
     noneOf:
       - "cloudflare ai gateway"
       - "aws api gateway"
@@ -83,6 +95,9 @@ retrieval:
     - provider failover
     - llm gateway
     - gateway credits
+    - virtual model
+    - evaluation model
+    - typesafe compatibility
   intents:
     - add Vercel AI Gateway to an application
     - route AI models across providers
@@ -91,6 +106,10 @@ retrieval:
     - track AI model costs and set budgets
     - debug AI Gateway requests and routing
     - connect coding agents to AI Gateway
+    - give coding agents centrally managed model and provider configuration
+    - create or update an AI Gateway virtual model
+    - evaluate application state with typed questions
+    - migrate an existing TypeSafe evaluation client to AI Gateway
     - find a model by modality, capability, price, or data retention
     - check AI Gateway credit balance or generation cost
     - configure reasoning or extended thinking across providers and API formats
@@ -109,6 +128,12 @@ retrieval:
     - spend reporting
     - safetyIdentifier
     - Usage & Billing API
+    - Virtual Models
+    - vmc/<slug>
+    - experimental_evaluate
+    - POST /v1/evaluate
+    - TypeSafe API
+    - /typesafe/v1/systemone
 ---
 
 # Vercel AI Gateway
@@ -142,6 +167,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | `budgets set/list/inspect/remove` | Set metered spend limits for the team, a project, a user, or an API key |
 | `budgets defaults set/list/remove` | Set per-scope default limits covering projects, keys, or members without a custom budget |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
+| `virtual-models create/list/inspect/edit/remove/restore` | Manage reusable, team-scoped model configurations addressed as `vmc/<slug>` |
 | `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `/v1/ai-gateway/rules` |
 | `setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
@@ -154,6 +180,8 @@ Use the CLI for credential and spend management when the user is working from a 
 | --- | --- |
 | Ask a coding agent to make one Gateway request, or handle first-request credentials, compatible SDKs, or migration | [references/setup.md](references/setup.md) |
 | Provider selection, model fallbacks, caching, BYOK, or timeouts | [references/routing.md](references/routing.md) |
+| Reusable model configuration, a `vmc/<slug>`, or provider options for a client that cannot send them | [references/virtual-models.md](references/virtual-models.md) |
+| Typed evaluation through AI SDK, `POST /v1/evaluate`, or the TypeSafe-compatible API | [references/evaluation.md](references/evaluation.md) |
 | Credits, budgets, reporting, Logs, or request debugging | [references/spend-observability.md](references/spend-observability.md) |
 | Route Claude Code, Codex, OpenCode, Pi, or another coding agent's own model traffic through Gateway | [references/coding-agents.md](references/coding-agents.md) |
 
@@ -167,11 +195,13 @@ Read each relevant reference before editing. A task can require more than one.
 | Python using AI SDK for Python | Use `ai.get_model('provider/model')` and the current Python SDK docs |
 | Existing OpenAI SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh/v1` |
 | Existing Anthropic SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh` |
+| Evaluation over provider-neutral HTTP | Send Gateway's evaluation request shape to `POST https://ai-gateway.vercel.sh/v1/evaluate` |
+| Existing TypeSafe evaluation client | Keep `@typesafe-ai/sdk` and point `baseURL` to `https://ai-gateway.vercel.sh/typesafe` |
 | Provider-neutral HTTP | Use an AI Gateway compatible endpoint, such as Chat Completions or OpenResponses |
 | Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
-| Coding agent | Use `vercel ai-gateway setup`; inspect its help before claiming agent support |
+| Coding agent | Use `vercel ai-gateway setup`; use a Virtual Model when the agent needs reusable routing or provider options it cannot send per request |
 
-AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, and realtime sessions. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Read the relevant modality or API page instead of translating one request shape from memory.
+AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, realtime sessions, and evaluation. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Evaluation is available through AI SDK 7 or later, `POST /v1/evaluate`, and a TypeSafe-compatible API under `/typesafe`; it is not available through the OpenAI-, Anthropic-, or Cohere-compatible endpoints. Read [references/evaluation.md](references/evaluation.md) before choosing a surface. Read the relevant modality or API page instead of translating one request shape from memory.
 
 ## Minimal AI SDK request
 
@@ -230,12 +260,13 @@ Only spend credits, create keys, change budgets, change routing rules, or write 
 - A reasoning entry in `providerOptions` overrides the AI SDK top-level `reasoning` value entirely; the two never merge.
 - `user` and `tags` attach reporting dimensions. They do not create per-user rate limits.
 - Request-scoped provider credentials belong under `providerOptions.gateway.byok` and must remain secret.
+- Virtual Model IDs use `vmc/<slug>`. A Virtual Model can pin routing and provider options server-side; settings it defines generally override the corresponding request settings, while unset settings remain request-configurable.
 
 Read [references/routing.md](references/routing.md) before adding any of these fields.
 
 ## Verification checklist
 
-- [ ] The model ID exists in the full live model response.
+- [ ] A direct model ID exists in the full live model response, or a Virtual Model exists for the authenticated team and resolves as `vmc/<slug>`.
 - [ ] The selected API or SDK supports the requested modality and feature.
 - [ ] Authentication works in the actual runtime, including `.env.local` loading where relevant.
 - [ ] The example prints or returns a result instead of discarding the response.
@@ -249,10 +280,13 @@ Read [references/routing.md](references/routing.md) before adding any of these f
 
 - Getting started: <https://vercel.com/docs/ai-gateway/getting-started>
 - Models and providers: <https://vercel.com/docs/ai-gateway/models-and-providers>
+- Virtual Models: <https://vercel.com/docs/ai-gateway/models-and-providers/virtual-models>
 - SDKs and APIs: <https://vercel.com/docs/ai-gateway/sdks-and-apis>
 - Authentication and BYOK: <https://vercel.com/docs/ai-gateway/authentication-and-byok>
 - Observability and spend: <https://vercel.com/docs/ai-gateway/observability-and-spend>
 - Modalities: <https://vercel.com/docs/ai-gateway/modalities>
+- Evaluation: <https://vercel.com/docs/ai-gateway/modalities/evaluation>
+- TypeSafe API: <https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe>
 - REST API reference: <https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api>
 - FAQ: <https://vercel.com/docs/ai-gateway/faq>
 - Coding agents: <https://vercel.com/docs/ai-gateway/coding-agents>

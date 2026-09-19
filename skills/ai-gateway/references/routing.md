@@ -252,7 +252,7 @@ To find models that satisfy a retention policy, use the `zdr` and `no_training` 
 
 `safetyIdentifier` in `providerOptions.gateway` sends an opaque per-end-user ID (at most 64 characters, hashed rather than personal information) so provider-side abuse action isolates one user instead of the team's whole traffic. AI Gateway forwards it as OpenAI's `safety_identifier` or Anthropic's `metadata.user_id`, and it follows provider and model fallbacks. Docs: <https://vercel.com/docs/ai-gateway/security-and-compliance/safety-identifiers>
 
-A virtual model config saves a routing setup (base model, fallbacks, provider order and filters, caching, service tier, ZDR, HIPAA, and no-training constraints) under a team slug that requests then use as the model ID. Management is currently REST-only under `/v1/ai-gateway/virtual-model-configs`; check for a docs page or CLI support before recommending one. Reference: <https://vercel.com/docs/rest-api/api-ai-gateway/create-virtual-model-config>
+A Virtual Model saves a base model, routing, fallbacks, provider options, caching, service tier, compliance constraints, and observability tags under a team-scoped `vmc/<slug>`. Use it when configuration should be reusable or centrally editable, especially for coding agents and other clients that cannot send `providerOptions`. Virtual Models can be managed in the dashboard or with `vercel ai-gateway virtual-models`. Read [virtual-models.md](virtual-models.md) for precedence and coding-agent guidance.
 
 Do not invent option names. Read the exact page for the requested policy:
 

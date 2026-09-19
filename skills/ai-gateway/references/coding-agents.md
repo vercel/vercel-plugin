@@ -39,6 +39,17 @@ Behavior worth stating to users:
 
 CLI docs: <https://vercel.com/docs/cli/ai-gateway#setup>. Coding-agents guide: <https://vercel.com/docs/ai-gateway/coding-agents>.
 
+## Custom configuration with Virtual Models
+
+Many coding agents let the user select a model ID but cannot send AI SDK `providerOptions`. Use a [Virtual Model](virtual-models.md) to move that configuration into AI Gateway:
+
+1. Run `vercel ai-gateway setup` to connect the agent and establish authentication.
+2. Create a Virtual Model with the base model, provider order or restriction, fallbacks, service tier, caching, compliance policy, observability tags, and provider-specific options the agent should use.
+3. Where the agent accepts a model ID, select or configure `vmc/<slug>`. Read the current per-agent page for its model-picker or config syntax; setup-generated shortlists may require a manual addition.
+4. Change the Virtual Model later to update new requests without rewriting every agent config.
+
+This is not the same as sending `providerOptions` from the agent. The agent sends only `vmc/<slug>`; AI Gateway applies the saved configuration server-side. If the agent can also send request options, the Virtual Model's configured values take precedence according to [the Virtual Models reference](virtual-models.md).
+
 ## When the CLI does not cover an agent
 
 Some agents may support AI Gateway without being configurable by the CLI. Do not infer CLI coverage from provider support or a remembered agent list.
@@ -70,7 +81,8 @@ export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
 
 1. Run a trivial prompt through the agent.
 2. Confirm the request appears in AI Gateway Logs with the coding-agent authentication and the expected model.
-3. Check that retries, model pickers, and spend tracking work. Coding-agent sessions can generate high token counts; recommend a key budget or expiration when appropriate.
+3. For `vmc/<slug>`, confirm Logs show the resolved base model, provider, and expected routing or provider options.
+4. Check that retries, model pickers, and spend tracking work. Coding-agent sessions can generate high token counts; recommend a key budget or expiration when appropriate.
 
 If an agent fails, inspect Logs before rewriting its config: a `401` is authentication, a `402` is credits or budget, and a `429` is a rate limit.
 

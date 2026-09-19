@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T20:23:30.660Z",
+  "generatedAt": "2026-09-19T06:59:12.460Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -113,10 +113,13 @@
     },
     "ai-gateway": {
       "priority": 7,
-      "summary": "Set up and operate Vercel AI Gateway with current models, correct authentication, routing, spend controls, and verification.",
+      "summary": "Set up and operate Vercel AI Gateway with current models, virtual models, evaluation, authentication, routing, spend controls, and verification.",
       "docs": [
         "https://vercel.com/docs/ai-gateway",
         "https://vercel.com/docs/ai-gateway/getting-started",
+        "https://vercel.com/docs/ai-gateway/models-and-providers/virtual-models",
+        "https://vercel.com/docs/ai-gateway/modalities/evaluation",
+        "https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe",
         "https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway"
       ],
       "sitemap": "https://vercel.com/docs/sitemap.md",
@@ -194,7 +197,12 @@
           "ai gateway",
           "vercel ai gateway",
           "ai-gateway",
-          "ai-gateway.vercel.sh"
+          "ai-gateway.vercel.sh",
+          "virtual model",
+          "evaluation model",
+          "vmc/",
+          "typesafe api",
+          "typesafe compat"
         ],
         "allOf": [
           [
@@ -232,7 +240,11 @@
           "safety identifier",
           "reasoning effort",
           "tool calling",
-          "structured outputs"
+          "structured outputs",
+          "experimental_evaluate",
+          "central model configuration",
+          "systemone",
+          "v1/evaluate"
         ],
         "noneOf": [
           "cloudflare ai gateway",
@@ -246,7 +258,10 @@
           "ai proxy",
           "provider failover",
           "llm gateway",
-          "gateway credits"
+          "gateway credits",
+          "virtual model",
+          "evaluation model",
+          "typesafe compatibility"
         ],
         "intents": [
           "add Vercel AI Gateway to an application",
@@ -256,6 +271,10 @@
           "track AI model costs and set budgets",
           "debug AI Gateway requests and routing",
           "connect coding agents to AI Gateway",
+          "give coding agents centrally managed model and provider configuration",
+          "create or update an AI Gateway virtual model",
+          "evaluate application state with typed questions",
+          "migrate an existing TypeSafe evaluation client to AI Gateway",
           "find a model by modality, capability, price, or data retention",
           "check AI Gateway credit balance or generation cost",
           "configure reasoning or extended thinking across providers and API formats",
@@ -274,7 +293,13 @@
           "BYOK",
           "spend reporting",
           "safetyIdentifier",
-          "Usage & Billing API"
+          "Usage & Billing API",
+          "Virtual Models",
+          "vmc/<slug>",
+          "experimental_evaluate",
+          "POST /v1/evaluate",
+          "TypeSafe API",
+          "/typesafe/v1/systemone"
         ],
         "examples": []
       }
