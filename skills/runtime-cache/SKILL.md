@@ -248,7 +248,7 @@ return Response.json(product, {
 | Property | Limit |
 |----------|-------|
 | Item size | 2 MB |
-| Tags per Runtime Cache item | 64 |
+| Tags per Runtime Cache item | 128 |
 | Tags per CDN item | 128 |
 | Max tag length | 256 bytes |
 | Tags per bulk REST API call | 16 |
