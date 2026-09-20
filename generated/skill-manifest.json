@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T20:23:30.660Z",
+  "generatedAt": "2026-09-20T21:53:12.838Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -2214,13 +2214,17 @@
           "marketplace",
           "third party services",
           "add ons",
-          "vercel install"
+          "vercel install",
+          "database",
+          "storage"
         ],
         "intents": [
           "install integration",
           "manage marketplace",
           "add third party service",
-          "discover integrations"
+          "discover integrations",
+          "set up database",
+          "add storage"
         ],
         "entities": [
           "Vercel Marketplace",
@@ -2228,7 +2232,9 @@
           "vercel integration",
           "vercel install",
           "unified billing",
-          "provider agent skills"
+          "provider agent skills",
+          "Vercel Storage",
+          "database integration"
         ],
         "examples": []
       }

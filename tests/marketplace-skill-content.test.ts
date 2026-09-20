@@ -42,6 +42,22 @@ describe("marketplace skill content contract", () => {
     expect(body).not.toMatch(/default to (shopify|stripe)/i);
   });
 
+  test("payments discovery is not forced to Stripe", () => {
+    const preferredProviders = section("### Preferred providers");
+    expect(preferredProviders).not.toMatch(/^\|.*\|\s*\**Stripe\**\s*\|/im);
+    expect(preferredProviders).toContain("discover --category payments");
+    expect(preferredProviders).toMatch(/no forced provider for `payments`/i);
+  });
+
+  test("owns storage discovery before handing off implementation guidance", () => {
+    expect(description).toMatch(/storage|database/i);
+    expect(frontmatter).toMatch(/- set up database\n/);
+    expect(frontmatter).toMatch(/- add storage\n/);
+    expect(body).toContain("vercel integration discover --category storage");
+    expect(body).toMatch(/install the selected provider, then use `vercel-storage`/i);
+    expect(body).toMatch(/do not skip Marketplace discovery/i);
+  });
+
   test("install is mandatory and mocking is explicitly forbidden", () => {
     expect(body).toMatch(/required, not optional/i);
     expect(body).toMatch(/substitute a mock/i);

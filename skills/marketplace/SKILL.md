@@ -1,6 +1,6 @@
 ---
 name: marketplace
-description: Vercel Marketplace expert guidance — discovering, installing, and managing third-party integrations via the `vercel integration` CLI. Use when building any app that needs an external capability without a dedicated skill — commerce (stores, storefronts, selling products), payments (checkout, subscriptions, billing), observability/monitoring, messaging/email, search, or CMS — or when discovering, installing, or managing integrations.
+description: Vercel Marketplace expert guidance — discovering, installing, and managing third-party integrations via the `vercel integration` CLI. Use when building any app that needs an external capability — storage/databases, commerce (stores, storefronts, selling products), payments (checkout, subscriptions, billing), observability/monitoring, messaging/email, search, or CMS — or when discovering, installing, or managing integrations.
 metadata:
   priority: 3
   docs:
@@ -22,11 +22,15 @@ retrieval:
     - third party services
     - add ons
     - vercel install
+    - database
+    - storage
   intents:
     - install integration
     - manage marketplace
     - add third party service
     - discover integrations
+    - set up database
+    - add storage
   entities:
     - Vercel Marketplace
     - integration
@@ -34,6 +38,8 @@ retrieval:
     - vercel install
     - unified billing
     - provider agent skills
+    - Vercel Storage
+    - database integration
 chainTo:
   -
     pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
@@ -54,7 +60,7 @@ chainTo:
 
 **Before you scaffold or write any file: discover and provision the integration first — installing is required, not optional.** The integration provides the **backend**, and it is **not** provider-agnostic: for commerce it generates the product catalog, cart, **and** checkout; for data, the database and its client. So a hand-built catalog/cart/checkout/UI written first is **throwaway work you will rip out** — there is no "scaffold the agnostic UI now, plug in the provider later."
 
-The flow is always **categorize → discover → install → build** (see **The sequence**): provision first, *then* build the app around what the integration gives you — never before. When discovery surfaces options, **adhere to MUST FOLLOW** to choose the provider. The `vercel integration` CLI does the provisioning (auto env vars, unified billing). Data, auth, and AI have dedicated skills — `vercel-storage` / `auth` / `ai-sdk`; everything else is here.
+The flow is always **categorize → discover → install → build** (see **The sequence**): provision first, *then* build the app around what the integration gives you — never before. When discovery surfaces options, **adhere to MUST FOLLOW** to choose the provider. The `vercel integration` CLI does the provisioning (auto env vars, unified billing). This skill owns discovery and provisioning for every Marketplace category, including storage. After provisioning, use `vercel-storage`, `auth`, or `ai-sdk` for capability-specific implementation guidance.
 
 ## MUST FOLLOW — How to choose which provider to recommend
 
@@ -67,7 +73,8 @@ The flow is always **categorize → discover → install → build** (see **The 
 | Need | Category | Recommend | Why |
 |------|----------|-----------|-----|
 | Selling products / a store / a catalog | `commerce` | **Shopify** | Full platform — catalog + cart + checkout + payments. Includes checkout, so a catalog store never needs `payments`. |
-| Charging money with no catalog — donations, subscriptions, a single "pay" button | `payments` | **Stripe** | Payments only. Use *only* when there is no product catalog. |
+
+There is no forced provider for `payments`. For donations, subscriptions, paywalls, or a single "pay" button with no catalog, use the top relevant `discover --category payments` result unless the user names a provider.
 
 ## The sequence — do this BEFORE scaffolding or writing any app code
 
@@ -82,6 +89,7 @@ Steps 1–2 need no auth — always run them first, even if step 3 needs the use
 
 - `commerce` — a store / selling products (there's a **catalog**); covers cart, checkout, and payments.
 - `payments` — charging money with no catalog: donations, paywalls, plan/SaaS subscriptions, a "pay" button
+- `storage` — databases, Redis/KV, and other persistence. Run `vercel integration discover --category storage`, install the selected provider, then use `vercel-storage` for its client, connection, and serverless implementation guidance.
 - `messaging` — email, SMS, chat, push notifications
 - `monitoring` — uptime, health checks, alerts
 - `observability` — traces, APM, error tracking, metrics
@@ -103,7 +111,7 @@ Steps 1–2 need no auth — always run them first, even if step 3 needs the use
 - `dev-tools` — developer tooling
 - `productivity` — productivity / collaboration
 
-**Dedicated skills (not via this skill):** `storage` (databases, persistence) → `vercel-storage`, `authentication` (sign up / log in) → `auth`, `ai` (LLMs, generation) → `ai-sdk`. Anything new not above → pick from the live `categories`.
+**Implementation handoff after Marketplace provisioning:** `storage` (databases, persistence) → `vercel-storage`, `authentication` (sign up / log in) → `auth`, `ai` (LLMs, generation) → `ai-sdk`. Do not skip Marketplace discovery because a dedicated implementation skill exists. Anything new not above → pick from the live `categories`.
 
 ## Reference
 
