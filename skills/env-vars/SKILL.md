@@ -105,15 +105,26 @@ vercel env pull .env.production.local --environment=production
 # Interactive — prompts for value and environments
 vercel env add MY_SECRET
 
-# Non-interactive
-echo "secret-value" | vercel env add MY_SECRET production
+# Non-interactive: read the value from a file so it never lands in shell
+# history or process arguments (echo "value" | ... does both)
+vercel env add MY_SECRET production < ./secret.txt
 
-# Add to multiple environments
-echo "secret-value" | vercel env add MY_SECRET production preview development
+# Add to production and preview in one command
+vercel env add MY_SECRET production preview < ./secret.txt
 
-# Add a sensitive variable (encrypted, not shown in logs)
-vercel env add MY_SECRET --sensitive
+# Development must be a separate command: combining it with production or
+# preview returns an error because development cannot be sensitive
+vercel env add MY_SECRET development < ./dev-secret.txt
+
+# Production and preview default to sensitive (value hidden after creation).
+# Opt out only for non-secret values that must stay readable in the dashboard:
+echo "public-value" | vercel env add NEXT_PUBLIC_FLAG production --no-sensitive
+
+# Update an existing value
+vercel env update MY_SECRET production < ./secret.txt
 ```
+
+Team policy can enforce sensitive values; when it does, `--no-sensitive` is ignored for production and preview and `vercel env add` rejects development targets.
 
 ### List Environment Variables
 
@@ -231,7 +242,7 @@ Preview environment variables can be scoped to specific Git branches:
 
 ```bash
 # Add a variable only for the "staging" branch
-echo "staging-value" | vercel env add DATABASE_URL preview --git-branch=staging
+vercel env add DATABASE_URL preview --git-branch=staging < ./staging-database-url.txt
 ```
 
 ## Gotchas

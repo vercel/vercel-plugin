@@ -169,7 +169,7 @@ Vercel OIDC federation is for **secure backend access** — letting your deploye
 
 **What OIDC does:** Your Vercel function requests a short-lived OIDC token from Vercel at runtime, then exchanges it with an external provider's STS/token endpoint for scoped credentials.
 
-**What OIDC does not do:** Authenticate the Vercel CLI in CI pipelines. All `vercel pull`, `vercel build`, and `vercel deploy` commands still require `--token=${{ secrets.VERCEL_TOKEN }}`.
+**What OIDC does not do:** Authenticate `vercel pull`/`build`/`deploy` in CI; those need a Vercel access token. Only `vcr` and Remote Cache offer CI-side OIDC exchanges.
 
 **When to use OIDC:**
 - Serverless functions that need to call AWS APIs (S3, DynamoDB, SQS)
@@ -291,7 +291,7 @@ jobs:
 | Preview for every PR | Default behavior | Auto-creates preview URL per branch |
 | Promote preview to production | CLI promotion | `vercel promote <url>` |
 | Atomic deploys with DB migrations | Two-phase | Run migration → verify → `vercel promote` |
-| Edge-first architecture | Edge Functions | Set `runtime: 'edge'` in route config |
+| Latency-sensitive regional data | Vercel Functions | Keep the Node.js default; set the function region near the data |
 
 ## Common Build Errors
 
