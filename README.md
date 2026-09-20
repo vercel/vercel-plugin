@@ -270,7 +270,6 @@ vercel-plugin/
 ├── commands/                        # 5 slash commands
 ├── scripts/
 │   ├── build-skills.ts              # Rules engine: overlay + upstream → SKILL.md
-│   ├── build-manifest.ts            # Generates skill-manifest.json from frontmatter
 │   └── build-from-skills.ts         # Resolves {{include:skill:...}} in templates
 └── hooks/                           # SessionStart injection, repo profiler, skill injection, deprecation guard
     └── src/                         # TypeScript source (compiled to .mjs via tsup)
@@ -279,12 +278,16 @@ vercel-plugin/
 ## Build Pipeline
 
 ```bash
-bun run build          # Runs all 4 stages in order
+bun run build          # Runs all 3 stages in order
 bun run build:skills   # Stage 1: Merge overlay + upstream → SKILL.md
 bun run build:hooks    # Stage 2: Compile hook TypeScript → .mjs
-bun run build:manifest # Stage 3: Generate skill-manifest.json
-bun run build:from-skills # Stage 4: Resolve template includes
+bun run build:from-skills # Stage 3: Resolve template includes
 ```
+
+Hooks and developer tools read skill metadata directly from `skills/*/SKILL.md`.
+Builds only produce the skill files, hook scripts, and agent/command instructions
+used by the plugin. Validation checks the source files without writing reports
+back into the repository.
 
 ## Ecosystem Coverage (March 2026)
 

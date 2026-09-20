@@ -2,7 +2,7 @@
 /**
  * generate-doc-inventories.ts — Generates canonical inventories from code artifacts.
  *
- * Reads the filesystem and generated/skill-manifest.json to produce a structured
+ * Reads the filesystem and SKILL.md metadata to produce a structured
  * inventory object. Used by verify-docs.ts and can be imported by other scripts.
  *
  * Usage:
@@ -12,6 +12,7 @@
 
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -64,42 +65,28 @@ export function generateInventory(): DocInventory {
     .map((d) => d.name)
     .sort();
 
-  // Load manifest for priority/description/trigger data
-  const manifestPath = join(ROOT, "generated/skill-manifest.json");
-  let manifest: Record<string, any> = {};
-  if (existsSync(manifestPath)) {
-    const raw = JSON.parse(readFileSync(manifestPath, "utf-8"));
-    manifest = raw.skills || {};
+  const { validation, skills: skillMap, buildDiagnostics } = loadValidatedSkillMap(skillsDir);
+  if (!validation.ok || buildDiagnostics.length > 0) {
+    const errors = validation.ok ? buildDiagnostics : [...buildDiagnostics, ...validation.errors];
+    throw new Error(`Cannot inventory skill metadata: ${errors.join(", ")}`);
   }
 
   const skills: SkillEntry[] = canonicalSlugs.map((slug) => {
-    const m = manifest[slug] || {};
+    const metadata = skillMap[slug];
     const triggers: string[] = [];
-    if ((m.pathPatterns || []).length > 0) triggers.push("path");
-    if ((m.bashPatterns || []).length > 0) triggers.push("bash");
-    if ((m.importPatterns || []).length > 0) triggers.push("import");
-    if (m.promptSignals?.phrases?.length || m.promptSignals?.allOf?.length)
+    if (metadata.pathPatterns.length > 0) triggers.push("path");
+    if (metadata.bashPatterns.length > 0) triggers.push("bash");
+    if (metadata.importPatterns.length > 0) triggers.push("import");
+    if (metadata.promptSignals?.phrases?.length || metadata.promptSignals?.allOf?.length)
       triggers.push("prompt");
 
-    // Read description from SKILL.md frontmatter if manifest doesn't have it
-    let description = m.description || "";
-    if (!description) {
-      try {
-        const skillMd = readFileSync(
-          join(skillsDir, slug, "SKILL.md"),
-          "utf-8"
-        );
-        const descMatch = skillMd.match(/^description:\s*["']?(.+?)["']?\s*$/m);
-        if (descMatch) description = descMatch[1];
-      } catch {
-        /* ignore */
-      }
-    }
+    const skillMd = readFileSync(join(skillsDir, slug, "SKILL.md"), "utf-8");
+    const descMatch = skillMd.match(/^description:\s*["']?(.+?)["']?\s*$/m);
 
     return {
       slug,
-      priority: m.priority ?? 5,
-      description,
+      priority: metadata.priority,
+      description: descMatch?.[1] ?? "",
       triggerTypes: triggers,
     };
   });

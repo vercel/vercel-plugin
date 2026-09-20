@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Structural validation for the Vercel ecosystem plugin.
- * Checks cross-references, frontmatter, manifest completeness, and hooks validity.
+ * Checks cross-references, skill frontmatter, plugin configuration, and hooks validity.
  *
  * Usage: bun run scripts/validate.ts [options]
  *   --format pretty|json   Output format (default: pretty)
@@ -17,7 +17,6 @@ import { parseArgs } from "node:util";
 import { checkCoverage, type CoverageResult } from "./coverage-baseline";
 import { extractFrontmatter, parseSkillFrontmatter, buildSkillMap, validateSkillMap } from "../hooks/skill-map-frontmatter.mjs";
 import { globToRegex, importPatternToRegex, compileSkillPatterns, matchPathWithReason, matchBashWithReason } from "../hooks/patterns.mjs";
-import { buildManifest, writeManifestFile } from "./build-manifest";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -973,66 +972,11 @@ async function validatePatternCompilation() {
 }
 
 // ---------------------------------------------------------------------------
-// 10. Validate skill catalog is not stale vs skills/ directory
-// ---------------------------------------------------------------------------
-
-async function validateCatalogStaleness() {
-  section("[10] Skill catalog staleness");
-
-  const catalogPath = join(ROOT, "generated", "skill-catalog.md");
-  if (!(await exists(catalogPath))) {
-    fail("CATALOG_MISSING", "generated/skill-catalog.md not found", {
-      file: "generated/skill-catalog.md",
-      hint: "Run: bun run scripts/generate-catalog.ts",
-    });
-    return;
-  }
-
-  const catalog = await readFile(catalogPath, "utf-8");
-
-  // Extract skill slugs from the catalog Skill Index table only
-  // The table starts after "## Skill Index" and ends before the next "##" heading
-  const indexMatch = catalog.match(/## Skill Index\n[\s\S]*?\n\|[-|\s]+\|\n([\s\S]*?)(?:\n##|\n$)/);
-  const indexSection = indexMatch ? indexMatch[1] : "";
-  const catalogSlugs = new Set(
-    [...indexSection.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]),
-  );
-
-  // Get current skills from the skills/ directory
-  const skillsDir = join(ROOT, "skills");
-  const built = buildSkillMap(skillsDir);
-  const currentSlugs = new Set(Object.keys(built.skills));
-
-  // Check for missing skills (in skills/ but not in catalog)
-  const missing = [...currentSlugs].filter((s) => !catalogSlugs.has(s));
-  // Check for stale skills (in catalog but not in skills/)
-  const stale = [...catalogSlugs].filter((s) => !currentSlugs.has(s));
-
-  if (missing.length > 0) {
-    fail("CATALOG_STALE", `Skill catalog is missing ${missing.length} skill(s): ${missing.join(", ")}`, {
-      file: "generated/skill-catalog.md",
-      hint: "Run: bun run scripts/generate-catalog.ts to regenerate",
-    });
-  }
-
-  if (stale.length > 0) {
-    fail("CATALOG_STALE", `Skill catalog has ${stale.length} stale skill(s) no longer in skills/: ${stale.join(", ")}`, {
-      file: "generated/skill-catalog.md",
-      hint: "Run: bun run scripts/generate-catalog.ts to regenerate",
-    });
-  }
-
-  if (missing.length === 0 && stale.length === 0) {
-    pass(`Skill catalog lists all ${currentSlugs.size} skills (up to date)`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 11. Validate profiler skill slugs map to real skills
+// 10. Validate profiler skill slugs map to real skills
 // ---------------------------------------------------------------------------
 
 async function validateProfilerSkillSlugs() {
-  section("[11] Session-start profiler → skill slug cross-references");
+  section("[10] Session-start profiler → skill slug cross-references");
 
   const profilerPath = join(ROOT, "hooks", "session-start-profiler.mjs");
   if (!(await exists(profilerPath))) {
@@ -1104,7 +1048,7 @@ async function validateProfilerSkillSlugs() {
 }
 
 // ---------------------------------------------------------------------------
-// 12. Pattern fixture dry-run — assert expected skill matches
+// 11. Pattern fixture dry-run — assert expected skill matches
 // ---------------------------------------------------------------------------
 
 interface PatternFixture {
@@ -1115,7 +1059,7 @@ interface PatternFixture {
 }
 
 async function validatePatternFixtures() {
-  section("[12] Pattern fixture dry-run");
+  section("[11] Pattern fixture dry-run");
 
   const fixturesPath = join(ROOT, "tests", "fixtures", "pattern-fixtures.json");
   if (!(await exists(fixturesPath))) {
@@ -1203,7 +1147,6 @@ const CHECK_LABELS: Record<string, string> = {
   cliBannedPatterns: "CLI banned-pattern scan",
   preToolUseHook: "PreToolUse hook and skill coverage",
   patternCompilation: "Pattern compilation",
-  catalogStaleness: "Skill catalog staleness",
   profilerSkillSlugs: "Profiler skill slug cross-references",
   patternFixtures: "Pattern fixture dry-run",
 };
@@ -1243,23 +1186,11 @@ async function main() {
   await timed("cliBannedPatterns", () => validateCliBannedPatterns());
   await timed("preToolUseHook", () => validatePreToolUseHook());
   await timed("patternCompilation", () => validatePatternCompilation());
-  await timed("catalogStaleness", () => validateCatalogStaleness());
   await timed("profilerSkillSlugs", () => validateProfilerSkillSlugs());
   await timed("patternFixtures", () => validatePatternFixtures());
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
-
-  // Generate skill-manifest.json when validation passes (no errors)
-  if (errorCount === 0) {
-    const { manifest, errors: manifestErrors } = buildManifest(join(ROOT, "skills"));
-    if (manifestErrors.length === 0) {
-      const count = writeManifestFile(manifest);
-      if (FORMAT === "pretty") {
-        console.log(`\n✓ Generated skill-manifest.json (${count} skills)`);
-      }
-    }
-  }
 
   if (FORMAT === "json") {
     const report: ValidationReport = {

@@ -37,8 +37,6 @@ export interface ChainToRule {
   targetSkill: string;
   /** Optional human-readable message explaining why the chain is triggered. */
   message?: string;
-  /** True when this rule was auto-synthesized from a validate upgradeToSkill rule at build time. */
-  synthesized?: boolean;
   /** Optional regex — if file content matches, skip this chain rule. */
   skipIfFileContains?: string;
 }
@@ -610,10 +608,7 @@ export function scanSkillsDir(rootDir: string): ScanResult {
   const diagnostics: Diagnostic[] = [];
   let entries: string[];
   try {
-    // Sort for deterministic ordering: readdirSync returns entries in
-    // filesystem-dependent order (alphabetical-ish on macOS/APFS, arbitrary
-    // on Linux/ext4), which would make the generated manifest differ by
-    // platform and break the build:manifest:check drift gate in CI.
+    // Keep skill ordering consistent across filesystems and platforms.
     entries = (readdirSync(rootDir) as string[]).sort();
   } catch {
     return { skills, diagnostics };
@@ -1309,7 +1304,7 @@ export function validateSkillMap(raw: unknown): ValidationResult {
             skill,
             field: "validate.upgradeToSkill",
             valueType: "string",
-            hint: `Add a chainTo entry targeting "${rule.upgradeToSkill}" or let build-manifest synthesize one`,
+            hint: `Add a chainTo entry targeting "${rule.upgradeToSkill}"`,
           },
         );
       }

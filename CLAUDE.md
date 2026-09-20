@@ -3,15 +3,14 @@
 ## Quick Reference
 
 - **Build hooks**: `bun run build:hooks` (compiles `hooks/src/*.mts` → `hooks/*.mjs` via tsup)
-- **Build manifest**: `bun run build:manifest` (generates `generated/skill-manifest.json` from SKILL.md frontmatter)
 - **Build from skills**: `bun run build:from-skills` (compiles `*.md.tmpl` → `*.md` by resolving `{{include:skill:…}}` markers)
 - **Check from skills**: `bun run build:from-skills:check` (verify generated `.md` files are up-to-date; exits non-zero on drift)
-- **Build all**: `bun run build` (hooks + manifest + from-skills)
+- **Build all**: `bun run build` (skills + hooks + from-skills)
 - **Test**: `bun test` (typecheck + 42 test files)
 - **Single test**: `bun test tests/<file>.test.ts`
 - **Typecheck only**: `bun run typecheck` (tsc on hooks/tsconfig.json)
-- **Validate skills**: `bun run validate` (structural validation of all skills + manifest)
-- **Doctor**: `bun run doctor` (self-diagnosis: manifest parity, hook timeouts, dedup health)
+- **Validate skills**: `bun run validate` (structural validation of skill sources; does not write generated files)
+- **Doctor**: `bun run doctor` (self-diagnosis: skill validation, hook timeouts, dedup health)
 - **Update snapshots**: `bun test:update-snapshots` (regenerate golden snapshot baselines)
 - **Playground**: `bun run playground:generate` (generate static skill files for external tools)
 
@@ -98,9 +97,9 @@ metadata:
 # Skill body (markdown, injected as additionalContext)
 ```
 
-### Manifest (`generated/skill-manifest.json`)
+### Skill Metadata
 
-Built by `scripts/build-manifest.ts`. Pre-compiles glob→regex at build time for runtime speed. Version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`, etc.). Hooks prefer manifest over live SKILL.md scanning.
+Hooks and developer tools read metadata directly from `skills/*/SKILL.md` using `buildSkillMap()` and `validateSkillMap()`. Matching patterns are compiled in memory for each invocation, so skill edits are picked up without rebuilding a separate index. CLI scripts share `src/shared/skill-map-loader.ts`.
 
 ### Dedup Contract
 
@@ -124,7 +123,7 @@ Uses inline `parseSimpleYaml` in `skill-map-frontmatter.mjs`, **not** js-yaml:
 ### CLI (`src/cli/`)
 
 - `vercel-plugin explain <target> [--json] [--project <path>] [--likely-skills s1,s2] [--budget <bytes>]` — shows which skills match a file path or bash command, with priority breakdown and budget simulation
-- `vercel-plugin doctor` — validates manifest parity, hook timeout risk, dedup correctness, skill map errors
+- `vercel-plugin doctor` — validates skill metadata, hook timeout risk, dedup correctness, and template freshness
 
 ### Playground (`.playground/`)
 
@@ -143,7 +142,7 @@ Agents and commands derive instructions from skills via `.md.tmpl` templates. Sk
 
 Heading extraction is case-insensitive and captures everything from the heading to the next heading of equal or higher level.
 
-**Build**: `bun run build:from-skills` resolves all includes and writes output files. `bun run build:from-skills:check` verifies outputs are up-to-date (useful in CI). Both are part of `bun run build`.
+**Build**: `bun run build:from-skills` resolves all includes and writes output files. It is part of `bun run build`. `bun run build:from-skills:check` verifies outputs are up-to-date in CI. Dependency queries (`--skill <name>`) and coverage reports (`--audit`) are calculated from templates on demand.
 
 **Current templates** (7): `agents/ai-architect.md.tmpl`, `agents/deployment-expert.md.tmpl`, `agents/performance-optimizer.md.tmpl`, `commands/bootstrap.md.tmpl`, `commands/deploy.md.tmpl`, `commands/env.md.tmpl`, `commands/status.md.tmpl`.
 

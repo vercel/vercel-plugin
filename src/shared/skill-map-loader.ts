@@ -7,6 +7,7 @@ import {
   buildSkillMap,
   validateSkillMap,
 } from "../../hooks/skill-map-frontmatter.mjs";
+import type { SkillConfig } from "../../hooks/skill-map-frontmatter.mjs";
 
 export interface ValidatedSkillMapResult {
   /** Raw output from buildSkillMap (includes diagnostics, raw skills) */
@@ -14,7 +15,7 @@ export interface ValidatedSkillMapResult {
   /** Validation result (includes .ok, .errors, .warnings, .normalizedSkillMap) */
   validation: ReturnType<typeof validateSkillMap>;
   /** Normalized skills if validation passed, raw skills as fallback */
-  skills: Record<string, any>;
+  skills: Record<string, SkillConfig>;
   /** Human-readable diagnostics from the build phase */
   buildDiagnostics: string[];
 }
