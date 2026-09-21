@@ -9,19 +9,11 @@
  *   bun scripts/audit-retrieval-metadata.ts [--json] [--top N]
  */
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILLS_DIR = join(ROOT, "skills");
-const MANIFEST_PATH = join(ROOT, "generated", "skill-manifest.json");
-
-interface RetrievalMeta {
-  aliases: string[];
-  intents: string[];
-  entities: string[];
-  examples: string[];
-}
 
 interface SkillAudit {
   name: string;
@@ -39,20 +31,13 @@ const MIN_INTENTS = 2;
 const MIN_ENTITIES = 2;
 const MIN_EXAMPLES = 2;
 
-function loadManifest(): Record<
-  string,
-  { priority: number; retrieval?: RetrievalMeta }
-> {
-  if (!existsSync(MANIFEST_PATH)) {
-    console.error("Manifest not found. Run `bun run build:manifest` first.");
+function audit(): SkillAudit[] {
+  const { validation, skills, buildDiagnostics } = loadValidatedSkillMap(SKILLS_DIR);
+  if (!validation.ok || buildDiagnostics.length > 0) {
+    const errors = validation.ok ? buildDiagnostics : [...buildDiagnostics, ...validation.errors];
+    console.error(`Cannot audit skill metadata:\n${errors.join("\n")}`);
     process.exit(1);
   }
-  const raw = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
-  return raw.skills;
-}
-
-function audit(): SkillAudit[] {
-  const skills = loadManifest();
   const results: SkillAudit[] = [];
 
   for (const [name, skill] of Object.entries(skills)) {

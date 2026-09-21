@@ -3,15 +3,14 @@
 ## Quick Reference
 
 - **Build hooks**: `bun run build:hooks` (compiles `hooks/src/*.mts` → `hooks/*.mjs` via tsup)
-- **Build manifest**: `bun run build:manifest` (generates `generated/skill-manifest.json` from SKILL.md frontmatter)
 - **Build from skills**: `bun run build:from-skills` (compiles `*.md.tmpl` → `*.md` by resolving `{{include:skill:…}}` markers)
 - **Check from skills**: `bun run build:from-skills:check` (verify generated `.md` files are up-to-date; exits non-zero on drift)
-- **Build all**: `bun run build` (hooks + manifest + from-skills)
-- **Test**: `bun test` (typecheck + 32 test files)
+- **Build all**: `bun run build` (skills + hooks + from-skills)
+- **Test**: `bun test` (typecheck + 42 test files)
 - **Single test**: `bun test tests/<file>.test.ts`
 - **Typecheck only**: `bun run typecheck` (tsc on hooks/tsconfig.json)
-- **Validate skills**: `bun run validate` (structural validation of all skills + manifest)
-- **Doctor**: `bun run doctor` (self-diagnosis: manifest parity, hook timeouts, dedup health)
+- **Validate skills**: `bun run validate` (structural validation of skill sources; does not write generated files)
+- **Doctor**: `bun run doctor` (self-diagnosis: skill validation, hook timeouts, dedup health)
 - **Update snapshots**: `bun test:update-snapshots` (regenerate golden snapshot baselines)
 - **Playground**: `bun run playground:generate` (generate static skill files for external tools)
 
@@ -30,6 +29,7 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 | SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
 | SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
 | SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — |
+| PostToolUse | `posttooluse-skill-telemetry.mjs` | `Skill` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
 ### Hook Source Files (`hooks/src/*.mts`)
@@ -40,6 +40,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `session-start-seen-skills.mts` — initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in `CLAUDE_ENV_FILE`
 - `session-start-profiler.mts` — activates only for greenfield directories or detected Vercel, Next.js, or eve projects, then scans config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost)
 - `inject-claude-md.mts` — outputs the thin session-start Vercel context plus knowledge update guidance for that same activation set
+- `posttooluse-skill-telemetry.mts` — on `Skill` tool use, reports the bare name of a plugin-namespaced (`vercel:`/`vercel-plugin:`), plugin-shipped skill/command (`skill:invoked`); other namespaces, bare names, and arguments are dropped. Also the `--send` entrypoint that the detached sender runs for every skill event
 - `session-end-cleanup.mts` — deletes session-scoped temp files
 
 **Library modules** (imported by entry-point hooks):
@@ -50,6 +51,8 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `prompt-analysis.mts` — dry-run analysis reports for prompt matching
 - `vercel-config.mts` — vercel.json key→skill routing (±10 priority)
 - `logger.mts` — structured JSON logging to stderr (off/summary/debug/trace)
+- `telemetry.mts` — opt-out telemetry (`VERCEL_PLUGIN_TELEMETRY=off`): daily DAU ping, installation ID, skill slug/namespace validation, and `skill:invoked` / `skill:injected` event builders/senders
+- `skill-telemetry.mts` — shared skill-telemetry plumbing: per-session telemetry UUID + harness temp files, payload assembly, and `queueSkillTelemetry()` which spawns the detached sender (used by the Skill hook and both inject hooks)
 
 ### Skill Injection Flow
 
@@ -57,7 +60,8 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 2. **PreToolUse** (on Read/Edit/Write/Bash): Match file paths (glob), bash commands (regex), imports (regex+flags) → apply vercel.json routing → apply profiler boost → rank by priority → dedup → inject up to 3 skills within 18KB budget
 3. **UserPromptSubmit**: Score prompt text against `promptSignals` (phrases/allOf/anyOf/noneOf) → inject up to 2 skills within 8KB budget
    - **3b. Lexical fallback** (when `VERCEL_PLUGIN_LEXICAL_PROMPT=on`): If phrase/allOf/anyOf scoring yields no matches above `minScore`, re-score using a lexical stemmer that normalizes prompt tokens before comparison — catches natural phrasing that exact-substring matching misses
-4. **SessionEnd**: Clean up session-scoped temp files
+4. **PostToolUse (Skill)**: If the loaded skill is one shipped by this plugin under its namespace, emit a `skill:invoked` telemetry event (name only, tagged with the session's harness) from a detached background process. The inject hooks in steps 2–3 emit `skill:injected` the same way when they are wired in
+5. **SessionEnd**: Clean up session-scoped temp files
 
 Special triggers in PreToolUse:
 - **TSX review**: After N `.tsx` edits (default 3), injects `react-best-practices`
@@ -66,7 +70,7 @@ Special triggers in PreToolUse:
 
 ### Skill Structure (`skills/<name>/SKILL.md`)
 
-33 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
+36 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
 
 ```yaml
 ---
@@ -93,9 +97,9 @@ metadata:
 # Skill body (markdown, injected as additionalContext)
 ```
 
-### Manifest (`generated/skill-manifest.json`)
+### Skill Metadata
 
-Built by `scripts/build-manifest.ts`. Pre-compiles glob→regex at build time for runtime speed. Version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`, etc.). Hooks prefer manifest over live SKILL.md scanning.
+Hooks and developer tools read metadata directly from `skills/*/SKILL.md` using `buildSkillMap()` and `validateSkillMap()`. Matching patterns are compiled in memory for each invocation, so skill edits are picked up without rebuilding a separate index. CLI scripts share `src/shared/skill-map-loader.ts`.
 
 ### Dedup Contract
 
@@ -119,7 +123,7 @@ Uses inline `parseSimpleYaml` in `skill-map-frontmatter.mjs`, **not** js-yaml:
 ### CLI (`src/cli/`)
 
 - `vercel-plugin explain <target> [--json] [--project <path>] [--likely-skills s1,s2] [--budget <bytes>]` — shows which skills match a file path or bash command, with priority breakdown and budget simulation
-- `vercel-plugin doctor` — validates manifest parity, hook timeout risk, dedup correctness, skill map errors
+- `vercel-plugin doctor` — validates skill metadata, hook timeout risk, dedup correctness, and template freshness
 
 ### Playground (`.playground/`)
 
@@ -138,13 +142,13 @@ Agents and commands derive instructions from skills via `.md.tmpl` templates. Sk
 
 Heading extraction is case-insensitive and captures everything from the heading to the next heading of equal or higher level.
 
-**Build**: `bun run build:from-skills` resolves all includes and writes output files. `bun run build:from-skills:check` verifies outputs are up-to-date (useful in CI). Both are part of `bun run build`.
+**Build**: `bun run build:from-skills` resolves all includes and writes output files. It is part of `bun run build`. `bun run build:from-skills:check` verifies outputs are up-to-date in CI. Dependency queries (`--skill <name>`) and coverage reports (`--audit`) are calculated from templates on demand.
 
 **Current templates** (7): `agents/ai-architect.md.tmpl`, `agents/deployment-expert.md.tmpl`, `agents/performance-optimizer.md.tmpl`, `commands/bootstrap.md.tmpl`, `commands/deploy.md.tmpl`, `commands/env.md.tmpl`, `commands/status.md.tmpl`.
 
 ## Testing
 
-32 test files across `tests/`. Key categories:
+42 test files across `tests/`. Key categories:
 
 - **Hook integration**: `session-start-profiler`, `session-start-seen-skills`
 - **Pattern matching**: `patterns`, `fuzz-glob`, `fuzz-yaml`, `prompt-signals`, `prompt-analysis`
@@ -173,3 +177,4 @@ Snapshot updates: `bun run test:update-snapshots` (sets `UPDATE_SNAPSHOTS=1`).
 | `VERCEL_PLUGIN_TSX_EDIT_COUNT` | `0` | Current .tsx edit count (PreToolUse tracks) |
 | `VERCEL_PLUGIN_AUDIT_LOG_FILE` | — | Audit log path or `off` |
 | `VERCEL_PLUGIN_LEXICAL_PROMPT` | `on` | `0` to disable lexical stemmer fallback in UserPromptSubmit scoring |
+| `VERCEL_PLUGIN_TELEMETRY` | — | `off` disables all telemetry (DAU ping, `skill:invoked`, `skill:injected`). `bunfig.toml` preloads `tests/_preload-telemetry-off.ts` so the test suite never phones home |

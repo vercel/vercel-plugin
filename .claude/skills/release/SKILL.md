@@ -43,7 +43,7 @@ Update the `version` field in `.plugin/plugin.json`. This is the **only** versio
 bun run build              # hooks (tsup) + manifest
 ```
 
-This compiles `hooks/src/*.mts` → `hooks/*.mjs` and regenerates `generated/skill-manifest.json`.
+This merges upstream skills with their overlays, compiles `hooks/src/*.mts` → `hooks/*.mjs`, and resolves agent/command templates. Skill metadata is read directly from `SKILL.md` files.
 
 ### 5. Stage, commit, and push
 

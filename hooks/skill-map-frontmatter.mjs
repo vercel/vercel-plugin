@@ -861,7 +861,7 @@ function validateSkillMap(raw) {
             skill,
             field: "validate.upgradeToSkill",
             valueType: "string",
-            hint: `Add a chainTo entry targeting "${rule.upgradeToSkill}" or let build-manifest synthesize one`
+            hint: `Add a chainTo entry targeting "${rule.upgradeToSkill}"`
           }
         );
       }

@@ -150,6 +150,24 @@
       "type": "bash",
       "input": "pnpm add prisma langchain",
       "expectedSkills": []
+    },
+    {
+      "description": "vercel ai-gateway budgets triggers ai-gateway and vercel-cli",
+      "type": "bash",
+      "input": "vercel ai-gateway budgets set team --limit 500 --refresh-period monthly",
+      "expectedSkills": ["ai-gateway", "vercel-cli"]
+    },
+    {
+      "description": "vercel ai-gateway coding-agents setup triggers ai-gateway and vercel-cli",
+      "type": "bash",
+      "input": "vercel ai-gateway coding-agents setup",
+      "expectedSkills": ["ai-gateway", "vercel-cli"]
+    },
+    {
+      "description": "pnpm add @ai-sdk/gateway triggers ai-gateway and ai-sdk",
+      "type": "bash",
+      "input": "pnpm add @ai-sdk/gateway",
+      "expectedSkills": ["ai-gateway", "ai-sdk"]
     }
   ]
 }

@@ -45,7 +45,7 @@ LCP > 2.5s?
 │  ├─ Using SSR for static content? → Switch to SSG or ISR
 │  ├─ Can use Cache Components? → Add `'use cache'` to slow Server Components
 │  ├─ Database queries slow? → Add connection pooling, check query plans
-│  ├─ Edge Config available? → Use for configuration data (< 5ms reads)
+│  ├─ Global Config available? → Use for configuration data (< 5ms reads)
 │  └─ Region mismatch? → Deploy function in same region as database
 │
 └─ Render-blocking resources?

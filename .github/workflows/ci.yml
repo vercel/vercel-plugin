@@ -22,9 +22,6 @@ jobs:
 
       # Verify committed generated artifacts match their sources BEFORE the
       # build step regenerates (and thus clobbers) them in the working tree.
-      - name: Check committed manifest is up-to-date
-        run: bun run build:manifest:check
-
       - name: Check generated files are up-to-date
         run: bun run build:from-skills:check
 

@@ -35,10 +35,12 @@ import { createLogger, logCaughtError, type Logger } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import {
+  isDauTelemetryEnabled,
   refreshActiveSessionMarker,
   trackDauActiveToday,
   type AgentHarness,
 } from "./telemetry.mjs";
+import { writeSessionAgentHarness } from "./skill-telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,6 +85,7 @@ const FILE_MARKERS: FileMarker[] = [
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
   { file: "components.json", skills: ["shadcn"] },
+  { file: "flags.ts", skills: ["flags-sdk"] },
   { file: ".env.local", skills: ["env-vars"] },
 ];
 
@@ -101,8 +104,11 @@ const PACKAGE_MARKERS: Record<string, string[]> = {
   "@vercel/kv": ["vercel-storage"],
   "@vercel/postgres": ["vercel-storage"],
   "@vercel/edge-config": ["vercel-storage"],
+  "@vercel/global-config": ["vercel-storage"],
   "@vercel/workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
+  "flags": ["flags-sdk"],
+  "@flags-sdk/vercel": ["flags-sdk"],
   "@repo/auth": ["next-forge"],
   "@repo/database": ["next-forge"],
   "@repo/design-system": ["next-forge"],
@@ -134,7 +140,8 @@ const SETUP_RESOURCE_DEPENDENCIES: Record<string, string> = {
   "drizzle-orm": "postgres",
   "@upstash/redis": "redis",
   "@vercel/blob": "blob",
-  "@vercel/edge-config": "edge-config",
+  "@vercel/edge-config": "global-config",
+  "@vercel/global-config": "global-config",
 };
 
 const SETUP_MODE_THRESHOLD = 3;
@@ -514,6 +521,8 @@ export function detectSessionStartPlatform(
  * detected but unapproved agent is distinguishable from no detection.
  */
 export function normalizeDetectedAgentHarness(name: string | undefined): AgentHarness {
+  if (name === undefined) return "unknown";
+
   switch (name) {
     case "cursor":
     case "cursor-cli":
@@ -529,9 +538,21 @@ export function normalizeDetectedAgentHarness(name: string | undefined): AgentHa
       return "kimi";
     case "grok":
       return "grok";
-    default:
-      return name === undefined ? "unknown" : "other";
   }
+
+  // detect-agent returns the AI_AGENT env var verbatim when set, and harnesses
+  // that follow the AI_AGENT convention publish `<agent>_<version>_<role>`
+  // (Claude Code sets e.g. `claude-code_2-1-259_agent`). Match on the agent
+  // segment so those sessions are not misreported as "other".
+  const agentSegment = name.toLowerCase().split("_")[0] ?? "";
+  if (agentSegment === "claude-code" || agentSegment === "claude" || agentSegment === "cowork") return "claude-code";
+  if (agentSegment === "cursor" || agentSegment === "cursor-cli") return "cursor";
+  if (agentSegment === "codex" || agentSegment === "codex-cli") return "codex";
+  if (agentSegment === "github-copilot" || agentSegment === "copilot") return "github-copilot";
+  if (agentSegment === "kimi") return "kimi";
+  if (agentSegment === "grok") return "grok";
+
+  return "other";
 }
 
 type AgentDetector = () => Promise<AgentResult>;
@@ -695,6 +716,11 @@ async function main(): Promise<void> {
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
+
+  // Later hooks (skill telemetry) tag their events with this harness.
+  if (sessionId && isDauTelemetryEnabled()) {
+    writeSessionAgentHarness(sessionId, agentHarness);
+  }
 
   // Greenfield check — seed defaults and skip repository exploration.
   const greenfield: GreenfieldResult | null = checkGreenfield(projectRoot);

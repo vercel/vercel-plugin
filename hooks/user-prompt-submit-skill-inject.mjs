@@ -25,6 +25,8 @@ import { normalizePromptText, compilePromptSignals, matchPromptWithReason, score
 import { searchSkills, initializeLexicalIndex } from "./lexical-index.mjs";
 import { analyzePrompt } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
+import { queueSkillTelemetry } from "./skill-telemetry.mjs";
+import { SKILL_INJECTED_EVENT_KEY } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 var MAX_SKILLS = 2;
 var DEFAULT_INJECTION_BUDGET_BYTES = 8e3;
@@ -705,6 +707,11 @@ function run() {
       droppedByCap,
       droppedByBudget
     }, cwd);
+    queueSkillTelemetry(
+      SKILL_INJECTED_EVENT_KEY,
+      loaded.filter((skill) => skill in skills.skillMap),
+      sessionId
+    );
   }
   let outputEnv;
   const envFile = nonEmptyString(process.env.CLAUDE_ENV_FILE);

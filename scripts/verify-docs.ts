@@ -255,7 +255,7 @@ for (const [filePath, label] of docsForScripts) {
     if (checked.has(scriptName)) continue;
     checked.add(scriptName);
 
-    // Skip references to file paths (e.g., "bun run scripts/build-manifest.ts", "bun run src/cli/index.ts")
+    // Skip references to file paths (e.g., "bun run scripts/build-skills.ts", "bun run src/cli/index.ts")
     if (scriptName.includes("/") || scriptName.includes(".")) {
       continue;
     }

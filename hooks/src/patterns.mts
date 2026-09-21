@@ -46,16 +46,6 @@ export interface SkillEntry {
   retrieval?: RetrievalMetadata;
 }
 
-/**
- * Full manifest skill entry: base SkillEntry plus pre-compiled regex sources.
- * Written by build-manifest.ts, read by the PreToolUse hook.
- */
-export interface ManifestSkill extends SkillEntry {
-  pathRegexSources: string[];
-  bashRegexSources: string[];
-  importRegexSources: Array<{ source: string; flags: string }>;
-}
-
 export interface CompiledPattern {
   pattern: string;
   regex: RegExp;

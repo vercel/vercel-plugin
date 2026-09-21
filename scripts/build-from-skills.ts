@@ -30,7 +30,7 @@ export {
   compileTemplate,
   DiagnosticCode,
 };
-export type { CompileResult, CompileDiagnostic, ResolvedInclude, ResolveOptions, ManifestEntry, BuildManifest };
+export type { CompileResult, CompileDiagnostic, ResolvedInclude, ResolveOptions };
 
 const ROOT = resolve(import.meta.dir, "..");
 const DEFAULT_SKILLS_DIR = join(ROOT, "skills");
@@ -69,27 +69,6 @@ interface ResolvedInclude {
   contentLength: number;
   /** 1-based line number in the template where the marker appears. */
   lineNumber?: number;
-}
-
-/** Manifest entry for a single template file. */
-interface ManifestEntry {
-  template: string;
-  output: string;
-  dependencies: string[];
-  includes: Array<{
-    marker: string;
-    skillName: string;
-    target: string;
-    type: "section" | "frontmatter";
-    lineNumber: number;
-  }>;
-}
-
-/** Top-level manifest structure. */
-interface BuildManifest {
-  version: 1;
-  generatedAt: string;
-  templates: ManifestEntry[];
 }
 
 /** Structured result from compileTemplate / resolveIncludes with structured: true. */
@@ -608,42 +587,20 @@ if (import.meta.main) {
     }
   }
 
-  // --- Build manifest from all templates (always, regardless of mode) ---
-  const manifestEntries: ManifestEntry[] = [];
-  for (const tmpl of templates) {
-    const outFile = tmpl.replace(/\.md\.tmpl$/, ".md");
-    const templateContent = readFileSync(tmpl, "utf-8");
-    const tmplLabel = `${basename(dirname(tmpl))}/${basename(tmpl)}`;
-    const outLabel = `${basename(dirname(outFile))}/${basename(outFile)}`;
-    const result = resolveIncludes(templateContent, { strict: false, structured: true });
-
-    manifestEntries.push({
-      template: tmplLabel,
-      output: outLabel,
-      dependencies: result.dependencies,
-      includes: result.resolved.map((r) => ({
-        marker: r.marker,
-        skillName: r.skillName,
-        target: r.target,
-        type: r.type,
-        lineNumber: r.lineNumber ?? 0,
-      })),
-    });
-  }
-
   // --- Handle --skill <name> reverse-dependency query ---
   if (skillQuery) {
-    const dependents = manifestEntries.filter((e) =>
-      e.dependencies.includes(skillQuery),
-    );
+    const dependents = templates.map((tmpl) => ({
+      template: `${basename(dirname(tmpl))}/${basename(tmpl)}`,
+      result: resolveIncludes(readFileSync(tmpl, "utf-8"), { strict: false, structured: true }),
+    })).filter((entry) => entry.result.dependencies.includes(skillQuery));
     if (dependents.length === 0) {
       console.log(`No templates depend on skill "${skillQuery}".`);
     } else {
       console.log(`Templates depending on skill "${skillQuery}":\n`);
       for (const entry of dependents) {
         console.log(`  ${entry.template}`);
-        for (const inc of entry.includes.filter((i) => i.skillName === skillQuery)) {
-          console.log(`    L${inc.lineNumber}: ${inc.marker}`);
+        for (const inc of entry.result.resolved.filter((i) => i.skillName === skillQuery)) {
+          console.log(`    L${inc.lineNumber ?? 0}: ${inc.marker}`);
         }
       }
     }
@@ -699,50 +656,6 @@ if (import.meta.main) {
       }
     }
     process.exit(0);
-  }
-
-  // --- Emit manifest file ---
-  if (!dryRun && !check) {
-    const { mkdirSync } = await import("node:fs");
-    const generatedDir = join(ROOT, "generated");
-    mkdirSync(generatedDir, { recursive: true });
-
-    const manifestPath = join(generatedDir, "build-from-skills.manifest.json");
-
-    // If running a filtered build, merge new entries into the existing manifest
-    // rather than overwriting it with a partial one.
-    if (filters.length > 0 && existsSync(manifestPath)) {
-      try {
-        const existing: BuildManifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-        const updatedTemplateNames = new Set(manifestEntries.map((e) => e.template));
-        // Keep existing entries that weren't part of this filtered run
-        const merged = existing.templates.filter((e) => !updatedTemplateNames.has(e.template));
-        merged.push(...manifestEntries);
-        // Sort by template name for stable ordering across filtered/full builds
-        merged.sort((a, b) => a.template.localeCompare(b.template));
-        const manifest: BuildManifest = {
-          version: 1,
-          generatedAt: new Date().toISOString(),
-          templates: merged,
-        };
-        writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-      } catch {
-        // If existing manifest is corrupt, overwrite
-        const manifest: BuildManifest = {
-          version: 1,
-          generatedAt: new Date().toISOString(),
-          templates: manifestEntries,
-        };
-        writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-      }
-    } else {
-      const manifest: BuildManifest = {
-        version: 1,
-        generatedAt: new Date().toISOString(),
-        templates: manifestEntries,
-      };
-      writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-    }
   }
 
   if (jsonMode) {

@@ -1,11 +1,11 @@
 ---
 name: vercel-storage
-description: Vercel storage expert guidance — Blob, Edge Config, and Marketplace storage (Neon Postgres, Upstash Redis). Use when choosing, configuring, or using data storage with Vercel applications.
+description: Vercel storage expert guidance — Blob, Global Config (formerly Edge Config), and Marketplace storage (Neon Postgres, Upstash Redis). Use when choosing, configuring, or using data storage with Vercel applications.
 metadata:
   priority: 7
   docs:
     - "https://vercel.com/docs/storage"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'lib/blob/**'
     - 'lib/storage/**'
@@ -14,9 +14,11 @@ metadata:
     - 'lib/blob.*'
     - 'lib/storage.*'
     - 'lib/edge-config.*'
+    - 'lib/global-config.*'
     - 'src/lib/blob.*'
     - 'src/lib/storage.*'
     - 'src/lib/edge-config.*'
+    - 'src/lib/global-config.*'
     - 'supabase/**'
     - 'lib/supabase.*'
     - 'src/lib/supabase.*'
@@ -31,6 +33,10 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/edge-config\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/edge-config\b'
     - '\byarn\s+add\s+[^\n]*@vercel/edge-config\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/global-config\b'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/global-config\b'
+    - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/global-config\b'
+    - '\byarn\s+add\s+[^\n]*@vercel/global-config\b'
     - '\bnpm\s+(install|i|add)\s+[^\n]*@neondatabase/serverless\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@neondatabase/serverless\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@neondatabase/serverless\b'
@@ -74,6 +80,7 @@ metadata:
   importPatterns:
     - "@vercel/blob"
     - "@vercel/edge-config"
+    - "@vercel/global-config"
     - "@neondatabase/serverless"
     - "@upstash/redis"
     - "@vercel/kv"
@@ -95,6 +102,11 @@ validate:
     upgradeToSkill: vercel-storage
     upgradeWhy: 'Reload storage guidance for @vercel/postgres → @neondatabase/serverless migration steps, Marketplace provisioning, and drizzle-orm setup.'
     skipIfFileContains: '@neondatabase/serverless'
+  -
+    pattern: from\s+['"]@vercel/edge-config['"]
+    message: 'Edge Config is now Global Config — @vercel/global-config is a drop-in replacement for @vercel/edge-config. The legacy package cannot read newly connected stores (it only reads EDGE_CONFIG).'
+    severity: recommended
+    skipIfFileContains: '@vercel/global-config'
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/postgres['\"]"
@@ -157,9 +169,11 @@ retrieval:
     - add storage
     - set up database
     - configure blob storage
+    - use global config
     - use edge config
   entities:
     - Blob
+    - Global Config
     - Edge Config
     - Neon Postgres
     - Upstash Redis
@@ -203,8 +217,11 @@ const blob = await put('images/photo.jpg', file, {
 const privateBlob = await put('docs/secret.pdf', file, {
   access: 'private',
 })
-// Read private file back
-const privateFile = await get(privateBlob.url) // returns ReadableStream + metadata
+// Read a private file by pathname
+const privateFile = await get('docs/secret.pdf', { access: 'private' })
+if (privateFile?.statusCode === 200) {
+  // privateFile.stream contains the body; privateFile.blob contains metadata
+}
 
 // Client upload (up to 5 TB)
 import { upload } from '@vercel/blob/client'
@@ -218,9 +235,10 @@ const { blobs } = await list()
 
 // Conditional get with ETags
 const response = await get('images/photo.jpg', {
+  access: 'public', // `access` is required and must match the store
   ifNoneMatch: previousETag,
 })
-if (response.statusCode === 304) {
+if (response?.statusCode === 304) {
   // Not modified, use cached version
 }
 
@@ -228,22 +246,22 @@ if (response.statusCode === 304) {
 await del('images/photo.jpg')
 ```
 
-**Private Storage** (public beta): Use `access: 'private'` for files that should not be publicly accessible. Read them back with `get()`. Do NOT use private access for files that need to be served publicly — it leads to slow delivery and high egress costs.
+**Private Storage** (generally available): Create a private store with `vercel blob create-store <name> --access private`. Connected projects use short-lived OIDC credentials and `BLOB_STORE_ID` by default. Use `access: 'private'` for uploads and reads. To deliver a private file, authenticate the request in your own route, call `get(pathname, { access: 'private' })`, return 404 when the result is `null`, and otherwise stream `result.stream` to the caller. Use `presignUrl()` when a caller needs temporary direct access. Pass `useCache: false` only when a read must reflect an overwrite immediately.
 
 **Blob Data Transfer**: Vercel Blob uses two delivery strategies — **Fast Data Transfer** (94 cities, latency-optimized) and **Blob Data Transfer** (18 hubs, volume-optimized for large assets). The system automatically routes via the optimal path.
 
 **Use when**: Media files, user uploads, documents, any large unstructured data.
 
-### Vercel Edge Config — Global Configuration
+### Vercel Global Config (formerly Edge Config)
 
-Ultra-low-latency key-value store for application configuration. Not a database — designed for config data that must be read instantly at the edge.
+Ultra-low-latency key-value store for application configuration. Not a database — designed for config data that must be read instantly at the edge. Renamed from **Edge Config** in July 2026 — the store itself is unchanged.
 
 ```bash
-npm install @vercel/edge-config
+npm install @vercel/global-config
 ```
 
 ```ts
-import { get, getAll, has } from '@vercel/edge-config'
+import { get, getAll, has } from '@vercel/global-config'
 
 // Read a single value (< 1ms at the edge)
 const isFeatureEnabled = await get('feature-new-ui')
@@ -257,9 +275,11 @@ const exists = await has('maintenance-mode')
 
 **Use when**: Feature flags, A/B testing config, dynamic routing rules, maintenance mode toggles. Anything that must be read at the edge with near-zero latency.
 
-**Do NOT use for**: User data, session state, frequently written data. Edge Config is optimized for reads, not writes.
+**Do NOT use for**: User data, session state, frequently written data. Global Config is optimized for reads, not writes.
 
-**Next.js 16**: `@vercel/edge-config@^1.4.3` supports `cacheComponents` and the renamed `proxy.ts` (formerly `middleware.ts`).
+**Migration**: `@vercel/global-config` is a drop-in replacement for `@vercel/edge-config`. It reads the `GLOBAL_CONFIG` env var and falls back to `EDGE_CONFIG`, so upgrading is always safe. The legacy package only reads `EDGE_CONFIG` and cannot read newly connected stores — upgrade before connecting a new store. The `vercel edge-config` CLI command is now `vercel global-config` (old form still works). https://vercel.com/docs/global-config/migration-guide
+
+**Next.js 16**: `@vercel/edge-config@^1.4.3` supports `cacheComponents` and the renamed `proxy.ts` (formerly `middleware.ts`); `@vercel/global-config` carries this forward.
 
 ## Marketplace Storage (Partner-Provided)
 
@@ -467,7 +487,7 @@ Install via Vercel Marketplace: `vercel integration add turso`
 | Need | Use | Package |
 |------|-----|---------|
 | File uploads, media, documents | Vercel Blob | `@vercel/blob` |
-| Feature flags, A/B config | Edge Config | `@vercel/edge-config` |
+| Feature flags, A/B config | Global Config | `@vercel/global-config` |
 | Relational data, SQL queries | Neon Postgres | `@neondatabase/serverless` |
 | Key-value cache, sessions, rate limiting | Upstash Redis | `@upstash/redis` |
 | Postgres + auth + realtime + storage | Supabase | `@supabase/supabase-js` |
@@ -514,13 +534,21 @@ vercel integration add upstash
 vercel integration list
 ```
 
+`vercel install <slug>` (or `vercel i <slug>`) is an alias for `vercel integration add <slug>`. Either form also installs the provider's own agent skills from [skills.sh](https://skills.sh) for providers that publish them — follow those instead of recalling the provider's API from memory. If the database provisions but only the skill install fails, don't re-run the command — that can create a *second* database. Have the user run the `npx skills add …` recovery command the CLI prints instead.
+
 Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard (`https://vercel.com/dashboard/{team}/integrations`) automatically provisions accounts, creates databases, and sets environment variables.
+
+## Cross-References
+
+- **Choosing and installing a non-storage integration** → `⤳ skill: marketplace`
+- **Pulling and syncing the provisioned env vars** → `⤳ skill: env-vars`
+- **Sign up / log in providers** → `⤳ skill: auth`
 
 ## Official Documentation
 
 - [Vercel Storage](https://vercel.com/docs/storage)
 - [Vercel Blob](https://vercel.com/docs/vercel-blob)
-- [Edge Config](https://vercel.com/docs/edge-config)
+- [Global Config](https://vercel.com/docs/global-config)
 - [Vercel Marketplace](https://vercel.com/marketplace) — Neon, Upstash, and other storage integrations
 - [Integrations](https://vercel.com/docs/integrations)
 - [GitHub: Vercel Storage](https://github.com/vercel/storage)

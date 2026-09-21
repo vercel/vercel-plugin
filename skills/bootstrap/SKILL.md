@@ -6,7 +6,7 @@ metadata:
   docs:
     - "https://vercel.com/docs/getting-started-with-vercel"
     - "https://nextjs.org/docs/getting-started/installation"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - '.env.example'
     - '.env.sample'
@@ -31,6 +31,7 @@ metadata:
     - '@upstash/redis'
     - '@vercel/blob'
     - '@vercel/edge-config'
+    - '@vercel/global-config'
     - 'next-auth'
     - '@auth/core'
     - 'better-auth'
@@ -141,7 +142,8 @@ Generate a high-entropy secret without printing it, then store it in Vercel and 
 
 ```bash
 AUTH_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development preview production
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET preview production
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # development cannot share a command with preview/production
 unset AUTH_SECRET
 vercel env pull .env.local --yes
 ```

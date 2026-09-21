@@ -6,7 +6,7 @@ metadata:
   priority: 7
   docs:
     - "https://vercel.com/docs/projects/project-configuration"
-  sitemap: "https://vercel.com/sitemap/docs.xml"
+  sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns: []
   bashPatterns:
     - '\bnext\s+dev\b'
@@ -89,7 +89,7 @@ chainTo:
   -
     pattern: 'streamText\s*\(|generateText\s*\(|useChat\s*\('
     targetSkill: ai-sdk
-    message: 'AI SDK calls detected during verification — loading AI SDK v6 guidance for streaming, transport, and error handling patterns.'
+    message: 'AI SDK calls detected during verification — loading AI SDK guidance for streaming, transport, and error handling patterns.'
     skipIfFileContains: 'toUIMessageStreamResponse|DefaultChatTransport'
 
 ---

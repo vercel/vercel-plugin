@@ -1,59 +1,5 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`dependency manifest manifest dependency snapshot 1`] = `
-[
-  {
-    "dependencies": [
-      "ai-sdk",
-    ],
-    "includeCount": 2,
-    "template": "agents/ai-architect.md.tmpl",
-  },
-  {
-    "dependencies": [
-      "deployments-cicd",
-      "vercel-functions",
-    ],
-    "includeCount": 10,
-    "template": "agents/deployment-expert.md.tmpl",
-  },
-  {
-    "dependencies": [
-      "next-cache-components",
-      "nextjs",
-    ],
-    "includeCount": 8,
-    "template": "agents/performance-optimizer.md.tmpl",
-  },
-  {
-    "dependencies": [
-      "bootstrap",
-    ],
-    "includeCount": 9,
-    "template": "commands/bootstrap.md.tmpl",
-  },
-  {
-    "dependencies": [
-      "deployments-cicd",
-    ],
-    "includeCount": 5,
-    "template": "commands/deploy.md.tmpl",
-  },
-  {
-    "dependencies": [
-      "env-vars",
-    ],
-    "includeCount": 6,
-    "template": "commands/env.md.tmpl",
-  },
-  {
-    "dependencies": [],
-    "includeCount": 0,
-    "template": "commands/status.md.tmpl",
-  },
-]
-`;
-
 exports[`CLI --json output shape --json output shape snapshot 1`] = `
 [
   {

@@ -378,9 +378,11 @@ import { createLogger, logCaughtError } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import { buildSkillMap } from "./skill-map-frontmatter.mjs";
 import {
+  isDauTelemetryEnabled,
   refreshActiveSessionMarker,
   trackDauActiveToday
 } from "./telemetry.mjs";
+import { writeSessionAgentHarness } from "./skill-telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
   { file: "next.config.js", skills: ["nextjs", "turbopack"] },
@@ -391,6 +393,7 @@ var FILE_MARKERS = [
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
   { file: "components.json", skills: ["shadcn"] },
+  { file: "flags.ts", skills: ["flags-sdk"] },
   { file: ".env.local", skills: ["env-vars"] }
 ];
 var PACKAGE_MARKERS = {
@@ -405,8 +408,11 @@ var PACKAGE_MARKERS = {
   "@vercel/kv": ["vercel-storage"],
   "@vercel/postgres": ["vercel-storage"],
   "@vercel/edge-config": ["vercel-storage"],
+  "@vercel/global-config": ["vercel-storage"],
   "@vercel/workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
+  "flags": ["flags-sdk"],
+  "@flags-sdk/vercel": ["flags-sdk"],
   "@repo/auth": ["next-forge"],
   "@repo/database": ["next-forge"],
   "@repo/design-system": ["next-forge"],
@@ -434,7 +440,8 @@ var SETUP_RESOURCE_DEPENDENCIES = {
   "drizzle-orm": "postgres",
   "@upstash/redis": "redis",
   "@vercel/blob": "blob",
-  "@vercel/edge-config": "edge-config"
+  "@vercel/edge-config": "global-config",
+  "@vercel/global-config": "global-config"
 };
 var SETUP_MODE_THRESHOLD = 3;
 var GREENFIELD_DEFAULT_SKILLS = [
@@ -685,6 +692,7 @@ function detectSessionStartPlatform(input, env = process.env) {
   return "claude-code";
 }
 function normalizeDetectedAgentHarness(name) {
+  if (name === void 0) return "unknown";
   switch (name) {
     case "cursor":
     case "cursor-cli":
@@ -700,9 +708,15 @@ function normalizeDetectedAgentHarness(name) {
       return "kimi";
     case "grok":
       return "grok";
-    default:
-      return name === void 0 ? "unknown" : "other";
   }
+  const agentSegment = name.toLowerCase().split("_")[0] ?? "";
+  if (agentSegment === "claude-code" || agentSegment === "claude" || agentSegment === "cowork") return "claude-code";
+  if (agentSegment === "cursor" || agentSegment === "cursor-cli") return "cursor";
+  if (agentSegment === "codex" || agentSegment === "codex-cli") return "codex";
+  if (agentSegment === "github-copilot" || agentSegment === "copilot") return "github-copilot";
+  if (agentSegment === "kimi") return "kimi";
+  if (agentSegment === "grok") return "grok";
+  return "other";
 }
 async function determineAgentWithBundledPackage() {
   const hookGlobal = globalThis;
@@ -818,6 +832,9 @@ async function main() {
   const sessionId = normalizeSessionStartSessionId(hookInput);
   const projectRoot = resolveSessionStartProjectRoot();
   refreshActiveSessionMarker();
+  if (sessionId && isDauTelemetryEnabled()) {
+    writeSessionAgentHarness(sessionId, agentHarness);
+  }
   const greenfield = checkGreenfield(projectRoot);
   const shouldActivate = greenfield !== null || !existsSync(projectRoot) || hasSessionStartActivationMarkers(projectRoot);
   if (!shouldActivate) {

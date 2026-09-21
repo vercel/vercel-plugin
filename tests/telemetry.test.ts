@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
+const PLUGIN_VERSION = JSON.parse(
+  readFileSync(join(ROOT, ".plugin", "plugin.json"), "utf-8"),
+).version as string;
 const TELEMETRY_MODULE = join(ROOT, "hooks", "telemetry.mjs");
 const NODE_BIN = Bun.which("node") || "node";
 
@@ -145,7 +148,7 @@ describe("telemetry controls", () => {
     expect(result.activeSessionMarker).toEqual({
       schema: 1,
       active: true,
-      pluginVersion: "0.48.1",
+      pluginVersion: PLUGIN_VERSION,
       updatedAt: Date.parse("2026-05-15T12:00:00.000Z"),
       expiresAt: Date.parse("2026-05-15T13:00:00.000Z"),
     });
@@ -161,7 +164,7 @@ describe("telemetry controls", () => {
         }),
         expect.objectContaining({
           key: "plugin:version",
-          value: "0.48.1",
+          value: PLUGIN_VERSION,
         }),
         expect.objectContaining({
           key: "plugin:install_id",
@@ -255,17 +258,18 @@ describe("telemetry controls", () => {
     expect(secondPayload.some((event) => event.key === "plugin:install_id")).toBe(true);
   });
 
-  test("compiled hooks do not emit prompt, tool, or skill-injection telemetry keys", () => {
+  test("compiled inject hooks emit only the skill:injected key, never prompt or tool-call telemetry", () => {
     const pretoolHook = readFileSync(join(ROOT, "hooks", "pretooluse-skill-inject.mjs"), "utf-8");
     const promptSkillInjectHook = readFileSync(join(ROOT, "hooks", "user-prompt-submit-skill-inject.mjs"), "utf-8");
 
-    expect(pretoolHook.includes("tool_call:tool_name")).toBe(false);
-    expect(pretoolHook.includes("tool_call:command")).toBe(false);
-    expect(pretoolHook.includes("skill:injected")).toBe(false);
-    expect(pretoolHook.includes("skill:hook")).toBe(false);
-    expect(promptSkillInjectHook.includes("skill:injected")).toBe(false);
-    expect(promptSkillInjectHook.includes("skill:hook")).toBe(false);
-    expect(promptSkillInjectHook.includes("prompt:text")).toBe(false);
+    for (const hook of [pretoolHook, promptSkillInjectHook]) {
+      expect(hook.includes("queueSkillTelemetry")).toBe(true);
+      expect(hook.includes("SKILL_INJECTED_EVENT_KEY")).toBe(true);
+      expect(hook.includes("tool_call:tool_name")).toBe(false);
+      expect(hook.includes("tool_call:command")).toBe(false);
+      expect(hook.includes("skill:hook")).toBe(false);
+      expect(hook.includes("prompt:text")).toBe(false);
+    }
   });
 
   test("session-start profiler source only references the DAU ping telemetry key", () => {

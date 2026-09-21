@@ -47,6 +47,8 @@ import { analyzePrompt } from "./prompt-analysis.mjs";
 import type { PromptAnalysisReport } from "./prompt-analysis.mjs";
 import { createLogger, logDecision } from "./logger.mjs";
 import type { Logger } from "./logger.mjs";
+import { queueSkillTelemetry } from "./skill-telemetry.mjs";
+import { SKILL_INJECTED_EVENT_KEY } from "./telemetry.mjs";
 import { selectManagedContextChunk } from "./vercel-context.mjs";
 
 const MAX_SKILLS = 2;
@@ -1047,6 +1049,11 @@ export function run(): string {
       droppedByBudget,
     }, cwd);
 
+    queueSkillTelemetry(
+      SKILL_INJECTED_EVENT_KEY,
+      loaded.filter((skill) => skill in skills.skillMap),
+      sessionId,
+    );
   }
 
   let outputEnv: Record<string, string> | undefined;

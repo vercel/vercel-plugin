@@ -46,13 +46,13 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (35 skills)
+### Skills (37 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `access-protected-vercel-deployment` | Authenticated CLI and browser access to protected preview and production deployments using `vc curl`, OIDC, and Trusted Sources |
 | `ai-gateway`            | Unified model API, provider routing, failover, cost tracking, 100+ models                                                            |
-| `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                      |
+| `ai-sdk`                | AI SDK 7 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                       |
 | `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                                  |
 | `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands                                         |
 | `build-agents`          | Default eve-first agent builder — create AI agents, agent apps, tools, channels, schedules, and Slack agents                         |
@@ -63,28 +63,30 @@ A text-form relational graph covering:
 | `deployments-cicd`      | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files                                                      |
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
 | `eve`                   | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients    |
+| `flags-sdk`             | Feature flags and A/B tests — Flags SDK, provider adapters, `vercel flags` CLI, precompute, Flags Explorer                           |
 | `knowledge-update`      | Knowledge update guidance for the plugin                                                                                             |
-| `marketplace`           | Integration discovery, installation, auto-provisioned env vars, unified billing                                                      |
+| `marketplace`           | Integration discovery and installation (`vercel integration add` / `vercel install`), provider agent skills, auto-provisioned env vars, unified billing |
 | `microfrontends`        | Multi-zone and microfrontend architecture, routing, deployment boundaries, and shared dependencies                                   |
 | `next-cache-components` | Next.js 16 Cache Components — PPR, `use cache`, cacheLife, cacheTag, updateTag                                                       |
 | `next-forge`            | Production SaaS monorepo starter — Turborepo, Clerk, Prisma/Neon, Stripe, shadcn/ui                                                  |
 | `next-upgrade`          | Next.js version upgrades — codemods, migration guides, dependency updates                                                            |
 | `nextjs`                | App Router, Server Components, Server Actions, Cache Components, routing, rendering strategies                                       |
+| `queues`                | Vercel Queues — durable topics, `@vercel/queue` publish/consume, consumer groups, retries, delays, idempotency, Queues vs Workflows   |
 | `react-best-practices`  | React/Next.js performance optimization — 64 rules across 8 categories                                                                |
 | `routing-middleware`    | Request interception before cache, rewrites, redirects, personalization — Edge/Node.js/Bun runtimes                                  |
 | `runtime-cache`         | Ephemeral per-region key-value cache, tag-based invalidation, shared across Functions/Middleware/Builds                              |
 | `shadcn`                | shadcn/ui — CLI, component installation, custom registries, theming, Tailwind CSS integration                                        |
 | `turbopack`             | Next.js bundler, HMR, configuration, Turbopack vs Webpack                                                                            |
-| `vercel-agent`          | AI-powered code review, incident investigation, SDK installation, PR analysis                                                        |
+| `vercel-agent`          | Vercel Agent chat (dashboard, Slack), code review, investigations, approved actions, product installation                            |
 | `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace                                         |
 | `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
-| `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                                                 |
+| `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, Cron Jobs, configuration                         |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
-| `vercel-storage`        | Blob, Edge Config, Neon Postgres, Upstash Redis, migration from sunset packages                                                      |
+| `vercel-storage`        | Blob, Global Config (formerly Edge Config), Neon Postgres, Upstash Redis, migration from sunset packages                             |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
-| `workflow`              | Workflow SDK — durable execution, DurableAgent, steps, Worlds, pause/resume                                                          |
+| `workflow`              | Workflow SDK — durable execution, WorkflowAgent, steps, Worlds, pause/resume                                                         |
 
 ### Agents (3 specialists)
 
@@ -131,23 +133,39 @@ What is collected:
 - `plugin:version`: sent with telemetry batches so usage can be grouped by plugin version.
 - `plugin:install_id`: the locally stored random installation UUID.
 - `plugin:agent_harness`: each distinct detected agent harness category observed per installation per UTC day.
+- `skill:invoked`: the name of a skill or command that ships with this plugin (for example `nextjs`, `ai-sdk`, `deploy`) each time it is loaded through the agent's `Skill` tool — whether you typed the slash command or the model chose it. See [Skill telemetry](#skill-telemetry) below.
+- `skill:injected`: the same skill names, sent when the plugin's opt-in injection hooks (`pretooluse-skill-inject`, `user-prompt-submit-skill-inject`) add a skill to the agent's context. These hooks are not registered by default, so most installs never emit this key. The key therefore records *how* a skill reached the agent; the value records *which* skill.
 
 Each telemetry event contains only:
 
 - `id`: a random event UUID.
 - `event_time`: the event timestamp.
 - `key`: one of the event names listed above.
-- `value`: `"1"` for counters, the plugin version, the random installation UUID, or the detected harness, depending on the event key.
+- `value`: `"1"` for counters, the plugin version, the random installation UUID, the detected harness, or the plugin skill name, depending on the event key.
 
 The request also sends HTTP headers used by the telemetry bridge:
 
-- `x-vercel-plugin-topic-id: dau`
-- `x-vercel-plugin-session-id`: a random UUID generated for that telemetry request.
+- `x-vercel-plugin-topic-id`: `dau` for the daily ping, `generic` for skill events.
+- `x-vercel-plugin-session-id`: for the daily ping, a random UUID generated for that telemetry request; for skill events, a random UUID the plugin mints once per agent session (see below).
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
 
 The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
 
-Prompt text, bash commands, tool-call contents, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
+Prompt text, bash commands, tool-call contents, skill arguments, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
+
+### Skill telemetry
+
+The plugin reports which of *its own* skills get used so we can see which guidance is valuable and which is not. It is deliberately narrow:
+
+- **Only this plugin's skills are reported.** When the agent loads a skill (for example `/vercel:nextjs`), a `PostToolUse` hook on the `Skill` tool requires the namespace to be this plugin's (`vercel` or `vercel-plugin`) *and* the bare name to exist in the `skills/` or `commands/` directories that ship with it. Anything else — un-namespaced personal skills (`deploy`), other plugins' skills even with the same name (`other-plugin:deploy`), typos — is dropped entirely; nothing is sent, not even an "other" bucket.
+- **Only the skill name is sent.** Skill arguments, the tool's response, the prompt that triggered the skill, and anything else in the tool call are never read past the name check and never leave your machine.
+- **No harness identifiers.** Events from one agent session share a random UUID the plugin mints itself and stores in a session-scoped temp file (`<tmpdir>/vercel-plugin-<session>-telemetry-session-id.txt`, removed at session end). Your agent's own session ID is never sent, so skill usage cannot be joined to any other telemetry the agent produces.
+- **Harness category only.** The session-start hook records the detected harness category (`claude-code`, `cursor`, `codex`, `github-copilot`, `kimi`, `grok`, `other`, or `unknown` — the same values as `plugin:agent_harness`) in a session temp file (`<tmpdir>/vercel-plugin-<session>-agent-harness.txt`), and skill events carry it so usage can be broken down per harness. No harness version or raw agent name is sent.
+- **Coverage by harness.** The `Skill` tool is Claude Code's contract, and Cursor's Claude-compatible hook bridge is accepted too (`conversation_id` payloads). Cursor's own hook API does not expose a skill-load event or a `Skill` tool name, so skills loaded natively by Cursor are not currently observable and are simply not counted.
+- **It never slows the agent down.** The hook validates the name and exits immediately (a few milliseconds); the network request runs in a detached background process with a 3-second timeout. If the bridge is unreachable the event is simply lost — there is no retry queue and nothing is persisted.
+- **Same off switch.** `VERCEL_PLUGIN_TELEMETRY=off` disables it along with everything else.
+
+Each skill event request also carries `plugin:version`, `plugin:install_id`, and (when known) `plugin:agent_harness` so usage can be grouped by version, installation, and harness, exactly as the daily ping does.
 
 How it is tracked:
 
@@ -159,12 +177,13 @@ How it is tracked:
   - `first-use-stamp` prevents sending `plugin:first_use` more than once.
   - `installation-id` stores the random installation UUID. It is used only by plugin telemetry and is not written to `active-session.json`.
 - Stamp files are written only after the telemetry bridge returns a successful response, so failed sends can retry later.
+- Skill events are not throttled or stamped; each load of a plugin skill is one event, sent once and never retried.
 - `active-session.json` is refreshed on session start with the plugin version and expiry timestamp. It lets Vercel CLI telemetry identify commands run while a recent Vercel plugin session marker is present. It contains no prompt text, file paths, project names, account IDs, tool-call contents, or skill-injection details.
 
 Behavior:
 
 - Unset `VERCEL_PLUGIN_TELEMETRY`: telemetry is enabled.
-- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today` and `plugin:first_use`, and does not create an installation ID if one does not already exist.
+- `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today`, `plugin:first_use`, `skill:invoked`, and `skill:injected`, and does not create an installation ID if one does not already exist.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
 
@@ -183,7 +202,7 @@ setx VERCEL_PLUGIN_TELEMETRY off
 
 ## Upstream Skill Sync
 
-11 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:
+12 skills are synced from their upstream source repos on [skills.sh](https://skills.sh). Each synced skill uses an **overlay + upstream** model:
 
 ```
 skills/<name>/
@@ -205,6 +224,7 @@ skills/<name>/
 | `ai-sdk`                | [vercel/ai](https://github.com/vercel/ai)                                 |
 | `chat-sdk`              | [vercel/chat](https://github.com/vercel/chat)                             |
 | `eve`                   | [vercel/eve](https://github.com/vercel/eve)                               |
+| `flags-sdk`             | [vercel/flags](https://github.com/vercel/flags)                           |
 | `next-cache-components` | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
 | `next-forge`            | [vercel/next-forge](https://github.com/vercel/next-forge)                 |
 | `next-upgrade`          | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills)     |
@@ -237,14 +257,14 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 35 skills
+├── skills/                          # 37 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
 │   │   │   ├── SKILL.md
-│   │   │   └── references/
+│   │   │   └── references/          #   Only when the upstream repo ships them
 │   │   ├── SKILL.md                 #   Build output (overlay + upstream)
-│   │   └── references/              #   Copied from upstream at build time
+│   │   └── references/              #   Copied from upstream at build time (when present)
 │   ├── ai-elements/                 # Plugin-only skill example:
 │   │   └── SKILL.md                 #   Entirely ours
 │   └── ...
@@ -252,7 +272,6 @@ vercel-plugin/
 ├── commands/                        # 5 slash commands
 ├── scripts/
 │   ├── build-skills.ts              # Rules engine: overlay + upstream → SKILL.md
-│   ├── build-manifest.ts            # Generates skill-manifest.json from frontmatter
 │   └── build-from-skills.ts         # Resolves {{include:skill:...}} in templates
 └── hooks/                           # SessionStart injection, repo profiler, skill injection, deprecation guard
     └── src/                         # TypeScript source (compiled to .mjs via tsup)
@@ -261,29 +280,33 @@ vercel-plugin/
 ## Build Pipeline
 
 ```bash
-bun run build          # Runs all 4 stages in order
+bun run build          # Runs all 3 stages in order
 bun run build:skills   # Stage 1: Merge overlay + upstream → SKILL.md
 bun run build:hooks    # Stage 2: Compile hook TypeScript → .mjs
-bun run build:manifest # Stage 3: Generate skill-manifest.json
-bun run build:from-skills # Stage 4: Resolve template includes
+bun run build:from-skills # Stage 3: Resolve template includes
 ```
 
-## Ecosystem Coverage (March 2026)
+Hooks and developer tools read skill metadata directly from `skills/*/SKILL.md`.
+Builds only produce the skill files, hook scripts, and agent/command instructions
+used by the plugin. Validation checks the source files without writing reports
+back into the repository.
+
+## Ecosystem Coverage (September 2026)
 
 - Next.js 16 (App Router, Cache Components, Proxy, View Transitions)
-- AI SDK v6 (Agents, MCP, DevTools, Reranking, Image Editing)
+- AI SDK 7 (Agents, WorkflowAgent, harnesses, MCP, DevTools, telemetry)
 - AI Elements (pre-built React components for AI interfaces)
 - Chat SDK (multi-platform chat bots — Slack, Telegram, Teams, Discord)
-- Workflow SDK (DurableAgent, Worlds, open source)
+- Workflow SDK (WorkflowAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
-- Vercel Functions (Fluid Compute, streaming, Cron Jobs)
+- Vercel Functions (Fluid Compute, Node.js/Bun/Python/Rust, streaming, WebSockets, Cron Jobs)
 - Vercel Services (multiple frontends and backends, public rewrites, private bindings)
-- Storage (Blob, Edge Config, Neon Postgres, Upstash Redis)
+- Storage (Blob, Global Config, Neon Postgres, Upstash Redis)
 - Routing Middleware (request interception, Edge/Node.js/Bun runtimes)
 - Runtime Cache API (per-region KV cache, tag-based invalidation)
 - Vercel Flags (feature flags, Flags Explorer, gradual rollouts, A/B testing)
 - Vercel Queues (durable event streaming, topics, consumer groups, retries)
-- Vercel Agent (AI code review, incident investigation)
+- Vercel Agent (chat, code review, investigations, approved actions)
 - Vercel Sandbox (Firecracker microVMs for untrusted code)
 - Sign in with Vercel (OAuth 2.0/OIDC identity provider)
 - Auth integrations (Clerk, Descope, Auth0)
