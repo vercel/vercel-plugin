@@ -114,19 +114,20 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `REVALIDATED` | Foreground revalidation after a delete (or `Pragma: no-cache`)   |
   | `BYPASS`      | Caching skipped (`no-store`, `private`, cookies, etc.)           |
 
-- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Nine values, three per group:
+- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Ten values: four for MISS, three map to BYPASS, three for STALE:
 
-  | `cacheReason`      | Refines  | Meaning                                                                       |
-  | ------------------ | -------- | ----------------------------------------------------------------------------- |
-  | `cold`             | MISS     | Cache empty for this key/variant (first request or evicted); the function ran |
-  | `collapsed`        | MISS     | Concurrent requests to one uncached path collapsed into a single invocation   |
-  | `error`            | MISS     | An error prevented serving from cache                                         |
-  | `draft_mode`       | → BYPASS | Next.js Draft Mode active — bypassed so editors see live content              |
-  | `prerender_bypass` | → BYPASS | Prerender-bypass cookie/token present                                         |
-  | `crawler`          | → BYPASS | SEO-crawler UA — full response served so bots index real content              |
-  | `stale_time`       | STALE    | Time-based `revalidate` interval elapsed; regenerating in background (SWR)     |
-  | `stale_tag`        | STALE    | Tag invalidated (`revalidateTag` / `invalidateByTag`); regenerating           |
-  | `stale_error`      | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
+  | `cacheReason`        | Refines  | Meaning                                                                       |
+  | --------------------- | -------- | ----------------------------------------------------------------------------- |
+  | `cold`                | MISS     | Cache empty for this key/variant (first request or evicted); the function ran |
+  | `collapsed`           | MISS     | Concurrent requests to one uncached path collapsed into a single invocation   |
+  | `error`               | MISS     | An error prevented serving from cache                                         |
+  | `vary_key_denied`     | MISS     | Origin's `Vary` header names a high-cardinality header (e.g. `Cookie`); response can't be cached |
+  | `draft_mode`          | → BYPASS | Next.js Draft Mode active — bypassed so editors see live content              |
+  | `prerender_bypass`    | → BYPASS | Prerender-bypass cookie/token present                                         |
+  | `crawler`             | → BYPASS | SEO-crawler UA — full response served so bots index real content              |
+  | `stale_time`          | STALE    | Time-based `revalidate` interval elapsed; regenerating in background (SWR)     |
+  | `stale_tag`           | STALE    | Tag invalidated (`revalidateTag` / `invalidateByTag`); regenerating           |
+  | `stale_error`         | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
 
   A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
 
