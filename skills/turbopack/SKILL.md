@@ -4,8 +4,8 @@ description: Turbopack expert guidance. Use when configuring the Next.js bundler
 metadata:
   priority: 4
   docs:
-    - "https://turbo.build/pack/docs"
-    - "https://nextjs.org/docs/architecture/turbopack"
+    - "https://nextjs.org/docs/app/api-reference/turbopack"
+    - "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack"
   sitemap: "https://turbo.build/sitemap.xml"
   pathPatterns: 
     - 'next.config.*'
@@ -47,7 +47,7 @@ You are an expert in Turbopack — the Rust-powered JavaScript/TypeScript bundle
 ## Key Features
 
 - **Instant HMR**: Hot Module Replacement that doesn't degrade with app size
-- **File System Caching (Stable)**: Dev server artifacts cached on disk between restarts — up to 14x faster startup on large projects. Enabled by default in Next.js 16.1+, no config needed. Build caching planned next.
+- **File System Caching**: Compiler artifacts cached on disk between runs — up to 14x faster startup on large projects. `turbopackFileSystemCacheForDev` defaults to `true` since Next.js 16.1, and `turbopackFileSystemCacheForBuild` defaults to `true` since Next.js 16.3 — no config needed for either.
 - **Multi-environment builds**: Browser, Server, Edge, SSR, React Server Components
 - **Native RSC support**: Built for React Server Components from the ground up
 - **TypeScript, JSX, CSS, CSS Modules, WebAssembly**: Out of the box
@@ -215,12 +215,11 @@ const nextConfig: NextConfig = {
 
 ### When migration isn't possible
 
-If a webpack loader has no Turbopack equivalent and no workaround, fall back to webpack:
+If a webpack loader has no Turbopack equivalent and no workaround, fall back to webpack with the CLI flag:
 
-```js
-const nextConfig: NextConfig = {
-  bundler: 'webpack',
-}
+```bash
+next dev --webpack
+next build --webpack
 ```
 
 File an issue at [github.com/vercel/next.js](https://github.com/vercel/next.js) — the Turbopack team tracks loader parity requests.
@@ -258,7 +257,7 @@ Run both bundlers and compare:
 next build
 
 # Webpack build
-BUNDLER=webpack next build
+next build --webpack
 ```
 
 Compare `.next/` output sizes and page-level chunks.
@@ -313,13 +312,12 @@ Turbopack's Rust core manages its own memory. If builds OOM:
 - Custom webpack loaders with no Turbopack equivalent
 - Complex webpack plugin configurations (e.g., `ModuleFederationPlugin`)
 - Specific webpack features not yet in Turbopack (e.g., custom `externals` functions)
+- Turbopack does not support webpack plugins at all (only a subset of loaders)
 
-To use webpack instead:
-```js
-// next.config.ts
-const nextConfig: NextConfig = {
-  bundler: 'webpack', // Opt out of Turbopack
-}
+To use webpack instead, pass the `--webpack` flag (there is no `next.config.js` option to opt out):
+```bash
+next dev --webpack
+next build --webpack
 ```
 
 ## Development vs Production
@@ -337,7 +335,6 @@ const nextConfig: NextConfig = {
 
 ## Official Documentation
 
-- [Turbopack](https://turborepo.dev/pack)
-- [Turbopack Documentation](https://turborepo.dev/pack/docs)
+- [Turbopack](https://nextjs.org/docs/app/api-reference/turbopack)
 - [Next.js Turbopack Config](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack)
 - [GitHub: Turbopack](https://github.com/vercel/turborepo)
