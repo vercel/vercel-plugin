@@ -180,14 +180,16 @@ Conditions within a group are **AND'd**. Multiple groups (separated by `--or`) a
 - **Client**: `ip_address` (IP or CIDR), `user_agent`, `geo_country`, `geo_continent`, `geo_country_region`, `geo_city`, `geo_as_number`
 - **Headers / cookies / queries** — require `key`: `header`, `cookie`, `query`
 - **TLS fingerprints**: `ja4_digest` (all plans), `ja3_digest` (Enterprise only)
+- **Rate limit grouping**: `rate_limit_api_id`
 
 ### Actions
 
 - `deny` — block (403)
 - `challenge` — show verification page
 - `log` — log without blocking (use to tune before enforcing)
-- `bypass` — skip remaining WAF custom rules + managed rulesets
+- `bypass` — skip remaining WAF custom rules and managed rulesets (does not bypass system-level mitigations — use System bypass for that)
 - `rate_limit` — throttle by counting key (see Rate limit example for flags)
+- `redirect` — redirect to a URL or path; use `--redirect-url <URL>` and optionally `--redirect-permanent` (301; default is a temporary 307 redirect)
 
 All actions accept `--duration` (Pro/Enterprise): `1m`, `5m`, `15m`, `30m`, `1h`. Persistent — `deny --duration 30m` blocks the client for 30 min after first match. Without a duration the action evaluates per-request. Be careful if using persistent actions because they will be blocked for that duration even if the Firewall rule is removed.
 
@@ -277,35 +279,28 @@ vercel firewall publish --yes             # push drafts to production
 vercel firewall discard --yes             # throw away drafts
 ```
 
-## Querying firewall metrics from the CLI
+## Querying firewall traffic from the CLI
 
-If the project has **Observability Plus**, `vc metrics` returns firewall counters that you can analyze without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work.
-
-```bash
-vc metrics vercel.firewall_action.count \
-  --group-by waf_rule_id \
-  --group-by waf_action \
-  --since 3d \
-  --granularity 4h \
-  --format json
-```
-
-- `--group-by waf_rule_id` — break out hits per rule. Match the IDs to `vercel firewall rules list --json` to see which rule fired.
-- `--group-by waf_action` — splits `log` / `deny` / `challenge` / `rate_limit` / `bypass` so you can tell what actually got enforced versus only logged.
-- `--since` accepts `1h`, `24h`, `3d`, `7d`, etc.; `--granularity` is the bucket size.
-- `--format json` is best for programmatic review; drop it for a human-readable table.
-
-For an **active-attack triage** lens — "is something happening right now?" — narrow the window and tighten the granularity:
+`vercel firewall traffic list` and `vercel firewall traffic inspect` are the built-in way to analyze firewall activity without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work. Unlike generic `vc metrics` queries, these succeed on every plan for the last 24 hours; **Observability Plus** only extends the retention window to 30 days.
 
 ```bash
-vc metrics vercel.firewall_action.count \
-  --group-by waf_action \
-  --since 1h \
-  --granularity 5m \
-  --format json
+vercel firewall traffic list --since 3d --json
+vercel firewall traffic list --action deny --dimension rule --json
 ```
 
-Other dimensions and metric names exist; run `vc metrics --help` to discover them, and check https://vercel.com/docs/cli/metrics for the full catalog. If the command errors with "metrics not enabled" or similar, the project isn't on Observability Plus — fall back to the dashboard URL (`/firewall/traffic?filter=<ruleId>`) for the same data.
+- `traffic list` reports requests by action plus top lists across 10 dimensions: `ip`, `ja4`, `asn`, `user-agent`, `path`, `rule`, `host`, `bot`, `country`, `action`. Use `--dimension` to choose which top lists to include.
+- `traffic inspect <dimension> <value>` (e.g. `vercel firewall traffic inspect rule rule_abc123 --group-by ip`) drills into one value with a breakdown by a second dimension.
+- `--since`/`--until` accept `1h`, `24h`, `3d`, `7d`, etc., or an ISO date; `--json` is best for programmatic review.
+- A window entirely before your plan's retention returns an error asking you to shorten it or add Observability Plus.
+
+For an **active-attack triage** lens — "is something happening right now?" — narrow the window:
+
+```bash
+vercel firewall traffic list --since 1h --json
+vercel firewall alerts list --since 1h --json   # DDoS mitigation and other anomaly episodes
+```
+
+Also available: `vercel firewall status` (config in evaluation order), `vercel firewall persistent-actions list/inspect` (clients currently under a persistent deny/challenge), and `vercel firewall bot-management` (Bot Protection, AI Bots, and BotID managed-rule actions plus unknown-bot traffic). Run `vercel firewall <subcommand> --help` for current flags, and check https://vercel.com/docs/cli/firewall for the full reference. The dashboard URL `/firewall/traffic?filter=<ruleId>` shows the same data for a human to review.
 
 ## Best practices
 
