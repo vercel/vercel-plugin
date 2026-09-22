@@ -263,8 +263,10 @@ export async function generateImageMetadata({ params }) {
 }
 
 export default async function Image({ params, id }) {
-  const images = await getPostImages(params.slug)
-  const image = images[id]
+  const { slug } = await params
+  const imageId = await id
+  const images = await getPostImages(slug)
+  const image = images[imageId]
   return new ImageResponse(/* ... */)
 }
 ```
@@ -285,9 +287,10 @@ export async function generateSitemaps() {
 export default async function sitemap({
   id,
 }: {
-  id: number
+  id: Promise<string>
 }): Promise<MetadataRoute.Sitemap> {
-  const start = id * 50000
+  const sitemapId = Number(await id)
+  const start = sitemapId * 50000
   const end = start + 50000
   const products = await getProducts(start, end)
 

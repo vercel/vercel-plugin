@@ -143,6 +143,8 @@ permanentRedirect('/new-url')
 
 ## Auth Errors
 
+`forbidden()` and `unauthorized()` are experimental and require `experimental.authInterrupts: true` in `next.config.js` before they can be used.
+
 Trigger auth-related error pages:
 
 ```tsx

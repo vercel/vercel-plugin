@@ -36,7 +36,7 @@ export default async function Page() {
 }
 ```
 
-### With Params (Async in Next.js 16)
+### With Params (Async in Next.js 15+)
 ```tsx
 export default async function Page({
   params,
@@ -49,7 +49,7 @@ export default async function Page({
 }
 ```
 
-### With Search Params (Async in Next.js 16)
+### With Search Params (Async in Next.js 15+)
 ```tsx
 export default async function Page({
   searchParams,

@@ -2,13 +2,13 @@
 
 ## Use Node.js Runtime by Default
 
-Use the default Node.js runtime for new routes and pages. Only use Edge runtime if the project already uses it or there's a specific requirement.
+Use the default Node.js runtime for new routes and pages. The Edge Runtime for pages, layouts, and route handlers is deprecated — remove the `runtime` export from route files instead of adding it.
 
 ```tsx
 // Good: Default - no runtime config needed (uses Node.js)
 export default function Page() { ... }
 
-// Caution: Only if already used in project or specifically required
+// Deprecated: 'edge' is deprecated for pages/layouts/route handlers
 export const runtime = 'edge'
 ```
 
@@ -22,18 +22,18 @@ export const runtime = 'edge'
 - Database connections
 - Most npm packages work
 
-### Edge Runtime
+### Edge Runtime (Deprecated for routes)
 
-- Only for specific edge-location latency requirements
+- Deprecated for pages, layouts, and route handlers — remove the `runtime` export instead of setting `'edge'`
 - Limited API (no `fs`, limited `crypto`)
 - Smaller cold start
-- Geographic distribution needs
+- Still used internally by Proxy (`proxy.ts`), which defaults to the Node.js runtime and does not accept a `runtime` export
 
 ## Detection
 
 **Before adding `runtime = 'edge'`**, check:
-1. Does the project already use Edge runtime?
-2. Is there a specific latency requirement?
+1. Is `'edge'` deprecated for this file type? (pages, layouts, and route handlers: yes — remove the export instead)
+2. Does the project already use Edge runtime for another reason?
 3. Are all dependencies Edge-compatible?
 
-If unsure, use Node.js runtime.
+If unsure, use Node.js runtime (the default).
