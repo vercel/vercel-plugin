@@ -27,9 +27,9 @@ pnpm i flags @flags-sdk/vercel
 
 ### Setup
 
-> **Prerequisite**: The `vercel flags` commands require the Vercel CLI to be installed and authenticated. If the Vercel CLI is not installed, run `pnpm i -g vercel`. For authentication or linking issues, follow the `vercel-cli` skill if it's already available. If it isn't, suggest the user install it with `npx skills add vercel/vercel@vercel-cli` (don't auto-install it) and rely on `vercel <command> --help` in the meantime.
+> **Prerequisite**: The Vercel CLI must be installed and authenticated. If it is not installed, run `pnpm i -g vercel`. For authentication or linking issues, follow the `vercel-cli` skill if it's already available. If it isn't, suggest the user install it with `npx skills add vercel/vercel@vercel-cli` (don't auto-install it) and rely on `vercel <command> --help` in the meantime.
 
-Before running any `vercel flags` command, verify the project is linked to Vercel. Check for a `.vercel` directory in the project root. If it doesn't exist, run `vercel link` first.
+The following steps integrate a flag into an app and need a linked project for `vercel env pull`; verify the link as described in [Project targeting](../SKILL.md#project-targeting). To only inspect or change remote flags, follow [CLI-only flag management](../SKILL.md#cli-only-flag-management) instead.
 
 1. Create a flag in the Vercel dashboard or via CLI: `vercel flags create <flag-key> --kind boolean --description "<description>"`
 2. Pull env vars: run `vercel env pull` to write the Vercel OIDC token and the Development `FLAGS_SECRET` to `.env.local` ([Pull environment variables](../SKILL.md#pull-environment-variables)). See [Authentication](#how-the-cli-connects-to-the-sdk) for SDK keys.
@@ -114,9 +114,28 @@ export const exampleFlag = flag({
 
 Outside Vercel, pass the SDK key: `createClient(process.env.FLAGS)`. Unlike `vercelAdapter()`, `createClient()` does not read `FLAGS` on its own.
 
+### Core client in other frameworks (for example, Express)
+
+For frameworks without a Flags SDK entrypoint, use `@vercel/flags-core` directly. Create a shared client at module scope, but call `evaluate()` or `bulkEvaluate()` inside a request handler. Both initialize the client automatically; do not add a module-scope `client.initialize()` call or cache its promise for handlers to await.
+
+```ts
+// src/flags.ts
+import { createClient } from '@vercel/flags-core';
+
+const client = createClient();
+
+// Call from a request handler, not during module loading.
+export async function getVersion(): Promise<number> {
+  const result = await client.evaluate<number>('version', 0);
+  return result.value;
+}
+```
+
+With Vercel OIDC, the token can come from request context and may not exist during module loading. Even embedded definitions require OIDC to select the entry by the token's `project_id`. Local `.env.local` credentials can hide this timing problem. Explicit initialization is optional and must wait until authentication is available; awaiting an already-started initialization promise later does not move it into request context.
+
 ### `vercel flags` CLI
 
-Manage Vercel Flags from the terminal. Install, link, and `vercel env pull` requirements are in [Setup](#setup) above.
+Manage Vercel Flags from the terminal with an authenticated CLI and a targeted project ([Project targeting](../SKILL.md#project-targeting)). SDK installation and `vercel env pull` are app-development steps, not CLI prerequisites (see [Setup](#setup)).
 
 For the current subcommand list and options, run `vercel flags --help` or `vercel flags <cmd> --help`. For CLI-wide contracts (linking, `--non-interactive`, `--yes`, parsing stdout) follow the `vercel-cli` skill. This section covers only what `--help` cannot tell you.
 
@@ -133,13 +152,15 @@ For the current subcommand list and options, run `vercel flags --help` or `verce
 
 #### Lifecycle and safety
 
-The docs describe these flows end to end: [Roll out a feature](https://vercel.com/docs/flags/vercel-flags/cli/roll-out-feature), [Run an A/B test](https://vercel.com/docs/flags/vercel-flags/cli/run-ab-test), [Clean up after rollout](https://vercel.com/docs/flags/vercel-flags/cli/clean-up-after-rollout). Follow them; the notes below are the parts an agent gets wrong.
+The docs describe these flows end to end: [Roll out a feature](https://vercel.com/docs/flags/vercel-flags/cli/roll-out-feature), [Run an A/B test](https://vercel.com/docs/flags/vercel-flags/cli/run-ab-test). For cleanup, follow the deployment and evaluation checks below before archiving.
 
 - **Promote**: deploy the code to preview, `enable` or `set` the flag in preview, verify on the preview URL, deploy to production, then change production (`enable`, `set`, `split`, or `rollout`). Each environment keeps its own configuration; preview stays on its current value until you change it.
 - **Serve vs define**: `enable` / `disable` work on boolean flags only. `set` changes the served variant for any kind. `update` adds, removes, or renames variants and does not change what is served. A variant can only be removed when no environment configuration or rule references it, including rules that are stored but not active ([Deleting a variant](https://vercel.com/docs/flags/vercel-flags/dashboard/feature-flag#deleting-a-variant)).
 - **Static value vs targeting**: `set` / `enable` / `disable` put the environment in static value mode; its split, rollout, and rules are preserved in the background. `use-targeting` switches back to targets and rules mode ([Switching between static and rules modes](https://vercel.com/docs/flags/vercel-flags/dashboard/feature-flag#switching-between-static-and-rules-modes)). Run `inspect` first so you know what the environment serves today.
 - **Confirm a change**: `inspect` for the served state, `versions` for the change history (the dashboard can restore any earlier configuration), `evaluations` to confirm traffic reaches the new variant or to check whether a flag is still evaluated before archiving ([Evaluation metrics](https://vercel.com/docs/flags/vercel-flags/evaluation-metrics)). Local development evaluates the Development environment configuration.
-- **Archive before delete**: archive after the flag is no longer used in code. Search the code for the key and its camelCase name, remove the declaration and the conditionals, deploy to preview, then `archive`; `unarchive` restores it with configuration and history intact. `rm` requires an archived flag and is permanent ([Clean up after rollout](https://vercel.com/docs/flags/vercel-flags/cli/clean-up-after-rollout), [Archive](https://vercel.com/docs/flags/vercel-flags/dashboard/archive)).
+- **Deploy removal first**: search for the flag key and its camelCase name, remove the declaration and conditionals, verify in preview, and complete the rollout to production and every other environment using the flag. A merged PR or preview deployment is not sufficient. Older deployments can still evaluate it through [Skew Protection](https://vercel.com/docs/skew-protection#configure-maximum-age): inspect the project's configured maximum age and account for longer-lived traffic, including crawler exceptions, rather than assuming a fixed 24 or 48 hours.
+- **Verify no evaluations**: before archiving, use `vercel flags evaluations <flag> --since <window> --json` with the explicit project/team target. Require no evaluations over an observation window after rollout that covers the applicable Skew Protection period. Check that the returned time range covers the window and the data is not truncated. Clients using `@vercel/flags-core` before 1.6.0 do not report evaluations, so verify reporting coverage; an empty result alone does not prove disuse ([Evaluation metrics](https://vercel.com/docs/flags/vercel-flags/evaluation-metrics)). If evaluations continue, reporting coverage is unknown, or the window has not elapsed, leave the flag active.
+- **Archive before delete**: only after those checks pass, `archive` the flag. `unarchive` restores its configuration and history. Keep it archived through the agreed observation period before permanent deletion; `rm` requires an archived flag and cannot be undone ([Archive](https://vercel.com/docs/flags/vercel-flags/dashboard/archive)).
 - **Agent runs**: `archive`, `unarchive`, `rm`, and `update --remove-variant` prompt for confirmation. Pass `--yes` when the user has approved the action.
 
 CLI reference: https://vercel.com/docs/cli/flags
