@@ -54,6 +54,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 ├── Domains & DNS
 │   → Deployment Engine
 │   ↔ Vercel Firewall
+│   ⤳ skill: domains  (public search, registration, project domains, DNS, transfers, renewals)
 │   ⤳ skill: vercel-cli  (vercel domains, vercel dns, vercel certs)
 │
 ├── Environment Variables                        ⤳ skill: env-vars

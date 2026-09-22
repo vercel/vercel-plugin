@@ -46,7 +46,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (37 skills)
+### Skills (38 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -61,6 +61,7 @@ A text-form relational graph covering:
 | `create-a-backend`      | Backend product and framework selection — Functions, Services, containers, Workflow, Queues, and databases                          |
 | `custom-metrics`        | Emit numeric application and business measurements from Functions and query them with `vc metrics`                                 |
 | `deployments-cicd`      | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files                                                      |
+| `domains`              | Public domain search and pricing, CLI and Registrar API operations, project domains, DNS, transfers, and renewals                    |
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
 | `eve`                   | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients    |
 | `flags-sdk`             | Feature flags and A/B tests — Flags SDK, provider adapters, `vercel flags` CLI, precompute, Flags Explorer                           |
@@ -257,7 +258,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 37 skills
+├── skills/                          # 38 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
