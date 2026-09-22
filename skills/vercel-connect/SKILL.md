@@ -150,13 +150,7 @@ Important! The `vercel connect create` and `vercel connect token` commands may o
 
 #### Available Services
 
-| Service                | Modes      | Description                                |
-| ---------------------- | ---------- | ------------------------------------------ |
-| `slack`                | user, bot  | Slack API access                           |
-| `github`               | user, app  | GitHub API access                          |
-| MCP servers            | user, app  | Any MCP server (`mcp.<host>/<path>`)       |
-| `snowflake`            | user       | Snowflake data access                      |
-| Generic OAuth provider | user, app  | Any OAuth 2.0 server registered via `vercel connect create` |
+`vercel connect create <service>` supports 100+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
 
 For MCP servers, pass the full endpoint URL when registering (e.g. `vercel connect create https://mcp.linear.app/mcp`). The connector ID then takes the form `mcp.<host>/<name>` (for example `mcp.linear.app/myagent`).
 
