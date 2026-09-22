@@ -120,19 +120,7 @@ Base URL: `https://api.vercel.com`. Consult the [live OpenAPI schema](https://op
 
 ### Public discovery
 
-These endpoints require no authentication:
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| POST | `/v1/registrar/domains/search` | Combined availability and pricing; `{"domains":[...]}`, 1–200 names |
-| GET | `/v1/registrar/tlds/supported` | Supported TLD catalog |
-| GET | `/v1/registrar/tlds/{tld}` | TLD metadata, including supported language codes |
-| GET | `/v1/registrar/tlds/{tld}/price` | Base TLD prices; optional `years` query |
-| GET | `/v1/registrar/domains/{domain}/price` | Domain-specific purchase, renewal, and transfer prices; optional `years` query |
-| GET | `/v1/registrar/domains/{domain}/availability` | Single-name availability |
-| POST | `/v1/registrar/domains/availability` | Availability only; `{"domains":[...]}`, 1–50 names |
-| POST | `/v1/registrar/domains/price` | Prices only; `{"domains":[...],"years":1}`, 1–50 names |
-| GET | `/v1/registrar/domains/{domain}/contact-info/schema` | TLD-specific registrant requirements |
+Use the [Registrar API reference](https://vercel.com/docs/domains/registrar-api) for public TLD metadata, term-specific domain prices, availability, and contact requirements. These operations require no authentication. Bulk availability and price calls accept 1–50 domains; search accepts 1–200.
 
 TLD base prices do not quote premium domains. Use domain-specific prices for the requested term; price endpoints return `purchasePrice`, unlike search's `price`. Some price fields can be strings rather than numeric quotes; do not submit those as `expectedPrice`.
 
@@ -140,20 +128,9 @@ TLD base prices do not quote premium domains. Use domain-specific prices for the
 
 Send `Authorization: Bearer <token>` and use `?teamId=<team-id>` for the intended team. Use `Content-Type: application/json` for JSON bodies. Reuse a securely available token; do not ask for one for public discovery.
 
-| Method | Path | Required body / purpose |
-| --- | --- | --- |
-| POST | `/v1/registrar/domains/{domain}/buy` | `autoRenew`, `years`, `expectedPrice`, `contactInformation` |
-| POST | `/v1/registrar/domains/buy` | `domains` array with per-domain purchase fields, plus `contactInformation` |
-| GET | `/v1/registrar/orders/{orderId}` | Inspect order and per-domain outcome |
-| POST | `/v1/registrar/domains/{domain}/transfer` | `authCode`, `autoRenew`, `years`, `expectedPrice`, `contactInformation` |
-| GET | `/v1/registrar/domains/{domain}/transfer` | Transfer status |
-| GET | `/v1/registrar/domains/{domain}/auth-code` | Retrieve transfer-out authorization code |
-| POST | `/v1/registrar/domains/{domain}/renew` | `years`, `expectedPrice`; inspect schema for contact information |
-| PATCH | `/v1/registrar/domains/{domain}/auto-renew` | `{"autoRenew":true}` or `false` |
-| PATCH | `/v1/registrar/domains/{domain}/nameservers` | `{"nameservers":[...]}`; an empty array selects Vercel defaults |
-| GET | `/v1/registrar/domains/{domain}/contact-verification` | Registrant verification status; unavailable during the first 30 minutes after purchase |
+Use the selected operation in the live schema for purchases, transfers, renewals, automatic renewal, nameservers, and contact verification. Inspect asynchronous results with `GET /v1/registrar/orders/{orderId}`. An empty nameservers array selects Vercel defaults; contact verification is unavailable for the first 30 minutes after purchase.
 
-For purchases and transfers, retrieve the contact schema first and supply its required fields, including TLD-specific information. Punycode purchases require a supported `languageCode`; inspect the TLD metadata. Quote the exact operation and term, then use that numeric quote as `expectedPrice`. Reassess a price mismatch against the user's authorized spend instead of silently accepting an increase.
+For purchases, retrieve the contact schema and supply required TLD-specific values through the purchase payload's `contactInformation.additional` field. For transfers, use only contact fields accepted by that operation's live schema; it does not accept the purchase-only `additional` field. Punycode purchases require a supported `languageCode`; inspect the TLD metadata. Quote the exact operation and term, then use that numeric quote as `expectedPrice`. Reassess a price mismatch against the user's authorized spend instead of silently accepting an increase.
 
 Purchases, renewals, and transfers can complete asynchronously. Save the returned order ID, inspect the order and each domain's status, and report pending or failed outcomes accurately. If a submission times out, reconcile its order status before resubmitting a charge. Stop polling when completed or failed; if still pending after a bounded check, return the order ID and next status-check action. Complete any required registrant email verification.
 
