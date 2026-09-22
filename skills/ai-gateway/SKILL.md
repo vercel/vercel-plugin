@@ -142,6 +142,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | `budgets set/list/inspect/remove` | Set metered spend limits for the team, a project, a user, or an API key |
 | `budgets defaults set/list/remove` | Set per-scope default limits covering projects, keys, or members without a custom budget |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
+| `virtual-models create/list/inspect/edit/remove/restore` | Manage reusable model configs (routing, fallbacks, tags) called as `vmc/<slug>` |
 | `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `/v1/ai-gateway/rules` |
 | `setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
@@ -171,7 +172,7 @@ Read each relevant reference before editing. A task can require more than one.
 | Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
 | Coding agent | Use `vercel ai-gateway setup`; inspect its help before claiming agent support |
 
-AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, and realtime sessions. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Read the relevant modality or API page instead of translating one request shape from memory.
+AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, realtime sessions, and evaluation. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Read the relevant modality or API page instead of translating one request shape from memory.
 
 ## Minimal AI SDK request
 
