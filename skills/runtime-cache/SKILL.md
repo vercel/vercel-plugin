@@ -61,7 +61,7 @@ You are an expert in the Vercel Runtime Cache — an ephemeral caching layer for
 The Runtime Cache is a **per-region key-value store** accessible from Vercel Functions, Routing Middleware, and Builds. It supports **tag-based invalidation** for granular cache control.
 
 - **Regional**: Each Vercel region has its own isolated cache
-- **Isolated**: Scoped per project AND per deployment environment (`preview` vs `production`)
+- **Isolated**: Scoped per deployment environment (`preview` vs `production`); scoped per project on Pro/Enterprise, but shared across all projects on a Hobby team
 - **Persistent across deployments**: Cached data survives new deploys; invalidation via TTL or `expireTag`
 - **Ephemeral**: Fixed storage limit per project; LRU eviction when full
 - **Framework-agnostic**: Works with any framework via `@vercel/functions`
@@ -248,7 +248,7 @@ return Response.json(product, {
 | Property | Limit |
 |----------|-------|
 | Item size | 2 MB |
-| Tags per Runtime Cache item | 64 |
+| Tags per Runtime Cache item | 128 |
 | Tags per CDN item | 128 |
 | Max tag length | 256 bytes |
 | Tags per bulk REST API call | 16 |
@@ -276,7 +276,7 @@ Monitor hit rates, invalidation patterns, and storage usage in the Vercel Dashbo
 
 ## References
 
-- 📖 docs: https://vercel.com/docs/runtime-cache
+- 📖 docs: https://vercel.com/docs/caching/runtime-cache
 - 📖 changelog: https://vercel.com/changelog/introducing-the-runtime-cache-api
 - 📖 CLI cache: https://vercel.com/docs/cli/cache
-- 📖 CDN cache purging: https://vercel.com/docs/cdn-cache/purge
+- 📖 CDN cache purging: https://vercel.com/docs/caching/cdn-cache/purge
