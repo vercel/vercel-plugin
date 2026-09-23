@@ -5,7 +5,7 @@ import { join, dirname } from "path";
 import { homedir } from "os";
 var BRIDGE_ENDPOINT = "https://telemetry.vercel.com/api/vercel-plugin/v1/events";
 var FLUSH_TIMEOUT_MS = 3e3;
-var PLUGIN_VERSION = true ? "0.50.0" : "0.50.0";
+var PLUGIN_VERSION = true ? "0.50.1" : "0.50.1";
 var ACTIVE_SESSION_TTL_MS = 60 * 60 * 1e3;
 var DAU_TOPIC_ID = "dau";
 var SKILL_TOPIC_ID = "generic";
