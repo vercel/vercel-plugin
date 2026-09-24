@@ -145,7 +145,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
 
 Reach for the Vercel CLI. `vercel metrics` gives aggregate numbers (requires [Observability Plus](https://vercel.com/docs/observability/observability-plus)); `vercel logs` shows per-request behavior.
 
-Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `-f "environment eq 'production'"` (there is no `--prod` flag). Run `vercel metrics schema <metric>` to discover dimensions; use `-F json` for machine-readable output. With `-g`, remember **`--limit` is per time bucket** — omit `-g` when you need totals across the whole window.
+Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--prod` (equivalent to `--filter 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). Run `vercel metrics schema <metric>` to discover dimensions; use `--format json` for machine-readable output. With `-g`, remember **`--limit` is per time bucket** — omit `-g` when you need totals across the whole window.
 
 ### Cache hit rate
 
@@ -155,18 +155,18 @@ Start here for an overall picture of how well caching is working.
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "environment eq 'production'" --group-by cache_result --since 24h
+  --prod --group-by cache_result --since 24h
 ```
 
 **Step 2 — where misses concentrate.** Split the `MISS` bucket (and optionally `STALE`) by `path_type`, then by `route` or `request_path`:
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "environment eq 'production' and cache_result eq 'MISS'" \
+  --prod -f "cache_result:MISS" \
   --group-by path_type --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "environment eq 'production' and cache_result eq 'MISS' and path_type eq 'prerender'" \
+  --prod -f "cache_result:MISS AND path_type:prerender" \
   --group-by request_path --since 24h
 ```
 
@@ -190,11 +190,11 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> -a sum --
 ```bash
 # numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "environment eq 'production' and (cache_result eq 'HIT' or cache_result eq 'STALE')" \
+  --prod -f "cache_result:(HIT OR STALE)" \
   --group-by route -a sum --since 24h
 # denominator: ISR writes
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  -f "environment eq 'production'" --group-by route -a sum --since 24h
+  --prod --group-by route -a sum --since 24h
 ```
 
 High is good; near or below ~1 means you regenerate about as fast as the page is read (wasted writes) → lengthen the revalidate interval or move time-based to on-demand tag revalidation.
@@ -224,7 +224,7 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "triggering_tag ne null" --group-by triggering_tag --since 24h
+  -f "triggering_tag:*" --group-by triggering_tag --since 24h
 ```
 
 Tags with a large blast radius that revalidate frequently are the usual root cause of high write_units. Prefer granular tags (`product-${id}`) and on-demand invalidation over short time-based intervals for event-driven content.
@@ -239,13 +239,13 @@ Before tuning headers or revalidate intervals, confirm what's left after those t
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "cache_result eq 'BYPASS'" --group-by bot_category --since 24h
+  -f "cache_result:BYPASS" --group-by bot_category --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "cache_result eq 'BYPASS'" --group-by user_agent --since 24h
+  -f "cache_result:BYPASS" --group-by user_agent --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "cache_result eq 'BYPASS'" --group-by request_method --since 24h
+  -f "cache_result:BYPASS" --group-by request_method --since 24h
 ```
 
 The **Firewall/WAF** with the `vercel-firewall` skill can be used to manage verified SEO crawlers, block abusive bots, and rate-limit junk traffic before it distorts your hit-rate picture.
