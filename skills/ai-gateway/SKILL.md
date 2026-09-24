@@ -120,7 +120,7 @@ AI Gateway exposes models from multiple providers through shared authentication,
 Before implementing:
 
 1. Inspect the project's language, package manager, installed AI SDK version, and existing provider integration.
-2. Read the relevant Vercel page under <https://vercel.com/docs/ai-gateway>. Use the page's `.md` form when a tool needs Markdown.
+2. Read the relevant Vercel page under <https://vercel.com/docs/ai-gateway>. The page's `.md` form can lag the rendered page; when they differ, trust the rendered page.
 3. Fetch the complete live model list. Do not construct model variants by analogy:
 
    ```bash
