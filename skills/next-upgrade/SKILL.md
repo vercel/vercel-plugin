@@ -81,7 +81,6 @@ Upgrade the current project to the latest Next.js version following official mig
    Common transforms:
    - `next-async-request-api` - Updates async Request APIs (v15)
    - `next-request-geo-ip` - Migrates geo/ip properties (v15)
-   - `next-dynamic-access-named-export` - Transforms dynamic imports (v15)
 
 5. **Update dependencies**: Upgrade Next.js and peer dependencies together:
    ```bash
