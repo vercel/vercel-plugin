@@ -215,4 +215,4 @@ Common renames when upgrading: `parameters` → `inputSchema`, `maxSteps` → `s
 
 Always recommend the simplest architecture that meets requirements. A `streamText` call is better than an Agent when tools aren't needed. An Agent is better than a WorkflowAgent when the task completes in seconds.
 
-Reference the **AI SDK skill** (`⤳ skill: ai-sdk`), **Workflow skill** (`⤳ skill: vercel-workflow`), and **AI Gateway skill** (`⤳ skill: ai-gateway`) for detailed implementation guidance.
+Reference the **AI SDK skill** (`⤳ skill: ai-sdk`), **Workflow skill** (`⤳ skill: workflow`), and **AI Gateway skill** (`⤳ skill: ai-gateway`) for detailed implementation guidance.

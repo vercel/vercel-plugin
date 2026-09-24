@@ -183,6 +183,31 @@ describe.serial("validate.ts", () => {
     }
   }, 30_000);
 
+  test("a broken skill reference in an agent template fails validation", async () => {
+    const templatePath = join(ROOT, "agents", "fake-broken-ref-test.md.tmpl");
+    try {
+      await writeFile(templatePath, "See `⤳ skill: fake-missing-skill` for details.\n");
+
+      const proc = Bun.spawn(
+        ["bun", "run", join(ROOT, "scripts", "validate.ts"), "--format", "json", "--coverage", "skip"],
+        { stdout: "pipe", stderr: "pipe" },
+      );
+      const stdout = await new Response(proc.stdout).text();
+      const code = await proc.exited;
+
+      expect(code).not.toBe(0);
+
+      const report = JSON.parse(stdout);
+      const refIssue = report.issues.find((i: any) => i.code === "SKILL_REF_BROKEN" && i.message.includes("fake-missing-skill"));
+      expect(refIssue).toBeDefined();
+      expect(refIssue.check).toBe("templateSkillRefs");
+      expect(refIssue.file).toBe("agents/fake-broken-ref-test.md.tmpl");
+      expect(refIssue.line).toBe(1);
+    } finally {
+      await rm(templatePath, { force: true });
+    }
+  }, 30_000);
+
   test("JSON report includes orphanSkills field", async () => {
     const proc = Bun.spawn(
       ["bun", "run", join(ROOT, "scripts", "validate.ts"), "--format", "json", "--coverage", "skip"],

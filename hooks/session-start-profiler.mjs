@@ -409,7 +409,7 @@ var PACKAGE_MARKERS = {
   "@vercel/postgres": ["vercel-storage"],
   "@vercel/edge-config": ["vercel-storage"],
   "@vercel/global-config": ["vercel-storage"],
-  "@vercel/workflow": ["workflow"],
+  "workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
   "@flags-sdk/vercel": ["flags-sdk"],

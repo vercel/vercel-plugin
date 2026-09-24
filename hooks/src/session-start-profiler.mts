@@ -105,7 +105,7 @@ const PACKAGE_MARKERS: Record<string, string[]> = {
   "@vercel/postgres": ["vercel-storage"],
   "@vercel/edge-config": ["vercel-storage"],
   "@vercel/global-config": ["vercel-storage"],
-  "@vercel/workflow": ["workflow"],
+  "workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
   "@flags-sdk/vercel": ["flags-sdk"],
