@@ -86,7 +86,7 @@ Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/logs> and <htt
 
 ## Custom Reporting
 
-The Custom Reporting API aggregates usage by model, user, tag, provider, credential type, ZDR status, or API key name, with filters for each dimension and day- or hour-level granularity. It requires a Pro or Enterprise plan, is beta, and bills writes and queries.
+The Custom Reporting API aggregates usage by model, user, tag, provider, credential type, ZDR status, or API key name, with filters for each dimension and day- or hour-level granularity. It requires a Pro or Enterprise plan and bills writes and queries.
 
 Attach `user` and/or `tags` to requests through `providerOptions.gateway` (AI SDK) or `extra_body.providerOptions.gateway` (Python SDKs), or through the `ai-reporting-user` and `ai-reporting-tags` headers when a proxy stamps context without changing application code.
 
