@@ -152,7 +152,7 @@ Important! The `vercel connect create` and `vercel connect token` commands may o
 
 `vercel connect create <service>` supports 100+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
 
-For MCP servers, pass the full endpoint URL when registering (e.g. `vercel connect create https://mcp.linear.app/mcp`). The connector ID then takes the form `mcp.<host>/<name>` (for example `mcp.linear.app/myagent`).
+For MCP servers, pass the server URL when registering (e.g. `vercel connect create mcp.linear.app --name linear`); Vercel discovers the OAuth endpoints from the URL, and the resulting connector UID takes the form `<type>/<name>` (for example `oauth/linear`).
 
 #### Example: Send a Slack message using curl
 
@@ -204,14 +204,14 @@ import { connect } from "@vercel/connect/eve";
 export default defineMcpClientConnection({
   url: "https://mcp.linear.app/mcp",
   description: "Linear workspace — issues, projects, cycles, and comments.",
-  auth: connect("mcp.linear.app/myagent"),
+  auth: connect("linear/myagent"),
 });
 ```
 
 Key points for the agent:
 
 - Omit `principalType` for the default per-user OAuth flow, or set `"app"` for app-scoped tokens (no consent flow — fail terminally if not installed).
-- Pass the connector id directly with `connect("mcp.linear.app/myagent")`, or use `connect({ connector: "mcp.linear.app/myagent" })` when you need options.
+- Pass the connector id directly with `connect("linear/myagent")`, or use `connect({ connector: "linear/myagent" })` when you need options.
 - For scopes, audiences, or `authorizationDetails`, pass them through `tokenParams`. For a custom challenge prompt, pass `instructions`. Both are optional.
 - `eve` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-eve consumers.
 
@@ -221,10 +221,10 @@ For eve Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials
 
 ```typescript
 // agent/channels/slack.ts
-import { slackRoute } from "eve/channels/slack";
+import { slackChannel } from "eve/channels/slack";
 import { connectSlackCredentials } from "@vercel/connect/eve";
 
-export default slackRoute({
+export default slackChannel({
   credentials: connectSlackCredentials("slack/myagent"),
 });
 ```
@@ -242,10 +242,10 @@ For eve GitHub channels (`agent/channels/github.ts`), use `connectGitHubCredenti
 
 ```typescript
 // agent/channels/github.ts
-import { githubRoute } from "eve/channels/github";
+import { githubChannel } from "eve/channels/github";
 import { connectGitHubCredentials } from "@vercel/connect/eve";
 
-export default githubRoute({
+export default githubChannel({
   credentials: connectGitHubCredentials("github/myagent"),
 });
 ```
@@ -261,10 +261,10 @@ For eve Linear channels (`agent/channels/linear.ts`), use `connectLinearCredenti
 
 ```typescript
 // agent/channels/linear.ts
-import { linearRoute } from "eve/channels/linear";
+import { linearChannel } from "eve/channels/linear";
 import { connectLinearCredentials } from "@vercel/connect/eve";
 
-export default linearRoute({
+export default linearChannel({
   credentials: connectLinearCredentials("linear/myagent"),
 });
 ```
