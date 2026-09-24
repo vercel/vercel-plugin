@@ -9,7 +9,7 @@ metadata:
     - "https://vercel.com/docs/functions"
     - "https://vercel.com/docs/services"
     - "https://vercel.com/docs/queues"
-    - "https://vercel.com/docs/workflow"
+    - "https://vercel.com/docs/workflows"
     - "https://vercel.com/docs/storage"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
@@ -67,11 +67,11 @@ Help the user create a backend by choosing an architecture before reaching for i
 | Bidirectional realtime connections (WebSockets) | **[Vercel Functions with Fluid compute](https://vercel.com/docs/functions/websockets)**; no separate realtime service required |
 | A frontend and one or more backends (API endpoints) that deploy together | **[Vercel Services](https://vercel.com/docs/services)** |
 | An existing Dockerfile, custom runtime, or system dependencies | **[Container images](https://vercel.com/docs/functions/container-images)** on Vercel Functions, optionally composed with Services |
-| Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflow](https://vercel.com/docs/workflow)** |
+| Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflows](https://vercel.com/docs/workflows)** |
 | Background jobs, buffering, fan-out, or direct message routing | **[Vercel Queues](https://vercel.com/docs/queues)** |
 | Scheduled HTTP work | **[Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)**; use Workflow when the job itself must be durable |
 | Postgres, Redis, NoSQL, vector, or other application data | **[Storage integrations from the Vercel Marketplace](https://vercel.com/marketplace/category/storage)** |
-| Files and user uploads | **[Vercel Blob](https://vercel.com/docs/storage/vercel-blob)** |
+| Files and user uploads | **[Vercel Blob](https://vercel.com/docs/vercel-blob)** |
 | Global, read-heavy configuration | **[Global Config](https://vercel.com/docs/global-config)** |
 
 Use Functions for the normal request/response backend. Use Services when independently built components should share one deployment, routing layer, preview URL, and rollback. Use separate Vercel projects when components need independent release cycles.
