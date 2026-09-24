@@ -375,7 +375,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function createPost(data: FormData) {
   await db.posts.create({ data })
-  revalidateTag('posts')  // Background - next request sees fresh data
+  revalidateTag('posts', 'max')  // Stale-while-revalidate - next request sees stale content while revalidating
 }
 ```
 

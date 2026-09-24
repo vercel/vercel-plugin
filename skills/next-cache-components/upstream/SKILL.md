@@ -147,7 +147,7 @@ async function getData() {
 }
 ```
 
-Built-in profiles: `'default'`, `'minutes'`, `'hours'`, `'days'`, `'weeks'`, `'max'`
+Built-in profiles: `'default'`, `'seconds'`, `'minutes'`, `'hours'`, `'days'`, `'weeks'`, `'max'`
 
 ### Inline Configuration
 
@@ -211,7 +211,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function createPost(data: FormData) {
   await db.posts.create({ data })
-  revalidateTag('posts')  // Background - next request sees fresh data
+  revalidateTag('posts', 'max')  // Stale-while-revalidate - next request sees stale content while revalidating
 }
 ```
 
@@ -406,6 +406,6 @@ async function DynamicContent() {
 ```
 
 Sources:
-- [Cache Components Guide](https://nextjs.org/docs/app/getting-started/cache-components)
+- [Caching Guide](https://nextjs.org/docs/app/getting-started/caching)
 - [use cache Directive](https://nextjs.org/docs/app/api-reference/directives/use-cache)
 - [unstable_cache (legacy)](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)

@@ -3,7 +3,7 @@ description: Next.js 16 Cache Components guidance — PPR, use cache directive, 
 metadata:
   priority: 6
   docs:
-    - "https://nextjs.org/docs/app/getting-started/cache-components"
+    - "https://nextjs.org/docs/app/getting-started/caching"
     - "https://nextjs.org/docs/app/api-reference/directives/use-cache"
   pathPatterns:
     - 'next.config.*'
