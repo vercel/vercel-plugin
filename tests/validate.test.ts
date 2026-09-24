@@ -208,6 +208,34 @@ describe.serial("validate.ts", () => {
     }
   }, 30_000);
 
+  test("a vercel.json example with a key outside the published schema fails validation", async () => {
+    const templatePath = join(ROOT, "agents", "fake-vercel-json-test.md.tmpl");
+    try {
+      await writeFile(
+        templatePath,
+        'Intro line.\n\n```json filename="vercel.json"\n{ "rootDirectory": "apps/api" }\n```\n',
+      );
+
+      const proc = Bun.spawn(
+        ["bun", "run", join(ROOT, "scripts", "validate.ts"), "--format", "json", "--coverage", "skip"],
+        { stdout: "pipe", stderr: "pipe" },
+      );
+      const stdout = await new Response(proc.stdout).text();
+      const code = await proc.exited;
+
+      expect(code).not.toBe(0);
+
+      const report = JSON.parse(stdout);
+      const keyIssue = report.issues.find((i: any) => i.code === "VERCEL_JSON_UNKNOWN_KEY" && i.message.includes('"rootDirectory"'));
+      expect(keyIssue).toBeDefined();
+      expect(keyIssue.check).toBe("vercelJsonExamples");
+      expect(keyIssue.file).toBe("agents/fake-vercel-json-test.md.tmpl");
+      expect(keyIssue.line).toBe(3);
+    } finally {
+      await rm(templatePath, { force: true });
+    }
+  }, 30_000);
+
   test("JSON report includes orphanSkills field", async () => {
     const proc = Bun.spawn(
       ["bun", "run", join(ROOT, "scripts", "validate.ts"), "--format", "json", "--coverage", "skip"],

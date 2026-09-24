@@ -198,7 +198,7 @@ async function validateGraphSkillRefs() {
 // 1a. Validate ⤳ skill: references in templates and plugin-owned skills
 // ---------------------------------------------------------------------------
 
-async function skillRefSourceFiles(): Promise<string[]> {
+async function pluginSourceFiles(): Promise<string[]> {
   const files: string[] = [];
   for (const dir of ["agents", "commands"]) {
     if (!(await exists(join(ROOT, dir)))) continue;
@@ -221,7 +221,7 @@ async function skillRefSourceFiles(): Promise<string[]> {
 async function validateTemplateSkillRefs() {
   section("[1a] Template and skill → skill cross-references");
 
-  const files = await skillRefSourceFiles();
+  const files = await pluginSourceFiles();
   let refCount = 0;
   let broken = 0;
   for (const file of files) {
@@ -1196,7 +1196,63 @@ const CHECK_LABELS: Record<string, string> = {
   patternCompilation: "Pattern compilation",
   profilerSkillSlugs: "Profiler skill slug cross-references",
   patternFixtures: "Pattern fixture dry-run",
+  templateSkillRefs: "Template and skill → skill cross-references",
+  vercelJsonExamples: "vercel.json examples → published schema keys",
 };
+
+// ---------------------------------------------------------------------------
+// 12. Validate vercel.json examples against the published schema's top-level keys
+// ---------------------------------------------------------------------------
+
+async function validateVercelJsonExamples() {
+  section("[12] vercel.json examples → published schema keys");
+
+  const keysFile = "scripts/vercel-json-top-level-keys.json";
+  const { source, keys } = JSON.parse(await readFile(join(ROOT, keysFile), "utf-8")) as {
+    source: string;
+    keys: string[];
+  };
+  const allowed = new Set(keys);
+
+  let examples = 0;
+  let problems = 0;
+  for (const file of await pluginSourceFiles()) {
+    const content = await readFile(join(ROOT, file), "utf-8");
+    for (const m of content.matchAll(/^[ \t]*```jsonc?\b([^\n]*)\n([\s\S]*?)^[ \t]*```/gm)) {
+      const [, info, body] = m;
+      if (!info.includes('filename="vercel.json"') && !body.includes("openapi.vercel.sh/vercel.json")) continue;
+      examples++;
+      const line = content.slice(0, m.index).split("\n").length;
+      let config: unknown;
+      try {
+        config = JSON.parse(body);
+      } catch (err: any) {
+        problems++;
+        fail("VERCEL_JSON_EXAMPLE_INVALID", `vercel.json example in ${file} is not valid JSON: ${err.message}`, {
+          file,
+          line,
+          hint: "vercel.json allows no comments or placeholders; show a complete object",
+        });
+        continue;
+      }
+      if (typeof config !== "object" || config === null || Array.isArray(config)) {
+        problems++;
+        fail("VERCEL_JSON_EXAMPLE_INVALID", `vercel.json example in ${file} is not a JSON object`, { file, line });
+        continue;
+      }
+      for (const key of Object.keys(config)) {
+        if (allowed.has(key)) continue;
+        problems++;
+        fail("VERCEL_JSON_UNKNOWN_KEY", `vercel.json example in ${file} uses "${key}", which ${source} does not define`, {
+          file,
+          line,
+          hint: `Remove "${key}", or refresh ${keysFile} from ${source} if the schema added it`,
+        });
+      }
+    }
+  }
+  if (problems === 0) pass(`${examples} vercel.json examples use published top-level keys`);
+}
 
 async function timed<T>(name: string, fn: () => Promise<T>): Promise<T> {
   currentCheck = name;
@@ -1236,6 +1292,7 @@ async function main() {
   await timed("patternCompilation", () => validatePatternCompilation());
   await timed("profilerSkillSlugs", () => validateProfilerSkillSlugs());
   await timed("patternFixtures", () => validatePatternFixtures());
+  await timed("vercelJsonExamples", () => validateVercelJsonExamples());
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;

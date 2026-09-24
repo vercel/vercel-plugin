@@ -412,7 +412,7 @@ process.on('SIGTERM', () => {
 
 Request cancellation is **opt-in**, per path. With it enabled, a client disconnect aborts `request.signal` and terminates the function — anything not wrapped in `waitUntil`/`after` is lost, which is exactly why it is not on by default.
 
-```json
+```json filename="vercel.json"
 {
   "functions": {
     "api/*": { "supportsCancellation": true }
@@ -552,7 +552,7 @@ A 5 GB function still costs you cold-start time. Trim before you opt in:
 
 In `vercel.json` (not supported in Next.js — see below):
 
-```json
+```json filename="vercel.json"
 {
   "functions": {
     "api/**/*.py": {
@@ -619,7 +619,7 @@ Deploy with `vercel deploy` or a Git push. During the build, the image is built 
 
 Use [Services](https://vercel.com/docs/services) to deploy several frontends/backends in one project, containerized or not. Set `runtime: "container"` on any service you want built as an image; `entrypoint` points at the Dockerfile relative to that service's `root`.
 
-```json
+```json filename="vercel.json"
 {
   "services": {
     "frontend": { "runtime": "container", "root": "frontend/", "entrypoint": "Dockerfile.vercel" },
@@ -801,7 +801,7 @@ connect()
 
 Schedule function invocations via `vercel.json`:
 
-```json
+```json filename="vercel.json"
 {
   "crons": [
     {

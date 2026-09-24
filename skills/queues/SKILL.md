@@ -151,7 +151,7 @@ export const POST = handleCallback(async (message, metadata) => {
 
 Register the consumer in `vercel.json` (or `vercel.ts`) so Vercel routes the topic to that function:
 
-```json
+```json filename="vercel.json"
 {
   "functions": {
     "app/api/queues/process-order/route.ts": {
