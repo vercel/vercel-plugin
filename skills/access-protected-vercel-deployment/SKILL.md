@@ -83,18 +83,15 @@ Use the caller's existing Vercel authentication. Do not disable Deployment Prote
 
 ### HTTP requests: use `vercel curl`
 
-For response bodies, headers, health checks, and API calls, replace raw `curl` with `vercel curl` (`vc curl`). It accepts native curl options and uses Vercel authentication to access protected preview and production deployments.
+For response bodies, headers, health checks, and API calls, replace raw `curl` with `vercel curl` (`vc curl`). It runs the system `curl` command with the arguments you provide, adding a deployment protection bypass token, so it reaches protected preview and production deployments.
 
 ```bash
-vc curl https://my-app.vercel.app/api/health
-vc curl https://app.example.com/api/health
-vc curl my-app.vercel.app/api/users -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Ada"}'
 vc curl /api/health
+vc curl /api/status --deployment https://my-app-abc123.vercel.app
+vc curl /api/users -- -X POST -H "Content-Type: application/json" -d '{"name":"Ada"}'
 ```
 
-The path-only form targets the linked project's production deployment. Pass a full URL when the exact deployment matters.
+The path-only form targets the linked project's production deployment. Use `--deployment <id-or-url>` when the exact deployment matters. Use the `--` separator to pass flags through to the underlying `curl`.
 
 If authentication fails, check the local identity and project before changing protection settings:
 
