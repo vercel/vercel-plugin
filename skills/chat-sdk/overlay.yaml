@@ -3,9 +3,9 @@ description: Vercel Chat SDK expert guidance. Use when building multi-platform c
 metadata:
   priority: 8
   docs:
-    - "https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot"
-    - "https://github.com/vercel/ai-chatbot"
-  sitemap: "https://sdk.vercel.ai/sitemap.xml"
+    - "https://chat-sdk.dev/docs"
+    - "https://vercel.com/kb/chat-sdk"
+  sitemap: "https://chat-sdk.dev/sitemap.xml"
   pathPatterns:
     - "app/api/chat/**"
     - "app/api/chat-bot/**"
