@@ -265,7 +265,7 @@ jobs:
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `ERR_PNPM_OUTDATED_LOCKFILE` | Lockfile doesn't match package.json | Run `pnpm install`, commit lockfile |
-| `NEXT_NOT_FOUND` | Root directory misconfigured | Set `rootDirectory` in Project Settings |
+| `NEXT_NOT_FOUND` | Root directory misconfigured | Set Root Directory in Project Settings |
 | `Invalid next.config.js` | Config syntax error | Validate config locally with `next build` |
 | `functions/api/*.js` mismatch | Wrong file structure | Move to `app/api/` directory (App Router) |
 | `Error: EPERM` | File permission issue in build | Don't `chmod` in build scripts; use postinstall |
@@ -307,7 +307,7 @@ Based on the deployment outcome:
 - **Success (production)** → "Your production site is live. Run `/status` to see the full project overview."
 - **Build error** → "Check the build logs above. Common fixes: verify `build` script in package.json, check for missing env vars with `/env list`, ensure dependencies are installed."
 - **Missing env vars** → "Run `/env pull` to sync environment variables locally, or `/env list` to review what's configured on Vercel."
-- **Monorepo issues** → "Ensure the correct project root is configured in Vercel project settings. Check `vercel.json` for `rootDirectory`."
+- **Monorepo issues** → "Set the Root Directory in Project Settings to the app's folder; `vercel.json` has no `rootDirectory` key."
 - **Post-deploy errors detected** → "Review errors above. Check `vercel logs <url> --level error` for details. If drains are configured, correlate with external monitoring."
 - **No monitoring configured** → "Set up drains or install an error tracking integration before the next production deploy. Run `/status` for a full observability diagnostic."
 

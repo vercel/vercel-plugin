@@ -18,7 +18,7 @@ Build failed?
 ├─ "Module not found" / "Cannot resolve"
 │  ├─ Is the import path correct? → Fix the path
 │  ├─ Is the package in `dependencies` (not just `devDependencies`)? → Move it
-│  ├─ Is this a monorepo? → Check `rootDirectory` in vercel.json or Project Settings
+│  ├─ Is this a monorepo? → Check Root Directory in Project Settings (`vercel.json` has no `rootDirectory` key)
 │  └─ Using path aliases? → Verify tsconfig.json `paths` and Next.js `transpilePackages`
 │
 ├─ "Out of memory" / heap allocation failure

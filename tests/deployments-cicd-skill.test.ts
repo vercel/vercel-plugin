@@ -72,3 +72,13 @@ describe("deployments-cicd release guidance", () => {
     expect(allContent).toContain("ref: ${{ github.event.client_payload.git.sha }}");
   });
 });
+
+describe("deployments-cicd root directory guidance", () => {
+  test("places Root Directory in Project Settings, not vercel.json", () => {
+    const template = readFileSync(resolve(ROOT, "agents/deployment-expert.md.tmpl"), "utf8");
+    for (const text of [skill, template]) {
+      expect(text).not.toMatch(/`vercel\.json` for `rootDirectory`|`rootDirectory` in vercel\.json/);
+      expect(text).toContain("`vercel.json` has no `rootDirectory` key");
+    }
+  });
+});
