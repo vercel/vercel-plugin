@@ -62,7 +62,7 @@ After removal, update `microfrontends.json` in the default app to remove the pro
 2. Visit **Settings** for the project
 3. Click **Microfrontends** → **Remove from Group**
 
-> The default application can only be removed after all other projects in the group are removed.
+> The default application can only be removed after all other projects in the group are removed, and only via the dashboard or `delete-group` — the CLI's `remove-from-group` cannot remove the default application.
 
 ## Deleting a Group
 
@@ -76,7 +76,7 @@ vercel microfrontends delete-group
 vercel mf delete-group --group="My Group"
 ```
 
-**Dashboard:** Go to the group's settings in **Settings** → **Microfrontends** and delete the group.
+**Dashboard:** remove all projects from the group first — the option to delete the group then becomes available in **Settings** → **Microfrontends**.
 
 ## Fallback Environment
 
@@ -133,13 +133,15 @@ Add `PrefetchCrossZoneLinks` to your root layout in **all** microfrontend apps:
 
 ```tsx
 // app/layout.tsx
-import { PrefetchCrossZoneLinks } from '@vercel/microfrontends/next/client';
+import { PrefetchCrossZoneLinks, PrefetchCrossZoneLinksProvider } from '@vercel/microfrontends/next/client';
 
 export default function RootLayout({ children }) {
   return (
     <html>
       <body>
-        {children}
+        <PrefetchCrossZoneLinksProvider>
+          {children}
+        </PrefetchCrossZoneLinksProvider>
         <PrefetchCrossZoneLinks />
       </body>
     </html>
@@ -147,20 +149,20 @@ export default function RootLayout({ children }) {
 }
 ```
 
-`PrefetchCrossZoneLinks` accepts an optional `prerenderEagerness` prop (`'immediate' | 'eager' | 'moderate' | 'conservative'`, default `'conservative'`) that controls how aggressively cross-zone pages are prerendered in the background.
-
 ### Setup for Next.js Pages Router
 
 Add `PrefetchCrossZoneLinks` to `_app.tsx`:
 
 ```tsx
 // pages/_app.tsx
-import { PrefetchCrossZoneLinks } from '@vercel/microfrontends/next/client';
+import { PrefetchCrossZoneLinks, PrefetchCrossZoneLinksProvider } from '@vercel/microfrontends/next/client';
 
 export default function App({ Component, pageProps }) {
   return (
     <>
-      <Component {...pageProps} />
+      <PrefetchCrossZoneLinksProvider>
+        <Component {...pageProps} />
+      </PrefetchCrossZoneLinksProvider>
       <PrefetchCrossZoneLinks />
     </>
   );
