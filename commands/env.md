@@ -182,7 +182,7 @@ If all keys match, report: "Local and Vercel environment keys are in sync."
 
 Variables set in the Vercel Dashboard at `https://vercel.com/{team}/{project}/settings/environment-variables` can be scoped to:
 
-- **Production** — only `vercel.app` production deployments
+- **Production** — production domain deployments
 - **Preview** — branch/PR deployments
 - **Development** — `vercel dev` and `vercel env pull`
 

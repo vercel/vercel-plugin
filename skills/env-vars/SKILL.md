@@ -230,7 +230,7 @@ const result = await generateText({
 
 Variables set in the Vercel Dashboard at `https://vercel.com/{team}/{project}/settings/environment-variables` can be scoped to:
 
-- **Production** — only `vercel.app` production deployments
+- **Production** — production domain deployments
 - **Preview** — branch/PR deployments
 - **Development** — `vercel dev` and `vercel env pull`
 
@@ -288,4 +288,4 @@ source <(grep -v '^#' .env.local | sed 's/^/export /') && node scripts/migrate.j
 
 - [Environment Variables](https://vercel.com/docs/environment-variables)
 - [Vercel CLI: env](https://vercel.com/docs/cli/env)
-- [Next.js Environment Variables](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables)
+- [Next.js Environment Variables](https://nextjs.org/docs/app/guides/environment-variables)
