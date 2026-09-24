@@ -6,6 +6,8 @@ metadata:
   docs:
     - "https://vercel.com/docs/deployments/overview"
     - "https://vercel.com/docs/git"
+    - "https://vercel.com/docs/deployments/promoting-a-deployment"
+    - "https://vercel.com/docs/deployment-checks"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - '.github/workflows/*.yml'
@@ -98,7 +100,10 @@ vercel deploy --prebuilt --prod
 ### Promote & Rollback
 
 ```bash
-# Promote a preview deployment to production
+# Stage a production deployment without assigning domains
+vercel deploy --prod --skip-domain
+
+# Promote it (instant, no rebuild)
 vercel promote <deployment-url-or-id>
 
 # Rollback to the previous production deployment
@@ -108,7 +113,9 @@ vercel rollback
 vercel rollback <deployment-url-or-id>
 ```
 
-**Promote vs deploy --prod:** `promote` is instant — it re-points the production alias without rebuilding. Use it when a preview deployment has been validated and is ready for production.
+**Promote a production deployment, not a preview.** Promoting a staged production deployment is instant and serves the same build. Promoting a preview rebuilds it with production environment variables, so the tested build is not the one released.
+
+**Rollback turns off auto-assignment.** New production pushes stop going live until `vercel promote` restores it.
 
 ### Inspect Deployments
 
@@ -125,6 +132,10 @@ vercel logs <deployment-url> --follow
 ```
 
 ## CI/CD Integration
+
+### When to Add a CI Pipeline
+
+The Git integration builds every push, posts preview URLs on pull requests, and deploys the production branch. Use CI for what Vercel does not run: tests, security scans, performance budgets, and approval gates. Gate releases on them with [Deployment Checks](references/deployment-checks.md) while Vercel keeps building. Deploy from CI only when the build must run in your runner, such as to keep source code off Vercel or for GitHub Enterprise Server.
 
 ### Required Environment Variables
 
@@ -176,10 +187,13 @@ jobs:
 | --- | --- |
 | Post preview URLs on pull requests from GitHub Actions, or deploy from GitLab CI or Bitbucket Pipelines | [references/cli-pipelines.md](references/cli-pipelines.md) |
 | Let deployed functions reach AWS, GCP, or Vault without static secrets (OIDC federation) | [references/oidc-federation.md](references/oidc-federation.md) |
+| Deployment Checks, or testing protected deployments from CI | [references/deployment-checks.md](references/deployment-checks.md) |
 
 ## Common CI Patterns
 
-### Promote After Tests Pass
+### Release Only Tested Builds
+
+With Git deployments, require [Deployment Checks](references/deployment-checks.md). When CI deploys with the CLI, stage a production deployment, test it, then promote that build:
 
 ```yaml
 env:
@@ -188,24 +202,32 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
-  deploy-preview:
-    # ... deploy preview ...
-    outputs:
-      url: ${{ steps.deploy.outputs.url }}
-
-  e2e-tests:
-    needs: deploy-preview
-    runs-on: ubuntu-latest
-    steps:
-      - run: npx playwright test --base-url=${{ needs.deploy-preview.outputs.url }}
-
-  promote:
-    needs: [deploy-preview, e2e-tests]
+  stage:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      # ... checkout, install, vercel pull --environment=production, vercel build --prod ...
+      - id: deploy
+        run: echo "url=$(vercel deploy --prebuilt --prod --skip-domain)" >> $GITHUB_OUTPUT
+
+  e2e-tests:
+    needs: stage
+    runs-on: ubuntu-latest
+    steps:
+      # ... checkout, install, bypass header in playwright.config.ts (see references/deployment-checks.md) ...
+      - run: npx playwright test
+        env:
+          BASE_URL: ${{ needs.stage.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+  promote:
+    needs: [stage, e2e-tests]
+    runs-on: ubuntu-latest
     steps:
       - run: npm install -g vercel
-      - run: vercel promote ${{ needs.deploy-preview.outputs.url }}
+      - run: vercel promote ${{ needs.stage.outputs.url }}
 ```
 
 ## Global CLI Flags for CI
@@ -221,7 +243,7 @@ jobs:
 
 1. **Always use `--prebuilt` in CI** — separates build from deploy, enables build caching and test gates
 2. **Use `vercel pull` before build** — ensures correct env vars and project settings
-3. **Prefer `promote` over re-deploy** — instant, no rebuild, same artifact
+3. **Release only tested builds** — Deployment Checks (Git) or staged production builds (CLI)
 4. **Use OIDC federation for runtime backend access** — lets Vercel functions auth to AWS/GCP without static secrets (does not replace `VERCEL_TOKEN` for CLI)
 5. **Pin the Vercel CLI version in CI** — `npm install -g vercel@latest` can break unexpectedly
 6. **Add `--yes` flag in CI** — prevents interactive prompts from hanging pipelines
@@ -234,7 +256,7 @@ jobs:
 | Custom CI/CD (Actions, CircleCI) | Prebuilt deploy | `vercel build && vercel deploy --prebuilt` |
 | Monorepo with Turborepo | Affected + remote cache | `turbo run build --affected --remote-cache` |
 | Preview for every PR | Default behavior | Auto-creates preview URL per branch |
-| Promote preview to production | CLI promotion | `vercel promote <url>` |
+| Release a tested build | Deployment Checks (Git) or staged production (CLI) | Required checks, or `vercel deploy --prod --skip-domain` → test → `vercel promote <url>` |
 | Atomic deploys with DB migrations | Two-phase | Run migration → verify → `vercel promote` |
 | Latency-sensitive regional data | Vercel Functions | Keep the Node.js default; set the function region near the data |
 
