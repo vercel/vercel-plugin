@@ -152,16 +152,13 @@ Turbopack performs tree shaking at the module level in production builds. Key be
 
 ### Diagnosing large bundles
 
-**Built-in analyzer (Next.js 16.1+, experimental)**: Works natively with Turbopack. Offers route-specific filtering, import tracing, and RSC boundary analysis:
+**Next.js Bundle Analyzer (Next.js 16.1+, experimental)**: Integrated with Turbopack's module graph — inspect server and client modules with precise import tracing:
 
-```ts
-// next.config.ts
-const nextConfig: NextConfig = {
-  experimental: {
-    bundleAnalyzer: true,
-  },
-}
+```bash
+npx next experimental-analyze
 ```
+
+Add `--output` to write the analysis to `.next/diagnostics/analyze` for sharing or diffing.
 
 **Legacy `@next/bundle-analyzer`**: Still works as a fallback:
 
@@ -264,23 +261,15 @@ Compare `.next/` output sizes and page-level chunks.
 
 ## Performance Profiling
 
-### HMR profiling
+### Turbopack tracing
 
-Enable verbose HMR timing in development:
-
-```bash
-NEXT_TURBOPACK_TRACING=1 next dev
-```
-
-This writes a `trace.json` to the project root — open it in `chrome://tracing` or [Perfetto](https://ui.perfetto.dev/) to see module-level timing.
-
-### Build profiling
-
-Profile production builds:
+Generate a trace file for dev or build performance issues:
 
 ```bash
-NEXT_TURBOPACK_TRACING=1 next build
+next dev --internal-trace
 ```
+
+Reproduce the issue, then stop the server — a `trace-turbopack.bin` file is written to the `.next-profiles` directory. Interpret it with `npx next internal trace .next-profiles/trace-turbopack.bin` and view it at [trace.nextjs.org](https://trace.nextjs.org/). The same flag works with `next build --internal-trace`.
 
 Look for:
 - **Long-running transforms**: Indicates a slow SWC plugin or heavy PostCSS config
