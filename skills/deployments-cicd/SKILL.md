@@ -93,6 +93,8 @@ vercel deploy --prebuilt --prod
 
 **When to use `--prebuilt`:** Custom CI pipelines where you control the build step, need build caching at the CI level, or need to run tests between build and deploy.
 
+**Prebuilt limits:** [System Environment Variables are missing at build time](https://vercel.com/docs/cli/deploy#when-not-to-use---prebuilt), and Next.js Skew Protection needs a [custom deployment ID](https://vercel.com/docs/skew-protection#custom-deployment-id).
+
 ### Promote & Rollback
 
 ```bash
@@ -134,7 +136,7 @@ VERCEL_ORG_ID=<org-id>           # From .vercel/project.json
 VERCEL_PROJECT_ID=<project-id>   # From .vercel/project.json
 ```
 
-Set these as secrets in your CI provider. Never commit them to source control.
+Set these as secrets in your CI provider. Never commit them to source control. The CLI reads `VERCEL_TOKEN` from the environment; do not pass `--token`, which exposes it in process lists and logs.
 
 ### GitHub Actions
 
@@ -143,6 +145,11 @@ name: Deploy to Vercel
 on:
   push:
     branches: [main]
+
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
   deploy:
@@ -154,13 +161,13 @@ jobs:
         run: npm install -g vercel
 
       - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production
 
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod
 
       - name: Deploy
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod
 ```
 
 ### Other CI Pipelines and Backend Access
@@ -175,6 +182,11 @@ jobs:
 ### Promote After Tests Pass
 
 ```yaml
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
 jobs:
   deploy-preview:
     # ... deploy preview ...
@@ -193,14 +205,14 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - run: npm install -g vercel
-      - run: vercel promote ${{ needs.deploy-preview.outputs.url }} --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel promote ${{ needs.deploy-preview.outputs.url }}
 ```
 
 ## Global CLI Flags for CI
 
 | Flag | Purpose |
 |------|---------|
-| `--token <token>` | Authenticate (required in CI) |
+| `--token <token>` | Authenticate; in CI, set `VERCEL_TOKEN` instead |
 | `--yes` / `-y` | Skip confirmation prompts |
 | `--scope <team>` | Execute as a specific team |
 | `--cwd <dir>` | Set working directory |
