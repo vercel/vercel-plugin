@@ -87,7 +87,7 @@ export const config: VercelConfig = {
 ## Current agent SDKs
 
 - **AI SDK 7** requires Node.js 22 or later and ESM. Verify APIs against the installed package docs under `node_modules/ai/docs/` instead of relying on remembered v6 patterns.
-- **Workflow 5 uses `WorkflowAgent` from `@ai-sdk/workflow`** for durable agents. `DurableAgent` from `@workflow/ai` is deprecated.
+- **Workflow 5 uses `WorkflowAgent` from `@ai-sdk/workflow`** for durable agents and deprecates `DurableAgent` from `@workflow/ai`. Workflow 5 ships on the `beta` npm tag (`npm i workflow@beta`), and the current `@ai-sdk/workflow` (2.x) requires it. `npm i workflow` installs 4.x, whose docs use `DurableAgent`. Check the installed `workflow` version before choosing.
 
 ## Integrations on Vercel
 

@@ -312,7 +312,7 @@ WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https
 │   ⊃ Self-hosted (Postgres, Redis, custom)
 │
 ├── AI Integration
-│   ⊃ WorkflowAgent (@ai-sdk/workflow) — replaces the deprecated DurableAgent from @workflow/ai
+│   ⊃ WorkflowAgent (@ai-sdk/workflow 2.x, requires Workflow 5 on workflow@beta) — replaces DurableAgent from @workflow/ai, deprecated in Workflow 5
 │   → AI SDK Agent class (wrapped with durability)
 │   → AI SDK tool calling (each tool = retryable step)
 │   → AI Gateway (OIDC auth for model strings in workflow steps)
@@ -658,7 +658,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
 | New durable agent or agent-powered application | eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
-| Add durability to an existing agent or application workflow | `WorkflowAgent` from `@ai-sdk/workflow` | Crash-safe orchestration without adopting a complete agent framework |
+| Add durability to an existing agent or application workflow | `WorkflowAgent` from `@ai-sdk/workflow` (Workflow 5, `workflow@beta`) | Crash-safe orchestration without adopting a complete agent framework |
 | Browser UI for an eve agent | eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
 | Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
 | Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
@@ -787,7 +787,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 ```
 1. Choose the architecture boundary:
    - New filesystem-first agent or agent-powered app → eve
-   - Existing app/agent that needs durable orchestration → `WorkflowAgent` from `@ai-sdk/workflow` on Workflow SDK
+   - Existing app/agent that needs durable orchestration → `WorkflowAgent` from `@ai-sdk/workflow` on Workflow SDK 5 (`workflow@beta`)
 2. eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
              → author instructions, tools, skills, connections, channels, and optional frontend client
 3. Workflow path: Next.js Route Handler → WorkflowAgent → AI SDK tools → AI Gateway
@@ -843,7 +843,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | Sync Request APIs (Next.js 16) | Async Request APIs | `await cookies()`, `await headers()`, etc. |
 | PPR (Next.js 15 canary) | Cache Components | Follow Vercel migration guide |
 | AI SDK 5 | AI SDK 6 | Run `npx @ai-sdk/codemod v6` |
-| AI SDK 6 | AI SDK 7 | Node.js 22+, ESM only; run the v7 codemods (`npx skills add vercel/ai --skill migrate-ai-sdk-v6-to-v7`), `stepCountIs` → `isStepCount`, `system` → `instructions`, `DurableAgent` → `WorkflowAgent` |
+| AI SDK 6 | AI SDK 7 | Node.js 22+, ESM only; run the v7 codemods (`npx skills add vercel/ai --skill migrate-ai-sdk-v6-to-v7`), `stepCountIs` → `isStepCount`, `system` → `instructions`, `DurableAgent` → `WorkflowAgent` (`@ai-sdk/workflow` 2.x requires Workflow 5, `workflow@beta`) |
 | `generateObject` / `streamObject` | `generateText` / `streamText` + `Output.object()` | Unified structured output API |
 | `parameters` (AI SDK tools) | `inputSchema` | Aligned with MCP spec |
 | `result` (AI SDK tools) | `output` | Aligned with MCP spec |
@@ -907,7 +907,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - `generateObject` and `streamObject` are removed in v6 — use `generateText` / `streamText` with `Output.object()` instead.
 - **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
-- Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes. `DurableAgent` from `@workflow/ai` is deprecated; see the WorkflowAgent migration guide.
+- Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@beta`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
 - **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `experimental_generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
 - **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image-preview`; DALL-E 2/3 → use Gemini 3.1 Flash Image Preview.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
@@ -965,7 +965,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### Workflow and Durability
 
-- Use Workflow SDK and `WorkflowAgent` when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Use Workflow SDK when the task needs retries, resumability, crash recovery, or long-lived orchestration; for durable agents, `WorkflowAgent` needs Workflow 5 (`workflow@beta`).
 - Prefer eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
 - Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
 - Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.

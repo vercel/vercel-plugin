@@ -20,7 +20,7 @@ What does the AI feature need to do?
 │  ├─ Single tool call → `generateText` with `tools` parameter
 │  ├─ Multi-step reasoning with tools → AI SDK `ToolLoopAgent` class
 │  │  ├─ Short-lived (< 60s) → Agent in Route Handler
-│  │  └─ Long-running (minutes to hours) → `WorkflowAgent` from `@ai-sdk/workflow` (Workflow SDK)
+│  │  └─ Long-running (minutes to hours) → `WorkflowAgent` from `@ai-sdk/workflow` (Workflow SDK 5, `workflow@beta`)
 │  └─ MCP server integration → `@ai-sdk/mcp` StreamableHTTPClientTransport
 │
 ├─ Process files / images / audio
