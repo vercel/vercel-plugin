@@ -10,6 +10,7 @@ metadata:
     - "https://vercel.com/docs/services/bindings"
     - "https://vercel.com/docs/services/config-reference"
     - "https://vercel.com/docs/services/experimental"
+    - "https://vercel.com/docs/services/pricing"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'vercel.json'
@@ -207,6 +208,8 @@ const response = await fetch(url);
 ```
 
 Bindings are deployment-aware and do not create public routes. They are available to functions at runtime, not during builds or in Routing Middleware. Internal calls skip the public Firewall, Deployment Protection, top-level middleware, and CDN pipeline.
+
+Each call over a binding is billed as one [Service Request](https://vercel.com/docs/services/pricing), with no Edge Request or Fast Data Transfer charge.
 
 Public exposure is decided only by top-level rewrites. A service with no top-level rewrite is private: it is unreachable from the public internet and only accessible through its bindings. A service with both bindings and a top-level rewrite is also reachable publicly, so do not assume binding-only access implies the routes are protected.
 
