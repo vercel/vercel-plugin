@@ -12,7 +12,7 @@ exports[`CLI --json output shape --json output shape snapshot 1`] = `
   {
     "dependencyCount": 2,
     "diagnosticCount": 0,
-    "resolvedCount": 10,
+    "resolvedCount": 11,
     "status": "unchanged",
     "template": "agents/deployment-expert.md",
   },
