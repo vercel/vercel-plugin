@@ -5,7 +5,7 @@ metadata:
   priority: 6
   docs:
     - "https://authjs.dev/getting-started"
-    - "https://nextjs.org/docs/app/building-your-application/authentication"
+    - "https://nextjs.org/docs/app/guides/authentication"
   sitemap: "https://authjs.dev/sitemap.xml"
   pathPatterns:
     - 'proxy.ts'
@@ -421,16 +421,14 @@ KMS signs JWTs and messages with keys that never leave Vercel. Create an issuer 
 
 Clerk provides an upgrade CLI that scans your codebase and applies codemods: `npx @clerk/upgrade`. Requires **Node.js 20.9.0+**.
 
-- **`auth()` is async** — always use `const { userId } = await auth()`, not synchronous
-- **`auth.protect()` moved** — use `await auth.protect()` directly, not from the return value of `auth()`
-- **`clerkClient()` is async** — use `await clerkClient()` in middleware handlers
-- **`authMiddleware()` removed** — migrate to `clerkMiddleware()`
-- **`@clerk/types` deprecated** — import types from SDK subpath exports: `import type { UserResource } from '@clerk/react/types'` (works from any SDK package)
-- **`ClerkProvider` no longer forces dynamic rendering** — pass the `dynamic` prop if needed
-- **Cache components** — when using Next.js cache components, place `<ClerkProvider>` inside `<body>`, not wrapping `<html>`
-- **Satellite domains** — new `satelliteAutoSync` option skips handshake redirects when no session cookies exist
-- **Smaller bundles** — React is now shared across framework SDKs (~50KB gzipped savings)
-- **Better offline handling** — `getToken()` now correctly distinguishes signed-out from offline states
+- **`SignedIn`/`SignedOut`/`Protect` replaced by `Show`** — e.g. `<Protect role="admin">` → `<Show when={{ role: 'admin' }}>`
+- **Package renames** — `@clerk/clerk-react` → `@clerk/react`, `@clerk/clerk-expo` → `@clerk/expo`
+- **`ClerkProvider` must be inside `<body>`, not wrapping `<html>`** — the CLI handles this automatically
+- **`@clerk/types` removed** — import types from the SDK's own `/types` entry point, or `@clerk/shared/types` for framework-agnostic code
+- **Redirect props renamed** — `afterSignInUrl`/`afterSignUpUrl`/`redirectUrl` → `fallbackRedirectUrl`/`signUpFallbackRedirectUrl`/`forceRedirectUrl`
+- **Minimum Next.js version: 15.2.3** — Next.js 13 and 14 are no longer supported
+- **Satellite domains** — apps no longer auto-redirect on first visit; set `satelliteAutoSync: true` in middleware and `ClerkProvider` to restore Core 2 behavior
+- **`getToken()` throws `ClerkOfflineError` when offline** — previously returned `null`; still returns `null` when signed out
 
 ## Cross-References
 
