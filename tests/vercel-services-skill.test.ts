@@ -161,4 +161,12 @@ describe("Vercel Services guidance", () => {
     );
     expect(skill).toContain('- "https://vercel.com/docs/services/pricing"');
   });
+
+  test("documents destination.path as a route selector", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain("selects which route runs inside the service");
+    expect(skill).toContain('"path": "/:path*?org=:orgSlug"');
+    expect(skill).not.toContain("has no effect at request time");
+  });
 });
