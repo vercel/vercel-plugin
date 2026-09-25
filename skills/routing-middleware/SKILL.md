@@ -4,7 +4,7 @@ description: Vercel Routing Middleware guidance — request interception before 
 metadata:
   priority: 6
   docs:
-    - "https://nextjs.org/docs/app/building-your-application/routing/middleware"
+    - "https://nextjs.org/docs/app/api-reference/file-conventions/proxy"
     - "https://vercel.com/docs/routing-middleware"
   sitemap: "https://nextjs.org/sitemap.xml"
   pathPatterns: 
@@ -95,7 +95,7 @@ There are THREE "middleware" concepts in the Vercel ecosystem:
 | **Next.js 16 Proxy** | `proxy.ts` (root, or `src/proxy.ts` if using `--src-dir`) | Node.js only | Next.js 16+ only | Network-boundary proxy needing full Node APIs. NOT for auth. |
 | **Vercel Functions** | Route or function file | Node/Bun/Python/Rust | General-purpose | Request handlers and backend compute, not an interception layer |
 
-**Why the rename in Next.js 16**: `middleware.ts` → `proxy.ts` clarifies it sits at the network boundary (not general-purpose middleware). Partly motivated by CVE-2025-29927 (middleware auth bypass via `x-middleware-subrequest` header). The exported function must also be renamed from `middleware` to `proxy`. Migration codemod: `npx @next/codemod@latest middleware-to-proxy`
+**Why the rename in Next.js 16**: `middleware.ts` → `proxy.ts` clarifies it sits at the network boundary (not general-purpose middleware). Partly motivated by CVE-2025-29927 (middleware auth bypass via `x-middleware-subrequest` header). The exported function must also be renamed from `middleware` to `proxy`. Migration codemod: `npx @next/codemod@latest middleware-to-proxy .`
 
 **Deprecation**: Next.js 16 still accepts `middleware.ts` but treats it as deprecated and logs a warning. It will be removed in a future version.
 
