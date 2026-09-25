@@ -5,7 +5,8 @@ import { join, resolve } from "node:path";
 import { profileProject } from "../hooks/src/session-start-profiler.mts";
 
 // The Workflow SDK ships as `workflow` and `@workflow/*`; `@vercel/workflow`
-// does not exist on npm, and neither `createWorkflow` nor
+// is not a public npm package (a private pre-launch package uses the name),
+// and neither `createWorkflow` nor
 // `experimental_createWorkflow` is exported by `workflow` or `ai`.
 
 const ROOT = resolve(import.meta.dirname, "..");
