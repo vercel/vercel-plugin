@@ -9,6 +9,7 @@ metadata:
     - "https://vercel.com/docs/services/routing"
     - "https://vercel.com/docs/services/bindings"
     - "https://vercel.com/docs/services/config-reference"
+    - "https://vercel.com/docs/services/experimental"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - 'vercel.json'
@@ -60,6 +61,7 @@ retrieval:
     - bindings
     - destination.service
     - root
+    - experimentalServices
   examples:
     - put a Next.js frontend and a FastAPI backend in one project
     - deploy a Vite SPA with an Express API behind /api
@@ -91,6 +93,8 @@ The benefits and the drawback are the same fact: every deployment ships all serv
 Do not introduce Services just to split one framework into arbitrary processes. Use it when an independently built component has a real runtime, framework, dependency, or ownership reason to exist.
 
 ## Define services and public ingress
+
+If `vercel.json` already has an `experimentalServices` key, the project is on the earlier configuration model: read [references/experimental-services.md](references/experimental-services.md) before changing it.
 
 Each service requires a `root` relative to `vercel.json`. Let Vercel detect the framework unless pinning it is necessary. Set `entrypoint` relative to the service root when the runtime needs one.
 
@@ -236,6 +240,7 @@ Deploy the project normally with `vercel` or Git integration. All services parti
 - **A binding variable is missing:** declare the binding on the caller and access it from runtime function code, not build code or middleware.
 - **Build settings are ignored or rejected:** move top-level build and runtime fields into the owning service.
 - **Framework detection is wrong:** set that service's `framework` or `entrypoint` explicitly instead of changing the whole project.
+- **Validation rejects `services` together with `experimentalServices`:** `vercel.json` can declare only one; finish the migration in [references/experimental-services.md](references/experimental-services.md).
 
 ## Related skills
 
