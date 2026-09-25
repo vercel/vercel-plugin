@@ -5,7 +5,7 @@ metadata:
   priority: 6
   docs:
     - "https://next-forge.com/docs"
-    - "https://github.com/haydenbleasel/next-forge"
+    - "https://github.com/vercel/next-forge"
   pathPatterns:
     - 'pnpm-workspace.yaml'
     - 'apps/app/**'
