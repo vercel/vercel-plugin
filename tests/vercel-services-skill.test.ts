@@ -152,4 +152,13 @@ describe("Vercel Services guidance", () => {
     expect(reference).toContain("The service's `functions` object");
     expect(reference).not.toMatch(/Inferred from source|Documented \|/);
   });
+
+  test("notes how binding calls are billed", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain(
+      "Each call over a binding is billed as one [Service Request](https://vercel.com/docs/services/pricing)",
+    );
+    expect(skill).toContain('- "https://vercel.com/docs/services/pricing"');
+  });
 });
