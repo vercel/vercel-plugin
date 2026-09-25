@@ -179,7 +179,10 @@ Domain issues?
 
 <!-- Sourced from deployments-cicd skill: Promote & Rollback -->
 ```bash
-# Promote a preview deployment to production
+# Stage a production deployment without assigning domains
+vercel deploy --prod --skip-domain
+
+# Promote it (instant, no rebuild)
 vercel promote <deployment-url-or-id>
 
 # Rollback to the previous production deployment
@@ -189,7 +192,9 @@ vercel rollback
 vercel rollback <deployment-url-or-id>
 ```
 
-**Promote vs deploy --prod:** `promote` is instant — it re-points the production alias without rebuilding. Use it when a preview deployment has been validated and is ready for production.
+**Promote a production deployment, not a preview.** Promoting a staged production deployment is instant and serves the same build. Promoting a preview rebuilds it with production environment variables, so the tested build is not the one released.
+
+**Rollback turns off auto-assignment.** New production pushes stop going live until `vercel promote` restores it.
 
 **Additional rollback strategies:**
 
@@ -208,7 +213,7 @@ vercel rollback <deployment-url-or-id>
 | Custom CI/CD (Actions, CircleCI) | Prebuilt deploy | `vercel build && vercel deploy --prebuilt` |
 | Monorepo with Turborepo | Affected + remote cache | `turbo run build --affected --remote-cache` |
 | Preview for every PR | Default behavior | Auto-creates preview URL per branch |
-| Promote preview to production | CLI promotion | `vercel promote <url>` |
+| Release a tested build | Deployment Checks (Git) or staged production (CLI) | Required checks, or `vercel deploy --prod --skip-domain` → test → `vercel promote <url>` |
 | Atomic deploys with DB migrations | Two-phase | Run migration → verify → `vercel promote` |
 | Latency-sensitive regional data | Vercel Functions | Keep the Node.js default; set the function region near the data |
 
@@ -265,7 +270,9 @@ jobs:
 <!-- Sourced from deployments-cicd skill: Common CI Patterns -->
 ### Common CI Patterns
 
-### Promote After Tests Pass
+### Release Only Tested Builds
+
+With Git deployments, require [Deployment Checks](references/deployment-checks.md). When CI deploys with the CLI, stage a production deployment, test it, then promote that build:
 
 ```yaml
 env:
@@ -274,24 +281,32 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
-  deploy-preview:
-    # ... deploy preview ...
-    outputs:
-      url: ${{ steps.deploy.outputs.url }}
-
-  e2e-tests:
-    needs: deploy-preview
-    runs-on: ubuntu-latest
-    steps:
-      - run: npx playwright test --base-url=${{ needs.deploy-preview.outputs.url }}
-
-  promote:
-    needs: [deploy-preview, e2e-tests]
+  stage:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      # ... checkout, install, vercel pull --environment=production, vercel build --prod ...
+      - id: deploy
+        run: echo "url=$(vercel deploy --prebuilt --prod --skip-domain)" >> $GITHUB_OUTPUT
+
+  e2e-tests:
+    needs: stage
+    runs-on: ubuntu-latest
+    steps:
+      # ... checkout, install, bypass header in playwright.config.ts (see references/deployment-checks.md) ...
+      - run: npx playwright test
+        env:
+          BASE_URL: ${{ needs.stage.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+  promote:
+    needs: [stage, e2e-tests]
+    runs-on: ubuntu-latest
     steps:
       - run: npm install -g vercel
-      - run: vercel promote ${{ needs.deploy-preview.outputs.url }}
+      - run: vercel promote ${{ needs.stage.outputs.url }}
 ```
 
 <!-- Sourced from deployments-cicd skill: references/cli-pipelines.md > Preview Deployments on PRs -->
@@ -331,6 +346,83 @@ jobs:
               body: `Preview: ${{ steps.deploy.outputs.url }}`
             })
 ```
+
+---
+
+## Deployment Checks
+
+<!-- Sourced from deployments-cicd skill: references/deployment-checks.md > Deployment Checks -->
+[Deployment Checks](https://vercel.com/docs/deployment-checks) hold each production deployment until every required check passes, then assign production domains automatically. Vercel keeps building from Git, and only a tested build goes live.
+
+- Keep auto-assignment of production domains on. The checks decide when it happens.
+- Add checks in **Settings → Build and Deployment → Deployment Checks**.
+- **Force Promote** on the deployment page bypasses the checks.
+
+| Source | What it checks |
+| --- | --- |
+| Vercel ([native](https://vercel.com/docs/deployment-checks#native-deployment-checks)) | Runs the `lint` and `typecheck` (or `type-check`, `check-types`) scripts from `package.json`, skipping a check with no matching script. Each check can be limited to specific environments |
+| GitHub | Commit statuses and GitHub Actions check runs on the deployed commit. Requires Vercel for GitHub |
+| Integrations | Marketplace integrations for testing, monitoring, and observability |
+
+## Test Each Deployment with GitHub Actions
+
+Vercel sends the `vercel.deployment.ready` [repository dispatch event](https://vercel.com/docs/git/vercel-for-github#repository-dispatch-events) after it creates a deployment and before checks run. Test the deployment it names, and report the result with `vercel/repository-dispatch/actions/status@v1`. That action sets a commit status on the deployed commit when the job finishes; require that status as a GitHub check.
+
+```yaml
+name: E2E
+on:
+  repository_dispatch:
+    types: [vercel.deployment.ready]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      statuses: write
+    steps:
+      - uses: vercel/repository-dispatch/actions/status@v1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.git.sha }}
+      - run: npm ci && npx playwright install --with-deps
+      - run: npx playwright test
+        env:
+          BASE_URL: ${{ github.event.client_payload.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+```
+
+- GitHub runs `repository_dispatch` workflows from the default branch, so check out `client_payload.git.sha` to test the deployed commit.
+- The status name defaults to `<workflow> | <job> (<project> - <environment>)`, which keeps one status per environment. Renaming the workflow or job renames the status, so select the check again.
+
+## Reach Protected Deployments from CI
+
+[Standard Protection](https://vercel.com/docs/deployment-protection#standard-protection) covers every URL except production domains, including the URL of a production deployment waiting on checks.
+
+**Browser tests:** create a [Protection Bypass for Automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation#playwright) secret, store it as a CI secret, and send it on every request:
+
+```ts
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+if (!bypass) throw new Error('VERCEL_AUTOMATION_BYPASS_SECRET is required');
+
+export default defineConfig({
+  use: {
+    baseURL: process.env.BASE_URL,
+    extraHTTPHeaders: {
+      'x-vercel-protection-bypass': bypass,
+      'x-vercel-set-bypass-cookie': 'true',
+    },
+  },
+});
+```
+
+**Scripted requests:** add GitHub Actions as a [Trusted Source](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources#add-a-github-actions-service) instead of storing a secret. Scope the rule to the repository and the environments the job may reach, grant the job `id-token: write`, and send the token from `core.getIDToken()` in the `x-vercel-trusted-oidc-idp-token` header.
+
+For agent or local access to a protected URL: `⤳ skill: access-protected-vercel-deployment`.
 
 ---
 
