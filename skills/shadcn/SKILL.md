@@ -217,14 +217,6 @@ The `components.json` file configures how shadcn/ui works in your project:
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
-  },
-  "registries": {
-    "v0": {
-      "url": "https://v0.dev/chat/api/registry"
-    },
-    "ai-elements": {
-      "url": "https://elements.ai-sdk.dev/api/registry"
-    }
   }
 }
 ```
@@ -236,10 +228,10 @@ Configure multiple registries for your project:
 ```json
 {
   "registries": {
-    "acme": {
+    "@acme": {
       "url": "https://acme.com/registry/{name}.json"
     },
-    "private": {
+    "@private": {
       "url": "https://internal.company.com/registry/{name}.json",
       "headers": {
         "Authorization": "Bearer ${REGISTRY_TOKEN}"
@@ -248,6 +240,8 @@ Configure multiple registries for your project:
   }
 }
 ```
+
+`@ai-elements` and other registries in the shadcn registry index don't need a manual `components.json` entry: when you add a component from one, the CLI looks the registry up in the index and adds it to `components.json` for you.
 
 Install using namespace syntax:
 
