@@ -1,7 +1,7 @@
 ---
 name: vercel-services
 description: Configure and troubleshoot Vercel Services for multiple frontends and backends in one project. Use when composing a polyglot or multi-service application on one Vercel deployment; defining the `services` key, service-targeted rewrites, or service bindings in `vercel.json`; or running all services with `vercel dev`.
-summary: Compose multiple frontends and backends in one Vercel project
+summary: Compose multiple frontends and backends in one Vercel project (Beta)
 metadata:
   priority: 7
   docs:
@@ -72,6 +72,8 @@ retrieval:
 # Vercel Services
 
 Use the `services` model whenever one application is made of multiple tightly coupled components, such as a frontend plus a backend, that should deploy to one Vercel project.
+
+Services is [in Beta on all plans](https://vercel.com/docs/services). Say so when you recommend it.
 
 Services build independently but ship together as one deployment. That buys skew protection between frontend and backend, preview environments where every service is in sync, atomic deployments and rollbacks of the whole app, and private service-to-service communication through bindings. Public traffic enters through one ordered route table.
 

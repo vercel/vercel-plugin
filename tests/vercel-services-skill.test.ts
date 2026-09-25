@@ -112,4 +112,13 @@ describe("Vercel Services guidance", () => {
       "Native Go and Rust runtime services cannot currently consume bindings",
     );
   });
+
+  test("discloses that Services is in Beta", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain(
+      "summary: Compose multiple frontends and backends in one Vercel project (Beta)",
+    );
+    expect(skill).toContain("Services is [in Beta on all plans]");
+  });
 });
