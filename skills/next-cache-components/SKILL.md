@@ -46,7 +46,7 @@ metadata:
       upgradeWhy: 'Guides migration from unstable_cache to use cache directive with cacheTag and cacheLife.'
     -
       pattern: '\bcacheHandler\s*:'
-      message: 'Singular cacheHandler is deprecated in Next.js 16 — use cacheHandlers (plural) with per-type handlers'
+      message: 'cacheHandler (singular) is for ISR/route handler/image caching, not the use cache directive — for that, use cacheHandlers (plural) instead'
       severity: recommended
     -
       pattern: revalidateTag\(\s*['"][^'"]+['"]\s*\)

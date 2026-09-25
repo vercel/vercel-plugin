@@ -102,7 +102,7 @@ validate:
     message: 'cacheHandler (singular) is for ISR/route handler/image caching, not the use cache directive — for that, use cacheHandlers (plural) instead'
     severity: recommended
     upgradeToSkill: nextjs
-    upgradeWhy: 'Explains that cacheHandler (singular, ISR/route handler/image caching) and cacheHandlers (plural, for the use cache directive) are separate, non-interchangeable Next.js 16 configs.'
+    upgradeWhy: 'Explains that cacheHandler (singular, ISR/route handler/image caching) and cacheHandlers (plural, for the use cache directive) are separate, non-interchangeable Next.js configs.'
   -
     pattern: useRef\(\s*\)
     message: 'useRef() requires an initial value in React 19 — use useRef(null) or useRef(0)'
