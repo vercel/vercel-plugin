@@ -228,10 +228,10 @@ Configure multiple registries for your project:
 ```json
 {
   "registries": {
-    "acme": {
+    "@acme": {
       "url": "https://acme.com/registry/{name}.json"
     },
-    "private": {
+    "@private": {
       "url": "https://internal.company.com/registry/{name}.json",
       "headers": {
         "Authorization": "Bearer ${REGISTRY_TOKEN}"
@@ -240,6 +240,8 @@ Configure multiple registries for your project:
   }
 }
 ```
+
+`@ai-elements` and other registries in the shadcn registry index need no `components.json` entry; the CLI resolves them automatically.
 
 Install using namespace syntax:
 
