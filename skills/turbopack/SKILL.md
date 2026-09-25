@@ -179,7 +179,7 @@ const nextConfig = withBundleAnalyzer({
 
 ## Custom Loader Migration from Webpack
 
-Turbopack does not support webpack loaders directly. Here is how to migrate common patterns:
+Turbopack runs many webpack loaders through `turbopack.rules` (only a core subset of the loader API is implemented, and only loaders that return JavaScript are supported; webpack plugins are not supported). Here is how to migrate common patterns:
 
 | Webpack Loader | Turbopack Equivalent |
 |----------------|---------------------|
@@ -188,7 +188,7 @@ Turbopack does not support webpack loaders directly. Here is how to migrate comm
 | `postcss-loader` | Built-in — reads `postcss.config.js` |
 | `file-loader` / `url-loader` | Built-in static asset handling |
 | `svgr` / `@svgr/webpack` | Use `@svgr/webpack` via `turbopack.rules` |
-| `raw-loader` | Use `import x from './file?raw'` |
+| `raw-loader` | Use `raw-loader` via `turbopack.rules` (or per import: `with { turbopackLoader: 'raw-loader', turbopackAs: '*.js' }`, Next.js 16.2+) |
 | `graphql-tag/loader` | Use `graphql-tag/loader` via `turbopack.rules` (tested with Turbopack) |
 | `worker-loader` | Use native `new Worker(new URL(...))` syntax |
 
