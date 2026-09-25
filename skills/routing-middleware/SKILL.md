@@ -103,7 +103,7 @@ There are THREE "middleware" concepts in the Vercel ecosystem:
 
 To run Routing Middleware (and all Vercel Functions) on Bun, add `bunVersion` to `vercel.json`:
 
-```json
+```json filename="vercel.json"
 {
   "bunVersion": "1.x"
 }
