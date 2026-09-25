@@ -176,7 +176,7 @@ An SPA service that serves a static `index.html`, such as a Vite build, needs a 
 }
 ```
 
-Do not set `path` on a service destination. The field is accepted by the schema but has no effect at request time. Reshape paths with a service-scoped rewrite or a `request.path` transform in the service's own `routes` instead.
+A service destination's `path` selects which route runs inside the service without changing the path the service code sees. A query string in it adds state the service's own rules can match, such as `"path": "/:path*?org=:orgSlug"` ([routing docs](https://vercel.com/docs/services/routing)). To change the path the code sees, use a service-scoped rewrite or a `request.path` transform in the service's own `routes`.
 
 ## Serve a service on a subdomain
 
