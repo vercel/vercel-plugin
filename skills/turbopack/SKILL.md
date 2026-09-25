@@ -6,7 +6,7 @@ metadata:
   docs:
     - "https://nextjs.org/docs/app/api-reference/turbopack"
     - "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack"
-  sitemap: "https://turbo.build/sitemap.xml"
+  sitemap: "https://nextjs.org/sitemap.xml"
   pathPatterns: 
     - 'next.config.*'
   bashPatterns: 
@@ -34,9 +34,9 @@ chainTo:
     targetSkill: nextjs
     message: 'Webpack config detected — loading Next.js guidance for migrating webpack customizations to Turbopack top-level config in Next.js 16.'
   -
-    pattern: 'turbopack\s*:\s*\{|experimental\.turbopack'
+    pattern: 'turbopack\s*:\s*\{|experimental\.turbo\b'
     targetSkill: nextjs
-    message: 'Turbopack configuration detected — loading Next.js guidance for top-level turbopack config syntax in Next.js 16 (moved from experimental.turbopack).'
+    message: 'Turbopack configuration detected — loading Next.js guidance for top-level turbopack config syntax in Next.js 16 (moved from experimental.turbo).'
 
 ---
 
@@ -55,7 +55,7 @@ You are an expert in Turbopack — the Rust-powered JavaScript/TypeScript bundle
 
 ## Configuration (Next.js 16)
 
-In Next.js 16, Turbopack config is top-level (moved from `experimental.turbopack`):
+In Next.js 16, Turbopack config is top-level (moved from `experimental.turbo`):
 
 ```js
 // next.config.ts
@@ -189,7 +189,7 @@ Turbopack does not support webpack loaders directly. Here is how to migrate comm
 | `file-loader` / `url-loader` | Built-in static asset handling |
 | `svgr` / `@svgr/webpack` | Use `@svgr/webpack` via `turbopack.rules` |
 | `raw-loader` | Use `import x from './file?raw'` |
-| `graphql-tag/loader` | Use a build-time codegen step instead |
+| `graphql-tag/loader` | Tested to work directly — no codegen needed |
 | `worker-loader` | Use native `new Worker(new URL(...))` syntax |
 
 ### Configuring custom rules (loader replacement)
@@ -317,7 +317,7 @@ next build --webpack
 ## Common Issues
 
 1. **Missing loader equivalent**: Some webpack loaders don't have Turbopack equivalents yet. Check Turbopack docs for supported transformations.
-2. **Config migration**: Move `experimental.turbopack` to top-level `turbopack` in next.config.
+2. **Config migration**: Move `experimental.turbo` to top-level `turbopack` in next.config.
 3. **Custom aliases**: Use `turbopack.resolveAlias` instead of `webpack.resolve.alias`.
 4. **CSS ordering changes**: Test visual regressions when migrating — CSS chunk order may differ.
 5. **Environment boundary errors**: Server-only modules imported in client components fail at build time — use `server-only` package.
@@ -326,4 +326,4 @@ next build --webpack
 
 - [Turbopack](https://nextjs.org/docs/app/api-reference/turbopack)
 - [Next.js Turbopack Config](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack)
-- [GitHub: Turbopack](https://github.com/vercel/turborepo)
+- [GitHub: Turbopack](https://github.com/vercel/next.js)
