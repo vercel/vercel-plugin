@@ -132,7 +132,7 @@ Keep configuration ownership clear:
 - Keep public `rewrites`, `redirects`, `headers`, and other URL behavior at the top level.
 - Put `functions`, `installCommand`, `buildCommand`, `devCommand`, `ignoreCommand`, `outputDirectory`, and framework settings on the service that owns them.
 - Put service-local `headers`, `redirects`, `rewrites`, or `routes` inside a service only when they should run after public ingress selects that service.
-- Set `runtime: "container"` when a service must build from a Dockerfile or OCI image. Use `entrypoint` for a nonstandard Dockerfile and `command` to override the image command.
+- Set `runtime: "container"` when a service must build from a Dockerfile or OCI image. Use `entrypoint` for a nonstandard Dockerfile path.
 
 ## Route requests correctly
 
