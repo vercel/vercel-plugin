@@ -429,7 +429,7 @@ VERCEL AGENT (public beta, Pro/Enterprise)  ⤳ skill: vercel-agent  📖 docs: 
 ## 4. Build Tools
 
 ```
-TURBOPACK                                  ⤳ skill: turbopack  📖 docs: https://turbo.build/pack/docs
+TURBOPACK                                  ⤳ skill: turbopack  📖 docs: https://nextjs.org/docs/app/api-reference/turbopack
 ├── Purpose: JavaScript/TypeScript bundler
 │   ⊃ Instant HMR (doesn't degrade with app size)
 │   ⊃ Multi-environment builds (Browser, Server, Edge, SSR, RSC)
