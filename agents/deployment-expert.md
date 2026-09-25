@@ -379,6 +379,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      contents: read
       statuses: write
     steps:
       - uses: vercel/repository-dispatch/actions/status@v1
