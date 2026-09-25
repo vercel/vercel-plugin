@@ -152,7 +152,7 @@ Important! The `vercel connect create` and `vercel connect token` commands may o
 
 `vercel connect create <service>` supports 100+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
 
-For MCP servers, pass the full endpoint URL when registering (e.g. `vercel connect create https://mcp.linear.app/mcp`). The connector ID then takes the form `mcp.<host>/<name>` (for example `mcp.linear.app/myagent`).
+For MCP servers there are two ways to register. For a known service, run `vercel connect create <service>` and pick the MCP connection method (e.g. `vercel connect create linear --name my-agent` gives the connector `linear/my-agent`). For any other OAuth-protected server, pass its URL (e.g. `vercel connect create mcp.linear.app --name linear`): Vercel discovers the OAuth endpoints from the URL and creates a custom OAuth connector (`oauth/linear`). Either way, attach it to the project with `vercel connect attach <connector>` before requesting tokens. The service name or URL you pass to `create` is not necessarily the MCP runtime URL; that goes in the connection's `url`.
 
 #### Example: Send a Slack message using curl
 
@@ -204,14 +204,14 @@ import { connect } from "@vercel/connect/eve";
 export default defineMcpClientConnection({
   url: "https://mcp.linear.app/mcp",
   description: "Linear workspace — issues, projects, cycles, and comments.",
-  auth: connect("mcp.linear.app/myagent"),
+  auth: connect("linear/myagent"),
 });
 ```
 
 Key points for the agent:
 
 - Omit `principalType` for the default per-user OAuth flow, or set `"app"` for app-scoped tokens (no consent flow — fail terminally if not installed).
-- Pass the connector id directly with `connect("mcp.linear.app/myagent")`, or use `connect({ connector: "mcp.linear.app/myagent" })` when you need options.
+- Pass the connector id directly with `connect("linear/myagent")`, or use `connect({ connector: "linear/myagent" })` when you need options.
 - For scopes, audiences, or `authorizationDetails`, pass them through `tokenParams`. For a custom challenge prompt, pass `instructions`. Both are optional.
 - `eve` is an optional peer dependency, so the rest of `@vercel/connect` (CLI, `getToken`, etc.) is unaffected for non-eve consumers.
 
@@ -221,10 +221,10 @@ For eve Slack channels (`agent/channels/slack.ts`), use `connectSlackCredentials
 
 ```typescript
 // agent/channels/slack.ts
-import { slackRoute } from "eve/channels/slack";
+import { slackChannel } from "eve/channels/slack";
 import { connectSlackCredentials } from "@vercel/connect/eve";
 
-export default slackRoute({
+export default slackChannel({
   credentials: connectSlackCredentials("slack/myagent"),
 });
 ```
@@ -242,10 +242,10 @@ For eve GitHub channels (`agent/channels/github.ts`), use `connectGitHubCredenti
 
 ```typescript
 // agent/channels/github.ts
-import { githubRoute } from "eve/channels/github";
+import { githubChannel } from "eve/channels/github";
 import { connectGitHubCredentials } from "@vercel/connect/eve";
 
-export default githubRoute({
+export default githubChannel({
   credentials: connectGitHubCredentials("github/myagent"),
 });
 ```
@@ -261,10 +261,10 @@ For eve Linear channels (`agent/channels/linear.ts`), use `connectLinearCredenti
 
 ```typescript
 // agent/channels/linear.ts
-import { linearRoute } from "eve/channels/linear";
+import { linearChannel } from "eve/channels/linear";
 import { connectLinearCredentials } from "@vercel/connect/eve";
 
-export default linearRoute({
+export default linearChannel({
   credentials: connectLinearCredentials("linear/myagent"),
 });
 ```
@@ -361,11 +361,13 @@ Important! If more than one connector found, allow user to make the choice betwe
    vercel connect create <service> [--name <app-name>]
    ```
 
-Important! Provide the most precise server URL for the service, including the complete connection URL (e.g. `https://mcp.linear.app/mcp` rather than just `linear`). Short service aliases may resolve to a default endpoint that does not match the transport or path the user actually wants. When in doubt, run `vercel connect create --help` to confirm which service names and URL forms are accepted before picking one.
+Important! For a known service, pass its name (e.g. `linear`) and pick the connection method (OAuth, API key, MCP, …) when prompted. For a service Vercel doesn't know, pass the server URL. Run `vercel connect create <service> --help` to see a service's products and connection methods before picking one.
 
 Important! This command will give you a URL or directly open it to complete the registration process. User must visit that URL and follow the instructions to link their third-party account with Vercel Connect. The command will not complete until they finish the registration. The agent must clearly show the URL to the user and prompt them to complete the registration.
 
 Important! Once `vercel connect create` completes, it will print a successful message. You must capture that connector ID for the next step.
+
+Then attach the connector to the project that will request tokens: `vercel connect attach <connector>`. By default this links Production, Preview, and Development.
 
 Important! The `vercel connect create` command may open the browser so it's better to get the user approval before running it.
 
