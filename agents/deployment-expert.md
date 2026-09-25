@@ -238,6 +238,11 @@ on:
   push:
     branches: [main]
 
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -248,13 +253,13 @@ jobs:
         run: npm install -g vercel
 
       - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production
 
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod
 
       - name: Deploy
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod
 ```
 
 <!-- Sourced from deployments-cicd skill: Common CI Patterns -->
@@ -263,6 +268,11 @@ jobs:
 ### Promote After Tests Pass
 
 ```yaml
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
 jobs:
   deploy-preview:
     # ... deploy preview ...
@@ -281,7 +291,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - run: npm install -g vercel
-      - run: vercel promote ${{ needs.deploy-preview.outputs.url }} --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel promote ${{ needs.deploy-preview.outputs.url }}
 ```
 
 <!-- Sourced from deployments-cicd skill: references/cli-pipelines.md > Preview Deployments on PRs -->
@@ -295,16 +305,21 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
 jobs:
   preview:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: npm install -g vercel
-      - run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-      - run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel pull --yes --environment=preview
+      - run: vercel build
       - id: deploy
-        run: echo "url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})" >> $GITHUB_OUTPUT
+        run: echo "url=$(vercel deploy --prebuilt)" >> $GITHUB_OUTPUT
       - name: Comment PR
         uses: actions/github-script@v7
         with:
