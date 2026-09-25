@@ -152,7 +152,7 @@ Important! The `vercel connect create` and `vercel connect token` commands may o
 
 `vercel connect create <service>` supports 100+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
 
-For MCP servers, pass the server URL when registering (e.g. `vercel connect create mcp.linear.app --name linear`); Vercel discovers the OAuth endpoints from the URL, and the resulting connector UID takes the form `<type>/<name>` (for example `oauth/linear`).
+For MCP servers there are two ways to register. For a known service, run `vercel connect create <service>` and pick the MCP connection method (e.g. `vercel connect create linear --name my-agent` gives the connector `linear/my-agent`). For any other OAuth-protected server, pass its URL (e.g. `vercel connect create mcp.linear.app --name linear`): Vercel discovers the OAuth endpoints from the URL and creates a custom OAuth connector (`oauth/linear`). Either way, attach it to the project with `vercel connect attach <connector>` before requesting tokens. The service name or URL you pass to `create` is not necessarily the MCP runtime URL; that goes in the connection's `url`.
 
 #### Example: Send a Slack message using curl
 
@@ -361,11 +361,13 @@ Important! If more than one connector found, allow user to make the choice betwe
    vercel connect create <service> [--name <app-name>]
    ```
 
-Important! Provide the most precise server URL for the service, including the complete connection URL (e.g. `https://mcp.linear.app/mcp` rather than just `linear`). Short service aliases may resolve to a default endpoint that does not match the transport or path the user actually wants. When in doubt, run `vercel connect create --help` to confirm which service names and URL forms are accepted before picking one.
+Important! For a known service, pass its name (e.g. `linear`) and pick the connection method (OAuth, API key, MCP, …) when prompted. For a service Vercel doesn't know, pass the server URL. Run `vercel connect create <service> --help` to see a service's products and connection methods before picking one.
 
 Important! This command will give you a URL or directly open it to complete the registration process. User must visit that URL and follow the instructions to link their third-party account with Vercel Connect. The command will not complete until they finish the registration. The agent must clearly show the URL to the user and prompt them to complete the registration.
 
 Important! Once `vercel connect create` completes, it will print a successful message. You must capture that connector ID for the next step.
+
+Then attach the connector to the project that will request tokens: `vercel connect attach <connector>`. By default this links Production, Preview, and Development.
 
 Important! The `vercel connect create` command may open the browser so it's better to get the user approval before running it.
 
