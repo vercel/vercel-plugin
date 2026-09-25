@@ -104,8 +104,8 @@ Generate a high-entropy secret without printing it, then store it in Vercel and 
 
 ```bash
 AUTH_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET preview production
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # development cannot share a command with preview/production
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET production,preview
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # separate command: development-only adds default to Config
 unset AUTH_SECRET
 vercel env pull .env.local --yes
 ```
