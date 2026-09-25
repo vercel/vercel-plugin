@@ -149,6 +149,8 @@ export default function RootLayout({ children }) {
 }
 ```
 
+`PrefetchCrossZoneLinks` accepts an optional `prerenderEagerness` prop (`'immediate' | 'eager' | 'moderate' | 'conservative'`, default `'conservative'`) that controls how aggressively cross-zone pages are prerendered in the background.
+
 ### Setup for Next.js Pages Router
 
 Add `PrefetchCrossZoneLinks` to `_app.tsx`:
