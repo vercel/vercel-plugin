@@ -310,7 +310,7 @@ Add `"bunVersion": "1.x"` to `vercel.json` to run functions on Bun instead of No
 Python 3.12 / 3.13 / 3.14 on Fluid Compute. FastAPI, Flask, and Django build into a **single** function from the resolved entrypoint — key `vercel.json` config on that entrypoint file (`app/main.py`, `myproject/wsgi.py`), not on `/api` routes. Python gets a **500 MB** standard bundle limit (vs. 250 MB) and supports large functions and extended duration.
 
 ### Rust
-Rust functions run on Fluid Compute with HTTP streaming and Active CPU pricing. Built on the community Rust runtime. Supports environment variables up to 64 KB.
+Rust functions run on Fluid Compute with HTTP streaming and Active CPU pricing. Official runtime (Beta) built on the `vercel_runtime` crate. Supports environment variables up to 64 KB.
 
 ### Container images (Docker)
 Any OCI image via `Dockerfile.vercel`. See [Docker and Container Images](#docker-and-container-images) below.
@@ -643,7 +643,7 @@ vercel vcr image inspect my-app <id>
 vercel vcr image rm my-app <id>
 ```
 
-Registry limits: 500 MB per compressed layer, 15 GB total image size, 4 MB manifest, 1 MB config blob. Layers must be gzip or zstd compressed — uncompressed OCI layers are rejected. Repositories per project: 10 (Hobby) / 1,000 (Pro) / 5,000 (Enterprise). Storage is billed at $0.10 per GB.
+Registry limits: 2 GB per compressed layer, 15 GB total image size, 4 MB manifest, 1 MB config blob. Layers must be gzip or zstd compressed — uncompressed OCI layers are rejected. Repositories per project: 10 (Hobby) / 1,000 (Pro) / 5,000 (Enterprise). Storage is billed at $0.10 per GB.
 
 ### When to reach for a container
 
@@ -957,7 +957,7 @@ Cold start latency > 1s?
 - [Container Images](https://vercel.com/docs/functions/container-images) — Dockerfile on Vercel
 - [Vercel Container Registry](https://vercel.com/docs/container-registry) and its [limits and pricing](https://vercel.com/docs/container-registry/limits-and-pricing)
 - [Services](https://vercel.com/docs/services) — multiple backends/frontends in one project
-- [Streaming](https://vercel.com/docs/functions/streaming)
+- [Streaming](https://vercel.com/docs/functions/streaming-functions)
 - [WebSockets](https://vercel.com/docs/functions/websockets)
 - [Cron Jobs](https://vercel.com/docs/cron-jobs)
 - [Vercel Workflow](https://vercel.com/docs/workflows) — for anything beyond 30 minutes
