@@ -18,7 +18,7 @@ Build failed?
 ├─ "Module not found" / "Cannot resolve"
 │  ├─ Is the import path correct? → Fix the path
 │  ├─ Is the package in `dependencies` (not just `devDependencies`)? → Move it
-│  ├─ Is this a monorepo? → Check `rootDirectory` in vercel.json or Project Settings
+│  ├─ Is this a monorepo? → Check Root Directory in Project Settings (`vercel.json` has no `rootDirectory` key)
 │  └─ Using path aliases? → Verify tsconfig.json `paths` and Next.js `transpilePackages`
 │
 ├─ "Out of memory" / heap allocation failure
@@ -225,7 +225,7 @@ vercel rollback <deployment-url-or-id>
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `ERR_PNPM_OUTDATED_LOCKFILE` | Lockfile doesn't match package.json | Run `pnpm install`, commit lockfile |
-| `NEXT_NOT_FOUND` | Root directory misconfigured | Set `rootDirectory` in Project Settings |
+| `NEXT_NOT_FOUND` | Root directory misconfigured | Set Root Directory in Project Settings |
 | `Invalid next.config.js` | Config syntax error | Validate config locally with `next build` |
 | `functions/api/*.js` mismatch | Wrong file structure | Move to `app/api/` directory (App Router) |
 | `Error: EPERM` | File permission issue in build | Don't `chmod` in build scripts; use postinstall |
