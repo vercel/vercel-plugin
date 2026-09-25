@@ -4,7 +4,7 @@ description: Vercel deployment and CI/CD expert guidance. Use when deploying, pr
 metadata:
   priority: 6
   docs:
-    - "https://vercel.com/docs/deployments/overview"
+    - "https://vercel.com/docs/deployments"
     - "https://vercel.com/docs/git"
     - "https://vercel.com/docs/deployments/promoting-a-deployment"
     - "https://vercel.com/docs/deployment-checks"
@@ -315,7 +315,7 @@ Based on the deployment outcome:
 
 - [Deployments](https://vercel.com/docs/deployments)
 - [Vercel CLI](https://vercel.com/docs/cli)
-- [GitHub Actions](https://vercel.com/docs/deployments/git/vercel-for-github)
-- [GitLab CI](https://vercel.com/docs/deployments/git/vercel-for-gitlab)
-- [Bitbucket Pipelines](https://vercel.com/docs/deployments/git/vercel-for-bitbucket)
+- [GitHub Actions](https://vercel.com/docs/git/vercel-for-github)
+- [GitLab CI](https://vercel.com/docs/git/vercel-for-gitlab)
+- [Bitbucket Pipelines](https://vercel.com/docs/git/vercel-for-bitbucket)
 - [OIDC Federation](https://vercel.com/docs/oidc)
