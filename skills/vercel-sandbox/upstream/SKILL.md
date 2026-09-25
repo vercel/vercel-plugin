@@ -237,10 +237,11 @@ The egress firewall is Sandbox's key security control for untrusted code. Set `n
 ```ts
 const sandbox = await Sandbox.create({
   networkPolicy: {
-    allow: [{
-      domain: "api.example.com",
-      transform: { headers: { authorization: `Bearer ${process.env.API_SECRET}` } },
-    }],
+    allow: {
+      "api.example.com": [{
+        transform: [{ headers: { Authorization: `Bearer ${process.env.API_SECRET}` } }],
+      }],
+    },
   },
 });
 // Inside the VM: fetch("https://api.example.com/…") is authenticated by the
@@ -272,10 +273,11 @@ const sandbox = await Sandbox.create({
 ```ts
 const sandbox = await Sandbox.create({
   networkPolicy: {
-    allow: [{
-      domain: "ai-gateway.vercel.sh",
-      transform: { headers: { authorization: `Bearer ${process.env.VERCEL_OIDC_TOKEN}` } },
-    }],
+    allow: {
+      "ai-gateway.vercel.sh": [{
+        transform: [{ headers: { Authorization: `Bearer ${process.env.VERCEL_OIDC_TOKEN}` } }],
+      }],
+    },
   },
 });
 // Agent code calls https://ai-gateway.vercel.sh with no token present in the VM.
