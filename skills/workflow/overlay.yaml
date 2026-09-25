@@ -3,7 +3,7 @@ description: Vercel Workflow SDK expert guidance. Use when building durable work
 metadata:
   priority: 9
   docs:
-    - "https://vercel.com/docs/workflow"
+    - "https://vercel.com/docs/workflows"
     - "https://workflow-sdk.dev"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
