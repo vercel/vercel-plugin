@@ -191,7 +191,7 @@ Conditions within a group are **AND'd**. Multiple groups (separated by `--or`) a
 - `rate_limit` — throttle by counting key (see Rate limit example for flags)
 - `redirect` — redirect to a URL or path; use `--redirect-url <URL>` and optionally `--redirect-permanent` (301; default is a temporary 307 redirect)
 
-All actions except `redirect` accept `--duration`: `1m`, `5m`, `15m`, `30m`, `1h`. Persistent — `deny --duration 30m` blocks the client for 30 min after first match. Without a duration the action evaluates per-request. Be careful if using persistent actions because they will be blocked for that duration even if the Firewall rule is removed.
+`deny`, `challenge`, and `rate_limit` accept `--duration` (Pro/Enterprise): `1m`, `5m`, `15m`, `30m`, `1h`. Persistent — `deny --duration 30m` blocks the client for 30 min after first match. Without a duration the action evaluates per-request. Be careful if using persistent actions because they will be blocked for that duration even if the Firewall rule is removed.
 
 ### Rate limit example
 
