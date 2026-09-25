@@ -68,6 +68,22 @@ describe("inject-claude-md", () => {
     expect(stdout).not.toMatch(/Node\.js 18 is deprecated\./);
   });
 
+  test("session-start knowledge updates state documented product status", async () => {
+    const { code, stdout } = await runHook({ session_id: "inject-knowledge-status" });
+    expect(code).toBe(0);
+    // vercel.com/blog/a-new-programming-model-for-durable-execution (2026-04-16): "Today, Vercel Workflows is generally available"
+    expect(stdout).toMatch(/\*\*Vercel Workflows\*\*:.*GA since April 2026\./);
+    // vercel.com/docs/services: "Services are available in Beta on all plans"
+    expect(stdout).toMatch(/\*\*Vercel Services\*\*:.*Beta on all plans\./);
+    // vercel.com/docs/kms: "Key Management Service is available in Beta on all plans"
+    expect(stdout).toMatch(/\*\*Vercel KMS\*\*:.*Beta on all plans\./);
+    // vercel.com/docs/agent-resources/vercel-mcp: "Vercel MCP is available in Beta on all plans"
+    expect(stdout).toMatch(/\*\*Vercel MCP server\*\*:.*Beta on all plans\./);
+    // vercel.com/docs navigation labels "Container Registry beta" and "eve beta"
+    expect(stdout).toMatch(/\*\*Vercel Container Registry\*\*:.*Beta\./);
+    expect(stdout).toMatch(/\*\*eve\*\*:[^\n]*Beta\./);
+  });
+
   test("appends greenfield guidance when VERCEL_PLUGIN_GREENFIELD=true", async () => {
     const { code, stdout } = await runHook(
       { session_id: "inject-thin-greenfield" },
