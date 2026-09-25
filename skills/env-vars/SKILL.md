@@ -1,10 +1,11 @@
 ---
 name: env-vars
-description: Vercel environment variable expert guidance. Use when working with .env files, vercel env commands, OIDC tokens, or managing environment-specific configuration.
+description: Vercel environment variable expert guidance. Use when working with .env files, vercel env commands, Secret or Config variable types, OIDC tokens, or managing environment-specific configuration.
 metadata:
   priority: 7
   docs:
     - "https://vercel.com/docs/environment-variables"
+    - "https://vercel.com/docs/environment-variables/sensitive-environment-variables"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - '.env'
@@ -22,6 +23,8 @@ metadata:
     - '\bvercel\s+env\s+add\b'
     - '\bvercel\s+env\s+rm\b'
     - '\bvercel\s+env\s+ls\b'
+    - '\bvercel\s+env\s+update\b'
+    - '\bvercel\s+env\s+run\b'
 chainTo:
   -
     pattern: '\b(OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_API_KEY)\b'
@@ -33,6 +36,8 @@ retrieval:
     - env file
     - secrets
     - config vars
+    - secret env var
+    - sensitive env var
   intents:
     - set env var
     - manage secrets
@@ -101,30 +106,41 @@ vercel env pull .env.production.local --environment=production
 
 ### Add Environment Variables
 
+Every variable has a type:
+
+| Type | After saving | Use for |
+|------|--------------|---------|
+| **Secret** | Hidden in the dashboard and `vercel env ls`; can be replaced, never read back. Production and Preview Secrets are not returned by `vercel env pull`. | Passwords, API keys, tokens, database URLs |
+| **Config** | Readable by members with access | Non-sensitive values you need to read later |
+
+Deployments receive both types at build time and runtime. Secret and Config replaced the Sensitive toggle; existing Sensitive variables are Secrets.
+
 ```bash
-# Interactive — prompts for value and environments
+# Interactive — prompts for value, environments, and type
 vercel env add MY_SECRET
 
 # Non-interactive: read the value from a file so it never lands in shell
-# history or process arguments (echo "value" | ... does both)
+# history or process arguments (echo "value" | ... and --value do both)
 vercel env add MY_SECRET production < ./secret.txt
 
 # Add to production and preview in one command
-vercel env add MY_SECRET production preview < ./secret.txt
+vercel env add MY_SECRET production,preview < ./secret.txt
 
-# Development must be a separate command: combining it with production or
-# preview returns an error because development cannot be sensitive
+# Set the type explicitly
+vercel env add MY_SECRET production --type secret < ./secret.txt
+vercel env add SITE_REGION production --type config < ./region.txt
+
+# Add development in its own command; development-only adds default to Config
 vercel env add MY_SECRET development < ./dev-secret.txt
-
-# Production and preview default to sensitive (value hidden after creation).
-# Opt out only for non-secret values that must stay readable in the dashboard:
-echo "public-value" | vercel env add NEXT_PUBLIC_FLAG production --no-sensitive
 
 # Update an existing value
 vercel env update MY_SECRET production < ./secret.txt
 ```
 
-Team policy can enforce sensitive values; when it does, `--no-sensitive` is ignored for production and preview and `vercel env add` rejects development targets.
+- **Defaults**: a non-interactive add to production, preview, or a custom environment is stored as Secret.
+- **Public prefixes are always Config**: variables such as `NEXT_PUBLIC_*` or `VITE_*` are exposed to browsers, so the CLI refuses `--type secret` for them. Keep a private value under a name without the prefix.
+- **Flags**: `--type config|secret` needs Vercel CLI 59.6 or later. Older CLIs use `--visibility`, now a deprecated alias of `--type`. `--sensitive` (Secret) and `--no-sensitive` (Config) still work in every version.
+- **Team policy**: **Separate Production Secret Values** requires a Production Secret to differ from the Preview, Development, and custom environment values of the same key. Under it, create separate Production and non-Production values instead of adding one value to all targets. It replaces the deprecated **Enforce Sensitive Environment Variables** policy.
 
 ### List Environment Variables
 
@@ -221,7 +237,7 @@ const result = await generateText({
 
 | Use Case | Where to Set |
 |----------|-------------|
-| Secrets (API keys, tokens) | Vercel Dashboard (`https://vercel.com/{team}/{project}/settings/environment-variables`) or `vercel env add` |
+| Secrets (API keys, tokens) | Vercel Dashboard (`https://vercel.com/{team}/{project}/settings/environment-variables`) or `vercel env add`, as type Secret |
 | Public config (site URL, feature flags) | `.env` or `.env.[environment]` files |
 | Local-only overrides | `.env.local` |
 | CI/CD secrets | Vercel Dashboard (`https://vercel.com/{team}/{project}/settings/environment-variables`) with environment scoping |
@@ -230,7 +246,7 @@ const result = await generateText({
 
 Variables set in the Vercel Dashboard at `https://vercel.com/{team}/{project}/settings/environment-variables` can be scoped to:
 
-- **Production** — only `vercel.app` production deployments
+- **Production** — production domain deployments
 - **Preview** — branch/PR deployments
 - **Development** — `vercel dev` and `vercel env pull`
 
@@ -260,6 +276,10 @@ cat .env.custom.bak >> .env.local  # Re-append custom vars
 
 Or maintain custom vars in a separate `.env.development.local` file (loaded after `.env.local` by Next.js).
 
+### Pulled Files Omit Production and Preview Secrets
+
+`vercel env pull --environment=production` (or `preview`) does not write Secret values, so a pulled file cannot reproduce production credentials. Keep separate Development values for local work instead of trying to copy production Secrets onto a machine.
+
 ### Scripts Don't Auto-Load `.env.local`
 
 Only Next.js auto-loads `.env.local`. Standalone scripts (`drizzle-kit`, `tsx`, custom Node scripts) need explicit loading:
@@ -288,4 +308,5 @@ source <(grep -v '^#' .env.local | sed 's/^/export /') && node scripts/migrate.j
 
 - [Environment Variables](https://vercel.com/docs/environment-variables)
 - [Vercel CLI: env](https://vercel.com/docs/cli/env)
-- [Next.js Environment Variables](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables)
+- [Secret and Config types](https://vercel.com/changelog/environment-variables-now-use-config-and-secret-types)
+- [Next.js Environment Variables](https://nextjs.org/docs/app/guides/environment-variables)

@@ -87,9 +87,12 @@ describe("env-vars skill guidance", () => {
     expect(envVars).toContain("vercel env add MY_SECRET production < ./secret.txt");
   });
 
-  test("documents the sensitive-by-default behavior and update command", () => {
+  test("documents Secret and Config types, their flags, and the update command", () => {
+    expect(envVars).toContain("--type secret");
+    expect(envVars).toContain("--type config");
     expect(envVars).toContain("--no-sensitive");
+    expect(envVars).toContain("Separate Production Secret Values");
+    expect(envVars).toMatch(/stored as Secret/);
     expect(envVars).toContain("vercel env update MY_SECRET production");
-    expect(envVars).toMatch(/default to sensitive/);
   });
 });

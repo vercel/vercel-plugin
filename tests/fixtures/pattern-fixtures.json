@@ -74,6 +74,18 @@
       "expectedSkills": ["env-vars", "ai-gateway", "vercel-cli"]
     },
     {
+      "description": "vercel env update triggers env-vars and vercel-cli",
+      "type": "bash",
+      "input": "vercel env update MY_SECRET production",
+      "expectedSkills": ["env-vars", "vercel-cli"]
+    },
+    {
+      "description": "vercel env run triggers env-vars and vercel-cli",
+      "type": "bash",
+      "input": "vercel env run -e preview -- npm test",
+      "expectedSkills": ["env-vars", "vercel-cli"]
+    },
+    {
       "description": "src/components/Button.tsx triggers react-best-practices",
       "type": "path",
       "input": "src/components/Button.tsx",
