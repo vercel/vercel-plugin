@@ -5,7 +5,7 @@ metadata:
   priority: 8
   docs:
     - "https://vercel.com/docs/getting-started-with-vercel"
-    - "https://nextjs.org/docs/getting-started/installation"
+    - "https://nextjs.org/docs/app/getting-started/installation"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - '.env.example'
