@@ -189,7 +189,7 @@ Turbopack does not support webpack loaders directly. Here is how to migrate comm
 | `file-loader` / `url-loader` | Built-in static asset handling |
 | `svgr` / `@svgr/webpack` | Use `@svgr/webpack` via `turbopack.rules` |
 | `raw-loader` | Use `import x from './file?raw'` |
-| `graphql-tag/loader` | Tested to work directly — no codegen needed |
+| `graphql-tag/loader` | Use `graphql-tag/loader` via `turbopack.rules` (tested with Turbopack) |
 | `worker-loader` | Use native `new Worker(new URL(...))` syntax |
 
 ### Configuring custom rules (loader replacement)
