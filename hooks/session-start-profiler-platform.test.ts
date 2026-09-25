@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   detectAgentHarness,
   detectSessionStartPlatform,
+  getBinaryPathCandidates,
   normalizeDetectedAgentHarness,
 } from "./src/session-start-profiler.mts";
 
@@ -103,5 +104,35 @@ describe("session-start-profiler platform detection", () => {
         throw new Error("detector failed");
       }),
     ).toBe("unknown");
+  });
+});
+
+describe("session-start-profiler windows binary resolution", () => {
+  const isWindows = process.platform === "win32";
+
+  test.if(isWindows)(
+    "prefers an executable extension over the extensionless npm sh shim",
+    () => {
+      const candidates = getBinaryPathCandidates("vercel");
+
+      // npm lays down `vercel`, `vercel.cmd` and `vercel.ps1` side by side. Only
+      // the .cmd is executable by Windows, and accessSync(X_OK) cannot tell them
+      // apart because X_OK behaves as F_OK on win32. Resolution has to prefer the
+      // extension, or it returns the sh script and every exec fails with EINVAL.
+      const cmdIndex = candidates.findIndex((c: string) => /\.cmd$/i.test(c));
+      const bareIndex = candidates.indexOf("vercel");
+
+      expect(cmdIndex).toBeGreaterThanOrEqual(0);
+      expect(bareIndex).toBeGreaterThanOrEqual(0);
+      expect(cmdIndex).toBeLessThan(bareIndex);
+    },
+  );
+
+  test.if(isWindows)("keeps an explicit extension untouched", () => {
+    expect(getBinaryPathCandidates("vercel.cmd")).toEqual(["vercel.cmd"]);
+  });
+
+  test.if(!isWindows)("is a no-op off win32", () => {
+    expect(getBinaryPathCandidates("vercel")).toEqual(["vercel"]);
   });
 });
