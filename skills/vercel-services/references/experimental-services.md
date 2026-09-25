@@ -29,9 +29,10 @@ The project framework setting must be Services for `experimentalServices` to dep
 | --- | --- |
 | `entrypoint`, a path from `vercel.json` | `root` set to the service directory, plus `entrypoint` relative to that root when the runtime needs one |
 | `root` | `root` (required on every service) |
-| `routePrefix` | A top-level rewrite such as `{ "source": "/server/(.*)", "destination": { "service": "backend" } }`, ordered most specific first. The service receives the original path, so handle the prefix in the app or strip it with a service-scoped rewrite |
+| `routePrefix` | A top-level rewrite such as `{ "source": "/server/(.*)", "destination": { "service": "backend" } }`, ordered most specific first. The service receives the original path, so handle the prefix in the app or change the path your code sees with a `request.path` transform in the service's own `routes` |
 | `framework` | `framework` on the service |
-| `memory`, `maxDuration`, `includeFiles`, `excludeFiles` | The service's `functions` object |
+| `memory`, `maxDuration` | The service's `functions` object |
+| `includeFiles`, `excludeFiles` | The service's `functions` object, where each takes a single glob string. `experimentalServices` also accepts an array, so fold an array into one glob pattern when you move it |
 
 A service's `functions` object uses the [same schema](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/util/validate-config.ts#L622) as the [top-level `functions`](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/util/validate-config.ts#L683):
 
