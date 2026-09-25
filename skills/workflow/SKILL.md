@@ -15,15 +15,10 @@ metadata:
     - 'workflow.*'
     - '*workflow*'
   importPatterns:
-    - '@vercel/workflow'
     - 'workflow'
     - '@workflow/*'
     - '*workflow*'
   bashPatterns:
-    - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/workflow\b'
-    - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/workflow\b'
-    - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/workflow\b'
-    - '\byarn\s+add\s+[^\n]*@vercel/workflow\b'
     - '\bnpm\s+(install|i|add)\s+[^\n]*\bworkflow\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*\bworkflow\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*\bworkflow\b'
@@ -333,16 +328,6 @@ metadata:
     minScore: 4
 validate:
   -
-    pattern: experimental_createWorkflow
-    message: 'experimental_createWorkflow is now stable — use createWorkflow from @vercel/workflow. Run npx @ai-sdk/codemod v6 for automated migration.'
-    severity: error
-    upgradeToSkill: workflow
-    upgradeWhy: 'Guides migration from experimental_createWorkflow to the stable createWorkflow API and then to the "use workflow" directive.'
-  -
-    pattern: from\s+['"]@vercel/workflow['"]
-    message: 'Workflow SDK requires AI Gateway OIDC setup — ensure vercel link + vercel env pull for VERCEL_OIDC_TOKEN'
-    severity: recommended
-  -
     pattern: setTimeout|setInterval
     message: 'setTimeout/setInterval are not available in workflow sandbox scope — use sleep() from "workflow" for delays'
     severity: error
@@ -363,13 +348,6 @@ validate:
     message: 'getWritable() must only be called inside "use step" functions — workflow sandbox scope does not support it'
     severity: recommended
     skipIfFileContains: "use step"
-  -
-    pattern: createWorkflow\s*\(
-    message: 'createWorkflow() is the legacy API — use the "use workflow" directive on an async function instead'
-    severity: error
-    upgradeToSkill: workflow
-    upgradeWhy: 'Guides migration from createWorkflow() function API to the "use workflow" directive pattern.'
-    skipIfFileContains: experimental_createWorkflow
   -
     pattern: streamObject\s*\(
     message: 'streamObject() was removed in AI SDK v6 — use streamText() with output: Output.object() instead'

@@ -863,7 +863,6 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
 | `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
 | `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
-| `experimental_createWorkflow` | `createWorkflow()` (stable) | Workflow SDK API stabilized |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
 | `next export` | `output: "export"` in next.config | CLI command removed |

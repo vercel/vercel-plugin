@@ -123,7 +123,7 @@ validate:
     severity: recommended
     upgradeToSkill: workflow
     upgradeWhy: 'Move delayed/polling logic to Vercel Workflow for durable execution with pause, resume, retries, and crash safety.'
-    skipIfFileContains: 'use workflow|use step|@vercel/workflow'
+    skipIfFileContains: 'use workflow|use step'
   -
     pattern: 'writeFile(Sync)?\(|createWriteStream\(|from\s+[''"](multer|formidable)[''"]|fs\.writeFile'
     message: 'Local filesystem write detected. Serverless functions have ephemeral, read-only filesystems.'
@@ -149,7 +149,7 @@ validate:
     severity: recommended
     upgradeToSkill: workflow
     upgradeWhy: 'Replace manual retry loops with Workflow SDK steps that provide automatic retries, crash safety, and observability.'
-    skipIfFileContains: 'use workflow|use step|@vercel/workflow|from\s+[''""](workflow)[''""]'
+    skipIfFileContains: 'use workflow|use step|from\s+[''""](workflow)[''""]'
   -
     pattern: 'from\s+[''"](express)[''""]|require\s*\(\s*[''"](express)[''""\)]'
     message: 'Express.js detected in a Vercel project. Vercel Functions use the Web Request/Response API — Express middleware, req/res, and app.listen() do not work in serverless.'
@@ -233,7 +233,7 @@ chainTo:
     pattern: 'maxRetries\s*[=:]|retryCount\s*[=:]|retry\s*\(\s*|for\s*\([^)]*retry|while\s*\([^)]*retry'
     targetSkill: workflow
     message: 'Manual retry logic in serverless handler — loading Workflow SDK guidance for automatic retries with durable execution.'
-    skipIfFileContains: 'use workflow|use step|@vercel/workflow|from\s+[''""](workflow)[''""]'
+    skipIfFileContains: 'use workflow|use step|from\s+[''""](workflow)[''""]'
 
   -
     pattern: 'import\s*\{[^}]*\bmetric\b[^}]*\}\s*from\s*[''"]@vercel/functions[''"]'

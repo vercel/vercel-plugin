@@ -195,6 +195,53 @@ async function validateGraphSkillRefs() {
 }
 
 // ---------------------------------------------------------------------------
+// 1a. Validate ⤳ skill: references in templates and plugin-owned skills
+// ---------------------------------------------------------------------------
+
+async function skillRefSourceFiles(): Promise<string[]> {
+  const files: string[] = [];
+  for (const dir of ["agents", "commands"]) {
+    if (!(await exists(join(ROOT, dir)))) continue;
+    for (const name of (await readdir(join(ROOT, dir))).sort()) {
+      if (name.endsWith(".md.tmpl")) files.push(`${dir}/${name}`);
+    }
+  }
+  for (const skill of (await readdir(join(ROOT, "skills"))).sort()) {
+    const skillDir = join(ROOT, "skills", skill);
+    if (await exists(join(skillDir, "upstream"))) continue;
+    if (await exists(join(skillDir, "SKILL.md"))) files.push(`skills/${skill}/SKILL.md`);
+    if (!(await exists(join(skillDir, "references")))) continue;
+    for (const name of (await readdir(join(skillDir, "references"))).sort()) {
+      if (name.endsWith(".md")) files.push(`skills/${skill}/references/${name}`);
+    }
+  }
+  return files;
+}
+
+async function validateTemplateSkillRefs() {
+  section("[1a] Template and skill → skill cross-references");
+
+  const files = await skillRefSourceFiles();
+  let refCount = 0;
+  let broken = 0;
+  for (const file of files) {
+    const content = await readFile(join(ROOT, file), "utf-8");
+    for (const m of content.matchAll(/⤳\s*skill:\s*([a-z][a-z0-9-]*)/g)) {
+      const name = m[1];
+      refCount++;
+      if (await exists(join(ROOT, "skills", name, "SKILL.md"))) continue;
+      broken++;
+      fail("SKILL_REF_BROKEN", `⤳ skill:${name} referenced in ${file} but skills/${name}/SKILL.md not found`, {
+        file,
+        line: lineOf(content, m[0]),
+        hint: `Point the reference at an existing skill or create skills/${name}/SKILL.md`,
+      });
+    }
+  }
+  if (broken === 0) pass(`${refCount} ⤳ skill: references across ${files.length} files resolve`);
+}
+
+// ---------------------------------------------------------------------------
 // 1b. Detect orphan skills (skill dirs with no graph reference)
 // ---------------------------------------------------------------------------
 
@@ -1177,6 +1224,7 @@ async function main() {
   }
 
   await timed("graphSkillRefs", () => validateGraphSkillRefs());
+  await timed("templateSkillRefs", () => validateTemplateSkillRefs());
   await timed("orphanSkills", () => validateOrphanSkills());
   await timed("skillFrontmatter", () => validateSkillFrontmatter());
   await timed("pluginJson", () => validatePluginJson());

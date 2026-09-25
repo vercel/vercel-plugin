@@ -278,7 +278,7 @@ chainTo:
     pattern: 'DurableAgent|use workflow|use step|from\s+[''"]workflow[''"]|@workflow/'
     targetSkill: workflow
     message: 'Workflow SDK pattern detected in AI code — loading Workflow SDK guidance for durable agent execution, step isolation, and crash-safe orchestration.'
-    skipIfFileContains: 'createWorkflow|withWorkflow'
+    skipIfFileContains: 'withWorkflow'
   -
     pattern: "from\\s+['\"]langchain['\"]|from\\s+['\"]@langchain/"
     targetSkill: ai-sdk
