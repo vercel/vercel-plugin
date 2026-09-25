@@ -296,7 +296,7 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
     ⊃ Text, Image, Video generation
     ↔ AI SDK (unified interface)
 
-WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflow
+WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflows
 ├── Core Concepts
 │   ⊃ 'use workflow' directive
 │   ⊃ 'use step' directive
@@ -465,7 +465,7 @@ REACT BEST PRACTICES ⤳ skill: react-best-practices
 ## 5. Storage & Data
 
 ```
-VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/storage/vercel-blob
+VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/vercel-blob
 ├── Purpose: File storage for unstructured data
 │   ⊃ Client uploads (up to 5 TB)
 │   ⊃ Conditional gets with ETags
