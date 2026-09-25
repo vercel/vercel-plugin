@@ -201,12 +201,10 @@ Debug output shows:
 
 ## Protected Deployment Fallbacks
 
-To fall back to deployments with [Deployment Protection](https://vercel.com/docs/deployment-protection), set a bypass environment variable.
-
-The local proxy reads `VERCEL_AUTOMATION_BYPASS_SECRET` from the default app's environment (Vercel sets this automatically as a system environment variable) and sends its value as the `x-vercel-protection-bypass` header when proxying to protected child project deployments.
+To fall back to deployments with [Deployment Protection](https://vercel.com/docs/deployment-protection), set an environment variable named `AUTOMATION_BYPASS_<transformed app name>` (uppercase, non-letter/number characters replaced with underscores — e.g. `my-docs-app` becomes `AUTOMATION_BYPASS_MY_DOCS_APP`) in the **default app's** project.
 
 ### Setup steps
 
-1. **Find the default app's secret**: in the default app's Vercel project, go to Settings → Deployment Protection → Protection Bypass for Automation → copy the secret (this is what Vercel exposes as `VERCEL_AUTOMATION_BYPASS_SECRET`)
-2. **Add that secret to each child project**: in each child project's Vercel project, go to Settings → Deployment Protection → add a Protection Bypass for Automation secret using the same value
-3. **Set locally**: add `VERCEL_AUTOMATION_BYPASS_SECRET=<secret>` to the default app's local environment file (e.g. `.env.local`)
+1. **Get the secret**: in the protected fallback deployment's Vercel project, go to Settings → Deployment Protection → Protection Bypass for Automation → copy the secret
+2. **Set it in the default app**: in the default app's Vercel project, go to Settings → Environment Variables → add `AUTOMATION_BYPASS_<transformed app name>` with that secret value, scoped to Development
+3. **Pull it locally**: run `vc link` then `vc env pull` from the default app's folder to import the secret
