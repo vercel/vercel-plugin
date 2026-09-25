@@ -241,7 +241,7 @@ Configure multiple registries for your project:
 }
 ```
 
-`@ai-elements` and other registries in the shadcn registry index need no `components.json` entry; the CLI resolves them automatically.
+`@ai-elements` and other registries in the shadcn registry index don't need a manual `components.json` entry: when you add a component from one, the CLI looks the registry up in the index and adds it to `components.json` for you.
 
 Install using namespace syntax:
 
