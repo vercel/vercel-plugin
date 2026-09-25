@@ -100,10 +100,10 @@ validate:
     upgradeWhy: 'Guides migration from single-arg revalidateTag to the Next.js 16 two-arg API with cacheLife profiles.'
   -
     pattern: '\bcacheHandler\s*:'
-    message: 'Singular cacheHandler is deprecated in Next.js 16 — use cacheHandlers (plural) with per-type handlers'
+    message: 'cacheHandler (singular) is for ISR/route handler/image caching, not the use cache directive — for that, use cacheHandlers (plural) instead'
     severity: recommended
     upgradeToSkill: nextjs
-    upgradeWhy: 'Guides migration from singular cacheHandler to Next.js 16 cacheHandlers (plural) with per-type handler config.'
+    upgradeWhy: 'Explains that cacheHandler (singular, ISR/route handler/image caching) and cacheHandlers (plural, for the use cache directive) are separate, non-interchangeable Next.js configs.'
   -
     pattern: useRef\(\s*\)
     message: 'useRef() requires an initial value in React 19 — use useRef(null) or useRef(0)'
