@@ -248,7 +248,7 @@ await del('images/photo.jpg')
 
 **Private Storage** (generally available): Create a private store with `vercel blob create-store <name> --access private`. Connected projects use short-lived OIDC credentials and `BLOB_STORE_ID` by default. Use `access: 'private'` for uploads and reads. To deliver a private file, authenticate the request in your own route, call `get(pathname, { access: 'private' })`, return 404 when the result is `null`, and otherwise stream `result.stream` to the caller. Use `presignUrl()` when a caller needs temporary direct access. Pass `useCache: false` only when a read must reflect an overwrite immediately.
 
-**Blob Data Transfer**: Vercel Blob uses two delivery strategies — **Fast Data Transfer** (94 cities, latency-optimized) and **Blob Data Transfer** (18 hubs, volume-optimized for large assets). The system automatically routes via the optimal path.
+**Blob Data Transfer**: Public blob downloads, and Functions fetching private blobs from the store, use **Blob Data Transfer** (19 regional hubs, cost-optimized for large assets). When a Function streams a private blob to users, that response uses **Fast Data Transfer** (126+ PoPs across 51 countries, latency-optimized).
 
 **Use when**: Media files, user uploads, documents, any large unstructured data.
 
