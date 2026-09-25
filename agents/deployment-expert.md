@@ -260,7 +260,34 @@ jobs:
 <!-- Sourced from deployments-cicd skill: Common CI Patterns -->
 ### Common CI Patterns
 
+### Promote After Tests Pass
+
+```yaml
+jobs:
+  deploy-preview:
+    # ... deploy preview ...
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+
+  e2e-tests:
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx playwright test --base-url=${{ needs.deploy-preview.outputs.url }}
+
+  promote:
+    needs: [deploy-preview, e2e-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - run: npm install -g vercel
+      - run: vercel promote ${{ needs.deploy-preview.outputs.url }} --token=${{ secrets.VERCEL_TOKEN }}
+```
+
+<!-- Sourced from deployments-cicd skill: references/cli-pipelines.md > Preview Deployments on PRs -->
 ### Preview Deployments on PRs
+
+The Git integration posts preview URLs on pull requests automatically. A CLI pipeline posts them itself:
 
 ```yaml
 # GitHub Actions
@@ -288,30 +315,6 @@ jobs:
               repo: context.repo.repo,
               body: `Preview: ${{ steps.deploy.outputs.url }}`
             })
-```
-
-### Promote After Tests Pass
-
-```yaml
-jobs:
-  deploy-preview:
-    # ... deploy preview ...
-    outputs:
-      url: ${{ steps.deploy.outputs.url }}
-
-  e2e-tests:
-    needs: deploy-preview
-    runs-on: ubuntu-latest
-    steps:
-      - run: npx playwright test --base-url=${{ needs.deploy-preview.outputs.url }}
-
-  promote:
-    needs: [deploy-preview, e2e-tests]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - run: npm install -g vercel
-      - run: vercel promote ${{ needs.deploy-preview.outputs.url }} --token=${{ secrets.VERCEL_TOKEN }}
 ```
 
 ---
