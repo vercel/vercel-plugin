@@ -377,7 +377,7 @@ chainTo:
   -
     pattern: 'DurableAgent|@workflow/ai'
     targetSkill: ai-sdk
-    message: 'DurableAgent (@workflow/ai) is deprecated — use WorkflowAgent from @ai-sdk/workflow. Loading AI SDK guidance for tool calling, the Agent class, and model configuration.'
+    message: 'Workflow 5 (workflow@beta) deprecates DurableAgent (@workflow/ai) in favor of WorkflowAgent from @ai-sdk/workflow 2.x, which requires Workflow 5; the Workflow 4 docs (workflow@latest) use DurableAgent. Loading AI SDK guidance for tool calling, the Agent class, and model configuration.'
     skipIfFileContains: 'from\s+[''"]ai[''"]|@ai-sdk/|streamText|generateText'
   -
     pattern: 'process\.env\.(OPENAI_API_KEY|ANTHROPIC_API_KEY)|from\s+[''"]@ai-sdk/(anthropic|openai)[''""]'
