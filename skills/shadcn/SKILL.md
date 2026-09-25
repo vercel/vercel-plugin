@@ -217,14 +217,6 @@ The `components.json` file configures how shadcn/ui works in your project:
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
-  },
-  "registries": {
-    "v0": {
-      "url": "https://v0.dev/chat/api/registry"
-    },
-    "ai-elements": {
-      "url": "https://elements.ai-sdk.dev/api/registry"
-    }
   }
 }
 ```
