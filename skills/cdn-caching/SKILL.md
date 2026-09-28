@@ -88,7 +88,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
 #### Cache layers
 
 - **CDN cache** — regional, ephemeral. On a hit the region returns the response with no function call. Reads/writes are **free**.
-- **ISR cache** — durable, in a single [Function region](https://vercel.com/docs/functions/configuring-functions/region). On a CDN miss, Vercel reads here _before_ invoking your function (cache shielding), then replicates the result back to the CDN. Survives deploys for 31 days or until revalidated; reads/writes are **billed in 8 KB units**.
+- **ISR cache** — durable, in a single [Function region](https://vercel.com/docs/functions/configuring-functions/region). On a CDN miss, Vercel reads here _before_ invoking your function (cache shielding), then replicates the result back to the CDN. Scoped to its deployment (a new deploy doesn't reuse it); kept until revalidated or unaccessed for 31 days; reads/writes are **billed in 8 KB units**.
 - **Function invocation** — runs only if neither cache has a valid copy. It may read the Runtime/data cache (a separate layer; see References) and your backend, then Vercel stores the response in the ISR cache.
 - **Image cache** — optimized images, cached on the CDN after the first transform.
 - Purges propagate globally in ~300 ms.
@@ -100,8 +100,8 @@ Vercel caches at multiple layers between the visitor and your backend. A request
 - **Cache hit rate** — share served from cache (`HIT`/`STALE`/`PRERENDER`) versus origin (`MISS`/`REVALIDATED`). Measure it over _cacheable_ requests — exclude `BYPASS` and `(not set)` (redirects, errors, uncacheable methods), or they drag the ratio down for non-cache reasons. Low hit rate means more origin load and higher latency.
 - **Revalidation** — refreshing cached content. **Time-based** runs automatically after an interval; **on-demand** runs when you call an API. Both use stale-while-revalidate: visitors keep getting the cached version while the new one regenerates in the background.
 - **Invalidate vs. dangerously-delete** — two ways to clear content, with very different blast on hit rate:
-  - _Invalidate_ (`invalidateByTag`, Next.js `revalidateTag`/`revalidatePath`) = stale-while-revalidate. Keeps serving stale while refreshing in the background → response shows `x-vercel-cache: STALE`.
-  - _Dangerously-delete_ (`dangerouslyDeleteByTag`, Next.js `updateTag` or a revalidate with no lifetime) = hard removal. The next request blocks in the **foreground** to regenerate → `x-vercel-cache: REVALIDATED`.
+  - _Invalidate_ (`invalidateByTag`, Next.js 16+ `revalidateTag(tag, 'max')`) = stale-while-revalidate. Keeps serving stale while refreshing in the background → response shows `x-vercel-cache: STALE`.
+  - _Dangerously-delete_ (`dangerouslyDeleteByTag`, Next.js `updateTag`, `revalidatePath`, or `revalidateTag(tag)` with no profile) = hard removal. The next request blocks in the **foreground** to regenerate → `x-vercel-cache: REVALIDATED`.
 - **Cache tags & blast radius** — tags group cached entries so one call can clear many. A coarse tag attached to thousands of paths has a large _blast radius_: a single write drops them all and the hit rate collapses until they re-warm. Prefer granular tags (`product-${id}`) plus a roll-up tag.
 - **Cache status** (`x-vercel-cache` response header) — the _outcome_:
 
@@ -123,10 +123,10 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `error`               | MISS     | An error prevented serving from cache                                         |
   | `vary_key_denied`     | MISS     | Origin's `Vary` header names a high-cardinality header (e.g. `Cookie`); response can't be cached |
   | `draft_mode`          | → BYPASS | Next.js Draft Mode active — bypassed so editors see live content              |
-  | `prerender_bypass`    | → BYPASS | Prerender-bypass cookie/token present                                         |
+  | `prerender_bypass`    | → BYPASS | Request matched the route's `experimentalBypassFor` config (e.g. bot UA on PPR) |
   | `crawler`             | → BYPASS | SEO-crawler UA — full response served so bots index real content              |
   | `stale_time`          | STALE    | Time-based `revalidate` interval elapsed; regenerating in background (SWR)     |
-  | `stale_tag`           | STALE    | Tag invalidated (`revalidateTag` / `invalidateByTag`); regenerating           |
+  | `stale_tag`           | STALE    | Tag invalidated (`invalidateByTag` / `revalidateTag(tag, 'max')`); regenerating |
   | `stale_error`         | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
 
   A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
@@ -178,7 +178,7 @@ vercel metrics vercel.request.count -S <team> -p <project> \
 
 Once you know hit rate, quantify ISR spend and whether revalidation — not traffic volume — is driving it.
 
-**Utilization vs. ISR billing.** **Utilization** is `vercel.request.count` — total request volume. **ISR cost** is billed separately in 8 KB units: `read_units` when the regional CDN misses and falls through to the ISR cache, and `write_units` on every revalidation/regeneration. The regional CDN shields ISR heavily — most requests never touch the ISR layer, so **read_units will be far below request count**. Do not compare read_units to write_units as a utilization check; focus on **write_units** (revalidation cost) and how they relate to total traffic.
+**Utilization vs. ISR billing.** **Utilization** is `vercel.request.count` — total request volume. **ISR cost** is billed separately in 8 KB units: `read_units` when the regional CDN misses and falls through to the ISR cache, and `write_units` when a revalidation/regeneration produces changed output (unchanged content incurs none). The regional CDN shields ISR heavily — most requests never touch the ISR layer, so **read_units will be far below request count**. Do not compare read_units to write_units as a utilization check; focus on **write_units** (revalidation cost) and how they relate to total traffic.
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> -a sum --since 24h
