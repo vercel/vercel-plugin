@@ -5,7 +5,7 @@ metadata:
   priority: 4
   docs:
     - "https://vercel.com/docs"
-    - "https://sdk.vercel.ai/docs"
+    - "https://vercel.com/docs/agent"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns: 
     - '.github/workflows/vercel*.yml'
