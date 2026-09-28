@@ -211,7 +211,7 @@ vercel rollback <deployment-url-or-id>
 |----------|----------|----------|
 | Standard team workflow | Git-push deploy | Push to main/feature branches |
 | Custom CI/CD (Actions, CircleCI) | Prebuilt deploy | `vercel build && vercel deploy --prebuilt` |
-| Monorepo with Turborepo | Affected + remote cache | `turbo run build --affected --remote-cache` |
+| Monorepo with Turborepo | Affected + remote cache | `turbo run build --affected` |
 | Preview for every PR | Default behavior | Auto-creates preview URL per branch |
 | Release a tested build | Deployment Checks (Git) or staged production (CLI) | Required checks, or `vercel deploy --prod --skip-domain` → test → `vercel promote <url>` |
 | Atomic deploys with DB migrations | Two-phase | Run migration → verify → `vercel promote` |
