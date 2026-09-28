@@ -40,7 +40,7 @@ try {
 
 - **On Vercel** (Functions, Cron, builds): the SDK authenticates automatically via the deployment's OIDC token. No config.
 - **Local dev**: run `vercel link` then `vercel env pull` to get a `VERCEL_OIDC_TOKEN` in `.env.local` (valid ~12h; re-pull when it expires).
-- **External / CI** (no OIDC available): set `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`. The SDK picks these up automatically.
+- **External / CI** (no OIDC available): set `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID` and pass them as `token`, `teamId`, `projectId` to `Sandbox.create()` (the SDK does not read them from the environment).
 
 This is auth for the process **calling** the SDK. It is separate from any credential you want available **inside** the VM — the sandbox does not automatically carry your `VERCEL_OIDC_TOKEN` (see [Running AI agents](#running-ai-agents-in-a-sandbox)).
 
@@ -222,7 +222,7 @@ const sandbox = await Sandbox.create({ mounts: { "/data": drive } }); // read-wr
 const reader = await Sandbox.create({ mounts: { "/data": drive.snapshot() } });
 ```
 
-Up to 4 drives per run. Default size 1 TiB (1 GiB on Hobby), max 16 TiB. A drive lives in one region; a sandbox mounting it must run in that region and can't use failover regions. Only one sandbox at a time can mount a drive read-write; use `drive.snapshot()` for shared reads.
+Up to 4 drives per run. Default size 1 TiB (1 GiB on Hobby), max 16 TiB. A drive lives in one region; a sandbox mounting it must use that region as its main region (failover regions still load the drive, with higher read latency). Only one sandbox at a time can mount a drive read-write; use `drive.snapshot()` for shared reads.
 
 ## Network policy and credential brokering
 
@@ -230,7 +230,7 @@ The egress firewall is Sandbox's key security control for untrusted code. Set `n
 
 - `"allow-all"` (default) — all egress allowed.
 - `"deny-all"` — blocks all egress, including DNS. Start here for untrusted code.
-- Rule object — an `allow` list restricts egress to **only** the listed domains (everything else is denied); add `subnets.allow`/`subnets.deny` for IP ranges (`deny` wins). Domain matching is SNI-based, so it only applies to TLS traffic — pair with `deny-all`/subnet rules if non-TLS egress must be blocked too.
+- Rule object — an `allow` list restricts egress to **only** the listed domains (everything else is denied); add `subnets.allow`/`subnets.deny` for IP ranges (`deny` wins). Domain matching is SNI-based, so non-TLS traffic is denied unless allowed by IP range (`subnets.allow`) or the policy includes a `*` catch-all (which lets domain-less traffic through); `subnets.deny` only removes access an allow rule granted.
 
 **Credential brokering**: a `transform` rule injects a secret header on egress to an allowed domain, so code inside the VM can call an authenticated API **without the secret ever entering the sandbox**. Because the `allow` list denies everything else, the box can reach only that one domain:
 
@@ -245,9 +245,8 @@ const sandbox = await Sandbox.create({
   },
 });
 // Inside the VM: fetch("https://api.example.com/…") is authenticated by the
-// firewall; the VM never holds API_SECRET and can't reach any other TLS host.
-// Domain rules are SNI-based (TLS only) — add `subnets: { deny: [...] }` to also
-// block non-TLS / raw-IP egress if the code is fully untrusted.
+// firewall; the VM never holds API_SECRET and can't reach any other host
+// (no catch-all `*` rule, so non-TLS / domain-less egress is denied too).
 ```
 
 ## Running AI agents in a sandbox
@@ -268,7 +267,7 @@ const sandbox = await Sandbox.create({
 // come from the AI Gateway model catalog (provider/model, e.g. "anthropic/claude-sonnet-5").
 ```
 
-**Untrusted code — broker the credential, keep it out of the VM.** For code you don't trust, don't put the token in the VM at all. Allow only the gateway and inject the auth header at the firewall so the box holds no credential and can reach no other TLS host (add `subnets.deny` to block non-TLS egress too):
+**Untrusted code — broker the credential, keep it out of the VM.** For code you don't trust, don't put the token in the VM at all. Allow only the gateway and inject the auth header at the firewall so the box holds no credential and can reach no other host (without a `*` catch-all, non-TLS egress is denied too):
 
 ```ts
 const sandbox = await Sandbox.create({
