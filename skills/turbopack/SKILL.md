@@ -160,10 +160,10 @@ npx next experimental-analyze
 
 Add `--output` to write the analysis to `.next/diagnostics/analyze` for sharing or diffing.
 
-**Legacy `@next/bundle-analyzer`**: Still works as a fallback:
+**Legacy `@next/bundle-analyzer`**: Webpack only — no report is generated for Turbopack builds, so pass `--webpack`:
 
 ```bash
-ANALYZE=true next build
+ANALYZE=true next build --webpack
 ```
 
 ```ts
