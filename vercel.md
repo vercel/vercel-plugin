@@ -283,7 +283,7 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
 │
 ├── Image Generation (gateway-native)
 │   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image-preview' + generateText → result.files
-│   ⊃ Image-only models: experimental_generateImage (Imagen 4.0, Flux 2, Grok Imagine)
+│   ⊃ Image-only models: generateImage (Imagen 4.0, Flux 2, Grok Imagine)
 │   ⊃ Default model: google/gemini-3.1-flash-image-preview
 │   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image Preview
 │
@@ -534,12 +534,12 @@ VERCEL CONNECT                             ⤳ skill: vercel-connect  📖 docs:
 ├── Integration paths
 │   ⊃ Vercel CLI (vercel connect create/list/token)
 │   ⊃ @vercel/connect SDK (getToken)
-│   ⊃ @vercel/connect/ash (connect() helper, connectSlackCredentials())
+│   ⊃ @vercel/connect/eve (connect() helper, connectSlackCredentials())
 │   ⊃ HTTP API (for non-JS callers)
 │
 └── Integrations
     ↔ Vercel OIDC (token exchange uses OIDC for authentication)
-    ↔ Vercel Agent / Ash (declarative connection wiring)
+    ↔ eve (declarative connection wiring)
     ⇢ replaces hand-managed SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET env vars
 ```
 
@@ -654,7 +654,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Chat UI components (messages, tools, reasoning) | AI Elements (`npx ai-elements`) | Pre-built, handles UIMessage parts |
 | Custom chat rendering (no AI Elements) | Manual `message.parts` iteration | Full control over rendering |
 | Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
-| Image generation (image-only models) | `experimental_generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
+| Image generation (image-only models) | `generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
 | New durable agent or agent-powered application | eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
@@ -763,7 +763,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
                         → Vercel Functions (streaming) → vercel deploy
 ```
 
-**OIDC Authentication (default):** When you run `vercel env pull`, it provisions a `VERCEL_OIDC_TOKEN` — a short-lived JWT that the AI Gateway uses automatically. No manual API keys needed. The `@ai-sdk/gateway` package reads `VERCEL_OIDC_TOKEN` from the environment via `@vercel/oidc`. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (~24h).
+**OIDC Authentication (default):** When you run `vercel env pull`, it provisions a `VERCEL_OIDC_TOKEN` — a short-lived JWT that the AI Gateway uses automatically. No manual API keys needed. The `@ai-sdk/gateway` package reads `VERCEL_OIDC_TOKEN` from the environment via `@vercel/oidc`. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 
 ```
 
@@ -897,7 +897,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 - **Default to AI Gateway** — pass `"provider/model"` strings directly (e.g., `model: 'anthropic/claude-sonnet-4.6'`) — they route through the AI Gateway automatically. The `gateway()` wrapper from `'ai'` is optional and only needed when using `providerOptions.gateway` for routing/failover/tags. Do NOT install or import direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) unless you need provider-specific features not exposed through the gateway.
 - **Install `@ai-sdk/react` for React hooks** — `useChat`, `useCompletion`, and `useObject` live in `@ai-sdk/react` (not `ai`). Always `npm install ai @ai-sdk/react` together for React/Next.js projects.
-- **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (~24h).
+- **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 - **For AI projects, set up a Vercel project first** — run `vercel link` (or create via dashboard) → enable AI Gateway in dashboard → `vercel env pull` to get OIDC credentials locally. Do NOT manually create `.env.local` with provider-specific API keys like `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 - **AI Elements is MANDATORY for all AI-generated text** — `npx ai-elements@latest` must be installed immediately after scaffolding. Never render AI text as raw `{text}` or `<p>{content}</p>` — it shows ugly `**`, `##`, `---`. Use `<Message>` for chat with `useChat`, and `<MessageResponse>` (from `@/components/ai-elements/message`) for any other AI markdown (workflow events, reports, briefings, notifications, email previews). `<MessageResponse>` wraps Streamdown with code highlighting, math, mermaid, and CJK plugins.
 - **Server-side: use `convertToModelMessages()` (async) + `toUIMessageStreamResponse()`** — not `toDataStreamResponse()`. Client-side: use `DefaultChatTransport` with `useChat`, not the v5 `api` parameter.
@@ -907,7 +907,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
 - Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@beta`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
-- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `experimental_generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
+- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
 - **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image-preview`; DALL-E 2/3 → use Gemini 3.1 Flash Image Preview.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
 - Use `mcp-to-ai-sdk` CLI to generate static tool definitions from MCP servers for security.
