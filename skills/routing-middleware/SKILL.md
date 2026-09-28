@@ -207,10 +207,10 @@ export default async function middleware(request: Request) {
 ### Background Processing
 
 ```ts
-import type { RequestContext } from '@vercel/functions';
+import { waitUntil } from '@vercel/functions';
 
-export default function middleware(request: Request, context: RequestContext) {
-  context.waitUntil(
+export default function middleware(request: Request) {
+  waitUntil(
     fetch('https://analytics.example.com/log', { method: 'POST', body: request.url })
   );
   return new Response('OK');
