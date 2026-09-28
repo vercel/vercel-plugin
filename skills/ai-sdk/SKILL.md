@@ -159,7 +159,7 @@ validate:
     upgradeWhy: 'Guides migration from parameters to inputSchema/outputSchema aligned with the MCP spec.'
   -
     pattern: generateObject\s*\(
-    message: 'generateObject was removed in AI SDK v6 — use generateText with output: Output.object({ schema }) instead. Run Skill(ai-sdk) for v6 structured output guidance.'
+    message: 'generateObject is deprecated since AI SDK v6 — use generateText with output: Output.object({ schema }) instead. Run Skill(ai-sdk) for v6 structured output guidance.'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from generateObject to generateText + Output.object() with correct imports and schema patterns.'
@@ -228,7 +228,7 @@ validate:
     skipIfFileContains: "function handleSubmit|const handleSubmit"
   -
     pattern: streamObject\s*\(
-    message: 'streamObject() was removed in AI SDK v6 — use streamText() with output: Output.object() instead. Run Skill(ai-sdk) for v6 streaming structured output guidance.'
+    message: 'streamObject() is deprecated since AI SDK v6 — use streamText() with output: Output.object() instead. Run Skill(ai-sdk) for v6 streaming structured output guidance.'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from streamObject to streamText + Output.object() with correct streaming patterns.'
