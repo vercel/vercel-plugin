@@ -218,7 +218,7 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 
 ## Errors
 
-`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, `DuplicateMessageError` (idempotency-key collision), `MessageNotFoundError`, and `QueueEmptyError`.
+`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, `MessageNotFoundError`, and `QueueEmptyError`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
 
 ## Common Pitfalls
 
@@ -226,7 +226,7 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 2. **Non-idempotent handlers**: delivery is at-least-once. Key side effects on `metadata.messageId` or your own `idempotencyKey`.
 3. **Retrying forever**: without a `retry` policy that acknowledges poison messages, a permanently failing message is redelivered until it expires.
 4. **Using Queues for multi-step logic**: if you need sleep, hooks, or approvals between steps, use Workflows instead of chaining topics by hand.
-5. **Local dev without credentials**: run `vercel link` and `vercel env pull` first; otherwise `send()` fails with `UnauthorizedError`.
+5. **Local dev without credentials**: run `vercel link` and `vercel env pull` first; otherwise `send()` throws `Failed to get OIDC token for local development`.
 
 ## References
 
