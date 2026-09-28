@@ -27,7 +27,7 @@ export default function Page() {
   return <SomeChart />
 }
 
-// Good: Use dynamic import with ssr: false
+// Good: Use dynamic import with ssr: false (only allowed in a Client Component: add 'use client')
 import dynamic from 'next/dynamic'
 
 const SomeChart = dynamic(() => import('some-chart-library'), {
