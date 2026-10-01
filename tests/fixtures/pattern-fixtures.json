@@ -26,10 +26,10 @@
       "expectedSkills": ["ai-sdk", "vercel-functions", "chat-sdk"]
     },
     {
-      "description": "components.json triggers shadcn",
+      "description": "components.json has no dedicated shadcn skill",
       "type": "path",
       "input": "components.json",
-      "expectedSkills": ["shadcn"]
+      "expectedSkills": []
     },
     {
       "description": "prisma/schema.prisma triggers vercel-storage and bootstrap",
@@ -50,10 +50,10 @@
       "expectedSkills": ["deployments-cicd", "vercel-cli"]
     },
     {
-      "description": "npx shadcn add triggers shadcn",
+      "description": "npx shadcn add has no dedicated shadcn skill",
       "type": "bash",
       "input": "npx shadcn@latest add button",
-      "expectedSkills": ["shadcn"]
+      "expectedSkills": []
     },
     {
       "description": "next dev --turbo triggers verification",

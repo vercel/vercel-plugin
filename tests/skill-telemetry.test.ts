@@ -82,12 +82,12 @@ describe("skill invocation allowlist", () => {
       process.stdout.write(JSON.stringify({
         knownCount: known.size,
         cases: {
-          vercelNamespace: n("vercel:shadcn"),
+          vercelNamespace: n("vercel:react-best-practices"),
           pluginNamespaceWithSlash: n("/vercel-plugin:ai-sdk"),
           command: n("vercel:deploy"),
-          upperCase: n("Vercel:ShadCN"),
-          whitespace: n("  vercel:shadcn  "),
-          bareSlug: n("shadcn"),
+          upperCase: n("Vercel:React-Best-Practices"),
+          whitespace: n("  vercel:react-best-practices  "),
+          bareSlug: n("react-best-practices"),
           bareCommand: n("deploy"),
           otherPluginSameSlug: n("other-plugin:deploy"),
           netlify: n("netlify:deploy"),
@@ -95,8 +95,8 @@ describe("skill invocation allowlist", () => {
           unknownSlugOurNamespace: n("vercel:not-a-real-skill"),
           conventions: n("vercel:_conventions"),
           pathLike: n("vercel:../../etc/passwd"),
-          nestedNamespace: n("vercel:sub:shadcn"),
-          notAString: n({ skill: "vercel:shadcn" }),
+          nestedNamespace: n("vercel:sub:react-best-practices"),
+          notAString: n({ skill: "vercel:react-best-practices" }),
           empty: n(""),
         },
       }));
@@ -104,11 +104,11 @@ describe("skill invocation allowlist", () => {
 
     expect(result.knownCount).toBeGreaterThan(30);
     expect(result.cases).toEqual({
-      vercelNamespace: "shadcn",
+      vercelNamespace: "react-best-practices",
       pluginNamespaceWithSlash: "ai-sdk",
       command: "deploy",
-      upperCase: "shadcn",
-      whitespace: "shadcn",
+      upperCase: "react-best-practices",
+      whitespace: "react-best-practices",
       bareSlug: null,
       bareCommand: null,
       otherPluginSameSlug: null,
@@ -150,7 +150,7 @@ describe("skill invocation payload", () => {
         session_id: ${JSON.stringify(sessionId)},
         hook_event_name: "PostToolUse",
         tool_name: "Skill",
-        tool_input: { skill: "vercel:shadcn", args: "do not send this" },
+        tool_input: { skill: "vercel:react-best-practices", args: "do not send this" },
         tool_response: "do not send this either",
       };
       const first = buildSkillInvocationPayload(input, known);
@@ -160,7 +160,7 @@ describe("skill invocation payload", () => {
 
     expect(result.first).toEqual({
       key: "skill:invoked",
-      skills: ["shadcn"],
+      skills: ["react-best-practices"],
       telemetrySessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
     expect(result.second.skills).toEqual(["deploy"]);
@@ -199,7 +199,7 @@ describe("skill invocation payload", () => {
       import { buildSkillInvocationPayload, loadKnownPluginSkills } from ${JSON.stringify(HOOK_PATH)};
       import { writeSessionAgentHarness, readSessionAgentHarness } from ${JSON.stringify(LIB_PATH)};
       const known = loadKnownPluginSkills(${JSON.stringify(ROOT)});
-      const input = { session_id: ${JSON.stringify(sessionId)}, tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } };
+      const input = { session_id: ${JSON.stringify(sessionId)}, tool_name: "Skill", tool_input: { skill: "vercel:react-best-practices" } };
       const before = buildSkillInvocationPayload(input, known);
       writeSessionAgentHarness(${JSON.stringify(sessionId)}, "cursor");
       const after = buildSkillInvocationPayload(input, known);
@@ -233,13 +233,13 @@ describe("skill invocation payload", () => {
       import { buildSkillInvocationPayload, loadKnownPluginSkills } from ${JSON.stringify(HOOK_PATH)};
       const known = loadKnownPluginSkills(${JSON.stringify(ROOT)});
       process.stdout.write(JSON.stringify({
-        otherTool: buildSkillInvocationPayload({ tool_name: "Bash", tool_input: { command: "vercel:shadcn" } }, known),
-        readTool: buildSkillInvocationPayload({ tool_name: "Read", tool_input: { file_path: "skills/shadcn/SKILL.md" } }, known),
+        otherTool: buildSkillInvocationPayload({ tool_name: "Bash", tool_input: { command: "vercel:react-best-practices" } }, known),
+        readTool: buildSkillInvocationPayload({ tool_name: "Read", tool_input: { file_path: "skills/react-best-practices/SKILL.md" } }, known),
         foreignSkill: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "other:deploy" } }, known),
-        bareSkill: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "shadcn" } }, known),
-        off: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } }, known, { VERCEL_PLUGIN_TELEMETRY: "off" }),
+        bareSkill: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "react-best-practices" } }, known),
+        off: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:react-best-practices" } }, known, { VERCEL_PLUGIN_TELEMETRY: "off" }),
         nullInput: buildSkillInvocationPayload(null, known),
-        noSession: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } }, known),
+        noSession: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:react-best-practices" } }, known),
       }));
     `)) as Record<string, unknown>;
 
@@ -249,7 +249,7 @@ describe("skill invocation payload", () => {
     expect(result.bareSkill).toBeNull();
     expect(result.off).toBeNull();
     expect(result.nullInput).toBeNull();
-    expect(result.noSession).toEqual({ key: "skill:invoked", skills: ["shadcn"] });
+    expect(result.noSession).toEqual({ key: "skill:invoked", skills: ["react-best-practices"] });
   });
 });
 

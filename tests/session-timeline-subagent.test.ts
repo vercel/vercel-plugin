@@ -102,7 +102,7 @@ describe("session timeline subagent integration", () => {
     }
   });
 
-  test("lead scaffold timeline dedups in the lead session but a fresh subagent gets its own shadcn injection", async () => {
+  test("lead install timeline dedups in the lead session but a fresh subagent gets its own ai-sdk injection", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "session-timeline-subagent-"));
     const leadEnvPath = join(tempDir, "lead.env");
     const subagentEnvPath = join(tempDir, "subagent.env");
@@ -114,34 +114,34 @@ describe("session timeline subagent integration", () => {
       const leadSessionStart = await runSessionStart(leadEnvPath);
       expect(leadSessionStart.code).toBe(0);
 
-      const leadScaffold = await runHookEnv(
-        { tool_name: "Bash", tool_input: { command: "npx create-next-app@latest notion-clone --ts --app" } },
+      const leadInstall = await runHookEnv(
+        { tool_name: "Bash", tool_input: { command: "npm install ai @ai-sdk/react" } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "", VERCEL_PLUGIN_HOOK_DEBUG: "1" },
       );
 
-      expect(leadScaffold.code).toBe(0);
-      expect(parseInjectedSkills(leadScaffold.stdout)).toContain("shadcn");
+      expect(leadInstall.code).toBe(0);
+      expect(parseInjectedSkills(leadInstall.stdout)).toContain("ai-sdk");
 
       const leadRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/components/ui/dialog.tsx" } },
-        { VERCEL_PLUGIN_SEEN_SKILLS: "shadcn" },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/api/chat/route.ts" } },
+        { VERCEL_PLUGIN_SEEN_SKILLS: "ai-sdk" },
       );
 
       expect(leadRead.code).toBe(0);
-      expect(parseInjectedSkills(leadRead.stdout)).not.toContain("shadcn");
+      expect(parseInjectedSkills(leadRead.stdout)).not.toContain("ai-sdk");
 
       const subagentSessionStart = await runSessionStart(subagentEnvPath);
       expect(subagentSessionStart.code).toBe(0);
 
       const subagentSession = `timeline-subagent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const subagentRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/components/ui/dialog.tsx" } },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/api/chat/route.ts" } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "", VERCEL_PLUGIN_HOOK_DEBUG: "1" },
         { sessionId: subagentSession },
       );
 
       expect(subagentRead.code).toBe(0);
-      expect(parseInjectedSkills(subagentRead.stdout)).toContain("shadcn");
+      expect(parseInjectedSkills(subagentRead.stdout)).toContain("ai-sdk");
 
       const debugLines = parseDebugLines(subagentRead.stderr);
       const dedupStrategyLine = debugLines.find((line) => line.event === "dedup-strategy");

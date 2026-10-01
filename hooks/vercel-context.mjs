@@ -10,7 +10,6 @@ var PLUGIN_ROOT = resolvePluginRoot();
 var DEFAULT_CONTEXT_CHUNK_BUDGET_BYTES = 1800;
 var CONTEXT_CHUNK_KIND = "seen-context-chunks";
 var SKILL_TO_CHUNK = {
-  "next-forge": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
   "ai-sdk": { chunkId: "ai-stack", heading: "AI Stack" },
   "ai-gateway": { chunkId: "ai-stack", heading: "AI Stack" },
   "chat-sdk": { chunkId: "ai-stack", heading: "AI Stack" },

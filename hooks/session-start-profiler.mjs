@@ -388,7 +388,6 @@ var FILE_MARKERS = [
   { file: "vercel.json", skills: ["vercel-cli", "deployments-cicd", "vercel-functions"] },
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
-  { file: "components.json", skills: ["shadcn"] },
   { file: "flags.ts", skills: ["flags-sdk"] },
   { file: ".env.local", skills: ["env-vars"] }
 ];
@@ -407,12 +406,7 @@ var PACKAGE_MARKERS = {
   "workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
-  "@flags-sdk/vercel": ["flags-sdk"],
-  "@repo/auth": ["next-forge"],
-  "@repo/database": ["next-forge"],
-  "@repo/design-system": ["next-forge"],
-  "@repo/payments": ["next-forge"],
-  "@t3-oss/env-nextjs": ["next-forge"]
+  "@flags-sdk/vercel": ["flags-sdk"]
 };
 var SETUP_ENV_TEMPLATE_FILES = [
   ".env.example",

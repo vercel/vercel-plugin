@@ -231,5 +231,3 @@ If the project was scaffolded with `npx next-forge init` (detected by `pnpm-work
 3. Minimum env vars: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_WEB_URL`, `NEXT_PUBLIC_API_URL`.
 4. Optional services (Stripe, Resend, PostHog, etc.) can be skipped initially — but remove their `@repo/*` imports from app `env.ts` files to avoid validation errors.
 5. Deploy as 3 separate Vercel projects with root directories `apps/app`, `apps/api`, `apps/web`.
-
-=> skill: next-forge — Full next-forge monorepo guide

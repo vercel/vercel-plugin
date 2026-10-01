@@ -95,7 +95,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (one-click deploy)
 │   ↔ Vercel Marketplace (pre-configured integrations)
 │   ↔ Next.js, AI SDK, v0 (framework starters)
-│   ⊃ next-forge (production SaaS monorepo starter)    ⤳ skill: next-forge
+│   ⊃ next-forge (production SaaS monorepo starter)
 │       → Turborepo, Clerk, Prisma/Neon, Stripe, Resend, shadcn/ui, Sentry, PostHog
 │       → 7 apps (app, web, api, email, docs, studio, storybook)
 │       → 20 @repo/* workspace packages
@@ -168,7 +168,7 @@ NEXT.JS (v16+)                           📖 docs: https://nextjs.org/docs
     → Vercel Platform (optimized, zero-config)
     ↔ Vercel CLI (vercel dev, vercel build)
 
-SHADCN/UI                                ⤳ skill: shadcn  📖 docs: https://ui.shadcn.com
+SHADCN/UI                                📖 docs: https://ui.shadcn.com
 ├── CLI (npx shadcn@latest init/add/build/search)
 │   ⊃ Component source code copied to your project
 │   ⊃ Radix UI primitives + Tailwind CSS
@@ -232,7 +232,7 @@ AI SDK (v7, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
 │   ⊃ MessageResponse = universal renderer for AI text (chat, workflows, reports, notifications)
 │   ⊃ Never render AI text as raw {text} or <p>{content}</p> — use AI Elements
 │   → AI SDK UI hooks (useChat, useCompletion)
-│   → shadcn/ui (component primitives)                 ⤳ skill: shadcn
+│   → shadcn/ui (component primitives)
 │
 │
 ├── MCP Integration (@ai-sdk/mcp)
@@ -265,7 +265,7 @@ AI SDK (v7, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
     ↔ AI Gateway (model routing, cost tracking)
     ↔ Generation Persistence (IDs, URLs, cost tracking) ⤳ skill: ai-sdk
     ↔ v0 (AI-generated UI components)
-    ↔ AI Elements (production chat UI components)          ↔ shadcn/ui (component foundation)                 ⤳ skill: shadcn
+    ↔ AI Elements (production chat UI components)          ↔ shadcn/ui (component foundation)
 
 AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: https://vercel.com/docs/ai-gateway
 ├── Unified API ("creator/model-name" format)
@@ -809,7 +809,7 @@ Next.js (App Router) → Neon Postgres (data) → Clerk (auth, via Marketplace)
 
 ```
 
-**Starter kit**: Use `npx next-forge@latest init` to scaffold a production-ready SaaS monorepo with all of the above pre-wired (plus email, observability, security, AI, i18n, and more). ⤳ skill: next-forge
+**Starter kit**: Use `npx next-forge@latest init` to scaffold a production-ready SaaS monorepo with all of the above pre-wired (plus email, observability, security, AI, i18n, and more).
 
 **Clerk integration gotchas**:
 - `vercel integration add clerk` requires terms acceptance in the terminal (AI agents are blocked — user must run it manually)

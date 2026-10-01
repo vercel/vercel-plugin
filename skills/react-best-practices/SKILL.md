@@ -24,8 +24,6 @@ validate:
     pattern: 'from\s+[''"](styled-components|@emotion/styled|@emotion/react|@mui/material|@chakra-ui/react)[''"]|styled\.'
     message: 'Legacy CSS-in-JS or component library detected. Consider shadcn/ui + Tailwind for modern Vercel-native UI.'
     severity: warn
-    upgradeToSkill: shadcn
-    upgradeWhy: 'Migrate from CSS-in-JS/MUI/Chakra to shadcn/ui + Tailwind CSS for better SSR performance and Vercel ecosystem alignment.'
     skipIfFileContains: '@/components/ui|shadcn|tailwindcss'
 retrieval:
   aliases:
@@ -44,12 +42,6 @@ retrieval:
     - React
     - TSX
     - component
-chainTo:
-  -
-    pattern: 'from\s+[''\"](styled-components|@emotion/styled|@emotion/react|@mui/material|@chakra-ui/react)[''"]|styled\.'
-    targetSkill: shadcn
-    message: 'Legacy CSS-in-JS or component library detected — loading shadcn/ui guidance for modern Vercel-native UI.'
-
 ---
 
 # Vercel React Best Practices

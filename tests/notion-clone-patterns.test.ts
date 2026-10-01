@@ -53,10 +53,10 @@ describe("notion clone patterns", () => {
     expect(injectedSkills).toEqual(["auth", "routing-middleware"]);
   });
 
-  test("notion-clone components/ui/dialog.tsx injects shadcn", async () => {
+  test("notion-clone components/ui/dialog.tsx injects react-best-practices", async () => {
     const injectedSkills = await matchFile(
       "/Users/me/notion-clone/components/ui/dialog.tsx",
     );
-    expect(injectedSkills).toEqual(["shadcn", "react-best-practices"]);
+    expect(injectedSkills).toEqual(["react-best-practices"]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -14,12 +14,6 @@ import {
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILLS_DIR = join(ROOT, "skills");
-
-function readSkillFrontmatter(skillDir: string): string {
-  return extractFrontmatter(
-    readFileSync(join(SKILLS_DIR, skillDir, "SKILL.md"), "utf-8"),
-  ).yaml;
-}
 
 /**
  * Count the number of skill directories that contain a SKILL.md file.
@@ -233,31 +227,6 @@ describe("parseSkillFrontmatter", () => {
     const result = parseSkillFrontmatter(yamlStr);
     expect(result.validate).toEqual([]);
   });
-
-  test("parses skills/next-forge frontmatter with nested promptSignals arrays", () => {
-    const result = parseSkillFrontmatter(readSkillFrontmatter("next-forge"));
-
-    expect(result.name).toBe("next-forge");
-    expect(result.summary).toContain("skill:next-forge");
-    expect(result.metadata.promptSignals).toEqual({
-      phrases: ["next-forge", "next forge", "@repo/"],
-      allOf: [
-        ["monorepo", "saas", "starter"],
-        ["turborepo", "clerk", "stripe"],
-      ],
-      anyOf: ["saas starter", "production monorepo", "keys.ts", "pnpm-workspace"],
-      noneOf: ["create-t3-app"],
-      minScore: 6,
-    });
-  });
-
-  test("quotes @repo/* in next-forge YAML frontmatter for standard YAML parser compatibility", () => {
-    const overlay = readFileSync(join(SKILLS_DIR, "next-forge", "overlay.yaml"), "utf-8");
-    const frontmatter = readSkillFrontmatter("next-forge");
-
-    expect(overlay).toContain(`- '@repo/*'`);
-    expect(frontmatter).toContain(`- '@repo/*'`);
-  });
 });
 
 // ─── scanSkillsDir ────────────────────────────────────────────────
@@ -355,23 +324,6 @@ describe("scanSkillsDir", () => {
     expect(typeof diagnostics[0].message).toBe("string");
 
     rmSync(tmp, { recursive: true, force: true });
-  });
-});
-
-describe("buildSkillMap repo regressions", () => {
-  test("builds next-forge without frontmatter diagnostics", () => {
-    const result = buildSkillMap(SKILLS_DIR);
-    const normalizedDiagnosticFiles = result.diagnostics.map((diagnostic) =>
-      diagnostic.file.replaceAll("\\", "/"),
-    );
-
-    expect(normalizedDiagnosticFiles).not.toContain(
-      `${SKILLS_DIR.replaceAll("\\", "/")}/next-forge/SKILL.md`,
-    );
-    expect(result.skills["next-forge"].promptSignals?.allOf).toEqual([
-      ["monorepo", "saas", "starter"],
-      ["turborepo", "clerk", "stripe"],
-    ]);
   });
 });
 

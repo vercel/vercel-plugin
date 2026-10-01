@@ -31,7 +31,6 @@ interface ManagedContextChunkOptions {
 }
 
 const SKILL_TO_CHUNK: Record<string, ChunkSectionMapping> = {
-  "next-forge": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
   "ai-sdk": { chunkId: "ai-stack", heading: "AI Stack" },
   "ai-gateway": { chunkId: "ai-stack", heading: "AI Stack" },
   "chat-sdk": { chunkId: "ai-stack", heading: "AI Stack" },

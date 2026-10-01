@@ -46,7 +46,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (34 skills)
+### Skills (32 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -68,12 +68,10 @@ A text-form relational graph covering:
 | `knowledge-update`      | Knowledge update guidance for the plugin                                                                                             |
 | `marketplace`           | Integration discovery and installation (`vercel integration add` / `vercel install`), provider agent skills, auto-provisioned env vars, unified billing |
 | `microfrontends`        | Multi-zone and microfrontend architecture, routing, deployment boundaries, and shared dependencies                                   |
-| `next-forge`            | Production SaaS monorepo starter — Turborepo, Clerk, Prisma/Neon, Stripe, shadcn/ui                                                  |
 | `queues`                | Vercel Queues — durable topics, `@vercel/queue` publish/consume, consumer groups, retries, delays, idempotency, Queues vs Workflows   |
 | `react-best-practices`  | React/Next.js performance optimization — 64 rules across 8 categories                                                                |
 | `routing-middleware`    | Request interception before cache, rewrites, redirects, personalization — Edge/Node.js/Bun runtimes                                  |
 | `runtime-cache`         | Ephemeral per-region key-value cache, tag-based invalidation, shared across Functions/Middleware/Builds                              |
-| `shadcn`                | shadcn/ui — CLI, component installation, custom registries, theming, Tailwind CSS integration                                        |
 | `vercel-agent`          | Vercel Agent chat (dashboard, Slack), code review, investigations, approved actions, product installation                            |
 | `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace                                         |
 | `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
@@ -224,7 +222,6 @@ skills/<name>/
 | `chat-sdk`              | [vercel/chat](https://github.com/vercel/chat)                             |
 | `eve`                   | [vercel/eve](https://github.com/vercel/eve)                               |
 | `flags-sdk`             | [vercel/flags](https://github.com/vercel/flags)                           |
-| `next-forge`            | [vercel/next-forge](https://github.com/vercel/next-forge)                 |
 | `react-best-practices`  | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)   |
 | `vercel-cli`            | [vercel/vercel](https://github.com/vercel/vercel)                         |
 | `vercel-sandbox`        | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
@@ -253,7 +250,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 34 skills
+├── skills/                          # 32 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
@@ -306,7 +303,6 @@ back into the repository.
 - Vercel Sandbox (Firecracker microVMs for untrusted code)
 - Sign in with Vercel (OAuth 2.0/OIDC identity provider)
 - Auth integrations (Clerk, Descope, Auth0)
-- shadcn/ui (CLI, component installation, custom registries, theming)
 - Turborepo (--affected, remote caching, Rust core)
 - Turbopack (default bundler in Next.js 16)
 - v0 (agentic intelligence, GitHub integration)
