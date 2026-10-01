@@ -3,17 +3,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // The current `@ai-sdk/workflow` (2.x, WorkflowAgent) requires Workflow 5,
-// which npm publishes on the `beta` tag; `workflow@latest` is the 4.x line,
-// whose docs use `DurableAgent` from `@workflow/ai`. Guidance that recommends
-// WorkflowAgent or calls DurableAgent deprecated must name the version.
+// which npm now publishes on the `latest` tag; Workflow 4 remains installable
+// as `workflow@4`, whose docs use `DurableAgent` from `@workflow/ai`. Guidance
+// that recommends WorkflowAgent or calls DurableAgent deprecated must name the version.
 
 const ROOT = resolve(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(resolve(ROOT, path), "utf8");
 
 describe("Workflow 5 version guidance", () => {
-  test("session-start knowledge update states that Workflow 5 is on the beta tag", () => {
+  test("session-start knowledge update states that Workflow 5 is on the latest tag", () => {
     expect(read("skills/knowledge-update/SKILL.md")).toMatch(
-      /Workflow 5 ships on the `beta` npm tag \(`npm i workflow@beta`\), and the current `@ai-sdk\/workflow` \(2\.x\) requires it\. `npm i workflow` installs 4\.x/,
+      /Workflow 5 is the `latest` npm tag \(`npm i workflow@latest`\), and the current `@ai-sdk\/workflow` \(2\.x\) requires it\. Workflow 4 remains installable as `workflow@4`/,
     );
   });
 
