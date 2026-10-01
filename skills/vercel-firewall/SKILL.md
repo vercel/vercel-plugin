@@ -206,7 +206,7 @@ vercel firewall rules add "Rate limit API" \
   --yes
 ```
 
-- `--rate-limit-window` — seconds, 10–3600
+- `--rate-limit-window` — seconds, 10–3600 (over 600 Enterprise only)
 - `--rate-limit-requests` — max per window, 1–10,000,000
 - `--rate-limit-keys` — count by `ip` (default) or `ja4`. `header:<name>` Enterprise only. Repeatable.
 - `--rate-limit-algo` — `fixed_window` (default), `token_bucket` (Enterprise only)
