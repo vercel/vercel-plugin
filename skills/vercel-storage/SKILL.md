@@ -109,18 +109,10 @@ validate:
     skipIfFileContains: '@vercel/global-config'
 chainTo:
   -
-    pattern: "from\\s+['\"]@vercel/postgres['\"]"
-    targetSkill: nextjs
-    message: '@vercel/postgres is sunset — loading Next.js guidance for integrating @neondatabase/serverless with App Router.'
-  -
     pattern: "@vercel/postgres"
     targetSkill: vercel-storage
     message: '@vercel/postgres is sunset — migrate to @neondatabase/serverless. Run `vercel integration add neon` for one-click Marketplace provisioning with unified billing.'
     skipIfFileContains: "@neondatabase/serverless|from\\s+['\"]@neondatabase"
-  -
-    pattern: "from\\s+['\"]@vercel/kv['\"]"
-    targetSkill: nextjs
-    message: '@vercel/kv is sunset — loading Next.js guidance for integrating @upstash/redis with App Router.'
   -
     pattern: "createPool\\s*\\(|from\\s+['\"]@vercel/postgres/pool['\"]"
     targetSkill: vercel-storage

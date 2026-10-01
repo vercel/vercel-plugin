@@ -84,7 +84,7 @@ const SCENARIOS: Scenario[] = [
 - Add middleware.ts that logs request paths with timestamps
 - Link the project to my vercel-labs team so we can deploy it later
 After building all files, start the dev server on port 3000 with \`npx next dev --port 3000\`.`,
-    expectedSkills: ["ai-sdk", "swr", "shadcn", "routing-middleware", "geist", "nextjs"],
+    expectedSkills: ["ai-sdk", "swr", "shadcn", "routing-middleware", "geist"],
     userStories: [
       "As a user, I can see a text area where I can paste or type content to be processed by AI",
       "As a user, I can select a mode (rewrite, expand, or summarize) and click a button to get an AI response",
@@ -103,7 +103,7 @@ After building all files, start the dev server on port 3000 with \`npx next dev 
 - Add structured observability logging in all API routes (JSON with timestamp, level, message, duration)
 - Link the project to my vercel-labs team
 After building all files, start the dev server on port 3000 with \`npx next dev --port 3000\`.`,
-    expectedSkills: ["ai-sdk", "vercel-flags", "shadcn", "cron-jobs", "observability", "nextjs", "vercel-functions"],
+    expectedSkills: ["ai-sdk", "vercel-flags", "shadcn", "cron-jobs", "observability", "vercel-functions"],
     userStories: [
       "As a user, I can see a code input area where I can paste code for review",
       "As a user, I can click a Review button and see AI-generated code review comments appear",
@@ -123,7 +123,7 @@ After building all files, start the dev server on port 3000 with \`npx next dev 
 - Use Geist font
 - Link the project to my vercel-labs team
 After building all files, start the dev server on port 3000 with \`npx next dev --port 3000\`.`,
-    expectedSkills: ["ai-sdk", "swr", "shadcn", "runtime-cache", "geist", "nextjs", "vercel-functions"],
+    expectedSkills: ["ai-sdk", "swr", "shadcn", "runtime-cache", "geist", "vercel-functions"],
     userStories: [
       "As a user, I can enter a topic and click Generate to have AI create flashcards",
       "As a user, I can see flashcards displayed and flip them to reveal the answer",
@@ -143,7 +143,7 @@ After building all files, start the dev server on port 3000 with \`npx next dev 
 - Use Vercel Functions for all other API routes
 - Link the project to my vercel-labs team
 After building all files, start the dev server on port 3000 with \`npx next dev --port 3000\`.`,
-    expectedSkills: ["ai-sdk", "satori", "shadcn", "routing-middleware", "nextjs", "vercel-functions"],
+    expectedSkills: ["ai-sdk", "satori", "shadcn", "routing-middleware", "vercel-functions"],
     userStories: [
       "As a user, I can paste meeting notes into a text area and click Summarize",
       "As a user, I can see an AI-generated summary with key points streamed to the page",
@@ -163,7 +163,7 @@ After building all files, start the dev server on port 3000 with \`npx next dev 
 - Add structured observability logging (JSON with timestamp, level, message) in every API route
 - Link the project to my vercel-labs team
 After building all files, start the dev server on port 3000 with \`npx next dev --port 3000\`.`,
-    expectedSkills: ["ai-sdk", "vercel-flags", "shadcn", "cron-jobs", "observability", "nextjs", "vercel-functions"],
+    expectedSkills: ["ai-sdk", "vercel-flags", "shadcn", "cron-jobs", "observability", "vercel-functions"],
     userStories: [
       "As a user, I can see a table of deployments with status badges showing health",
       "As a user, I can click an Analyze button and see AI-generated health insights appear",

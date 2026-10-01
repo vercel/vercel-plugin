@@ -124,6 +124,25 @@ describe("inject-claude-md", () => {
     expect(stdout.trim()).toBe("");
   });
 
+  test("points Next.js projects at the version-matched docs bundled with next", async () => {
+    // Next.js retired its reference skills in favor of docs shipped in the
+    // package (nextjs.org/docs/app/guides/ai-agents), so the session-start
+    // context is where agents learn to read them.
+    const projectDir = join(tempDir, "next-project");
+    mkdirSync(projectDir);
+    writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+
+    const { code, stdout } = await runHook(
+      { session_id: "inject-nextjs-bundled-docs" },
+      { CLAUDE_PROJECT_ROOT: projectDir },
+    );
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("node_modules/next/dist/docs/");
+    expect(stdout).toContain("npx @next/codemod@canary agents-md");
+    expect(stdout).toContain("npx skills add vercel/next.js");
+  });
+
   test("still injects for empty directories", async () => {
     const projectDir = join(tempDir, "greenfield-project");
     mkdirSync(projectDir);

@@ -33,10 +33,8 @@ metadata:
 validate:
   -
     pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
-    message: 'Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. Run Skill(nextjs) for proxy.ts migration guidance.'
+    message: 'Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. See the proxy file convention in the bundled docs at node_modules/next/dist/docs/.'
     severity: recommended
-    upgradeToSkill: nextjs
-    upgradeWhy: 'Guides migration from middleware.ts to proxy.ts with correct file placement, Node.js runtime, and Next.js 16 patterns.'
     skipIfFileContains: 'proxy\.ts|runtime.*nodejs'
 retrieval:
   aliases:
@@ -60,11 +58,6 @@ chainTo:
     pattern: 'from\s+[''""]next-auth[''""]'
     targetSkill: auth
     message: 'Auth logic in middleware — loading Auth guidance for Clerk/Auth0 integration patterns.'
-  -
-    pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
-    targetSkill: nextjs
-    message: 'middleware.ts with next/server imports detected — loading Next.js guidance for proxy.ts migration (Next.js 16 renames middleware.ts to proxy.ts with Node.js runtime).'
-    skipIfFileContains: 'proxy\.ts|runtime.*nodejs'
   -
     pattern: 'from\s+[''""](jsonwebtoken)[''""]|jwt\.(verify|decode)\('
     targetSkill: auth

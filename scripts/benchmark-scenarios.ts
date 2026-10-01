@@ -17,7 +17,7 @@ export const PROJECTS: BenchmarkProject[] = [
     slug: "01-doc-qa-agent",
     prompt:
       "Build a documentation Q&A agent with semantic search, citation links, and follow-up question memory. Link the project to my vercel-labs team so we can deploy it later.",
-    expectedSkills: ["ai-sdk", "vercel-storage", "nextjs"],
+    expectedSkills: ["ai-sdk", "vercel-storage"],
   },
   {
     slug: "02-customer-support-agent",
@@ -35,7 +35,7 @@ export const PROJECTS: BenchmarkProject[] = [
     slug: "04-multi-model-router",
     prompt:
       "Create a multi-model router that chooses the best model per request, supports failover policies, and streams responses to the UI. Link the project to my vercel-labs team so we can deploy it later.",
-    expectedSkills: ["ai-gateway", "ai-sdk", "nextjs"],
+    expectedSkills: ["ai-gateway", "ai-sdk"],
   },
   {
     slug: "05-slack-pr-reviewer",
@@ -65,7 +65,7 @@ export const PROJECTS: BenchmarkProject[] = [
     slug: "09-code-sandbox-tutor",
     prompt:
       "Build a code sandbox tutor that runs untrusted snippets safely, explains execution errors, and gives step-by-step coaching. Link the project to my vercel-labs team so we can deploy it later.",
-    expectedSkills: ["vercel-sandbox", "ai-sdk", "nextjs"],
+    expectedSkills: ["vercel-sandbox", "ai-sdk"],
   },
   {
     slug: "10-multi-agent-research",

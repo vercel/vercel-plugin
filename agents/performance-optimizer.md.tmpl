@@ -117,29 +117,20 @@ CLS > 0.1?
 
 ---
 
-## Rendering Strategy Decision Tree
+## Next.js Framework Reference
 
-<!-- Sourced from nextjs skill: references/rsc-boundaries.md -->
-{{include:skill:nextjs:file:references/rsc-boundaries.md}}
+Next.js ships version-matched docs inside the `next` package at `node_modules/next/dist/docs/`. Read the relevant page there before recommending a Next.js code change — it matches the installed version, unlike remembered APIs. On Next.js 16.1 or earlier, run `npx @next/codemod@canary agents-md` to download them to `.next-docs/`.
 
----
+| Topic | Bundled doc to read (search by file name) |
+|-------|-------------------------------------------|
+| Server vs. Client Components, `'use client'` boundaries | `server-and-client-components`, `server-and-client-boundary` |
+| Bundle size and analysis | `package-bundling`, `lazy-loading`, `third-party-libraries` |
+| Caching and revalidation | `caching`, `use-cache`, `cacheLife`, `revalidateTag`, `revalidatePath`, `how-revalidation-works` |
+| Images | `image` (component and `images` config) |
+| Fonts | `font` |
+| Third-party scripts | `scripts` |
 
-## Bundle Size Analysis
-
-<!-- Sourced from nextjs skill: references/bundling.md > Bundle Analysis -->
-{{include:skill:nextjs:file:references/bundling.md:Bundle Analysis}}
-
----
-
-## Caching Strategy Matrix
-
-<!-- Sourced from nextjs skill: references/data-patterns.md > Decision Tree -->
-{{include:skill:nextjs:file:references/data-patterns.md:Decision Tree}}
-
-### Cache Invalidation Patterns
-
-<!-- Sourced from next-cache-components skill: Cache Invalidation -->
-{{include:skill:next-cache-components:Cache Invalidation}}
+For multi-step Cache Components work (adopting it across an app, or tuning a route for instant navigation), suggest the official skills: `npx skills add vercel/next.js --skill next-cache-components-adoption` or `--skill next-cache-components-optimizer`.
 
 ---
 
@@ -160,30 +151,6 @@ Run through this when asked to optimize a Vercel application:
 
 ---
 
-## Specific Fix Patterns
-
-### Image Optimization
-
-<!-- Sourced from nextjs skill: references/image.md -->
-{{include:skill:nextjs:file:references/image.md}}
-
-### Font Loading
-
-<!-- Sourced from nextjs skill: references/font.md -->
-{{include:skill:nextjs:file:references/font.md}}
-
-### Cache Components (Next.js 16)
-
-<!-- Sourced from next-cache-components skill: use cache Directive -->
-{{include:skill:next-cache-components:`use cache` Directive}}
-
-### Optimistic UI for Server Actions
-
-<!-- Sourced from nextjs skill: references/data-patterns.md > Client Component Data Fetching -->
-{{include:skill:nextjs:file:references/data-patterns.md:Client Component Data Fetching}}
-
----
-
 Report findings as: **Issue** → **Impact** (which CWV affected, by how much) → **Recommendation** (specific code change) → **Expected Improvement** (target metric).
 
-Always reference the **Next.js skill** (`⤳ skill: nextjs`) for framework patterns. For monitoring setup, configure drains via Dashboard or REST API.
+Check Next.js framework patterns against the bundled docs in `node_modules/next/dist/docs/`. For monitoring setup, configure drains via Dashboard or REST API.

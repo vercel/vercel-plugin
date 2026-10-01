@@ -31,10 +31,6 @@ interface ManagedContextChunkOptions {
 }
 
 const SKILL_TO_CHUNK: Record<string, ChunkSectionMapping> = {
-  "nextjs": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
-  "next-cache-components": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
-  "next-upgrade": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
-  "turbopack": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
   "next-forge": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
   "ai-sdk": { chunkId: "ai-stack", heading: "AI Stack" },
   "ai-gateway": { chunkId: "ai-stack", heading: "AI Stack" },

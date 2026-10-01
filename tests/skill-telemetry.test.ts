@@ -82,12 +82,12 @@ describe("skill invocation allowlist", () => {
       process.stdout.write(JSON.stringify({
         knownCount: known.size,
         cases: {
-          vercelNamespace: n("vercel:nextjs"),
+          vercelNamespace: n("vercel:shadcn"),
           pluginNamespaceWithSlash: n("/vercel-plugin:ai-sdk"),
           command: n("vercel:deploy"),
-          upperCase: n("Vercel:NextJS"),
-          whitespace: n("  vercel:nextjs  "),
-          bareSlug: n("nextjs"),
+          upperCase: n("Vercel:ShadCN"),
+          whitespace: n("  vercel:shadcn  "),
+          bareSlug: n("shadcn"),
           bareCommand: n("deploy"),
           otherPluginSameSlug: n("other-plugin:deploy"),
           netlify: n("netlify:deploy"),
@@ -95,8 +95,8 @@ describe("skill invocation allowlist", () => {
           unknownSlugOurNamespace: n("vercel:not-a-real-skill"),
           conventions: n("vercel:_conventions"),
           pathLike: n("vercel:../../etc/passwd"),
-          nestedNamespace: n("vercel:sub:nextjs"),
-          notAString: n({ skill: "vercel:nextjs" }),
+          nestedNamespace: n("vercel:sub:shadcn"),
+          notAString: n({ skill: "vercel:shadcn" }),
           empty: n(""),
         },
       }));
@@ -104,11 +104,11 @@ describe("skill invocation allowlist", () => {
 
     expect(result.knownCount).toBeGreaterThan(30);
     expect(result.cases).toEqual({
-      vercelNamespace: "nextjs",
+      vercelNamespace: "shadcn",
       pluginNamespaceWithSlash: "ai-sdk",
       command: "deploy",
-      upperCase: "nextjs",
-      whitespace: "nextjs",
+      upperCase: "shadcn",
+      whitespace: "shadcn",
       bareSlug: null,
       bareCommand: null,
       otherPluginSameSlug: null,
@@ -150,7 +150,7 @@ describe("skill invocation payload", () => {
         session_id: ${JSON.stringify(sessionId)},
         hook_event_name: "PostToolUse",
         tool_name: "Skill",
-        tool_input: { skill: "vercel:nextjs", args: "do not send this" },
+        tool_input: { skill: "vercel:shadcn", args: "do not send this" },
         tool_response: "do not send this either",
       };
       const first = buildSkillInvocationPayload(input, known);
@@ -160,7 +160,7 @@ describe("skill invocation payload", () => {
 
     expect(result.first).toEqual({
       key: "skill:invoked",
-      skills: ["nextjs"],
+      skills: ["shadcn"],
       telemetrySessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
     expect(result.second.skills).toEqual(["deploy"]);
@@ -199,7 +199,7 @@ describe("skill invocation payload", () => {
       import { buildSkillInvocationPayload, loadKnownPluginSkills } from ${JSON.stringify(HOOK_PATH)};
       import { writeSessionAgentHarness, readSessionAgentHarness } from ${JSON.stringify(LIB_PATH)};
       const known = loadKnownPluginSkills(${JSON.stringify(ROOT)});
-      const input = { session_id: ${JSON.stringify(sessionId)}, tool_name: "Skill", tool_input: { skill: "vercel:nextjs" } };
+      const input = { session_id: ${JSON.stringify(sessionId)}, tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } };
       const before = buildSkillInvocationPayload(input, known);
       writeSessionAgentHarness(${JSON.stringify(sessionId)}, "cursor");
       const after = buildSkillInvocationPayload(input, known);
@@ -233,13 +233,13 @@ describe("skill invocation payload", () => {
       import { buildSkillInvocationPayload, loadKnownPluginSkills } from ${JSON.stringify(HOOK_PATH)};
       const known = loadKnownPluginSkills(${JSON.stringify(ROOT)});
       process.stdout.write(JSON.stringify({
-        otherTool: buildSkillInvocationPayload({ tool_name: "Bash", tool_input: { command: "vercel:nextjs" } }, known),
-        readTool: buildSkillInvocationPayload({ tool_name: "Read", tool_input: { file_path: "skills/nextjs/SKILL.md" } }, known),
+        otherTool: buildSkillInvocationPayload({ tool_name: "Bash", tool_input: { command: "vercel:shadcn" } }, known),
+        readTool: buildSkillInvocationPayload({ tool_name: "Read", tool_input: { file_path: "skills/shadcn/SKILL.md" } }, known),
         foreignSkill: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "other:deploy" } }, known),
-        bareSkill: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "nextjs" } }, known),
-        off: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:nextjs" } }, known, { VERCEL_PLUGIN_TELEMETRY: "off" }),
+        bareSkill: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "shadcn" } }, known),
+        off: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } }, known, { VERCEL_PLUGIN_TELEMETRY: "off" }),
         nullInput: buildSkillInvocationPayload(null, known),
-        noSession: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:nextjs" } }, known),
+        noSession: buildSkillInvocationPayload({ tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } }, known),
       }));
     `)) as Record<string, unknown>;
 
@@ -249,7 +249,7 @@ describe("skill invocation payload", () => {
     expect(result.bareSkill).toBeNull();
     expect(result.off).toBeNull();
     expect(result.nullInput).toBeNull();
-    expect(result.noSession).toEqual({ key: "skill:invoked", skills: ["nextjs"] });
+    expect(result.noSession).toEqual({ key: "skill:invoked", skills: ["shadcn"] });
   });
 });
 
@@ -260,15 +260,15 @@ describe("skill:injected payloads", () => {
       import { buildSkillTelemetryPayload, writeSessionAgentHarness } from ${JSON.stringify(LIB_PATH)};
       writeSessionAgentHarness(${JSON.stringify(sessionId)}, "claude-code");
       process.stdout.write(JSON.stringify({
-        batch: buildSkillTelemetryPayload("skill:injected", ["nextjs", "ai-sdk", "nextjs"], ${JSON.stringify(sessionId)}),
+        batch: buildSkillTelemetryPayload("skill:injected", ["shadcn", "ai-sdk", "shadcn"], ${JSON.stringify(sessionId)}),
         empty: buildSkillTelemetryPayload("skill:injected", [], ${JSON.stringify(sessionId)}),
-        off: buildSkillTelemetryPayload("skill:injected", ["nextjs"], ${JSON.stringify(sessionId)}, { VERCEL_PLUGIN_TELEMETRY: "off" }),
+        off: buildSkillTelemetryPayload("skill:injected", ["shadcn"], ${JSON.stringify(sessionId)}, { VERCEL_PLUGIN_TELEMETRY: "off" }),
       }));
     `)) as { batch: Record<string, unknown>; empty: unknown; off: unknown };
 
     expect(result.batch).toEqual({
       key: "skill:injected",
-      skills: ["nextjs", "ai-sdk"],
+      skills: ["shadcn", "ai-sdk"],
       telemetrySessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       agentHarness: "claude-code",
     });
@@ -298,7 +298,7 @@ describe("skill telemetry send", () => {
         return new Response(null, { status: 204 });
       };
       const context = { telemetrySessionId: ${JSON.stringify(SESSION_UUID)}, agentHarness: "claude-code" };
-      const invoked = await telemetry.trackSkillEvents("skill:invoked", ["nextjs"], context);
+      const invoked = await telemetry.trackSkillEvents("skill:invoked", ["shadcn"], context);
       const injected = await telemetry.trackSkillEvents("skill:injected", ["deploy", "env-vars"], context);
       const unlinked = await telemetry.trackSkillEvents("skill:invoked", ["ai-sdk"], {});
       const empty = await telemetry.trackSkillEvents("skill:invoked", [], context);
@@ -328,7 +328,7 @@ describe("skill telemetry send", () => {
       ["plugin:agent_harness", "claude-code"],
       ["plugin:install_id", installationId],
       ["plugin:version", PLUGIN_VERSION],
-      ["skill:invoked", "nextjs"],
+      ["skill:invoked", "shadcn"],
     ]);
 
     expect(second.headers["x-vercel-plugin-session-id"]).toBe(SESSION_UUID);
@@ -351,7 +351,7 @@ describe("skill telemetry send", () => {
       import * as telemetry from ${JSON.stringify(TELEMETRY_MODULE)};
       let calls = 0;
       globalThis.fetch = async () => { calls += 1; return new Response(null, { status: 204 }); };
-      const sent = await telemetry.trackSkillEvents("skill:invoked", ["nextjs"], {});
+      const sent = await telemetry.trackSkillEvents("skill:invoked", ["shadcn"], {});
       process.stdout.write(JSON.stringify({ sent, calls }));
     `, { VERCEL_PLUGIN_TELEMETRY: "off" })) as { sent: boolean; calls: number };
 
@@ -365,23 +365,23 @@ describe("skill telemetry send", () => {
       import { parseSendPayload } from ${JSON.stringify(LIB_PATH)};
       const p = (payload) => parseSendPayload(["node", "hook", "--send", typeof payload === "string" ? payload : JSON.stringify(payload)]);
       process.stdout.write(JSON.stringify({
-        ok: p({ key: "skill:invoked", skills: ["nextjs"], telemetrySessionId: ${JSON.stringify(SESSION_UUID)}, agentHarness: "cursor" }),
-        injected: p({ key: "skill:injected", skills: ["nextjs", "ai-sdk"] }),
-        badSession: p({ key: "skill:invoked", skills: ["nextjs"], telemetrySessionId: "not-a-uuid" }),
-        badHarness: p({ key: "skill:invoked", skills: ["nextjs"], agentHarness: "netscape" }),
-        badKey: p({ key: "prompt:text", skills: ["nextjs"] }),
+        ok: p({ key: "skill:invoked", skills: ["shadcn"], telemetrySessionId: ${JSON.stringify(SESSION_UUID)}, agentHarness: "cursor" }),
+        injected: p({ key: "skill:injected", skills: ["shadcn", "ai-sdk"] }),
+        badSession: p({ key: "skill:invoked", skills: ["shadcn"], telemetrySessionId: "not-a-uuid" }),
+        badHarness: p({ key: "skill:invoked", skills: ["shadcn"], agentHarness: "netscape" }),
+        badKey: p({ key: "prompt:text", skills: ["shadcn"] }),
         noSkills: p({ key: "skill:invoked", skills: [] }),
-        legacyShape: p({ skill: "nextjs" }),
+        legacyShape: p({ skill: "shadcn" }),
         garbage: p("{nope"),
         missing: parseSendPayload(["node", "hook", "--send"]),
         noFlag: parseSendPayload(["node", "hook"]),
       }));
     `)) as Record<string, unknown>;
 
-    expect(result.ok).toEqual({ key: "skill:invoked", skills: ["nextjs"], telemetrySessionId: SESSION_UUID, agentHarness: "cursor" });
-    expect(result.injected).toEqual({ key: "skill:injected", skills: ["nextjs", "ai-sdk"] });
-    expect(result.badSession).toEqual({ key: "skill:invoked", skills: ["nextjs"] });
-    expect(result.badHarness).toEqual({ key: "skill:invoked", skills: ["nextjs"] });
+    expect(result.ok).toEqual({ key: "skill:invoked", skills: ["shadcn"], telemetrySessionId: SESSION_UUID, agentHarness: "cursor" });
+    expect(result.injected).toEqual({ key: "skill:injected", skills: ["shadcn", "ai-sdk"] });
+    expect(result.badSession).toEqual({ key: "skill:invoked", skills: ["shadcn"] });
+    expect(result.badHarness).toEqual({ key: "skill:invoked", skills: ["shadcn"] });
     expect(result.badKey).toBeNull();
     expect(result.noSkills).toBeNull();
     expect(result.legacyShape).toBeNull();
@@ -395,7 +395,7 @@ describe("compiled hook process", () => {
   test("exits 0 with empty stdout and no side effects when telemetry is off", () => {
     const sessionId = newSessionId("off");
     const result = runHook(
-      JSON.stringify({ session_id: sessionId, tool_name: "Skill", tool_input: { skill: "vercel:nextjs" } }),
+      JSON.stringify({ session_id: sessionId, tool_name: "Skill", tool_input: { skill: "vercel:shadcn" } }),
       { VERCEL_PLUGIN_TELEMETRY: "off" },
     );
 
@@ -409,7 +409,7 @@ describe("compiled hook process", () => {
     const sessionId = newSessionId("foreign");
     for (const stdin of [
       JSON.stringify({ session_id: sessionId, tool_name: "Skill", tool_input: { skill: "someone:else" } }),
-      JSON.stringify({ session_id: sessionId, tool_name: "Skill", tool_input: { skill: "nextjs" } }),
+      JSON.stringify({ session_id: sessionId, tool_name: "Skill", tool_input: { skill: "shadcn" } }),
       JSON.stringify({ session_id: sessionId, tool_name: "Read", tool_input: { file_path: "/tmp/x" } }),
       "not json",
       "[]",

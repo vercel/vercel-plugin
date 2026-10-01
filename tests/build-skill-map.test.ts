@@ -62,8 +62,8 @@ Current skill instructions.
       .sort();
     expect(Object.keys(loaded!.skillMap).sort()).toEqual(slugs);
     expect(loaded!.compiledSkills.map((entry) => entry.skill).sort()).toEqual(slugs);
-    expect([...matchSkills("Read", { file_path: "next.config.ts" }, loaded!.compiledSkills)!.matched])
-      .toContain("nextjs");
+    expect([...matchSkills("Read", { file_path: "middleware.ts" }, loaded!.compiledSkills)!.matched])
+      .toContain("routing-middleware");
 
     for (const entry of loaded!.compiledSkills) {
       for (const pattern of [...entry.compiledPaths, ...entry.compiledBash, ...entry.compiledImports]) {

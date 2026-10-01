@@ -10,10 +10,6 @@ var PLUGIN_ROOT = resolvePluginRoot();
 var DEFAULT_CONTEXT_CHUNK_BUDGET_BYTES = 1800;
 var CONTEXT_CHUNK_KIND = "seen-context-chunks";
 var SKILL_TO_CHUNK = {
-  "nextjs": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
-  "next-cache-components": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
-  "next-upgrade": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
-  "turbopack": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
   "next-forge": { chunkId: "nextjs-platform", heading: "Next.js and Rendering" },
   "ai-sdk": { chunkId: "ai-stack", heading: "AI Stack" },
   "ai-gateway": { chunkId: "ai-stack", heading: "AI Stack" },

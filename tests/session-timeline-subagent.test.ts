@@ -102,7 +102,7 @@ describe("session timeline subagent integration", () => {
     }
   });
 
-  test("lead scaffold timeline dedups in the lead session but a fresh subagent gets its own nextjs injection", async () => {
+  test("lead scaffold timeline dedups in the lead session but a fresh subagent gets its own shadcn injection", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "session-timeline-subagent-"));
     const leadEnvPath = join(tempDir, "lead.env");
     const subagentEnvPath = join(tempDir, "subagent.env");
@@ -120,28 +120,28 @@ describe("session timeline subagent integration", () => {
       );
 
       expect(leadScaffold.code).toBe(0);
-      expect(parseInjectedSkills(leadScaffold.stdout)).toContain("nextjs");
+      expect(parseInjectedSkills(leadScaffold.stdout)).toContain("shadcn");
 
       const leadRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/page.tsx" } },
-        { VERCEL_PLUGIN_SEEN_SKILLS: "nextjs" },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/components/ui/dialog.tsx" } },
+        { VERCEL_PLUGIN_SEEN_SKILLS: "shadcn" },
       );
 
       expect(leadRead.code).toBe(0);
-      expect(parseInjectedSkills(leadRead.stdout)).not.toContain("nextjs");
+      expect(parseInjectedSkills(leadRead.stdout)).not.toContain("shadcn");
 
       const subagentSessionStart = await runSessionStart(subagentEnvPath);
       expect(subagentSessionStart.code).toBe(0);
 
       const subagentSession = `timeline-subagent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const subagentRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/page.tsx" } },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/components/ui/dialog.tsx" } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "", VERCEL_PLUGIN_HOOK_DEBUG: "1" },
         { sessionId: subagentSession },
       );
 
       expect(subagentRead.code).toBe(0);
-      expect(parseInjectedSkills(subagentRead.stdout)).toContain("nextjs");
+      expect(parseInjectedSkills(subagentRead.stdout)).toContain("shadcn");
 
       const debugLines = parseDebugLines(subagentRead.stderr);
       const dedupStrategyLine = debugLines.find((line) => line.event === "dedup-strategy");
@@ -165,18 +165,18 @@ describe("session timeline subagent integration", () => {
       const leadSessionStart = await runSessionStart(leadEnvPath);
       expect(leadSessionStart.code).toBe(0);
 
-      // Lead injects nextjs via page.tsx read
+      // Lead injects routing-middleware via middleware.ts read
       const leadRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/page.tsx" } },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/middleware.ts" } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "", VERCEL_PLUGIN_HOOK_DEBUG: "1" },
       );
       expect(leadRead.code).toBe(0);
       const leadInjected = parseInjectedSkills(leadRead.stdout);
-      expect(leadInjected).toContain("nextjs");
+      expect(leadInjected).toContain("routing-middleware");
 
       // Lead second read — deduped
       const leadSecond = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/page.tsx" } },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/middleware.ts" } },
         { VERCEL_PLUGIN_SEEN_SKILLS: leadInjected.join(",") },
       );
       expect(leadSecond.code).toBe(0);
@@ -186,16 +186,16 @@ describe("session timeline subagent integration", () => {
       const subagentSessionStart = await runSessionStart(subagentEnvPath);
       expect(subagentSessionStart.code).toBe(0);
 
-      // Subagent with different session ID — scope isolation means nextjs re-injects
+      // Subagent with different session ID — scope isolation means routing-middleware re-injects
       const subagentSession = `timeline-scope-sub-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const subagentRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/page.tsx" } },
+        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/middleware.ts" } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "", VERCEL_PLUGIN_HOOK_DEBUG: "1" },
         { sessionId: subagentSession },
       );
       expect(subagentRead.code).toBe(0);
       const subInjected = parseInjectedSkills(subagentRead.stdout);
-      expect(subInjected).toContain("nextjs");
+      expect(subInjected).toContain("routing-middleware");
 
       // Verify it's a fresh file-based dedup scope
       const subDebug = parseDebugLines(subagentRead.stderr);

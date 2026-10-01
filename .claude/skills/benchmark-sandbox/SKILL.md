@@ -58,7 +58,7 @@ Instead of hardcoding tech-specific prompts, generate scenarios dynamically as a
   {
     "slug": "pet-adoption-board",
     "prompt": "Build me a pet adoption listing board where shelters can post animals...",
-    "expectedSkills": ["ai-sdk", "nextjs", "shadcn", "vercel-functions"],
+    "expectedSkills": ["ai-sdk", "shadcn", "vercel-functions"],
     "userStories": [
       "As a visitor, I can see a grid of pet listings with photos and names",
       "As a visitor, I can click a pet card to see a detail page",

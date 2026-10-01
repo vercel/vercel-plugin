@@ -72,13 +72,15 @@ function createTestSession(): string {
 }
 
 describe("managed vercel context chunks", () => {
-  test("extracts a small nextjs chunk from vercel.md", () => {
-    const chunk = getManagedContextChunkForSkill("nextjs", { pluginRoot: ROOT });
+  test("extracts the Next.js chunk from vercel.md, pointing at the bundled Next.js docs", () => {
+    const chunk = getManagedContextChunkForSkill("next-forge", { pluginRoot: ROOT });
     expect(chunk).not.toBeNull();
     expect(chunk?.chunkId).toBe("nextjs-platform");
     expect(chunk?.wrapped).toContain("Default to Next.js App Router");
+    expect(chunk?.wrapped).toContain("node_modules/next/dist/docs/");
     expect(chunk?.wrapped).toContain("vercel-context-chunk:nextjs-platform");
   });
+
 
   test("maps eve to the AI Stack context chunk", () => {
     const chunk = getManagedContextChunkForSkill("eve", { pluginRoot: ROOT });
@@ -95,11 +97,11 @@ describe("managed vercel context chunks", () => {
 
   test("deduplicates chunk claims per session", () => {
     const testSession = createTestSession();
-    const first = selectManagedContextChunk(["nextjs"], {
+    const first = selectManagedContextChunk(["next-forge"], {
       pluginRoot: ROOT,
       sessionId: testSession,
     });
-    const second = selectManagedContextChunk(["nextjs"], {
+    const second = selectManagedContextChunk(["next-forge"], {
       pluginRoot: ROOT,
       sessionId: testSession,
     });
@@ -111,12 +113,12 @@ describe("managed vercel context chunks", () => {
 });
 
 describe("on-demand context injection", () => {
-  test("pretooluse appends a nextjs chunk after skill injection", async () => {
+  test("pretooluse appends the Next.js chunk after skill injection", async () => {
     const testSession = createTestSession();
     try {
       const { code, stdout } = await runPretoolHook({
         tool_name: "Read",
-        tool_input: { file_path: "/Users/me/project/next.config.ts" },
+        tool_input: { file_path: "/Users/me/project/apps/web/next.config.ts" },
       }, testSession);
 
       expect(code).toBe(0);

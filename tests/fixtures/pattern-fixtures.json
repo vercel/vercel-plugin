@@ -8,12 +8,6 @@
       "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions", "vercel-services"]
     },
     {
-      "description": "next.config.ts triggers nextjs, turbopack, next-cache-components, and next-upgrade",
-      "type": "path",
-      "input": "next.config.ts",
-      "expectedSkills": ["nextjs", "turbopack", "next-cache-components", "next-upgrade"]
-    },
-    {
       "description": "middleware.ts triggers routing-middleware and auth",
       "type": "path",
       "input": "middleware.ts",
@@ -26,10 +20,10 @@
       "expectedSkills": ["env-vars"]
     },
     {
-      "description": "app/api/chat/route.ts triggers ai-sdk, nextjs, vercel-functions, chat-sdk, and next-cache-components",
+      "description": "app/api/chat/route.ts triggers ai-sdk, vercel-functions, and chat-sdk",
       "type": "path",
       "input": "app/api/chat/route.ts",
-      "expectedSkills": ["ai-sdk", "nextjs", "vercel-functions", "chat-sdk", "next-cache-components"]
+      "expectedSkills": ["ai-sdk", "vercel-functions", "chat-sdk"]
     },
     {
       "description": "components.json triggers shadcn",
@@ -62,10 +56,10 @@
       "expectedSkills": ["shadcn"]
     },
     {
-      "description": "next dev --turbo triggers turbopack, nextjs, verification, and next-cache-components",
+      "description": "next dev --turbo triggers verification",
       "type": "bash",
       "input": "next dev --turbo",
-      "expectedSkills": ["turbopack", "nextjs", "verification", "next-cache-components"]
+      "expectedSkills": ["verification"]
     },
     {
       "description": "vercel env pull triggers env-vars, ai-gateway, and vercel-cli",
@@ -98,28 +92,28 @@
       "expectedSkills": ["react-best-practices"]
     },
     {
-      "description": "app/components/Modal.tsx triggers react-best-practices, nextjs, and next-cache-components",
+      "description": "app/components/Modal.tsx triggers react-best-practices",
       "type": "path",
       "input": "app/components/Modal.tsx",
-      "expectedSkills": ["react-best-practices", "nextjs", "next-cache-components"]
+      "expectedSkills": ["react-best-practices"]
     },
     {
-      "description": "npm run dev triggers nextjs and verification",
+      "description": "npm run dev triggers verification",
       "type": "bash",
       "input": "npm run dev",
-      "expectedSkills": ["nextjs", "verification"]
+      "expectedSkills": ["verification"]
     },
     {
-      "description": "pnpm dev triggers nextjs and verification",
+      "description": "pnpm dev triggers verification",
       "type": "bash",
       "input": "pnpm dev",
-      "expectedSkills": ["nextjs", "verification"]
+      "expectedSkills": ["verification"]
     },
     {
-      "description": "bun run dev triggers nextjs and verification",
+      "description": "bun run dev triggers verification",
       "type": "bash",
       "input": "bun run dev",
-      "expectedSkills": ["nextjs", "verification"]
+      "expectedSkills": ["verification"]
     },
     {
       "description": "vite triggers verification",
