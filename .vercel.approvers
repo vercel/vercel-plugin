@@ -1,0 +1,6 @@
+# Plugin maintainers: own everything without a closer .vercel.approvers file
+# (vercel.md, agents, commands, hooks, cross-cutting skills) and can approve
+# any change. Per-skill owners live in skills/<slug>/.vercel.approvers.
+# https://vercel.com/docs/code-owners/code-approvers
+@molebox
+@Melkeydev
