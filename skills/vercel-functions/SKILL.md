@@ -499,7 +499,8 @@ Use `getDeadline()` to find out how much time is actually left and bail out clea
 ```ts
 import { getDeadline } from '@vercel/functions'
 
-const msRemaining = getDeadline().getTime() - Date.now()
+const deadline = getDeadline() // Date | undefined (undefined outside the Vercel Functions runtime)
+const msRemaining = deadline ? deadline.getTime() - Date.now() : Infinity
 ```
 
 ### Cost of long functions
