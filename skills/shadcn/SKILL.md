@@ -48,7 +48,7 @@ retrieval:
 
 # shadcn/ui
 
-You are an expert in shadcn/ui — a collection of beautifully designed, accessible, and customizable React components built on Radix UI primitives and Tailwind CSS. Components are added directly to your codebase as source code, not installed as a dependency.
+You are an expert in shadcn/ui — a collection of beautifully designed, accessible, and customizable React components built on Base UI (default), Radix UI, or React Aria primitives and Tailwind CSS. Components are added directly to your codebase as source code, not installed as a dependency.
 
 ## Key Concept
 
@@ -69,12 +69,12 @@ npx shadcn@latest init --preset <code> -f
 
 # Non-interactive with explicit base library choice
 npx shadcn@latest init -d --base radix
-npx shadcn@latest init -d --base base-ui
+npx shadcn@latest init -d --base base
 
 # Scaffold a full project template (CLI v4)
 ```
 
-> **AI Elements compatibility**: Always use `--base radix` (the default) when the project uses or may use AI Elements. AI Elements components rely on Radix APIs and have type errors with Base UI.
+> **AI Elements compatibility**: Always use `--base radix` (Base UI is the default) when the project uses or may use AI Elements. AI Elements components rely on Radix APIs and have type errors with Base UI.
 
 ```bash
 npx shadcn@latest init --template next -d
@@ -85,18 +85,18 @@ Options:
 - `-d, --defaults` — **Use default configuration, skip all interactive prompts** (REQUIRED for CI/agent use)
 - `-y, --yes` — Skip confirmation prompts (does NOT skip library selection — use `-d` instead)
 - `-f, --force` — Force overwrite existing configuration
-- `-t, --template` — Scaffold full project template (`next`, `vite`, `react-router`, `astro`, `laravel`, `tanstack-start`)
+- `-t, --template` — Scaffold full project template (`next`, `vite`, `react-router`, `astro`, `laravel`, `start`)
 - `--preset` — Apply a design system preset (colors, theme, icons, fonts, radius) as a single shareable code
-- `--base` — Choose primitive library: `radix` (default) or `base-ui`
+- `--base` — Choose primitive library: `base` (Base UI, default), `radix`, or `aria` (React Aria)
 - `--monorepo` — Set up a monorepo structure
 
 > **WARNING**: `-y`/`--yes` alone does NOT make init fully non-interactive — it still prompts for component library selection. Always use `-d` to skip ALL prompts.
 
-> **Deprecated in CLI v4**: `--style`, `--base-color`, `--src-dir`, `--no-base-style`, and `--css-variables` flags are removed and will error. The `registry:build` and `registry:mcp` registry types are also deprecated. Use `registry:base` and `registry:font` instead.
+> **Deprecated in CLI v4**: `--style`, `--base-color`, `--src-dir`, and `--no-base-style` flags are removed and will error. The `registry:build` and `registry:mcp` registry types are also deprecated. Use `registry:base` and `registry:font` instead.
 
 The init command:
 1. Detects your framework (Next.js, Vite, React Router, Astro, Laravel, TanStack Start)
-2. Installs required dependencies (Radix UI, tailwind-merge, class-variance-authority)
+2. Installs required dependencies (base library, tailwind-merge, class-variance-authority)
 3. Creates `components.json` configuration
 4. Sets up the `cn()` utility function
 5. Configures CSS variables for theming
@@ -129,7 +129,7 @@ Options:
 ### Search & List
 
 ```bash
-npx shadcn@latest search button
+npx shadcn@latest search @shadcn -q "button"
 npx shadcn@latest list @v0
 ```
 
@@ -189,9 +189,9 @@ To migrate existing projects: `npx shadcn@latest migrate radix`. After migration
 
 ## Base UI Support (January 2026)
 
-shadcn/ui now supports **Base UI** as an alternative to Radix UI for the underlying primitive library. Components look and behave the same way regardless of which library you choose — only the underlying implementation changes.
+shadcn/ui supports **Base UI** alongside Radix UI for the underlying primitive library; since July 2026 Base UI is the default for new projects. Components look and behave the same way regardless of which library you choose — only the underlying implementation changes.
 
-Choose during init: `npx shadcn@latest init --base base-ui`
+Choose during init: `npx shadcn@latest init --base base`
 
 The CLI pulls the correct component variant based on your project configuration automatically.
 
@@ -413,21 +413,26 @@ Create your own component registry to share across projects:
 ### 1. Define registry.json
 
 ```json
-[
-  {
-    "name": "my-component",
-    "type": "registry:ui",
-    "title": "My Component",
-    "description": "A custom component",
-    "files": [
-      {
-        "path": "components/my-component.tsx",
-        "type": "registry:ui"
-      }
-    ],
-    "dependencies": ["lucide-react"]
-  }
-]
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "acme",
+  "homepage": "https://acme.com",
+  "items": [
+    {
+      "name": "my-component",
+      "type": "registry:ui",
+      "title": "My Component",
+      "description": "A custom component",
+      "files": [
+        {
+          "path": "components/my-component.tsx",
+          "type": "registry:ui"
+        }
+      ],
+      "dependencies": ["lucide-react"]
+    }
+  ]
+}
 ```
 
 ### 2. Build
@@ -473,13 +478,13 @@ npx shadcn@latest add https://your-domain.com/r/my-component.json
   <body className="antialiased">
 ```
 
-### Avatar Has No `size` Prop
+### Avatar `size` Prop Only Accepts `sm`, `default`, `lg`
 
-The shadcn Avatar component does **not** accept a `size` variant prop. Control size with Tailwind classes:
+The shadcn Avatar `size` prop accepts only `"default"`, `"sm"`, or `"lg"`. For other sizes, use Tailwind classes:
 
 ```tsx
-// WRONG — no size variant exists
-<Avatar size="lg" />  // ❌ TypeScript error / silently ignored
+// WRONG — not a supported size
+<Avatar size="xl" />  // ❌ TypeScript error
 
 // CORRECT — use Tailwind
 <Avatar className="h-12 w-12">
@@ -488,10 +493,10 @@ The shadcn Avatar component does **not** accept a `size` variant prop. Control s
 </Avatar>
 
 // Small avatar
-<Avatar className="h-6 w-6"> ... </Avatar>
+<Avatar size="sm"> ... </Avatar>
 ```
 
-This applies to most shadcn components — they use Tailwind classes for sizing, not variant props. If you need reusable size variants, add them yourself via `cva` in the component source.
+If you need more reusable size variants, add them yourself in the component source.
 
 ## Common Patterns
 
