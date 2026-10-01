@@ -109,7 +109,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `REVALIDATED` | Foreground revalidation after a delete (or `Pragma: no-cache`)   |
   | `BYPASS`      | Caching skipped (`no-store`, `private`, cookies, etc.)           |
 
-- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Ten values: four for MISS, three map to BYPASS, three for STALE:
+- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Eleven values: four for MISS, three map to BYPASS, three for STALE, one for REVALIDATED:
 
   | `cacheReason`        | Refines  | Meaning                                                                       |
   | --------------------- | -------- | ----------------------------------------------------------------------------- |
@@ -123,8 +123,9 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `stale_time`          | STALE    | Time-based `revalidate` interval elapsed; regenerating in background (SWR)     |
   | `stale_tag`           | STALE    | Tag invalidated (`invalidateByTag` / `revalidateTag(tag, 'max')`); regenerating |
   | `stale_error`         | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
+  | Tag-based deletion    | REVALIDATED | Tag deleted (`dangerouslyDeleteByTag` / `revalidateTag(tag)` with no profile / dashboard purge by tag); foreground regen |
 
-  A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
+  A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row, or aggregate with `vercel metrics vercel.request.count --group-by cache_reason` — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
 
 - **PPR state** (`ppr_state`) — for a Partial Prerendering route, _how much_ of the response was prerendered versus computed per request. Only set on `partial_prerender` serves; blank for plain `prerender` / `func` / `static` routes and for cases the proxy can't classify (cold shell miss, `BYPASS`). Three states:
 
