@@ -77,6 +77,22 @@ describe("session-end-cleanup", () => {
 });
 
 describe("hooks.json wiring", () => {
+  test("gives session cleanup enough time during contended teardown", () => {
+    const config = JSON.parse(readFileSync(HOOKS_CONFIG_PATH, "utf-8")) as {
+      hooks?: {
+        SessionEnd?: Array<{
+          hooks?: Array<{ type?: string; command?: string; timeout?: number }>;
+        }>;
+      };
+    };
+
+    const cleanupHook = config.hooks?.SessionEnd
+      ?.flatMap((entry) => entry.hooks ?? [])
+      .find((hook) => hook.command?.includes("session-end-cleanup.mjs"));
+
+    expect(cleanupHook?.timeout).toBe(15);
+  });
+
   test("does not register the Agent pretooluse observer hook", () => {
     const config = JSON.parse(readFileSync(HOOKS_CONFIG_PATH, "utf-8")) as {
       hooks?: {
