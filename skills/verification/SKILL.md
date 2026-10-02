@@ -1,6 +1,6 @@
 ---
 name: verification
-description: "Verify a requested user flow across its relevant browser, API, and data boundaries, including rechecking an authorized repair."
+description: "Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: browser → API → data → response. Triggers on dev server start and 'why isn't this working' signals."
 summary: "Verify full user story: browser + server + data flow + env"
 metadata:
   priority: 7
@@ -191,6 +191,6 @@ Keep verification scoped to the requested story and authorized environment.
 - Repeat a check after a relevant change or when it resolves an uncertainty. Do not repeat an unchanged check that provides no new evidence.
 - Keep unrelated features and cosmetic work outside the verification scope unless requested.
 
-## Verification after implementation
+## Suggest Verification After Implementation
 
-Complete proportionate checks as part of the requested implementation. Do not defer already-authorized verification to another user prompt. Additional hosted mutations or tests in another environment require their own authorization; report any such untested layer clearly.
+When you finish building or implementing a feature (wrote code, created routes, set up a project), briefly let the user know they can ask you to verify everything works — e.g. browser verification or end-to-end flow check. One sentence is enough. Don't force it if only a small fix or question was involved.
