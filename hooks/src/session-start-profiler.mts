@@ -20,7 +20,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import type { AgentResult } from "detect-agent";
@@ -334,14 +334,73 @@ const WINDOWS_EXECUTABLE_EXTENSIONS = (process.env.PATHEXT || ".EXE;.CMD;.BAT;.C
   .split(";")
   .filter(Boolean);
 
-function getBinaryPathCandidates(binaryName: string): string[] {
-  if (process.platform !== "win32") {
+// Extensions Node can hand to CreateProcess — directly, or through the shell for
+// .cmd/.bat. Other PATHEXT entries (.PS1, .PY, .JS, ...) resolve to files
+// spawnSync rejects with EFTYPE, so they must never outrank a real executable.
+const WINDOWS_SPAWNABLE_EXTENSIONS: string[] = ".EXE;.COM;.CMD;.BAT".split(";");
+const WINDOWS_SHELL_SCRIPT_RE = /\.(?:cmd|bat)$/i;
+
+export function getBinaryPathCandidates(
+  binaryName: string,
+  platform: string = process.platform,
+  pathExtensions: string[] = WINDOWS_EXECUTABLE_EXTENSIONS,
+): string[] {
+  if (platform !== "win32") {
     return [binaryName];
   }
 
   const hasExecutableExtension = /\.[^./\\]+$/.test(binaryName);
-  const suffixes = hasExecutableExtension ? [""] : ["", ...WINDOWS_EXECUTABLE_EXTENSIONS];
+  if (hasExecutableExtension) {
+    return [binaryName];
+  }
+
+  const isSpawnable = (extension: string): boolean =>
+    WINDOWS_SPAWNABLE_EXTENSIONS.includes(extension.toUpperCase());
+  // The bare name goes last. On Windows an extensionless entry sitting next to a
+  // .cmd is npm's POSIX shim — an sh script spawnSync fails on with ENOENT.
+  const suffixes = [
+    ...pathExtensions.filter(isSpawnable),
+    ...pathExtensions.filter((extension: string) => !isSpawnable(extension)),
+    "",
+  ];
   return suffixes.map((suffix: string) => `${binaryName}${suffix}`);
+}
+
+/**
+ * Windows batch wrappers cannot be spawned directly: since the fix for
+ * CVE-2024-27980, Node rejects .cmd/.bat without `shell: true` (EINVAL).
+ */
+export function binaryNeedsShell(
+  binaryPath: string,
+  platform: string = process.platform,
+): boolean {
+  return platform === "win32" && WINDOWS_SHELL_SCRIPT_RE.test(binaryPath);
+}
+
+/**
+ * Build the single command string cmd.exe runs for a batch wrapper. The path is
+ * quoted because cmd.exe would otherwise split it on spaces (for example
+ * `C:\Program Files\nodejs\npm.cmd`). Args are module constants, never user
+ * input, so they are appended as-is.
+ */
+export function buildShellCommand(binaryPath: string, args: string[]): string {
+  return [`"${binaryPath}"`, ...args].join(" ");
+}
+
+/** Run a resolved binary and return its trimmed stdout. */
+function runBinarySync(binaryPath: string, args: string[]): string {
+  const options = {
+    timeout: EXEC_SYNC_TIMEOUT_MS,
+    encoding: "utf-8" as const,
+    stdio: SPAWN_STDIO,
+    windowsHide: true,
+  };
+  // A batch wrapper needs a shell. Pass one command string rather than
+  // `shell: true` plus an args array, which Node 24 deprecates (DEP0190).
+  if (binaryNeedsShell(binaryPath)) {
+    return execSync(buildShellCommand(binaryPath, args), options).trim();
+  }
+  return execFileSync(binaryPath, args, options).trim();
 }
 
 function resolveBinaryFromPath(binaryName: string): string | null {
@@ -417,11 +476,7 @@ function checkVercelCli(): VercelCliStatus {
   // 1. Check if vercel is installed
   let currentVersion: string | undefined;
   try {
-    const raw: string = execFileSync(vercelBinary, VERCEL_VERSION_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO,
-    }).trim();
+    const raw: string = runBinarySync(vercelBinary, VERCEL_VERSION_ARGS);
     // Output may include extra lines; version is typically last non-empty line
     const lines: string[] = raw.split("\n").map((l: string) => l.trim()).filter(Boolean);
     currentVersion = lines[lines.length - 1];
@@ -430,7 +485,9 @@ function checkVercelCli(): VercelCliStatus {
       command: vercelBinary,
       args: VERCEL_VERSION_ARGS.join(" "),
     });
-    return { installed: false, needsUpdate: false };
+    // The binary is on PATH — only the version probe failed. Reporting "not
+    // installed" here would tell the user to install a CLI they already have.
+    return { installed: true, needsUpdate: false };
   }
 
   const npmBinary = resolveBinaryFromPath("npm");
@@ -441,12 +498,7 @@ function checkVercelCli(): VercelCliStatus {
   // 2. Fetch latest version from npm registry
   let latestVersion: string | undefined;
   try {
-    const raw: string = execFileSync(npmBinary, NPM_VIEW_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO,
-    }).trim();
-    latestVersion = raw;
+    latestVersion = runBinarySync(npmBinary, NPM_VIEW_ARGS);
   } catch (error) {
     logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
       command: npmBinary,
