@@ -65,6 +65,7 @@ A text-form relational graph covering:
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
 | `eve`                   | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients    |
 | `flags-sdk`             | Feature flags and A/B tests — Flags SDK, provider adapters, `vercel flags` CLI, precompute, Flags Explorer                           |
+| `is-agentic`            | Score how ready a website, domain, or public MCP endpoint is for AI agents, and act on the Is Agentic report                        |
 | `knowledge-update`      | Knowledge update guidance for the plugin                                                                                             |
 | `marketplace`           | Integration discovery and installation (`vercel integration add` / `vercel install`), provider agent skills, auto-provisioned env vars, unified billing |
 | `microfrontends`        | Multi-zone and microfrontend architecture, routing, deployment boundaries, and shared dependencies                                   |
@@ -222,6 +223,7 @@ skills/<name>/
 | `chat-sdk`              | [vercel/chat](https://github.com/vercel/chat)                             |
 | `eve`                   | [vercel/eve](https://github.com/vercel/eve)                               |
 | `flags-sdk`             | [vercel/flags](https://github.com/vercel/flags)                           |
+| `is-agentic`            | vercel-labs/is-agentic (private); public copy at [is-agentic.com](https://is-agentic.com/.well-known/agent-skills/is-agentic/SKILL.md) |
 | `react-best-practices`  | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)   |
 | `vercel-cli`            | [vercel/vercel](https://github.com/vercel/vercel)                         |
 | `vercel-sandbox`        | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
