@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -39,7 +39,7 @@ describe("skill frontmatter portability", () => {
       if (!existsSync(skillPath)) continue;
 
       try {
-        Bun.YAML.parse(readSkillFrontmatter(skillDir));
+        Bun.YAML.parse(extractFrontmatter(readFileSync(skillPath, "utf-8")).yaml);
       } catch (error) {
         invalidSkills.push(`${skillDir}: ${String(error)}`);
       }
