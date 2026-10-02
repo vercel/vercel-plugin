@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -29,6 +29,25 @@ function countSkillDirs(): number {
     }
   }).length;
 }
+
+describe("skill frontmatter portability", () => {
+  test("all skill frontmatter is valid standard YAML", () => {
+    const invalidSkills: string[] = [];
+
+    for (const skillDir of readdirSync(SKILLS_DIR)) {
+      const skillPath = join(SKILLS_DIR, skillDir, "SKILL.md");
+      if (!existsSync(skillPath)) continue;
+
+      try {
+        Bun.YAML.parse(extractFrontmatter(readFileSync(skillPath, "utf-8")).yaml);
+      } catch (error) {
+        invalidSkills.push(`${skillDir}: ${String(error)}`);
+      }
+    }
+
+    expect(invalidSkills).toEqual([]);
+  });
+});
 
 // ─── Migration regression: skill-map.json must not exist ─────────
 
