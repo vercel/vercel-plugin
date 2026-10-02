@@ -77,6 +77,8 @@ The compatibility surface provides:
 
 The TypeSafe-compatible request body also accepts AI Gateway controls under `providerOptions.gateway`. Use the generic `/v1/evaluate` endpoint for new HTTP integrations; use `/typesafe` when preserving an existing TypeSafe client is the goal.
 
+On any evaluation surface, use [Evaluation Fallbacks](https://vercel.com/docs/ai-gateway/models-and-providers/evaluation-fallbacks) to rerun a successful but uncertain evaluation with another model: a conditional entry in `providerOptions.gateway.models`, such as a `confidenceBelow` threshold on a Choice or Score question. A triggered fallback bills both stages.
+
 ## Question and state rules
 
 - Gateway's AI SDK and `/v1/evaluate` surfaces use `boolean`; the TypeSafe-compatible surface uses `noul` and translates it internally.
