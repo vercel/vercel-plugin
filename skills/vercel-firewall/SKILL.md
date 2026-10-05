@@ -281,10 +281,10 @@ vercel firewall discard --yes             # throw away drafts
 
 ## Querying firewall traffic from the CLI
 
-`vercel firewall traffic list` and `vercel firewall traffic inspect` are the built-in way to analyze firewall activity without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work. Unlike generic `vc metrics` queries, these succeed on every plan for the last 24 hours; **Observability Plus** only extends the retention window to 30 days.
+`vercel firewall traffic list` and `vercel firewall traffic inspect` are the built-in way to analyze firewall activity without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work. Unlike generic `vc metrics` queries, these succeed on every team plan for the last 24 hours; **Observability Plus** only extends the retention window to 30 days.
 
 ```bash
-vercel firewall traffic list --since 3d --json
+vercel firewall traffic list --since 24h --json   # beyond your plan's retention needs Observability Plus
 vercel firewall traffic list --action deny --dimension rule --json
 ```
 
