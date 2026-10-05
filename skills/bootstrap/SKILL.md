@@ -224,10 +224,10 @@ Return a final bootstrap summary in this format:
 
 ## next-forge Projects
 
-If the project was scaffolded with `npx next-forge init` (detected by `pnpm-workspace.yaml` + `packages/auth` + `packages/database` + `@repo/*` imports):
+If the project was scaffolded with `npx next-forge init` (detected by `packages/auth` + `packages/database` + `@repo/*` imports; package manager is chosen at init):
 
 1. Env files are per-app (`apps/app/.env.local`, `apps/web/.env.local`, `apps/api/.env.local`) plus `packages/database/.env`.
-2. Run `pnpm migrate` (not `db:push`) — it runs `prisma format` + `prisma generate` + `prisma db push`.
-3. Minimum env vars: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_WEB_URL`, `NEXT_PUBLIC_API_URL`.
-4. Optional services (Stripe, Resend, PostHog, etc.) can be skipped initially — but remove their `@repo/*` imports from app `env.ts` files to avoid validation errors.
+2. Run the `migrate` script with the repo's package manager (not `db:push`) — it runs `prisma format` + `prisma generate` + `prisma migrate dev` and prompts for a migration name.
+3. Minimum env vars: `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_WEB_URL`, `NEXT_PUBLIC_API_URL` (URLs are pre-configured for local dev).
+4. Optional services (Clerk, Stripe, Resend, PostHog, etc.) can be skipped initially — unconfigured integrations are skipped at runtime.
 5. Deploy as 3 separate Vercel projects with root directories `apps/app`, `apps/api`, `apps/web`.
