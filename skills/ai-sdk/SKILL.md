@@ -203,7 +203,7 @@ validate:
     severity: recommended
   -
     pattern: \bCoreMessage\b
-    message: 'CoreMessage was renamed to ModelMessage in AI SDK v6 — use ModelMessage and convertToModelMessages(). Run Skill(ai-sdk) for v6 message type guidance.'
+    message: 'CoreMessage was renamed to ModelMessage in AI SDK 5 (removed in AI SDK 6) — use ModelMessage and convertToModelMessages(). Run Skill(ai-sdk) for v6 message type guidance.'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from CoreMessage to ModelMessage/UIMessage with convertToModelMessages().'
