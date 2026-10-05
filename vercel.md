@@ -675,7 +675,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Browser UI for an eve agent | eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
 | Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
 | Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
-| Agent needs live Vercel state | Vercel MCP Server | Read projects, deployments, logs via MCP |
+| Agent needs live Vercel state | Vercel MCP Server | Inspect projects, deployments, logs, and analytics; deploy and update resources with authorized MCP tools |
 | Multi-platform chat bot (Slack, Teams, Discord, Telegram, etc.) | Chat SDK (`chat` + `@chat-adapter/*`) | Single codebase, unified API, cards, streaming |
 | Chat bot with AI responses | Chat SDK + AI SDK (`thread.post(textStream)`) | Streaming AI across all platforms |
 | UI generation from prompts | v0 | Visual output, GitHub integration |

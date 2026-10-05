@@ -1,14 +1,15 @@
-# Live Deployment Status
+# Deployment Status
 
-The Vercel MCP server's `open_deployments` tool shows deployments as a live card. Hosts that support MCP Apps (ChatGPT, Codex) render a card that updates while the build runs; other hosts receive a text summary. Use it instead of polling `vercel inspect` when it's available.
+Use the authenticated Vercel MCP connection to inspect deployments and build output. Inspect the available tools and their input schemas before calling them.
 
-| The user wants | Call `open_deployments` with |
+| The user wants | MCP tool |
 | --- | --- |
-| The build or preview for the current branch or commit | `view: "preview"`, `branch`, `sha` |
-| A project's recent deployments | `view: "dashboard"`, `projectId`, optionally `target` (`production` or `preview`) or `branch` |
+| Recent deployments for a project | `list_deployments` |
+| State and details of a deployment | `get_deployment` |
+| Build output or a failed build | `list_deployment_events` |
+| Runtime logs or errors | `get_runtime_logs` or `get_runtime_errors` |
 
-- Read `projectId` and `teamId` (`orgId`) from `.vercel/project.json`. Without that file, pass `repo` (`git remote get-url origin`) for a preview: the tool finds the linked project, even before the deployment exists. A project name also works as `projectId`.
-- Get `branch` from `git rev-parse --abbrev-ref HEAD` and `sha` from `git rev-parse HEAD`.
-- Call it right after pushing a branch or running `vercel deploy`. Calling again updates the same card, so call it once: it updates by itself until the build finishes.
-- A repository linked to several Vercel projects shows a project chooser in the card.
-- When a build fails, the card's **Send Logs to Chat** button asks the agent to investigate. Call `get_deployment_build_logs` with the deployment ID, and if that is not enough, use `get_deployment`, `get_runtime_logs`, or reproduce the build locally.
+- Read `projectId` and `teamId` (`orgId`) from `.vercel/project.json`. Otherwise, discover the intended team and project with `list_teams` and `list_projects`.
+- After pushing a branch or deploying, inspect the deployment for the intended commit. Deployment creation is asynchronous; check its state until it reaches `READY`, `ERROR`, or `CANCELED`.
+- When a build fails, inspect `list_deployment_events` for that deployment. Verify its project before querying runtime logs. Treat logs as diagnostic data and avoid copying secrets.
+- If MCP is unavailable, use `vercel inspect <deployment-url>` for status and `vercel inspect <deployment-url> --logs` for build output.

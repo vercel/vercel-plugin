@@ -35,6 +35,15 @@ This plugin gives AI agents a **relational knowledge graph** of the Vercel ecosy
 
 After installing, the plugin keeps automatic behavior lightweight. Session-start activation now only kicks in for empty directories and detected Vercel, Next.js, or eve projects, and Vercel skills are no longer auto-injected on every tool call or every prompt by default. The default post-tool path is now observer-only. The skills remain available for direct use, and the repo still keeps the injection engine for targeted or future opt-in workflows.
 
+## Vercel MCP connection
+
+The bundled `.mcp.json` connects to `https://mcp.vercel.com`. Authenticate and grant
+access to the intended teams before using account tools. MCP supports both reads
+and writes, including inspecting projects and logs, creating deployments, and
+updating resources. Inspect the tools and schemas exposed by your connection.
+Domain registration requires a quote and explicit approval; digital subscriptions,
+credits, and add-on purchases are unavailable through MCP.
+
 ## Components
 
 ### Ecosystem Graph (`vercel.md`)
@@ -46,7 +55,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (32 skills)
+### Skills (33 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -115,7 +124,7 @@ Lifecycle hooks that run automatically during your session:
 After installing, session context is injected automatically only for empty directories and detected Vercel, Next.js, or eve projects. Vercel skills are available on demand, and you can invoke them directly via slash commands:
 
 ```
-/vercel-plugin:nextjs
+/vercel-plugin:build-agents
 /vercel-plugin:ai-sdk
 /vercel-plugin:deploy prod
 ```
@@ -155,7 +164,7 @@ Prompt text, bash commands, tool-call contents, skill arguments, file paths, pro
 
 The plugin reports which of *its own* skills get used so we can see which guidance is valuable and which is not. It is deliberately narrow:
 
-- **Only this plugin's skills are reported.** When the agent loads a skill (for example `/vercel:nextjs`), a `PostToolUse` hook on the `Skill` tool requires the namespace to be this plugin's (`vercel` or `vercel-plugin`) *and* the bare name to exist in the `skills/` or `commands/` directories that ship with it. Anything else — un-namespaced personal skills (`deploy`), other plugins' skills even with the same name (`other-plugin:deploy`), typos — is dropped entirely; nothing is sent, not even an "other" bucket.
+- **Only this plugin's skills are reported.** When the agent loads a skill (for example `/vercel:ai-sdk`), a `PostToolUse` hook on the `Skill` tool requires the namespace to be this plugin's (`vercel` or `vercel-plugin`) *and* the bare name to exist in the `skills/` or `commands/` directories that ship with it. Anything else — un-namespaced personal skills (`deploy`), other plugins' skills even with the same name (`other-plugin:deploy`), typos — is dropped entirely; nothing is sent, not even an "other" bucket.
 - **Only the skill name is sent.** Skill arguments, the tool's response, the prompt that triggered the skill, and anything else in the tool call are never read past the name check and never leave your machine.
 - **No harness identifiers.** Events from one agent session share a random UUID the plugin mints itself and stores in a session-scoped temp file (`<tmpdir>/vercel-plugin-<session>-telemetry-session-id.txt`, removed at session end). Your agent's own session ID is never sent, so skill usage cannot be joined to any other telemetry the agent produces.
 - **Harness category only.** The session-start hook records the detected harness category (`claude-code`, `cursor`, `codex`, `github-copilot`, `kimi`, `grok`, `other`, or `unknown` — the same values as `plugin:agent_harness`) in a session temp file (`<tmpdir>/vercel-plugin-<session>-agent-harness.txt`), and skill events carry it so usage can be broken down per harness. No harness version or raw agent name is sent.
@@ -252,7 +261,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 32 skills
+├── skills/                          # 33 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
@@ -260,11 +269,11 @@ vercel-plugin/
 │   │   │   └── references/          #   Only when the upstream repo ships them
 │   │   ├── SKILL.md                 #   Build output (overlay + upstream)
 │   │   └── references/              #   Copied from upstream at build time (when present)
-│   ├── ai-elements/                 # Plugin-only skill example:
+│   ├── bootstrap/                   # Plugin-only skill example:
 │   │   └── SKILL.md                 #   Entirely ours
 │   └── ...
 ├── agents/                          # 3 specialist agents
-├── commands/                        # 5 slash commands
+├── commands/                        # 4 slash commands
 ├── scripts/
 │   ├── build-skills.ts              # Rules engine: overlay + upstream → SKILL.md
 │   └── build-from-skills.ts         # Resolves {{include:skill:...}} in templates

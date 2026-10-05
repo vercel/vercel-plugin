@@ -3,7 +3,7 @@
     "vercel": {
       "type": "http",
       "url": "https://mcp.vercel.com",
-      "note": "Official Vercel MCP server. Uses OAuth — on first connection the agent will be prompted to authorize via Vercel. Read-only in initial release: search docs, list projects/deployments, inspect logs."
+      "note": "Official Vercel MCP server. Uses OAuth to authorize access to your teams. Supports reads and writes, including documentation search, project and deployment inspection, logs, deployments, and resource updates. Available tools depend on the connection; your team grants and Vercel permissions apply. Domain registration requires a quote and explicit approval. Digital subscriptions, credits, and add-on purchases are unavailable through MCP."
     }
   }
 }

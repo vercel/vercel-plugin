@@ -32,7 +32,7 @@ No destructive operations — this command is read-only.
 
 ### 1. Recent Deployments
 
-If the Vercel MCP server exposes `open_deployments`, call it with `view: "dashboard"`, `teamId` (`orgId`) and `projectId` from `.vercel/project.json` to show a live deployments dashboard. Use its text summary for this section. Otherwise:
+Use MCP `list_deployments` with the intended project and team when available. Inspect its current input schema before calling it. If MCP is unavailable, run:
 
 ```
 vercel ls

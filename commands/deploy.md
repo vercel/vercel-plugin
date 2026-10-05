@@ -87,9 +87,9 @@ git rev-parse --short HEAD
 
 After deployment completes, verify the result:
 
-### Live Status (MCP)
+### Deployment status (MCP)
 
-If the Vercel MCP server exposes `open_deployments`, call it with `view: "preview"`, `teamId` (`orgId`) and `projectId` from `.vercel/project.json`, plus `branch` (`git rev-parse --abbrev-ref HEAD`) and `sha` (`git rev-parse HEAD`). Hosts that support MCP Apps show a live view that updates until the build finishes; use its text summary for the steps below. If the build fails, the view's **Send Logs to Chat** button asks the agent to investigate with `get_deployment_build_logs`.
+Use `list_deployments` to find the deployment for the intended project and commit, then `get_deployment` to inspect its state. For a failed build, use `list_deployment_events`. Inspect the tools and input schemas exposed by the authenticated connection before calling them.
 
 ### 1. Inspect the Deployment
 
