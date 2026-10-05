@@ -216,11 +216,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="en">
+      <body>
+        <ClerkProvider>{children}</ClerkProvider>
+      </body>
+    </html>
   );
 }
 ```
@@ -561,8 +561,8 @@ Required environment variables:
 
 ```env
 AUTH0_SECRET=<random-secret>
-AUTH0_BASE_URL=http://localhost:3000
-AUTH0_ISSUER_BASE_URL=https://your-tenant.auth0.com
+APP_BASE_URL=http://localhost:3000
+AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
 ```
@@ -615,7 +615,7 @@ Passport protects whole deployments behind your own OIDC identity provider (Okta
 
 ### Vercel KMS (managed signing keys)
 
-KMS signs JWTs and messages with keys that never leave Vercel. Create an issuer in the team's Key Management settings, install `@vercel/kms`, and call `signToken({ issuerId, claims, ttl })` inside a route handler or Server Component; the function's OIDC token authorizes the request automatically. Relying parties verify against the published JWKS at `https://kms.vercel.com/<issuerId>/jwks.json`. Use it instead of storing private signing keys in environment variables. Docs: https://vercel.com/docs/kms
+KMS signs JWTs and messages with keys that never leave Vercel. Create an issuer in the team's Key Management settings, install `@vercel/kms`, and call `signJWT({ issuerId, claims, ttl })` (resolves to `{ token, keyId, algorithm, fingerprint }`; `@vercel/kms` 0.3.0+, `signToken` is deprecated) inside a route handler or Server Component; the function's OIDC token authorizes the request automatically. Relying parties verify against the published JWKS at `https://kms.vercel.com/<issuerId>/jwks.json`. Use it instead of storing private signing keys in environment variables. Docs: https://vercel.com/docs/kms
 
 ## Decision Matrix
 
