@@ -84,7 +84,7 @@ await cache.set('user:123', userData, {
   name: 'user-profile',           // human-readable label for observability
 });
 
-// Retrieve cached data (returns value or undefined)
+// Retrieve cached data (returns value or null)
 const data = await cache.get('user:123');
 
 // Delete a specific key
@@ -100,7 +100,7 @@ await cache.expireTag(['users', 'user:123']); // multiple tags
 ```ts
 const cache = getCache({
   namespace: 'api',                    // prefix for keys
-  namespaceSeparator: ':',             // separator (default)
+  namespaceSeparator: '$',             // separator (default)
   keyHashFunction: (key) => sha256(key), // custom key hashing
 });
 ```
