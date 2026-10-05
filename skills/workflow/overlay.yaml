@@ -349,7 +349,7 @@ validate:
     skipIfFileContains: "use step"
   -
     pattern: streamObject\s*\(
-    message: 'streamObject() was removed in AI SDK v6 — use streamText() with output: Output.object() instead'
+    message: 'streamObject() is deprecated since AI SDK 6 — use streamText() with output: Output.object() instead'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from streamObject to streamText + Output.object() with correct v6 streaming patterns.'

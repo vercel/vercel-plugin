@@ -849,7 +849,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 | Deprecated | Replacement | Migration Path |
 |-----------|-------------|----------------|
-| `@vercel/postgres` | `@neondatabase/serverless` | Use `@neondatabase/vercel-postgres-compat` for drop-in |
+| `@vercel/postgres` | `@neondatabase/serverless` | Switch queries to `neon()` from `@neondatabase/serverless` |
 | `@vercel/kv` | `@upstash/redis` | Same billing, direct replacement |
 | `middleware.ts` (Next.js 16) | `proxy.ts` | Rename file, Node.js runtime only |
 | `experimental.turbopack` | `turbopack` (top-level) | Move config in next.config |
@@ -871,7 +871,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | `agent.generateText()` | `agent.generate()` | Simplified Agent API |
 | `agent.streamText()` | `agent.stream()` | Simplified Agent API |
 | `isLoading` (useChat) | `status === "streaming" \|\| status === "submitted"` | v6 status enum |
-| `onResponse()` callback | Transport configuration | Removed in v6 |
+| `onResponse()` callback | Transport configuration | Removed in AI SDK 5 |
 | `body` option (useChat) | Pass data through transport | v6 transport pattern |
 | DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
 | `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
@@ -913,10 +913,10 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 - **For AI projects, set up a Vercel project first** — run `vercel link` (or create via dashboard) → enable AI Gateway in dashboard → `vercel env pull` to get OIDC credentials locally. Do NOT manually create `.env.local` with provider-specific API keys like `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 - **AI Elements is MANDATORY for all AI-generated text** — `npx ai-elements@latest` must be installed immediately after scaffolding. Never render AI text as raw `{text}` or `<p>{content}</p>` — it shows ugly `**`, `##`, `---`. Use `<Message>` for chat with `useChat`, and `<MessageResponse>` (from `@/components/ai-elements/message`) for any other AI markdown (workflow events, reports, briefings, notifications, email previews). `<MessageResponse>` wraps Streamdown with code highlighting, math, mermaid, and CJK plugins.
-- **Server-side: use `convertToModelMessages()` (async) + `toUIMessageStreamResponse()`** — not `toDataStreamResponse()`. Client-side: use `DefaultChatTransport` with `useChat`, not the v5 `api` parameter.
+- **Server-side: use `convertToModelMessages()` (async) + `toUIMessageStreamResponse()`** — not `toDataStreamResponse()`. Client-side: use `DefaultChatTransport` with `useChat`, not the v4 `api` parameter.
 - Use `inputSchema` (not `parameters`) and `output`/`outputSchema` (not `result`) for tool definitions — aligned with MCP spec.
 - Always stream for user-facing AI: use `streamText` + `useChat`, not `generateText`.
-- `generateObject` and `streamObject` are removed in v6 — use `generateText` / `streamText` with `Output.object()` instead.
+- `generateObject` and `streamObject` are deprecated since AI SDK 6 — use `generateText` / `streamText` with `Output.object()` instead.
 - **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
 - Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@latest`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
