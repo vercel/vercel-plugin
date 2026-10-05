@@ -170,7 +170,7 @@ await send('orders', payload, {
   region: 'sfo1',            // target a specific region
   retentionSeconds: 3600,    // message TTL; min 60, max 604800 (7 days); default 24 hours
   delaySeconds: 60,          // delay first delivery; max 7 days, capped at the TTL
-  idempotencyKey: 'order-123', // duplicates within the retention window are dropped
+  idempotencyKey: 'order-123', // duplicates within min(retention, 24 hours) are dropped
   headers: { 'x-trace-id': 'abc-123' },
 });
 ```
@@ -192,7 +192,7 @@ export const { send, handleCallback } = queue;
 | Option | Default | Notes |
 |--------|---------|-------|
 | `visibilityTimeoutSeconds` | 300 | How long a message stays in flight; the SDK re-extends the lease while the handler runs |
-| `retry` | built-in backoff | `(error, metadata) => { afterSeconds } \| { acknowledge: true } \| undefined` |
+| `retry` | trigger `retryAfterSeconds` (60s) | `(error, metadata) => { afterSeconds } \| { acknowledge: true } \| undefined` |
 
 Handle poison messages by acknowledging after a delivery-count threshold:
 
@@ -224,7 +224,7 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 
 1. **Missing trigger**: a `handleCallback` route with no `experimentalTriggers` entry never receives messages. Register every consumer in `vercel.json`/`vercel.ts`.
 2. **Non-idempotent handlers**: delivery is at-least-once. Key side effects on `metadata.messageId` or your own `idempotencyKey`.
-3. **Retrying forever**: without a `retry` policy that acknowledges poison messages, a permanently failing message is redelivered until it expires.
+3. **Retrying forever**: without a `retry` policy that acknowledges poison messages or a trigger `maxDeliveries` cap, a permanently failing message is redelivered until it expires.
 4. **Using Queues for multi-step logic**: if you need sleep, hooks, or approvals between steps, use Workflows instead of chaining topics by hand.
 5. **Local dev without credentials**: run `vercel link` and `vercel env pull` first; otherwise `send()` throws `Failed to get OIDC token for local development`.
 
