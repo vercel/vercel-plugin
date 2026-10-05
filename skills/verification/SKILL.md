@@ -141,7 +141,7 @@ Trace the feature's data path from trigger to completion:
 1. **UI trigger** — What user action initiates the flow? (button click, page load, form submit)
 2. **Client → Server** — What request is made? Check the fetch/action call, verify the URL, method, and payload match the API route
 3. **API route handler** — Read the route file. Does it handle the method? Does it validate input? Does it call the right service/database?
-4. **External dependencies** — If the route calls a database, third-party API, or Vercel service (KV, Blob, Postgres, AI SDK): verify the client is initialized, credentials are present, and the call shape matches the SDK docs
+4. **External dependencies** — If the route calls a database, third-party API, or Vercel service (Blob, Marketplace storage, AI SDK): verify the client is initialized, credentials are present, and the call shape matches the SDK docs
 5. **Response → UI** — Does the response format match what the client expects? Is error handling present on both sides?
 
 At each boundary, check for these common breaks:
