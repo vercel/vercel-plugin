@@ -561,7 +561,7 @@ Required environment variables:
 
 ```env
 AUTH0_SECRET=<random-secret>
-APP_BASE_URL=http://localhost:3000
+APP_BASE_URL=http://localhost:3000   # optional: omit on Vercel previews and the SDK infers it from the request host
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
