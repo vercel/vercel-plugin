@@ -393,9 +393,9 @@ The `sandbox` CLI (also `vercel sandbox`) mirrors the SDK, Docker-style:
 ```bash
 sandbox create --name my-box              # create (persistent; --non-persistent to opt out)
 sandbox exec my-box -- npm test           # run a command in a named sandbox (resumes if stopped)
-sandbox run -- node --version             # create an ephemeral box, run once
+sandbox run --rm -- node --version        # one-off: create, run, then delete (--rm); without it the box persists
 sandbox connect my-box                    # interactive shell (aliases: ssh, shell)
-sandbox copy ./local my-box:/remote       # copy files (alias: cp)
+sandbox copy ./local my-box:/remote       # copy one file; dest is the full path (alias: cp)
 sandbox list                              # list sandboxes (alias: ls)
 sandbox drives get-or-create cache        # create a drive
 sandbox stop my-box
