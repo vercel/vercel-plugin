@@ -121,39 +121,39 @@ validate:
     upgradeWhy: 'Guides migration from Experimental_Agent to ToolLoopAgent/Agent class with correct v6 patterns.'
   -
     pattern: toDataStreamResponse
-    message: 'toDataStreamResponse() was renamed in v6 — use toUIMessageStreamResponse() for chat UIs or toTextStreamResponse() for text-only clients. Run Skill(ai-sdk) for v6 streaming response guidance.'
+    message: 'toDataStreamResponse() was renamed in AI SDK 5 — use toUIMessageStreamResponse() for chat UIs or toTextStreamResponse() for text-only clients (deprecated in AI SDK 7: use createUIMessageStreamResponse() with toUIMessageStream(), or createTextStreamResponse() with toTextStream()). Run Skill(ai-sdk) for v6 streaming response guidance.'
     severity: recommended
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from toDataStreamResponse to toUIMessageStreamResponse/toTextStreamResponse with correct server-side patterns.'
     skipIfFileContains: toUIMessageStreamResponse|toTextStreamResponse
   -
     pattern: '\bmaxSteps\s*:'
-    message: 'maxSteps was removed in AI SDK v6 — use stopWhen: isStepCount(N) instead (import isStepCount from ai; stepCountIs in AI SDK 6). Run Skill(ai-sdk) for migration guidance.'
+    message: 'maxSteps was removed in AI SDK 5 — use stopWhen: isStepCount(N) instead (import isStepCount from ai; stepCountIs in AI SDK 5–6). Run Skill(ai-sdk) for migration guidance.'
     severity: recommended
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides the migration from maxSteps to stopWhen: isStepCount(N) with correct imports and patterns.'
     skipIfFileContains: stepCountIs|isStepCount
   -
     pattern: useChat\([^)]*\bonResponse\b
-    message: 'onResponse was removed from useChat in v6 — configure response handling through transport'
+    message: 'onResponse was removed from useChat in AI SDK 5 — configure response handling through transport'
     severity: recommended
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from onResponse callback to v6 transport configuration pattern.'
   -
     pattern: 'useChat\(\{\s*api\s*:'
-    message: 'useChat({ api }) is v5 syntax — use useChat({ transport: new DefaultChatTransport({ api }) }) in v6. Run Skill(ai-sdk) for v6 useChat transport guidance.'
+    message: 'useChat({ api }) is v4 syntax — use useChat({ transport: new DefaultChatTransport({ api }) }) in AI SDK 5+. Run Skill(ai-sdk) for v6 useChat transport guidance.'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from useChat({ api }) to the v6 transport pattern with DefaultChatTransport.'
   -
     pattern: 'useChat\([^)]*\bbody\s*:'
-    message: 'body option was removed from useChat in v6 — pass data through transport configuration'
+    message: 'body option was removed from useChat in AI SDK 5 — pass data through transport configuration'
     severity: recommended
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from useChat body option to v6 transport configuration for passing custom data.'
   -
     pattern: 'tool\(\{[^}]*\bparameters\s*:'
-    message: 'parameters was renamed in v6 — use inputSchema instead. Run Skill(ai-sdk) for v6 tool definition guidance.'
+    message: 'parameters was renamed in AI SDK 5 — use inputSchema instead. Run Skill(ai-sdk) for v6 tool definition guidance.'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from parameters to inputSchema/outputSchema aligned with the MCP spec.'
@@ -203,7 +203,7 @@ validate:
     severity: recommended
   -
     pattern: \bCoreMessage\b
-    message: 'CoreMessage was renamed to ModelMessage in AI SDK v6 — use ModelMessage and convertToModelMessages(). Run Skill(ai-sdk) for v6 message type guidance.'
+    message: 'CoreMessage was renamed to ModelMessage in AI SDK 5 (removed in AI SDK 6) — use ModelMessage and convertToModelMessages(). Run Skill(ai-sdk) for v6 message type guidance.'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from CoreMessage to ModelMessage/UIMessage with convertToModelMessages().'
@@ -221,7 +221,7 @@ validate:
     upgradeWhy: 'Guides migration from agent.streamText() to agent.stream() with correct v6 Agent class patterns.'
   -
     pattern: \bhandleSubmit\b
-    message: 'handleSubmit was removed from useChat in v6 — use sendMessage({ text }) instead'
+    message: 'handleSubmit was removed from useChat in AI SDK 5 — use sendMessage({ text }) instead'
     severity: recommended
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from handleSubmit to sendMessage({ text }) with the v6 useChat API.'
@@ -235,21 +235,21 @@ validate:
     skipIfFileContains: Output\.object
   -
     pattern: tool-invocation
-    message: 'tool-invocation part type was removed in AI SDK v6 — use tool-<toolName> pattern (e.g. tool-weather) instead'
+    message: 'tool-invocation part type was removed in AI SDK 5 — use tool-<toolName> pattern (e.g. tool-weather) instead'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from tool-invocation to the v6 tool-<toolName> part type pattern.'
     skipIfFileContains: "tool-<"
   -
     pattern: \bisLoading\b
-    message: 'isLoading was removed from useChat in v6 — use status === "streaming" || status === "submitted" instead'
+    message: 'isLoading was removed from useChat in AI SDK 5 — use status === "streaming" || status === "submitted" instead'
     severity: recommended
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from isLoading to the v6 status enum pattern for useChat state management.'
     skipIfFileContains: \bstatus\b
   -
     pattern: message\.content\b
-    message: 'message.content is deprecated in AI SDK v6 — use message.parts to iterate UIMessage parts instead'
+    message: 'message.content was replaced by parts in AI SDK 5 — use message.parts to iterate UIMessage parts instead'
     severity: recommended
     skipIfFileContains: message\.parts
   -
@@ -308,7 +308,7 @@ chainTo:
   -
     pattern: 'toDataStreamResponse'
     targetSkill: ai-gateway
-    message: 'v5 streaming response API detected — loading AI Gateway guidance for model routing with toUIMessageStreamResponse().'
+    message: 'v4 streaming response API (toDataStreamResponse) detected — loading AI Gateway guidance for model routing with toUIMessageStreamResponse().'
     skipIfFileContains: 'toUIMessageStreamResponse|@ai-sdk/gateway|gateway\('
 ---
 
