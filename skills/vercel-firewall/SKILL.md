@@ -281,17 +281,17 @@ vercel firewall discard --yes             # throw away drafts
 
 ## Querying firewall traffic from the CLI
 
-`vercel firewall traffic list` and `vercel firewall traffic inspect` are the built-in way to analyze firewall activity without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work. Unlike generic `vc metrics` queries, these succeed on every plan for the last 24 hours; **Observability Plus** only extends the retention window to 30 days.
+`vercel firewall traffic list` and `vercel firewall traffic inspect` are the built-in way to analyze firewall activity without leaving the terminal — useful for the "review traffic" step in the staged rollout, or for spotting which rules are doing real work. Unlike generic `vc metrics` queries, these succeed on every team plan for the last 24 hours; **Observability Plus** only extends the retention window to 30 days.
 
 ```bash
-vercel firewall traffic list --since 3d --json
+vercel firewall traffic list --since 24h --json   # beyond your plan's retention needs Observability Plus
 vercel firewall traffic list --action deny --dimension rule --json
 ```
 
 - `traffic list` reports requests by action plus top lists across 10 dimensions: `ip`, `ja4`, `asn`, `user-agent`, `path`, `rule`, `host`, `bot`, `country`, `action`. Use `--dimension` to choose which top lists to include.
 - `traffic inspect <dimension> <value>` (e.g. `vercel firewall traffic inspect rule rule_abc123 --group-by ip`) drills into one value with a breakdown by a second dimension.
 - `--since`/`--until` accept `1h`, `24h`, `3d`, `7d`, etc., or an ISO date; `--json` is best for programmatic review.
-- A window entirely before your plan's retention returns an error asking you to shorten it or add Observability Plus.
+- `--since` must fall inside your plan's retention, or the query requires Observability Plus. Shortening the window with `--until` does not help if `--since` is already too far back.
 
 For an **active-attack triage** lens — "is something happening right now?" — narrow the window:
 
