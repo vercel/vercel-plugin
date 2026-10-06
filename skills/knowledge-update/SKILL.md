@@ -95,7 +95,7 @@ export const config: VercelConfig = {
 ## Next.js
 
 - **Next.js ships version-matched docs in the `next` package.** Read the relevant page in `node_modules/next/dist/docs/` before writing Next.js code instead of relying on remembered APIs. On Next.js 16.3+, `next dev` writes `AGENTS.md` / `CLAUDE.md` rules that point there. On 16.2 the docs are bundled but `AGENTS.md` is not generated. On 16.1 and earlier, run `npx @next/codemod@canary agents-md` to download the docs to `.next-docs/`. https://nextjs.org/docs/app/guides/ai-agents
-- **Upgrade with `next upgrade`** (Next.js 16.1+) or `npx @next/codemod@canary upgrade latest` on earlier versions. Migration guides ship in the bundled docs. https://nextjs.org/docs/app/getting-started/upgrading
+- **Upgrade only when requested.** Follow the official migration guide for the requested release. If the user asks for latest, resolve the current stable release to an exact version first. Check Next.js, React, React DOM, and TypeScript type compatibility, and update only dependencies needed in the affected app. Use prereleases only when requested. Preview only the required documented codemods on the smallest applicable app path, review the diff, then apply those transforms. Avoid blanket transforms or workspace-wide upgrades. Migration guides ship in the bundled docs. https://nextjs.org/docs/app/getting-started/upgrading
 - **Official Next.js skills cover workflows, not reference knowledge**: `next-dev-loop`, `next-cache-components-adoption`, `next-cache-components-optimizer`, and the Partial Prefetching skills. Install with `npx skills add vercel/next.js --skill <name>`; propose them before installing.
 
 ## Integrations on Vercel

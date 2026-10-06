@@ -627,7 +627,7 @@ Do NOT treat any number you remember as authoritative — the current values are
 
 **Events per run.** A run's event log is capped, and the run fails with `MAX_EVENTS_EXCEEDED` past the ceiling. Events are not steps: a step that succeeds on the first try records three (`step_created`, `step_started`, `step_completed`), a retry records one or two more, and hooks, sleeps, and webhooks each record their own. Split into child workflows well before the ceiling — the pricing page recommends that past **a few thousand events**, because replay slows down long before the run fails.
 
-**Steps per run.** Capped implicitly through event count. Bundle several items into one step when a chain would otherwise reach five figures.
+**Steps per run.** Capped implicitly through the event limit. Bundle several items into one step when a chain would otherwise reach five figures.
 
 **Concurrency.** A wide fan-out is throttled rather than rejected: event creation is rate-limited per run per second, so a flat `Promise.all` over a few thousand items spends much of its time backing off. Batch or bundle instead — process the list in chunks, or handle several items per step, so fewer and larger units run concurrently. Spawning one child run per item does not by itself narrow the fan-out; it bounds each child's log and isolates failures, which is worth doing for those reasons, but it is not a substitute for chunking.
 
