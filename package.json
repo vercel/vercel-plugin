@@ -18,7 +18,8 @@
     "typecheck": "tsc -p hooks/tsconfig.json --noEmit",
     "test": "bun run typecheck && bun test",
     "test:update-snapshots": "UPDATE_SNAPSHOTS=1 bun test tests/snapshot-runner.test.ts",
-    "playground:generate": "bun run .playground/generate-all.ts"
+    "playground:generate": "bun run .playground/generate-all.ts",
+    "build:openai": "bun run scripts/build-openai.ts"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.70",

@@ -46,6 +46,19 @@ credits, and add-on purchases are unavailable through MCP.
 
 ## Components
 
+### OpenAI submission build
+
+Run `bun run build:openai` to generate `dist/openai/vercel/` and
+`dist/openai/vercel-<version>.zip` from this repository. CI builds and uploads
+the ZIP as the `vercel-openai` artifact after the tests pass.
+
+`openai/` contains the OpenAI manifest, display metadata, icons, and submission
+adaptations. Runtime skills and workflow references come from the normal source
+tree; no separate fork is needed. Hooks, app manifests, unsupported framework
+skills, and authoring files are excluded. Content adaptations are applied only
+to the generated package. Conflicting source edits fail the build so the
+adaptations can be reviewed rather than silently dropped.
+
 ### Ecosystem Graph (`vercel.md`)
 
 A text-form relational graph covering:

@@ -1,0 +1,145 @@
+{
+  "excludedSkills": [
+    "nextjs",
+    "next-upgrade",
+    "next-cache-components",
+    "turbopack",
+    "shadcn",
+    "next-forge"
+  ],
+  "skillInterfaces": {
+    "access-protected-vercel-deployment": {
+      "display_name": "Protected Deployments",
+      "short_description": "Access protected Vercel deployments"
+    },
+    "ai-gateway": {
+      "display_name": "AI Gateway",
+      "short_description": "Vercel AI Gateway expert guidance"
+    },
+    "ai-sdk": {
+      "display_name": "AI SDK",
+      "short_description": "Vercel AI SDK expert guidance"
+    },
+    "auth": {
+      "display_name": "Auth",
+      "short_description": "Authentication integration guidance — Clerk (native Vercel Marketplace), Descope, and Auth0 setup for Next...."
+    },
+    "bootstrap": {
+      "display_name": "Bootstrap",
+      "short_description": "Project bootstrapping orchestrator for repos that depend on Vercel-linked resources (databases, auth, and m..."
+    },
+    "build-agents": {
+      "display_name": "Build Agents",
+      "short_description": "Build AI agents and agent applications"
+    },
+    "cdn-caching": {
+      "display_name": "CDN Caching",
+      "short_description": "Vercel CDN caching and cache debugging expert guidance"
+    },
+    "chat-sdk": {
+      "display_name": "Chat Sdk",
+      "short_description": "Vercel Chat SDK expert guidance"
+    },
+    "create-a-backend": {
+      "display_name": "Vercel Backends",
+      "short_description": "Choose the right Vercel backend products",
+      "default_prompt": "Use $create-a-backend to plan and build a backend on Vercel."
+    },
+    "custom-metrics": {
+      "display_name": "Custom Metrics",
+      "short_description": "Emit and inspect custom Vercel metrics"
+    },
+    "deployments-cicd": {
+      "display_name": "Deployments Cicd",
+      "short_description": "Vercel deployment and CI/CD expert guidance"
+    },
+    "domains": {
+      "display_name": "Vercel Domains",
+      "short_description": "Manage domains and DNS on Vercel"
+    },
+    "env-vars": {
+      "display_name": "Env Vars",
+      "short_description": "Vercel environment variable expert guidance"
+    },
+    "eve": {
+      "display_name": "Eve",
+      "short_description": "Durable AI agents with the eve framework"
+    },
+    "flags-sdk": {
+      "display_name": "Flags SDK",
+      "short_description": "Add feature flags with the Flags SDK"
+    },
+    "is-agentic": {
+      "display_name": "Is Agentic",
+      "short_description": "Check a website’s readiness for AI agents"
+    },
+    "knowledge-update": {
+      "display_name": "Knowledge Update",
+      "short_description": "Corrects outdated LLM knowledge about the Vercel platform"
+    },
+    "marketplace": {
+      "display_name": "Marketplace",
+      "short_description": "Vercel Marketplace expert guidance — discovering, installing, and building integrations, auto-provisioned e..."
+    },
+    "microfrontends": {
+      "display_name": "Microfrontends",
+      "short_description": "Vercel Microfrontends expert guidance"
+    },
+    "queues": {
+      "display_name": "Vercel Queues",
+      "short_description": "Build durable queues on Vercel"
+    },
+    "react-best-practices": {
+      "display_name": "React Best Practices",
+      "short_description": "React best-practices reviewer for TSX files"
+    },
+    "routing-middleware": {
+      "display_name": "Routing Middleware",
+      "short_description": "Vercel Routing Middleware guidance — request interception before cache, rewrites, redirects, personalization"
+    },
+    "runtime-cache": {
+      "display_name": "Runtime Cache",
+      "short_description": "Vercel Runtime Cache API guidance — ephemeral per-region key-value cache with tag-based invalidation"
+    },
+    "vercel-agent": {
+      "display_name": "Vercel Agent",
+      "short_description": "Vercel Agent guidance — AI-powered code review, incident investigation, and SDK installation"
+    },
+    "vercel-cli": {
+      "display_name": "Vercel Cli",
+      "short_description": "Vercel CLI expert guidance"
+    },
+    "vercel-connect": {
+      "display_name": "Vercel Connect",
+      "short_description": "Scoped OAuth tokens for third-party services via Vercel OIDC"
+    },
+    "vercel-firewall": {
+      "display_name": "Vercel Firewall",
+      "short_description": "Vercel Firewall and security expert guidance"
+    },
+    "vercel-functions": {
+      "display_name": "Vercel Functions",
+      "short_description": "Vercel Functions expert guidance — Serverless Functions, Edge Functions, Fluid Compute, streaming, Cron Job..."
+    },
+    "vercel-sandbox": {
+      "display_name": "Vercel Sandbox",
+      "short_description": "Vercel Sandbox guidance — ephemeral Firecracker microVMs for running untrusted code safely"
+    },
+    "vercel-services": {
+      "display_name": "Vercel Services",
+      "short_description": "Vercel Services — deploy multiple services within a single Vercel project"
+    },
+    "vercel-storage": {
+      "display_name": "Vercel Storage",
+      "short_description": "Vercel storage expert guidance — Blob, Edge Config, and Marketplace storage (Neon Postgres, Upstash Redis)"
+    },
+    "verification": {
+      "display_name": "Verification",
+      "short_description": "Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: bro..."
+    },
+    "workflow": {
+      "display_name": "Workflow",
+      "short_description": "Vercel Workflow DevKit (WDK) expert guidance"
+    }
+  }
+}
