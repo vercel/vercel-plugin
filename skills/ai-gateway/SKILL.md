@@ -165,7 +165,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | --- | --- |
 | `api-keys create/list/inspect/remove` | Create and manage AI Gateway API keys, with budgets, spend alerts, expiry, and restriction exemptions |
 | `budgets set/list/inspect/remove` | Set metered spend limits for the team, a project, a user, or an API key |
-| `budgets defaults set/list/remove` | Set per-scope default limits covering projects, keys, or members without a custom budget |
+| `budgets set/inspect/remove --default`, `budgets list --defaults` | Set per-scope default limits covering projects, keys, or members without a custom budget. Needs CLI 59.13+; the older `budgets defaults` group is deprecated |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
 | `virtual-models create/list/inspect/edit/remove/restore` | Manage reusable, team-scoped model configurations addressed as `vmc/<slug>` |
 | `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `/v1/ai-gateway/rules` |
@@ -256,7 +256,7 @@ Only spend credits, create keys, change budgets, change routing rules, or write 
 - `order` controls provider preference, `only` restricts providers, and `sort` ranks providers by a supported metric.
 - `models` lists fallback models after the primary model.
 - `caching: 'auto'` manages provider prompt-cache markers. It is not an HTTP response cache.
-- `providerTimeouts` applies to BYOK provider attempts and measures time until the provider starts responding.
+- `providerTimeouts` applies to BYOK provider attempts. Streaming requests clear it at the first stream chunk; non-streaming requests time the complete response.
 - A reasoning entry in `providerOptions` overrides the AI SDK top-level `reasoning` value entirely; the two never merge.
 - `user` and `tags` attach reporting dimensions. They do not create per-user rate limits.
 - Request-scoped provider credentials belong under `providerOptions.gateway.byok` and must remain secret.

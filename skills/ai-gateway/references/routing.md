@@ -202,7 +202,7 @@ Docs: <https://vercel.com/docs/ai-gateway/authentication-and-byok/byok>
 
 ## Provider timeouts
 
-Provider timeouts currently apply to BYOK provider attempts and measure time until the provider starts responding. Values are milliseconds from 1,000 through 789,000.
+Provider timeouts currently apply to BYOK provider attempts. Values are milliseconds from 1,000 through 789,000.
 
 ```ts
 providerOptions: {
@@ -217,7 +217,7 @@ providerOptions: {
 },
 ```
 
-Once the first token arrives, including a reasoning token, the timeout is cleared. Some providers may continue billing a timed-out request if stream cancellation is unsupported.
+For streaming requests, the timeout clears at the first stream chunk; for non-streaming requests, it runs until the provider returns the complete response. Some providers may continue billing a timed-out request if stream cancellation is unsupported.
 
 Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/provider-timeouts>
 
