@@ -500,8 +500,6 @@ Install via Vercel Marketplace: `vercel integration add turso`
 
 ```
 
-**Drop-in replacement**: For minimal migration effort, use `@neondatabase/vercel-postgres-compat` which provides API-compatible wrappers for `@vercel/postgres` imports.
-
 ### From @vercel/kv → Upstash Redis
 ```diff
 - import { kv } from '@vercel/kv'
