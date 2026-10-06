@@ -25,7 +25,7 @@ describe("OpenAI submission build", () => {
     writeFileSync(join(fixture, ".env"), "local data that must not be packaged");
     const result = buildOpenAI(fixture);
     expect(result.skills).toBe(33);
-    expect(result.files).toBe(204);
+    expect(result.files).toBe(201);
     const entries = execFileSync("unzip", ["-Z1", result.zip], { encoding: "utf8" }).trim().split("\n");
     expect(entries).toHaveLength(result.files);
     expect(entries).toContain("vercel/.codex-plugin/plugin.json");

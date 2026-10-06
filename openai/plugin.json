@@ -12,7 +12,7 @@
       "Write"
     ],
     "category": "Developer Tools",
-    "composerIcon": "./assets/composer-icon.png",
+    "composerIcon": "./assets/logo.png",
     "defaultPrompt": [
       "Audit this repo for Vercel deployment risks",
       "Which Vercel tools fit this app best",
