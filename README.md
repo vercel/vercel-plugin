@@ -297,7 +297,7 @@ vercel-plugin/
 ## Build Pipeline
 
 ```bash
-bun run build          # Runs all 3 stages in order
+bun run build:all      # Runs all 3 stages in order
 bun run build:skills   # Stage 1: Merge overlay + upstream → SKILL.md
 bun run build:hooks    # Stage 2: Compile hook TypeScript → .mjs
 bun run build:from-skills # Stage 3: Resolve template includes

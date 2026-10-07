@@ -5,7 +5,7 @@
 - **Build hooks**: `bun run build:hooks` (compiles `hooks/src/*.mts` → `hooks/*.mjs` via tsup)
 - **Build from skills**: `bun run build:from-skills` (compiles `*.md.tmpl` → `*.md` by resolving `{{include:skill:…}}` markers)
 - **Check from skills**: `bun run build:from-skills:check` (verify generated `.md` files are up-to-date; exits non-zero on drift)
-- **Build all**: `bun run build` (skills + hooks + from-skills)
+- **Build all**: `bun run build:all` (skills + hooks + from-skills). It is not named `build`: npm then "prepares" Git installs, which breaks `opencode plugin add github:vercel/vercel-plugin`
 - **Test**: `bun test` (typecheck + 42 test files)
 - **Single test**: `bun test tests/<file>.test.ts`
 - **Typecheck only**: `bun run typecheck` (tsc on hooks/tsconfig.json)
@@ -16,7 +16,7 @@
 
 Run `bun run build:hooks` after editing any `.mts` file. A pre-commit hook auto-compiles when `.mts` files are staged.
 
-Run `bun run build:from-skills` after editing any skill referenced by a `.md.tmpl` template. The `build` script includes this step automatically.
+Run `bun run build:from-skills` after editing any skill referenced by a `.md.tmpl` template. The `build:all` script includes this step automatically.
 
 ## Architecture
 
