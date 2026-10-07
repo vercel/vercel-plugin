@@ -94,7 +94,6 @@ function createDeps(overrides: Record<string, unknown> = {}) {
       calls.cliChecks += 1;
       return { installed: true, currentVersion: "62.0.0", latestVersion: "62.0.0", needsUpdate: false };
     },
-    isVercelCliOnPath: () => true,
     cliStatusWaitMs: 50,
     refreshActiveSessionMarker: () => {
       calls.marker += 1;
@@ -143,19 +142,11 @@ function makeDir(name: string, files: Record<string, string> = {}): string {
 const nextPackageJson = JSON.stringify({ dependencies: { next: "16.0.0" } });
 
 describe("OpenCode package contract", () => {
-  test("package.json exports the compiled OpenCode entry", () => {
+  test("package.json exports an OpenCode 2 plugin definition", async () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
-    expect(pkg.exports["."]).toBe("./hooks/opencode-plugin.mjs");
-  });
-
-  test("default export is an OpenCode 2 plugin definition", () => {
-    expect(plugin.default.id).toBe("vercel-plugin");
-    expect(typeof plugin.default.setup).toBe("function");
-  });
-
-  test("compiled entry exports match the source", async () => {
-    const source = await import(join(ROOT, "hooks", "src", "opencode-plugin.mts"));
-    expect(Object.keys(plugin).sort()).toEqual(Object.keys(source).sort());
+    const entry = await import(join(ROOT, pkg.exports["."]));
+    expect(entry.default.id).toBe("vercel-plugin");
+    expect(typeof entry.default.setup).toBe("function");
   });
 });
 
@@ -213,10 +204,17 @@ describe("commands", () => {
     expect(sent.text.startsWith("---")).toBe(false);
   });
 
-  test("renderOpenCodeCommand fills $ARGUMENTS or appends arguments", () => {
-    expect(plugin.renderOpenCodeCommand("Deploy $ARGUMENTS now ($ARGUMENTS)", "  prod ")).toBe("Deploy prod now (prod)");
-    expect(plugin.renderOpenCodeCommand("Show status.", "verbose")).toBe("Show status.\n\nverbose");
-    expect(plugin.renderOpenCodeCommand("Show status.", "   ")).toBe("Show status.");
+  test("a command without $ARGUMENTS gets its arguments appended, like OpenCode markdown commands", async () => {
+    const fake = createFakeContext();
+    await plugin.createOpenCodePlugin(createDeps().deps).setup(fake.ctx);
+    const status = fake.commands.get("vercel:status");
+
+    await status.execute({ sessionID: "ses_1", prompt: { text: " verbose " }, delivery: "steer" });
+    await status.execute({ sessionID: "ses_1", prompt: { text: "" }, delivery: "steer" });
+
+    const [withArgs, withoutArgs] = fake.prompts.map((sent) => sent.text as string);
+    expect(withArgs).toBe(`${withoutArgs}\n\nverbose`);
+    expect(withoutArgs).toContain("# Vercel Project Status");
   });
 });
 
@@ -258,16 +256,20 @@ describe("MCP", () => {
     expect(fake.mcp.get("vercel")).toEqual(userServer);
   });
 
-  test("translates stdio servers to OpenCode local servers", () => {
+  test("translates stdio servers and skips transports OpenCode lacks", async () => {
     const root = makeDir("plugin-root", {
       ".mcp.json": JSON.stringify({
         mcpServers: {
           local: { command: "node", args: ["server.js"], env: { A: "1" } },
+          legacy: { type: "sse", url: "https://example.com/sse" },
           unknown: { type: "websocket", url: "wss://example.com" },
         },
       }),
     });
-    expect(plugin.loadOpenCodeMcpServers(root)).toEqual([
+    const fake = createFakeContext();
+    await plugin.createOpenCodePlugin(createDeps({ root }).deps).setup(fake.ctx);
+
+    expect([...fake.mcp.entries()]).toEqual([
       ["local", { type: "local", command: ["node", "server.js"], environment: { A: "1" } }],
     ]);
   });
@@ -330,24 +332,12 @@ describe("session-start context", () => {
     expect(text).toBe(await runInjectClaudeMdHook(directory, { VERCEL_PLUGIN_GREENFIELD: "true" }));
   });
 
-  test("an outdated Vercel CLI is reported before the session context", async () => {
-    const directory = makeDir("next-app", { "package.json": nextPackageJson });
-    const outdated = { installed: true, currentVersion: "59.5.0", latestVersion: "62.7.0", needsUpdate: true };
-    const { deps } = createDeps({ checkVercelCli: async () => outdated });
+  test("an unrelated project never runs the Vercel CLI check", async () => {
+    const directory = makeDir("express-app", { "package.json": JSON.stringify({ dependencies: { express: "5" } }) });
+    const { deps, calls } = createDeps();
     const fake = await setupWithSession(directory, deps);
 
-    const [text] = await fake.contextFor("ses_root");
-    expect(text.startsWith("IMPORTANT: The Vercel CLI is outdated (59.5.0 → 62.7.0).")).toBe(true);
-    expect(text).toContain("# Vercel Plugin Session Context");
-  });
-
-  test("a missing Vercel CLI is reported without waiting on the version probes", async () => {
-    const directory = makeDir("next-app", { "package.json": nextPackageJson });
-    const { deps, calls } = createDeps({ isVercelCliOnPath: () => false });
-    const fake = await setupWithSession(directory, deps);
-
-    const [text] = await fake.contextFor("ses_root");
-    expect(text.startsWith("IMPORTANT: The Vercel CLI is not installed.")).toBe(true);
+    await fake.contextFor("ses_root");
     expect(calls.cliChecks).toBe(0);
   });
 
@@ -502,7 +492,7 @@ describe("telemetry", () => {
       const ctx = {
         location: { directory: ${JSON.stringify(directory)} },
         options: {},
-        skill: { transform: async (cb) => cb({ get: (id) => skills.get(id), add: (s) => skills.set(s.id, s) }), list: async () => [...skills.values()] },
+        skill: { transform: async (cb) => cb({ get: (id) => skills.get(id), add: (s) => skills.set(s.id, s) }), list: async () => ({ data: [...skills.values()] }) },
         command: { transform: async () => {} },
         agent: { transform: async () => {} },
         mcp: { transform: async () => {} },
@@ -531,7 +521,7 @@ describe("telemetry", () => {
   });
 });
 
-describe("checkVercelCliAsync", () => {
+describe("Vercel CLI check", () => {
   let originalPath: string | undefined;
 
   beforeEach(() => {
@@ -542,36 +532,32 @@ describe("checkVercelCliAsync", () => {
     process.env.PATH = originalPath;
   });
 
-  function stubBinaries(names: string[]): void {
+  function stubBinaries(binaries: Record<string, string>): void {
     const bin = makeDir("bin");
-    for (const name of names) {
-      writeFileSync(join(bin, name), "#!/bin/sh\n");
+    for (const [name, output] of Object.entries(binaries)) {
+      writeFileSync(join(bin, name), `#!/bin/sh\nprintf '${output}'\n`);
       chmodSync(join(bin, name), 0o755);
     }
     process.env.PATH = bin;
   }
 
-  test("reports a missing CLI", async () => {
-    stubBinaries([]);
-    expect(await plugin.checkVercelCliAsync(async () => "")).toEqual({ installed: false, needsUpdate: false });
+  async function contextWithRealCliCheck(): Promise<string> {
+    const directory = makeDir("next-app", { "package.json": nextPackageJson });
+    // A cap longer than the test timeout proves a missing CLI never waits on it.
+    const { checkVercelCli: _fake, ...deps } = createDeps({ cliStatusWaitMs: 60_000 }).deps;
+    const fake = createFakeContext({ sessions: [{ id: "ses_root", location: { directory } }] });
+    await plugin.createOpenCodePlugin(deps).setup(fake.ctx);
+    const [text] = await fake.contextFor("ses_root");
+    return text;
+  }
+
+  test("reports an outdated CLI from `vercel --version` and `npm view vercel version`", async () => {
+    stubBinaries({ vercel: "Vercel CLI 59.5.0\\n59.5.0\\n", npm: "62.7.0\\n" });
+    expect((await contextWithRealCliCheck()).startsWith("IMPORTANT: The Vercel CLI is outdated (59.5.0 → 62.7.0).")).toBe(true);
   });
 
-  test("compares the installed and latest versions", async () => {
-    stubBinaries(["vercel", "npm"]);
-    const run = async (binary: string) => (binary.endsWith("vercel") ? "Vercel CLI 59.5.0\n59.5.0" : "62.7.0");
-    expect(await plugin.checkVercelCliAsync(run)).toEqual({
-      installed: true,
-      currentVersion: "59.5.0",
-      latestVersion: "62.7.0",
-      needsUpdate: true,
-    });
-  });
-
-  test("treats a failed version probe as installed and current", async () => {
-    stubBinaries(["vercel", "npm"]);
-    const run = async () => {
-      throw new Error("timeout");
-    };
-    expect(await plugin.checkVercelCliAsync(run)).toEqual({ installed: true, needsUpdate: false });
+  test("reports a CLI missing from PATH", async () => {
+    stubBinaries({});
+    expect((await contextWithRealCliCheck()).startsWith("IMPORTANT: The Vercel CLI is not installed.")).toBe(true);
   });
 });
