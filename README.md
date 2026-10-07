@@ -12,6 +12,7 @@
 | [OpenAI Codex](https://openai.com/index/codex/)               | Supported |
 | [Grok Build](https://x.ai/news/grok-build-cli)                | Supported |
 | [Kimi Code](https://kimi.com)                                 | Supported |
+| [OpenCode](https://opencode.ai) 2                             | Supported |
 
 ### Prerequisites
 
@@ -26,6 +27,14 @@ npx plugins add vercel/vercel-plugin
 ```
 
 That's it. The plugin installs Vercel context, skills, and a lightweight default hook profile.
+
+For OpenCode 2, install it as a native OpenCode plugin:
+
+```bash
+opencode plugin add github:vercel/vercel-plugin
+```
+
+OpenCode loads the same skills, agents, commands (`/vercel:deploy`, `/vercel:env`, `/vercel:status`, `/vercel:bootstrap`), session context, and Vercel MCP server. Run `/mcps` in OpenCode to sign in to the MCP server. Node.js and Bun are not needed for OpenCode.
 
 ## What It Does
 
@@ -156,7 +165,7 @@ The request also sends HTTP headers used by the telemetry bridge:
 - `x-vercel-plugin-session-id`: for the daily ping, a random UUID generated for that telemetry request; for skill events, a random UUID the plugin mints once per agent session (see below).
 - `x-vercel-plugin-version`: the plugin version embedded at build time.
 
-The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
+The installation ID is generated on the first telemetry-enabled plugin session and reused for that local installation. It is not derived from device, account, project, or user information. The harness value identifies Claude Code (including Claude Cowork), Cursor, Codex, GitHub Copilot, Kimi Code, or Grok using [`detect-agent`](https://github.com/vercel/detect-agent). The OpenCode plugin always reports `opencode`. A detected but unsupported or custom harness is reported as `other`; `unknown` means no harness was detected. Raw custom harness names are never sent.
 
 Prompt text, bash commands, tool-call contents, skill arguments, file paths, project names, account IDs, harness versions, and skill-injection details are not collected.
 
@@ -167,8 +176,9 @@ The plugin reports which of *its own* skills get used so we can see which guidan
 - **Only this plugin's skills are reported.** When the agent loads a skill (for example `/vercel:ai-sdk`), a `PostToolUse` hook on the `Skill` tool requires the namespace to be this plugin's (`vercel` or `vercel-plugin`) *and* the bare name to exist in the `skills/` or `commands/` directories that ship with it. Anything else — un-namespaced personal skills (`deploy`), other plugins' skills even with the same name (`other-plugin:deploy`), typos — is dropped entirely; nothing is sent, not even an "other" bucket.
 - **Only the skill name is sent.** Skill arguments, the tool's response, the prompt that triggered the skill, and anything else in the tool call are never read past the name check and never leave your machine.
 - **No harness identifiers.** Events from one agent session share a random UUID the plugin mints itself and stores in a session-scoped temp file (`<tmpdir>/vercel-plugin-<session>-telemetry-session-id.txt`, removed at session end). Your agent's own session ID is never sent, so skill usage cannot be joined to any other telemetry the agent produces.
-- **Harness category only.** The session-start hook records the detected harness category (`claude-code`, `cursor`, `codex`, `github-copilot`, `kimi`, `grok`, `other`, or `unknown` — the same values as `plugin:agent_harness`) in a session temp file (`<tmpdir>/vercel-plugin-<session>-agent-harness.txt`), and skill events carry it so usage can be broken down per harness. No harness version or raw agent name is sent.
+- **Harness category only.** The session-start hook records the detected harness category (`claude-code`, `cursor`, `codex`, `github-copilot`, `kimi`, `grok`, `opencode`, `other`, or `unknown` — the same values as `plugin:agent_harness`) in a session temp file (`<tmpdir>/vercel-plugin-<session>-agent-harness.txt`), and skill events carry it so usage can be broken down per harness. No harness version or raw agent name is sent.
 - **Coverage by harness.** The `Skill` tool is Claude Code's contract, and Cursor's Claude-compatible hook bridge is accepted too (`conversation_id` payloads). Cursor's own hook API does not expose a skill-load event or a `Skill` tool name, so skills loaded natively by Cursor are not currently observable and are simply not counted.
+- **OpenCode.** OpenCode skills have no plugin namespace, so the OpenCode plugin reports a load of OpenCode's `skill` tool only when the skill ID is one this plugin ships *and* the loaded file is the plugin's own copy, not a same-ID skill of yours. Commands do not go through the `skill` tool in OpenCode, so they are not counted. The per-session UUID lives in memory instead of a temp file, and subagent sessions share their lead session's UUID.
 - **It never slows the agent down.** The hook validates the name and exits immediately (a few milliseconds); the network request runs in a detached background process with a 3-second timeout. If the bridge is unreachable the event is simply lost — there is no retry queue and nothing is persisted.
 - **Same off switch.** `VERCEL_PLUGIN_TELEMETRY=off` disables it along with everything else.
 
@@ -193,6 +203,8 @@ Behavior:
 - `VERCEL_PLUGIN_TELEMETRY=off`: disables all telemetry, including `dau:active_today`, `plugin:first_use`, `skill:invoked`, and `skill:injected`, and does not create an installation ID if one does not already exist.
 
 Where to set `VERCEL_PLUGIN_TELEMETRY`:
+
+- OpenCode: its background service keeps the environment it started with, so run `opencode service restart` after setting the variable. You can also disable telemetry in `opencode.json` with `"plugins": [{ "package": "github:vercel/vercel-plugin", "options": { "telemetry": false } }]`.
 
 - macOS / Linux: add it to the shell profile for the environment that launches your agent, such as `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, or `~/.config/fish/config.fish`, then restart that terminal or app session.
 - Windows: set it in the PowerShell environment that launches your agent, add it to your PowerShell profile (`$PROFILE`), or set it as a persistent user environment variable.
@@ -278,6 +290,7 @@ vercel-plugin/
 │   ├── build-skills.ts              # Rules engine: overlay + upstream → SKILL.md
 │   └── build-from-skills.ts         # Resolves {{include:skill:...}} in templates
 └── hooks/                           # SessionStart injection, repo profiler, skill injection, deprecation guard
+    ├── opencode-plugin.mjs          # OpenCode 2 entry (package.json `exports`)
     └── src/                         # TypeScript source (compiled to .mjs via tsup)
 ```
 

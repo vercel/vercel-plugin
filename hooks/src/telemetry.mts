@@ -39,6 +39,7 @@ export type AgentHarness =
   | "github-copilot"
   | "kimi"
   | "grok"
+  | "opencode"
   | "other"
   | "unknown";
 
@@ -49,6 +50,7 @@ const AGENT_HARNESSES: ReadonlySet<string> = new Set<AgentHarness>([
   "github-copilot",
   "kimi",
   "grok",
+  "opencode",
   "other",
   "unknown",
 ]);

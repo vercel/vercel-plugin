@@ -315,7 +315,7 @@ export function checkGreenfield(projectRoot: string): GreenfieldResult | null {
 // Vercel CLI version check
 // ---------------------------------------------------------------------------
 
-interface VercelCliStatus {
+export interface VercelCliStatus {
   installed: boolean;
   currentVersion?: string;
   latestVersion?: string;
@@ -324,8 +324,8 @@ interface VercelCliStatus {
 
 // Subprocess args kept as constants to avoid array literals that confuse the
 // validate.ts slug-extraction regex (it scans for `["..."]` patterns).
-const VERCEL_VERSION_ARGS: string[] = "--version".split(" ");
-const NPM_VIEW_ARGS: string[] = "view vercel version".split(" ");
+export const VERCEL_VERSION_ARGS: string[] = "--version".split(" ");
+export const NPM_VIEW_ARGS: string[] = "view vercel version".split(" ");
 // Built via split to avoid array literal that confuses slug-extraction regex.
 const SPAWN_STDIO = "ignore pipe ignore".split(" ") as ("ignore" | "pipe")[];
 const EXEC_SYNC_TIMEOUT_MS = 3_000;
@@ -403,7 +403,7 @@ function runBinarySync(binaryPath: string, args: string[]): string {
   return execFileSync(binaryPath, args, options).trim();
 }
 
-function resolveBinaryFromPath(binaryName: string): string | null {
+export function resolveBinaryFromPath(binaryName: string): string | null {
   try {
     const pathEntries = (process.env.PATH || "").split(delimiter).filter(Boolean);
     for (const pathEntry of pathEntries) {
@@ -442,7 +442,7 @@ function parseVersionSegments(version: string): number[] | null {
     .map((segment: string) => Number.parseInt(segment, 10));
 }
 
-function compareVersionSegments(leftVersion: string, rightVersion: string): number | null {
+export function compareVersionSegments(leftVersion: string, rightVersion: string): number | null {
   const leftSegments = parseVersionSegments(leftVersion);
   const rightSegments = parseVersionSegments(rightVersion);
 

@@ -3,6 +3,9 @@
   "version": "0.54.1",
   "private": true,
   "license": "Apache-2.0",
+  "exports": {
+    ".": "./hooks/opencode-plugin.mjs"
+  },
   "bin": {
     "vercel-plugin": "src/cli/index.ts"
   },

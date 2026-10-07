@@ -54,6 +54,16 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `telemetry.mts` — opt-out telemetry (`VERCEL_PLUGIN_TELEMETRY=off`): daily DAU ping, installation ID, skill slug/namespace validation, and `skill:invoked` / `skill:injected` event builders/senders
 - `skill-telemetry.mts` — shared skill-telemetry plumbing: per-session telemetry UUID + harness temp files, payload assembly, and `queueSkillTelemetry()` which spawns the detached sender (used by the Skill hook and both inject hooks)
 
+### OpenCode 2 Entry (`hooks/src/opencode-plugin.mts`)
+
+OpenCode loads `hooks/opencode-plugin.mjs` through package.json `exports` (`opencode plugin add github:vercel/vercel-plugin`). It runs inside the long-lived OpenCode server, not as per-event subprocesses, and reuses the hook modules:
+
+- Skills, commands (`vercel:<name>`), agents (subagents), and the `.mcp.json` servers are registered through OpenCode transforms. User definitions with the same ID win.
+- The SessionStart profiler and `inject-claude-md` output becomes a `context` hook, computed once per lead session and reused verbatim. Child sessions get nothing, like Claude Code subagents.
+- Skill telemetry is a `tool` `execute.after` hook on OpenCode's `skill` tool, reported with the `opencode` harness. State is in memory, so there is no SessionEnd cleanup.
+
+To try a local checkout, create `~/.config/opencode/plugins/vercel-plugin.js` containing `export { default } from "<checkout>/hooks/opencode-plugin.mjs";`. A configured local directory path does not work: OpenCode only reads `index.*` from local plugin directories.
+
 ### Skill Injection Flow
 
 1. **SessionStart**: For greenfield directories or detected Vercel, Next.js, or eve projects, the profiler scans the project → sets `VERCEL_PLUGIN_LIKELY_SKILLS`

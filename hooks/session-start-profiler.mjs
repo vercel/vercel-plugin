@@ -912,11 +912,14 @@ if (isSessionStartProfilerEntrypoint) {
   main();
 }
 export {
+  NPM_VIEW_ARGS,
+  VERCEL_VERSION_ARGS,
   binaryNeedsShell,
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
   buildShellCommand,
   checkGreenfield,
+  compareVersionSegments,
   detectAgentHarness,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
@@ -927,5 +930,6 @@ export {
   parseSessionStartInput,
   profileBootstrapSignals,
   profileProject,
+  resolveBinaryFromPath,
   resolveSessionStartProjectRoot
 };
