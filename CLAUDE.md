@@ -5,7 +5,7 @@
 - **Build hooks**: `bun run build:hooks` (compiles `hooks/src/*.mts` → `hooks/*.mjs` via tsup)
 - **Build from skills**: `bun run build:from-skills` (compiles `*.md.tmpl` → `*.md` by resolving `{{include:skill:…}}` markers)
 - **Check from skills**: `bun run build:from-skills:check` (verify generated `.md` files are up-to-date; exits non-zero on drift)
-- **Build all**: `bun run build:all` (skills + hooks + from-skills). It is not named `build`: npm then "prepares" Git installs, which breaks `opencode plugin add github:vercel/vercel-plugin`
+- **Build all**: `bun run build:all` (skills + hooks + from-skills). It is not named `build`: npm then "prepares" Git installs, which breaks `opencode plugin add github:vercel/vercel-plugin` ([anomalyco/opencode#49704](https://github.com/anomalyco/opencode/issues/49704))
 - **Test**: `bun test` (typecheck + 42 test files)
 - **Single test**: `bun test tests/<file>.test.ts`
 - **Typecheck only**: `bun run typecheck` (tsc on hooks/tsconfig.json)
@@ -62,7 +62,7 @@ OpenCode loads `hooks/opencode-plugin.mjs` through package.json `exports` (`open
 - The SessionStart profiler and `inject-claude-md` output becomes a `context` hook, computed once per lead session and reused verbatim. Child sessions get nothing, like Claude Code subagents.
 - Skill telemetry is a `tool` `execute.after` hook on OpenCode's `skill` tool, reported with the `opencode` harness. State is in memory, so there is no SessionEnd cleanup.
 
-To try a local checkout, create `~/.config/opencode/plugins/vercel-plugin.js` containing `export { default } from "<checkout>/hooks/opencode-plugin.mjs";`. A configured local directory path does not work: OpenCode only reads `index.*` from local plugin directories.
+To try a local checkout, create `~/.config/opencode/plugins/vercel-plugin.js` containing `export { default } from "<checkout>/hooks/opencode-plugin.mjs";`. A configured local directory path does not work: OpenCode only reads `index.*` from local plugin directories ([anomalyco/opencode#52300](https://github.com/anomalyco/opencode/issues/52300)).
 
 ### Skill Injection Flow
 
