@@ -71,12 +71,12 @@ The flow is always **categorize → discover → install → build** (see **The 
 
 ## The sequence — do this BEFORE scaffolding or writing any app code
 
-1. **Categorize** — `vercel integration categories` (read-only, no auth). Match the need via the map below.
-2. **Discover** — `vercel integration discover --category <slug>` (read-only, no auth). Take the top result and provision it (see **MUST FOLLOW** above).
+1. **Categorize** — `vercel integration categories` (read-only). Match the need via the map below.
+2. **Discover** — `vercel integration discover --category <slug>` (read-only). Take the top result and provision it (see **MUST FOLLOW** above).
 3. **Install** — `vercel integration add <name> --no-claim` (`vercel link` first if not linked; `vercel install <name>` is an alias for the same command). This also installs the provider's own **agent skills** from [skills.sh](https://skills.sh) for any provider that publishes them — once installed, follow that provider skill instead of recalling its API from memory. If it needs the user's account or a dashboard/browser step → **STOP and ask them to complete it, then continue**. Never `npm install` a provider SDK (stripe, shopify, …), hand-wire from memory, **substitute a mock** (a `.env.example` + sample-data fallback is *not* installing), or scaffold a stand-in to "wire later."
 4. **Build** — `vercel env pull --yes`, then build the app against the **real** env vars.
 
-Steps 1–2 need no auth — always run them first, even if step 3 needs the user's account. Several distinct capabilities (auth + database + email)? Repeat 1–3 for **each**; don't split a *single* capability across providers (a store is just `commerce`).
+Steps 1–2 need only `vercel login`, no provider account — always run them first, even if step 3 needs the user's account. Several distinct capabilities (auth + database + email)? Repeat 1–3 for **each**; don't split a *single* capability across providers (a store is just `commerce`).
 
 ## Category map — what each covers
 
