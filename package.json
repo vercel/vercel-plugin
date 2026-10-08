@@ -3,6 +3,9 @@
   "version": "0.54.1",
   "private": true,
   "license": "Apache-2.0",
+  "exports": {
+    ".": "./hooks/opencode-plugin.mjs"
+  },
   "bin": {
     "vercel-plugin": "src/cli/index.ts"
   },
@@ -12,7 +15,7 @@
     "build:skills": "bun run scripts/build-skills.ts",
     "build:skills:check": "bun run scripts/build-skills.ts --check",
     "build:from-skills:check": "bun run scripts/build-from-skills.ts --check",
-    "build": "bun run build:skills && bun run build:hooks && bun run build:from-skills",
+    "build:all": "bun run build:skills && bun run build:hooks && bun run build:from-skills",
     "validate": "bun run scripts/validate.ts",
     "doctor": "bun run src/cli/index.ts doctor",
     "typecheck": "tsc -p hooks/tsconfig.json --noEmit",

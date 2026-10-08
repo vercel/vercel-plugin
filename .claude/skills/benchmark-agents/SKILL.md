@@ -269,7 +269,7 @@ The standard improvement cycle:
 4. **Read conversation logs** — find user follow-up corrections
 5. **Fix skills** — update SKILL.md content, patterns, validate rules
 6. **Run gates** — `bun run typecheck && bun test && bun run validate`
-7. **Release** — bump version, `bun run build`, commit, push
+7. **Release** — bump version, `bun run build:all`, commit, push
 8. **Repeat** — launch 3 more evals to verify fixes
 
 ## Scenario Table
