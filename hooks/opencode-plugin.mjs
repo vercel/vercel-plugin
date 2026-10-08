@@ -178,6 +178,11 @@ function createOpenCodePlugin(overrides = {}) {
             draft.system = agent.body;
           });
         }
+        for (const { id } of editor.list()) {
+          editor.update(id, (draft) => {
+            draft.permissions.push({ action: "external_directory", resource: join(skillsDir, "*"), effect: "allow" });
+          });
+        }
       });
       const mcpServers = loadMcpServers(deps.root);
       await ctx.mcp.transform((editor) => {

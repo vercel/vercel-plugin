@@ -73,6 +73,7 @@ interface AgentDraft {
   description?: string;
   mode: string;
   system?: string;
+  permissions: Array<{ action: string; resource: string; effect: "allow" | "ask" | "deny" }>;
 }
 
 interface CommandDefinition {
@@ -101,7 +102,11 @@ interface PluginContext {
   };
   readonly command: { transform: Transform<{ add(command: CommandDefinition): void }> };
   readonly agent: {
-    transform: Transform<{ get(id: string): unknown; update(id: string, update: (agent: AgentDraft) => void): void }>;
+    transform: Transform<{
+      list(): Array<{ id: string }>;
+      get(id: string): unknown;
+      update(id: string, update: (agent: AgentDraft) => void): void;
+    }>;
   };
   readonly mcp: { transform: Transform<{ get(name: string): unknown; set(name: string, config: McpServerConfig): void }> };
   readonly session: {
@@ -347,6 +352,14 @@ export function createOpenCodePlugin(overrides: Partial<OpenCodePluginDeps> = {}
             draft.description = agent.description;
             draft.mode = "subagent";
             draft.system = agent.body;
+          });
+        }
+        // Skills point at reference files in the plugin's install directory,
+        // which is outside the project, so OpenCode would ask before each read.
+        // User permission rules are applied later, so a user deny still wins.
+        for (const { id } of editor.list()) {
+          editor.update(id, (draft) => {
+            draft.permissions.push({ action: "external_directory", resource: join(skillsDir, "*"), effect: "allow" });
           });
         }
       });

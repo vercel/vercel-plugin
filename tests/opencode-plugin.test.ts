@@ -27,7 +27,9 @@ function createFakeContext(options: {
   pluginOptions?: Record<string, unknown>;
 } = {}) {
   const skills = new Map<string, any>((options.existingSkills ?? []).map((s) => [s.id, { name: s.id, content: "", ...s }]));
-  const agents = new Map<string, any>((options.existingAgents ?? []).map((id) => [id, { name: id, mode: "primary", description: "user agent" }]));
+  const agents = new Map<string, any>(
+    (options.existingAgents ?? []).map((id) => [id, { name: id, mode: "primary", description: "user agent", permissions: [] }]),
+  );
   const mcp = new Map<string, unknown>(Object.entries(options.existingMcp ?? {}));
   const commands = new Map<string, any>();
   const sessions = new Map((options.sessions ?? []).map((s) => [s.id, s]));
@@ -46,9 +48,10 @@ function createFakeContext(options: {
     agent: {
       transform: async (cb: any) =>
         cb({
+          list: () => [...agents.keys()].map((id) => ({ id })),
           get: (id: string) => agents.get(id),
           update: (id: string, update: (draft: any) => void) => {
-            const draft = agents.get(id) ?? { name: id, mode: "all" };
+            const draft = agents.get(id) ?? { name: id, mode: "all", permissions: [] };
             update(draft);
             agents.set(id, draft);
           },
@@ -236,7 +239,19 @@ describe("agents", () => {
     const fake = createFakeContext({ existingAgents: ["deployment-expert"] });
     await plugin.createOpenCodePlugin(createDeps().deps).setup(fake.ctx);
 
-    expect(fake.agents.get("deployment-expert")).toEqual({ name: "deployment-expert", mode: "primary", description: "user agent" });
+    const agent = fake.agents.get("deployment-expert");
+    expect(agent.description).toBe("user agent");
+    expect(agent.mode).toBe("primary");
+  });
+
+  test("every agent may read the plugin's skill files without an external_directory prompt", async () => {
+    const fake = createFakeContext({ existingAgents: ["build", "explore"] });
+    await plugin.createOpenCodePlugin(createDeps().deps).setup(fake.ctx);
+
+    const rule = { action: "external_directory", resource: join(ROOT, "skills", "*"), effect: "allow" };
+    for (const id of ["build", "explore", "deployment-expert"]) {
+      expect(fake.agents.get(id).permissions).toContainEqual(rule);
+    }
   });
 });
 
