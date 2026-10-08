@@ -642,7 +642,7 @@ Clerk provides an upgrade CLI that scans your codebase and applies codemods: `np
 - **`ClerkProvider` must be inside `<body>`, not wrapping `<html>`** — the CLI handles this automatically
 - **`@clerk/types` removed** — import types from the SDK's own `/types` entry point, or `@clerk/shared/types` for framework-agnostic code
 - **Redirect props renamed** — `afterSignInUrl`/`afterSignUpUrl`/`redirectUrl` → `fallbackRedirectUrl`/`signUpFallbackRedirectUrl`/`forceRedirectUrl`
-- **Minimum Next.js version: 15.2.3** — Next.js 13 and 14 are no longer supported
+- **Minimum Next.js version: 15.2.8 (or 16.0.10 on Next.js 16)**; later 15.x minors need their patched releases too (15.3.8+, 15.4.10+, 15.5.9+). Next.js 13 and 14 are no longer supported
 - **Satellite domains** — apps no longer auto-redirect on first visit; set `satelliteAutoSync: true` in middleware and `ClerkProvider` to restore Core 2 behavior
 - **`getToken()` throws `ClerkOfflineError` when offline** — previously returned `null`; still returns `null` when signed out
 
