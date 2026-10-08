@@ -372,12 +372,12 @@ genericOAuth({
 
 #### Auth.js: `@vercel/connect/authjs`
 
-Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Auth.js additionally requires an `id`:
+Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Auth.js additionally requires an `id` and a `name`:
 
 ```typescript
 import { connect } from "@vercel/connect/authjs";
 
-const providers = [connect({ id: "linear", connector: "linear/myagent" })];
+const providers = [connect({ id: "linear", name: "Linear", connector: "linear/myagent" })];
 ```
 
 ## Project links, installations, and environments
