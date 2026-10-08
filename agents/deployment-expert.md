@@ -185,8 +185,8 @@ vercel deploy --prod --skip-domain
 # Promote it (instant, no rebuild)
 vercel promote <deployment-url-or-id>
 
-# Rollback to the previous production deployment
-vercel rollback
+# Show pending rollback status (no argument does not roll back)
+vercel rollback status
 
 # Rollback to a specific deployment
 vercel rollback <deployment-url-or-id>
