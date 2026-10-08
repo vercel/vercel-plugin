@@ -1,27 +1,28 @@
 # Evaluation models
 
-Use evaluation models to assess shared application state against typed questions. They return structured boolean probabilities, choices, or scores instead of free-form text.
+Use evaluation models to assess shared application state against typed questions. They return structured boolean probabilities, choices, or scores instead of free-form text. AI Gateway docs now call them decision models; `experimental_evaluate` and `gateway.evaluationModel()` remain as deprecated aliases.
 
 ## Choose the evaluation surface
 
 | Existing project | Use |
 | --- | --- |
-| JavaScript or TypeScript using AI SDK 7 or later | `experimental_evaluate` from `ai` |
+| JavaScript or TypeScript using AI SDK 7 or later | `experimental_decide` from `ai` 7.0.128+; earlier AI SDK 7 releases use `experimental_evaluate` |
+| Existing OpenAI SDK using the Decisions API | Keep `decisions.create` and point `baseURL` to `https://ai-gateway.vercel.sh/v1` (`POST /v1/decisions`) |
 | New non-AI-SDK client | Gateway's vendor-neutral `POST /v1/evaluate` |
 | Existing TypeSafe client | Keep `@typesafe-ai/sdk` and change its API key and `baseURL` |
 
-Evaluation is not supported through the OpenAI-compatible, Anthropic-compatible, or Cohere-compatible endpoints. Use one of the three surfaces above instead.
+Evaluation is not supported through Chat Completions, Responses, or the Anthropic-compatible or Cohere-compatible endpoints. Use one of the four surfaces above instead.
 
-Choose a model from the current [Evaluation model list](https://vercel.com/ai-gateway/models?capabilities=evaluation). Do not assume a text-generation model supports evaluation. Use the [Evaluation quickstart](https://vercel.com/docs/ai-gateway/getting-started/evaluation) for the AI SDK first-run workflow, the [Evaluation modality guide](https://vercel.com/docs/ai-gateway/modalities/evaluation) for AI SDK and HTTP request shapes, and the [TypeSafe API guide](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe) when migrating a TypeSafe client.
+Choose a model from the current [Decision model list](https://vercel.com/ai-gateway/models?capabilities=decision). Do not assume a text-generation model supports evaluation. Use the [Decision quickstart](https://vercel.com/docs/ai-gateway/getting-started/decision) for the AI SDK first-run workflow, the [Decision modality guide](https://vercel.com/docs/ai-gateway/modalities/decision) for AI SDK and HTTP request shapes, and the [TypeSafe API guide](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe) when migrating a TypeSafe client.
 
 ## AI SDK
 
 Load the `ai-sdk` skill and read the installed `ai` package docs before writing code.
 
 ```ts
-import { experimental_evaluate as evaluate } from 'ai';
+import { experimental_decide as decide } from 'ai';
 
-const result = await evaluate({
+const result = await decide({
   model: 'typesafe-ai/jev',
   state: 'The support agent issued a full refund to the customer.',
   questions: {
@@ -35,7 +36,7 @@ const result = await evaluate({
 console.log(result.answers);
 ```
 
-When using an explicit Gateway provider instance, use `gateway.evaluationModel(<model-id>)`. A plain evaluation model string routes through AI Gateway without installing `@ai-sdk/gateway`.
+When using an explicit Gateway provider instance, use `gateway.decisionModel(<model-id>)` (`@ai-sdk/gateway` 4.0.104+, which ships with `ai` 7.0.128+; earlier releases use the deprecated `gateway.evaluationModel(<model-id>)`). A plain evaluation model string routes through AI Gateway without installing `@ai-sdk/gateway`.
 
 ## HTTP API
 
@@ -77,7 +78,7 @@ The compatibility surface provides:
 
 The TypeSafe-compatible request body also accepts AI Gateway controls under `providerOptions.gateway`. Use the generic `/v1/evaluate` endpoint for new HTTP integrations; use `/typesafe` when preserving an existing TypeSafe client is the goal.
 
-On any evaluation surface, use [Evaluation Fallbacks](https://vercel.com/docs/ai-gateway/models-and-providers/evaluation-fallbacks) to rerun a successful but uncertain evaluation with another model: a conditional entry in `providerOptions.gateway.models`, such as a `confidenceBelow` threshold on a Choice or Score question. A triggered fallback bills both stages.
+On any evaluation surface, use [Decision Fallbacks](https://vercel.com/docs/ai-gateway/models-and-providers/decision-fallbacks) to rerun a successful but uncertain evaluation with another model: a conditional entry in `providerOptions.gateway.models`, such as a `confidenceBelow` threshold on a Choice or Score question. A triggered fallback bills both stages.
 
 ## Question and state rules
 

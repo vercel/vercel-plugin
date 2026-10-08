@@ -181,7 +181,7 @@ Use the CLI for credential and spend management when the user is working from a 
 | Ask a coding agent to make one Gateway request, or handle first-request credentials, compatible SDKs, or migration | [references/setup.md](references/setup.md) |
 | Provider selection, model fallbacks, caching, BYOK, or timeouts | [references/routing.md](references/routing.md) |
 | Reusable model configuration, a `vmc/<slug>`, or provider options for a client that cannot send them | [references/virtual-models.md](references/virtual-models.md) |
-| Typed evaluation through AI SDK, `POST /v1/evaluate`, or the TypeSafe-compatible API | [references/evaluation.md](references/evaluation.md) |
+| Typed evaluation (decisions) through AI SDK, `POST /v1/evaluate`, the OpenAI-compatible `POST /v1/decisions`, or the TypeSafe-compatible API | [references/evaluation.md](references/evaluation.md) |
 | Credits, budgets, reporting, Logs, or request debugging | [references/spend-observability.md](references/spend-observability.md) |
 | Route Claude Code, Codex, OpenCode, Pi, or another coding agent's own model traffic through Gateway | [references/coding-agents.md](references/coding-agents.md) |
 
@@ -201,7 +201,7 @@ Read each relevant reference before editing. A task can require more than one.
 | Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
 | Coding agent | Use `vercel ai-gateway setup`; inspect its help before claiming agent support. Use a Virtual Model when the agent needs reusable routing or provider options it cannot send per request |
 
-AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, realtime sessions, and evaluation. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Evaluation is available through AI SDK 7 or later, `POST /v1/evaluate`, and a TypeSafe-compatible API under `/typesafe`; it is not available through the OpenAI-, Anthropic-, or Cohere-compatible endpoints. Read [references/evaluation.md](references/evaluation.md) before choosing a surface. Read the relevant modality or API page instead of translating one request shape from memory.
+AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, realtime sessions, and evaluation. Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Evaluation (now called Decision) is available through AI SDK 7 or later, `POST /v1/evaluate`, the OpenAI-compatible `POST /v1/decisions`, and a TypeSafe-compatible API under `/typesafe`; it is not available through Chat Completions, Responses, or the Anthropic- or Cohere-compatible endpoints. Read [references/evaluation.md](references/evaluation.md) before choosing a surface. Read the relevant modality or API page instead of translating one request shape from memory.
 
 ## Minimal AI SDK request
 
@@ -285,7 +285,7 @@ Read [references/routing.md](references/routing.md) before adding any of these f
 - Authentication and BYOK: <https://vercel.com/docs/ai-gateway/authentication-and-byok>
 - Observability and spend: <https://vercel.com/docs/ai-gateway/observability-and-spend>
 - Modalities: <https://vercel.com/docs/ai-gateway/modalities>
-- Evaluation: <https://vercel.com/docs/ai-gateway/modalities/evaluation>
+- Decision (formerly Evaluation): <https://vercel.com/docs/ai-gateway/modalities/decision>
 - TypeSafe API: <https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe>
 - REST API reference: <https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api>
 - FAQ: <https://vercel.com/docs/ai-gateway/faq>
