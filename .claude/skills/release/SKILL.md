@@ -40,7 +40,7 @@ Update the `version` field in `.plugin/plugin.json`. This is the **only** versio
 ### 4. Rebuild generated artifacts
 
 ```bash
-bun run build              # hooks (tsup) + manifest
+bun run build:all          # hooks (tsup) + manifest
 ```
 
 This merges upstream skills with their overlays, compiles `hooks/src/*.mts` → `hooks/*.mjs`, and resolves agent/command templates. Skill metadata is read directly from `SKILL.md` files.
@@ -67,6 +67,6 @@ The pre-commit hook will re-run typecheck and recompile hooks automatically. If 
 - [ ] tests pass
 - [ ] validate passes
 - [ ] `.plugin/plugin.json` version bumped
-- [ ] `bun run build` succeeded
+- [ ] `bun run build:all` succeeded
 - [ ] commit includes all changes
 - [ ] pushed to main

@@ -25,6 +25,7 @@ var AGENT_HARNESSES = /* @__PURE__ */ new Set([
   "github-copilot",
   "kimi",
   "grok",
+  "opencode",
   "other",
   "unknown"
 ]);
