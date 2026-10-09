@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { YAML } from "bun";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -23,6 +24,8 @@ describe("OpenAI submission build", () => {
     mkdirSync(join(fixture, "skills", "nextjs"));
     writeFileSync(join(fixture, "skills", "nextjs", "SKILL.md"), "excluded framework skill");
     writeFileSync(join(fixture, ".env"), "local data that must not be packaged");
+    const sourceSkills = ["deployments-cicd", "vercel-cli", "knowledge-update"];
+    const sourceHashes = sourceSkills.map(name => hash(join(fixture, "skills", name, "SKILL.md")));
     const result = buildOpenAI(fixture);
     expect(result.skills).toBe(33);
     expect(result.files).toBe(201);
@@ -47,6 +50,18 @@ describe("OpenAI submission build", () => {
     expect(readFileSync(join(result.directory, "agents/deployment-expert.md"), "utf8")).toContain("../skills/deployments-cicd/references/deployment-checks.md");
     expect(readFileSync(join(result.directory, "skills/ai-sdk/SKILL.md"), "utf8")).toContain("maxSteps was removed in AI SDK 5");
     expect(readFileSync(join(result.directory, "vercel.md"), "utf8")).not.toContain("${CLAUDE_PLUGIN_ROOT}");
+    const deploymentSkill = readFileSync(join(result.directory, "skills/deployments-cicd/SKILL.md"), "utf8");
+    const metadata = YAML.parse(deploymentSkill.match(/^---\n([\s\S]*?)\n---/)![1]);
+    expect(metadata.description).toContain("show the build");
+    expect(metadata.retrieval.intents).toContain("show build logs inline");
+    const liveGuide = readFileSync(join(result.directory, "skills/deployments-cicd/references/live-status.md"), "utf8");
+    expect(liveGuide).toContain("`open_deployments` for the live inline card");
+    expect(liveGuide).toContain("different authentication and team grants");
+    expect(liveGuide).toContain("Runtime logs or grouped runtime errors");
+    for (const name of ["vercel-cli", "knowledge-update"]) {
+      expect(readFileSync(join(result.directory, "skills", name, "SKILL.md"), "utf8")).toContain("open_deployments");
+    }
+    expect(sourceSkills.map(name => hash(join(fixture, "skills", name, "SKILL.md")))).toEqual(sourceHashes);
   });
 
   test("includes upstream edits and the source version without changing source files", () => {

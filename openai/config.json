@@ -51,7 +51,7 @@
     },
     "deployments-cicd": {
       "display_name": "Deployments Cicd",
-      "short_description": "Vercel deployment and CI/CD expert guidance"
+      "short_description": "Show live deployments and build logs; manage CI/CD"
     },
     "domains": {
       "display_name": "Vercel Domains",
