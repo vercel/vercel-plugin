@@ -122,13 +122,13 @@ vercel rollback <deployment-url-or-id>
 ```bash
 # View deployment details (build info, functions, metadata)
 vercel inspect <deployment-url>
+vercel inspect <deployment-url> --logs   # build logs
 
 # List recent deployments
 vercel ls
 
-# View logs for a deployment
+# Runtime logs for a deployment
 vercel logs <deployment-url>
-vercel logs <deployment-url> --follow
 ```
 
 ## CI/CD Integration

@@ -202,7 +202,7 @@ describe("commands", () => {
     expect(sent.delivery).toBe("queue");
     expect(sent.files).toEqual(files);
     expect(sent.text).toContain("# Deploy to Vercel");
-    expect(sent.text).toContain('If "prod" contains "prod" or "production"');
+    expect(sent.text).toContain('If "prod" contains the whole word `prod` or `production`');
     expect(sent.text).not.toContain("$ARGUMENTS");
     expect(sent.text.startsWith("---")).toBe(false);
   });

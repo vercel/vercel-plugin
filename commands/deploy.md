@@ -17,7 +17,7 @@ Run these checks before any deployment. Stop on failure and print actionable gui
 3. **Monorepo detection** — Look for `turbo.json` or `pnpm-workspace.yaml` at the repo root.
    - If detected: confirm which package is targeted. If ambiguous, ask the user before proceeding.
 4. **Uncommitted changes** — Run `git status --porcelain`.
-   - If output is non-empty: warn the user that uncommitted changes will **not** be included in the deploy. Ask whether to continue or commit first.
+   - If output is non-empty: warn the user that `vercel` uploads the local working tree, so uncommitted and untracked files **will** ship in this deployment (files in `.vercelignore` and the default ignore list excepted). Ask whether to continue or commit first.
    - If not a git repo, skip this check.
 5. **Observability preflight** (production deploys only) —
 
@@ -38,7 +38,7 @@ State the intended action before executing:
 - **Preview deploy** (default): `vercel` — creates a preview deployment on a unique URL.
 - **Production deploy**: `vercel --prod` — deploys to production domains.
 
-If "$ARGUMENTS" contains "prod" or "production":
+If "$ARGUMENTS" contains the whole word `prod` or `production` (not a substring such as "product"):
 
 > ⚠️ **Production deployment requested.**
 > This will deploy to your live production URL and affect real users.
@@ -97,13 +97,13 @@ Use `list_deployments` to find the deployment for the intended project and commi
 ```bash
 # View deployment details (build info, functions, metadata)
 vercel inspect <deployment-url>
+vercel inspect <deployment-url> --logs   # build logs
 
 # List recent deployments
 vercel ls
 
-# View logs for a deployment
+# Runtime logs for a deployment
 vercel logs <deployment-url>
-vercel logs <deployment-url> --follow
 ```
 
 Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, framework, Node.js version, function count.
@@ -113,10 +113,10 @@ Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, f
 If the deployment state is **ERROR** or the deploy command exited non-zero:
 
 ```bash
-vercel logs <deployment-url>
+vercel inspect <deployment-url> --logs
 ```
 
-Present the last 50 lines of build logs to help diagnose the failure. Highlight any lines containing `error`, `Error`, `ERR!`, or `FATAL`.
+`vercel logs` shows request and runtime logs, not build output. Present the last 50 lines of build logs to help diagnose the failure. Highlight any lines containing `error`, `Error`, `ERR!`, or `FATAL`.
 
 ### 3. On Success — Quick Smoke Check
 
