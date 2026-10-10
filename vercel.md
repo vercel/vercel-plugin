@@ -474,11 +474,11 @@ REACT BEST PRACTICES ⤳ skill: react-best-practices
 └── Use When: After editing multiple TSX components, before shipping
 
 OFFLOAD TO SANDBOX ⤳ skill: offload-to-sandbox
-├── Purpose: Run heavy builds, test suites, benchmarks and parallel experiments on Vercel Sandboxes instead of the local machine
+├── Purpose: Run heavy builds, test suites and parallel experiments on Vercel Sandboxes instead of the local machine
 │ ⊃ Base snapshot once, one sandbox per task, source pushes that keep dependencies, detached long jobs
-│ ⊃ A/B timing inside one VM, sharded suites, baseline failure triage, cost hygiene
+│ ⊃ Sharded suites, baseline failure triage, cost and cleanup
 │
-└── Use When: The local machine is overloaded or shared by agents, timings must be reliable, or a suite should be sharded
+└── Use When: The local machine is overloaded or shared by agents, or a suite should be sharded
 
 ---
 
