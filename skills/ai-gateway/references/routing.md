@@ -78,8 +78,8 @@ Docs: <https://vercel.com/docs/ai-gateway/models-and-providers/provider-filterin
 providerOptions: {
   gateway: {
     models: [
-      'anthropic/claude-opus-5',
-      'google/gemini-3.1-pro-preview',
+      '<fallback-model-id>', // from GET /v1/models, ideally another provider
+      '<second-fallback-model-id>',
     ],
   },
 },
