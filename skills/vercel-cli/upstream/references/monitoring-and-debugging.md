@@ -70,7 +70,7 @@ vercel logs requests --query 'requestPath:*checkout* AND cacheResult:MISS'
 vercel logs --next <cursor>                                         # continue a previous query
 ```
 
-Filter with `--query` (KQL-inspired: `field:value`, `field:(a OR b)`, `field != value`, `field:*text*`, `AND`/`OR`/`NOT`, and numeric comparisons for requests). `vercel logs runtime --help` and `vercel logs requests --help` list the common fields. The `--level`, `--source`, `--status-code`, `--request-id`, `--search`, `--branch`, and `--expand` flags were removed; express them as query fields. Select a deployment with `--deployment`, not a positional argument. Without `--deployment` or `--environment`, logs cover every environment of the project. Only team-owned projects are supported. Older CLI versions use different flags; check `vercel logs --help` first.
+Filter with `--query` (KQL-inspired: `field:value`, `field:(a OR b)`, `field != value`, `field:*text*`, `AND`/`OR`/`NOT`, and numeric comparisons for requests). `vercel logs runtime --help` and `vercel logs requests --help` list the common fields. The `--level`, `--source`, `--status-code`, `--request-id`, and `--search` flags were removed; express them as query fields. `--branch` and `--expand` were dropped without a replacement; full messages are shown by default. Select a deployment with `--deployment`, not a positional argument. Without `--deployment` or `--environment`, logs cover every environment of the project. Only team-owned projects are supported. Older CLI versions use different flags; check `vercel logs --help` first.
 
 Set `--since` and `--until` to the affected window.
 
