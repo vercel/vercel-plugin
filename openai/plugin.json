@@ -1,0 +1,53 @@
+{
+  "author": {
+    "name": "Vercel Labs",
+    "url": "https://github.com/vercel"
+  },
+  "description": "Build and deploy web apps and AI agents on Vercel.",
+  "homepage": "https://vercel.com/",
+  "interface": {
+    "brandColor": "#000000",
+    "brandColorDark": "#FFFFFF",
+    "capabilities": [
+      "Write"
+    ],
+    "category": "Developer Tools",
+    "composerIcon": "./assets/logo.png",
+    "defaultPrompt": [
+      "Audit this repo for Vercel deployment risks",
+      "Which Vercel tools fit this app best",
+      "Help connect Vercel to this workflow"
+    ],
+    "developerName": "Vercel Labs",
+    "displayName": "Vercel",
+    "logo": "./assets/logo.png",
+    "longDescription": "Build and deploy web apps and AI agents on Vercel. Get guidance for Next.js, the AI SDK, Workflow, storage, deployments, and other Vercel products, and use the Vercel MCP connection to inspect and manage projects.",
+    "privacyPolicyURL": "https://vercel.com/legal/privacy-policy",
+    "screenshots": [],
+    "shortDescription": "Build and deploy apps",
+    "termsOfServiceURL": "https://vercel.com/legal/terms",
+    "websiteURL": "https://vercel.com/",
+    "supportURL": "https://vercel.com/help"
+  },
+  "keywords": [
+    "vercel",
+    "nextjs",
+    "ai-sdk",
+    "turborepo",
+    "turbopack",
+    "workflow",
+    "deployment",
+    "edge-functions",
+    "serverless",
+    "ai-gateway",
+    "chat-sdk",
+    "chat-bot",
+    "slack-bot",
+    "discord-bot"
+  ],
+  "license": "Apache-2.0",
+  "name": "vercel",
+  "repository": "https://github.com/vercel/vercel-plugin",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}
