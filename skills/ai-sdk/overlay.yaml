@@ -198,7 +198,7 @@ validate:
     severity: recommended
   -
     pattern: stream\.write\(
-    message: 'In createUIMessageStream, use stream.writer.write() not stream.write() — the stream itself is not writable'
+    message: 'In createUIMessageStream, use the writer passed to execute ({ writer }) — call writer.write(), not stream.write(); the returned ReadableStream is not writable'
     severity: recommended
   -
     pattern: \bCoreMessage\b
