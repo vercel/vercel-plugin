@@ -123,6 +123,16 @@ The Flags SDK (`flags` npm package) is a feature flags toolkit for Next.js and S
 
 When the user asks to install, configure, or set up feature flags, follow [Set up the SDK](#set-up-the-sdk) (including `vercel env pull` when `.env.local` is missing). When they ask to create or add a flag, follow [Create a flag](#create-a-flag). A request is CLI-only when the user asks to inspect, create, or change a remote flag and the request involves no code; then follow [CLI-only flag management](#cli-only-flag-management). Inside an app repository, treat an ambiguous request as the full flow. Do not leave CLI steps as "next steps" for the user — execute them yourself.
 
+## Choose an approach
+
+Check the project's stack before writing code. Vercel Flags works with three integrations ([SDKs](https://vercel.com/docs/flags/vercel-flags/sdks)):
+
+- **Next.js or SvelteKit**: use the Flags SDK, as described in the rest of this skill. It adds automatic Flags Explorer integration and precompute for static pages.
+- **Any other framework or a plain server** (for example Express): use `@vercel/flags-core` directly. Follow [Core client in other frameworks](references/providers.md#core-client-in-other-frameworks-for-example-express) and skip the Toolbar and Flags Explorer steps in [Set up the SDK](#set-up-the-sdk).
+- **Already on OpenFeature, or the user wants provider portability**: register the Vercel Flags OpenFeature provider ([Using OpenFeature with Vercel Flags](https://vercel.com/docs/flags/vercel-flags/sdks/openfeature)).
+
+When the project already uses another flag provider, keep it and connect it through its adapter ([references/providers.md](references/providers.md)). The `vercel flags` CLI steps work the same for every integration.
+
 ## Core concepts
 
 ### Flags as code
