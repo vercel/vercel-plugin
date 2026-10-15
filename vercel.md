@@ -948,11 +948,11 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### AI Stack
 
-- Default to AI SDK 7 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
+- Preserve the selected AI SDK and provider integration. Use AI Gateway model strings (`provider/model`) when the project has selected that gateway; direct provider SDKs do not by themselves require migration.
 - Consider eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
-- Use eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow SDK when existing application logic primarily needs durable orchestration.
-- Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
-- Prefer `toUIMessageStreamResponse()`, `DefaultChatTransport`, and modern tool definitions (`inputSchema`, `outputSchema`) over v5-era patterns.
+- Within a selected stack, use eve for its filesystem-first runtime, AI SDK for its embedded model/agent loops, and Workflow SDK for durable orchestration when it fits the task.
+- Use `@ai-sdk/react` when the project uses AI SDK React hooks; preserve another established client framework and UI.
+- Check response, transport, and tool APIs against the installed version before changing them. A version difference alone does not authorize a dependency upgrade.
 - Keep AI recommendations scoped to the current task; do not force broad AI stack migrations unless the code already points there.
 
 ### Compute and Routing

@@ -20,10 +20,10 @@
       "expectedSkills": ["env-vars"]
     },
     {
-      "description": "app/api/chat/route.ts triggers ai-sdk, vercel-functions, and chat-sdk",
+      "description": "a generic chat route does not establish AI SDK usage",
       "type": "path",
       "input": "app/api/chat/route.ts",
-      "expectedSkills": ["ai-sdk", "vercel-functions", "chat-sdk"]
+      "expectedSkills": ["vercel-functions", "chat-sdk"]
     },
     {
       "description": "components.json has no dedicated shadcn skill",
@@ -32,10 +32,10 @@
       "expectedSkills": []
     },
     {
-      "description": "prisma/schema.prisma triggers vercel-storage and bootstrap",
+      "description": "a Prisma schema alone does not establish Vercel bootstrap requirements",
       "type": "path",
       "input": "prisma/schema.prisma",
-      "expectedSkills": ["vercel-storage", "bootstrap"]
+      "expectedSkills": ["vercel-storage"]
     },
     {
       "description": ".github/workflows/deploy.yml triggers deployments-cicd and vercel-agent, not workflow",
