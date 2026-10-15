@@ -263,18 +263,9 @@ vercel env add DATABASE_URL preview --git-branch=staging < ./staging-database-ur
 
 ## Gotchas
 
-### `vercel env pull` Overwrites Custom Variables
+### `vercel env pull` Merges Into an Existing File
 
-`vercel env pull .env.local` **replaces the entire file** — any manually added variables (custom secrets, local overrides, debug flags) are lost. Always back up or re-add custom vars after pulling:
-
-```bash
-# Save custom vars before pulling
-grep -v '^#' .env.local | grep -v '^VERCEL_\|^POSTGRES_\|^NEXT_PUBLIC_' > .env.custom.bak
-vercel env pull .env.local --yes
-cat .env.custom.bak >> .env.local  # Re-append custom vars
-```
-
-Or maintain custom vars in a separate `.env.development.local` file (loaded after `.env.local` by Next.js).
+With Vercel CLI 56.0 or later, when the target file exists, `vercel env pull` merges into it instead of replacing it: variables defined only locally are kept (logged as `Kept <KEYS> (defined locally, ...)`), while `VERCEL_OIDC_TOKEN` is always refreshed from Vercel. Keys that also exist on Vercel take the pulled value, and the file is rewritten, so comments and ordering are not preserved. For Secrets whose values cannot be read, current CLIs keep a real value already in your local file, or write a `[SENSITIVE]` placeholder for you to replace. Older CLIs replace the whole file. To override a Vercel-provided value locally, put it in `.env.development.local` (loaded after `.env.local` by Next.js), which `vercel env pull .env.local` does not touch.
 
 ### Pulled Files Omit Production and Preview Secrets
 
@@ -302,7 +293,7 @@ source <(grep -v '^#' .env.local | sed 's/^/export /') && node scripts/migrate.j
 4. **Rotate OIDC tokens regularly in local dev** — re-pull when you see auth errors
 5. **Use `.env.example`** — commit a template with empty values so teammates know which vars are needed
 6. **Prefix client-side vars with `NEXT_PUBLIC_`** — and never put secrets in them
-7. **Keep custom vars in `.env.development.local`** — protects them from `vercel env pull` overwrites
+7. **Keep local-only vars in `.env.local`** — `vercel env pull` (CLI 56.0+) keeps them when it merges; put local overrides of Vercel-defined keys in `.env.development.local`, which the pull does not touch
 
 ## Official Documentation
 

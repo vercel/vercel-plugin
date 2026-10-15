@@ -23,7 +23,7 @@ Based on "$ARGUMENTS", determine the action:
 | Argument | Action | Destructive? |
 |----------|--------|-------------|
 | `list` / `ls` / _(none)_ | List env var names per environment | No |
-| `pull` | Download env vars to local `.env.local` | No (overwrites local file) |
+| `pull` | Download env vars to local `.env.local` | No with CLI 56.0+ (merges into an existing file, keeping local-only keys; pulled keys overwrite local values). Older CLIs replace the file. |
 | `add <NAME>` | Add a new env var | Yes (if production) |
 | `rm <NAME>` / `remove <NAME>` | Remove an env var | **Yes** |
 | `diff` | Compare local vs Vercel key names | No |
@@ -211,18 +211,9 @@ vercel env add DATABASE_URL preview --git-branch=staging < ./staging-database-ur
 ## Common Gotchas
 
 <!-- Sourced from env-vars skill: Gotchas -->
-### `vercel env pull` Overwrites Custom Variables
+### `vercel env pull` Merges Into an Existing File
 
-`vercel env pull .env.local` **replaces the entire file** — any manually added variables (custom secrets, local overrides, debug flags) are lost. Always back up or re-add custom vars after pulling:
-
-```bash
-# Save custom vars before pulling
-grep -v '^#' .env.local | grep -v '^VERCEL_\|^POSTGRES_\|^NEXT_PUBLIC_' > .env.custom.bak
-vercel env pull .env.local --yes
-cat .env.custom.bak >> .env.local  # Re-append custom vars
-```
-
-Or maintain custom vars in a separate `.env.development.local` file (loaded after `.env.local` by Next.js).
+With Vercel CLI 56.0 or later, when the target file exists, `vercel env pull` merges into it instead of replacing it: variables defined only locally are kept (logged as `Kept <KEYS> (defined locally, ...)`), while `VERCEL_OIDC_TOKEN` is always refreshed from Vercel. Keys that also exist on Vercel take the pulled value, and the file is rewritten, so comments and ordering are not preserved. For Secrets whose values cannot be read, current CLIs keep a real value already in your local file, or write a `[SENSITIVE]` placeholder for you to replace. Older CLIs replace the whole file. To override a Vercel-provided value locally, put it in `.env.development.local` (loaded after `.env.local` by Next.js), which `vercel env pull .env.local` does not touch.
 
 ### Pulled Files Omit Production and Preview Secrets
 
