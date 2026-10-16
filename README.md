@@ -64,7 +64,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (33 skills)
+### Skills (34 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -78,6 +78,7 @@ A text-form relational graph covering:
 | `chat-sdk`              | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear                                              |
 | `create-a-backend`      | Backend product and framework selection — Functions, Services, containers, Workflow, Queues, and databases                          |
 | `custom-metrics`        | Emit numeric application and business measurements from Functions and query them with `vc metrics`                                 |
+| `daemons`               | Vercel Daemons — long-running Dockerfile-built workers declared under `daemons` in vercel.json, instances per region, SIGTERM, Queues poll mode |
 | `deployments-cicd`      | Deployment and CI/CD — deploy, promote, rollback, --prebuilt, CI workflow files                                                      |
 | `domains`              | Public domain search and pricing, CLI and Registrar API operations, project domains, DNS, transfers, and renewals                    |
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
@@ -273,7 +274,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 33 skills
+├── skills/                          # 34 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
@@ -323,6 +324,7 @@ back into the repository.
 - Runtime Cache API (per-region KV cache, tag-based invalidation)
 - Vercel Flags (feature flags, Flags Explorer, gradual rollouts, A/B testing)
 - Vercel Queues (durable event streaming, topics, consumer groups, retries)
+- Vercel Daemons (long-running background workers from a Dockerfile, instances per region)
 - Vercel Agent (chat, code review, investigations, approved actions)
 - Vercel Sandbox (Firecracker microVMs for untrusted code)
 - Sign in with Vercel (OAuth 2.0/OIDC identity provider)

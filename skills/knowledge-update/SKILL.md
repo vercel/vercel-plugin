@@ -75,8 +75,9 @@ export const config: VercelConfig = {
 - **Vercel Queues**: durable event streaming system with at-least-once delivery, built on Fluid Compute. Public beta.
 - **Vercel Workflows**: durable workflows written as application code that pause and resume, survive deployments and crashes, and run on Vercel Queues with managed persistence. GA since April 2026.
 - **Vercel Services**: multiple frontends and backends deployed together in one project, with shared routing and private service-to-service bindings. Beta on all plans.
+- **Vercel Daemons**: long-running background workers (queue consumers, Celery/Sidekiq/BullMQ workers, job runners) built from a Dockerfile and declared under the `daemons` key in `vercel.json`. No inbound traffic; production deployments only. Public beta on all plans.
 - **Vercel Sandbox**: sandboxed code execution environment. GA since January 2026.
-- **Vercel Container Registry**: Docker-compatible registry built into Vercel. Stores images built from a Dockerfile or Containerfile to run on Vercel Functions or as custom Sandbox images. Beta.
+- **Vercel Container Registry**: Docker-compatible registry built into Vercel. Stores images built from a Dockerfile or Containerfile to run on Vercel Functions, as Daemons, or as custom Sandbox images. Beta.
 - **Rolling Releases**: gradual/canary rollout for deployments. GA since June 2025.
 - **Sign in with Vercel**: OAuth provider for third-party apps. GA since November 2025.
 - **Vercel Agent**: dashboard and Slack chat, code reviews, production investigations, installations, and approved actions. Public beta.

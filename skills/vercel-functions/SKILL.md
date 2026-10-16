@@ -650,7 +650,7 @@ Registry limits: 2 GB per compressed layer, 15 GB total image size, 4 MB manifes
 
 Good fits: Go, Rust, Ruby, PHP, or other backends; apps needing system libraries like FFmpeg or Chromium; frameworks outside Vercel's auto-detection; guaranteed build/runtime parity across environments.
 
-Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Cron for those.
+Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Cron for those, or for an always-on worker loop, Vercel Daemons (`⤳ skill: daemons`).
 
 If your framework is already auto-detected and you have no system-library needs, the standard build is simpler and faster — a Dockerfile is not an upgrade by default.
 

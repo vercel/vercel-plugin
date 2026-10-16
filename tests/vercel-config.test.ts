@@ -108,6 +108,13 @@ describe("vercel-config.mjs", () => {
     expect(result!.relevantSkills.has("vercel-services")).toBe(true);
   });
 
+  test("resolveVercelJsonSkills maps the daemons key", () => {
+    const p = join(tempDir, "vercel-daemons.json");
+    writeFileSync(p, JSON.stringify({ daemons: {} }), "utf-8");
+    const result = resolveVercelJsonSkills(p);
+    expect(result!.relevantSkills.has("daemons")).toBe(true);
+  });
+
   test("resolveVercelJsonSkills maps mixed keys correctly", () => {
     const p = writeVercelJson({
       redirects: [],
@@ -127,6 +134,7 @@ describe("vercel-config.mjs", () => {
       "functions", "regions",
       "builds", "buildCommand", "installCommand", "outputDirectory", "framework",
       "services",
+      "daemons",
     ];
     for (const key of expectedKeys) {
       const content: Record<string, unknown> = { [key]: {} };

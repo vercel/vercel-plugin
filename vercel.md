@@ -44,12 +44,14 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
 │   ⊃ Custom Metrics (numeric samples from Functions → Observability / vc metrics)
 │   ⊃ Vercel Queues (durable topics, at-least-once delivery, consumer groups; beta — the primitive under Workflows)
+│   ⊃ Vercel Daemons (long-running containers with no inbound traffic, `daemons` key in vercel.json; beta, production only)
 │   ⤳ skill: create-a-backend  (backend product and framework selection)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: custom-metrics
 │   ⤳ skill: routing-middleware
 │   ⤳ skill: runtime-cache
 │   ⤳ skill: queues
+│   ⤳ skill: daemons
 │
 ├── Domains & DNS
 │   → Deployment Engine
@@ -723,6 +725,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
 | Scheduled execution | Cron Jobs | vercel.json schedule config |
 | Background jobs, buffering, fan-out to consumers | Vercel Queues (`@vercel/queue`) | Durable topics, at-least-once delivery, retries; Workflows for multi-step logic |
+| Always-on worker (queue consumer, Celery/Sidekiq/BullMQ, job runner) | Vercel Daemons (`daemons` in vercel.json) | Dockerfile-built, fixed instances per region, no inbound traffic; beta, production only |
 
 ### Disambiguation: Interception Compute
 

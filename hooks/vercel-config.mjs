@@ -19,9 +19,12 @@ var KEY_SKILL_MAP = {
   devCommand: ["deployments-cicd"],
   ignoreCommand: ["deployments-cicd"],
   // Services
-  services: ["vercel-services"]
+  services: ["vercel-services"],
+  // Daemons
+  daemons: ["daemons"]
 };
 var VERCEL_JSON_SKILLS = /* @__PURE__ */ new Set([
+  "daemons",
   "deployments-cicd",
   "routing-middleware",
   "vercel-services",

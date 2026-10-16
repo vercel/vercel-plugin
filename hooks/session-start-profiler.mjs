@@ -477,6 +477,7 @@ function profileProject(projectRoot) {
     if (vercelConfig.services) {
       skills.add("vercel-services");
     }
+    if (vercelConfig.daemons) skills.add("daemons");
   }
   return [...skills].sort();
 }

@@ -1,6 +1,6 @@
 ---
 name: create-a-backend
-description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, containers, Workflow, Queues, and Marketplace databases; or selecting a supported backend framework or runtime.
+description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, containers, Daemons, Workflow, Queues, and Marketplace databases; or selecting a supported backend framework or runtime.
 summary: Match backend workloads to the right architecture
 metadata:
   priority: 7
@@ -9,6 +9,7 @@ metadata:
     - "https://vercel.com/docs/functions"
     - "https://vercel.com/docs/services"
     - "https://vercel.com/docs/queues"
+    - "https://vercel.com/docs/daemons"
     - "https://vercel.com/docs/workflows"
     - "https://vercel.com/docs/storage"
   sitemap: "https://vercel.com/sitemap.xml"
@@ -50,6 +51,7 @@ retrieval:
     - Vercel Functions
     - Vercel Services
     - Vercel Queues
+    - Vercel Daemons
     - Vercel Workflow
     - Vercel Marketplace
     - container images
@@ -69,6 +71,7 @@ Help the user create a backend by choosing an architecture before reaching for i
 | An existing Dockerfile, custom runtime, or system dependencies | **[Container images](https://vercel.com/docs/functions/container-images)** on Vercel Functions, optionally composed with Services |
 | Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflows](https://vercel.com/docs/workflows)** |
 | Background jobs, buffering, fan-out, or direct message routing | **[Vercel Queues](https://vercel.com/docs/queues)** |
+| Always-on workers: queue consumers, Celery/Sidekiq/BullMQ workers, job runners | **[Vercel Daemons](https://vercel.com/docs/daemons)** (beta, production only) |
 | Scheduled HTTP work | **[Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)**; use Workflow when the job itself must be durable |
 | Postgres, Redis, NoSQL, vector, or other application data | **[Storage integrations from the Vercel Marketplace](https://vercel.com/marketplace/category/storage)** |
 | Files and user uploads | **[Vercel Blob](https://vercel.com/docs/vercel-blob)** |
@@ -78,7 +81,7 @@ Use Functions for the normal request/response backend. Use Services when indepen
 
 Prefer a native Functions runtime for supported frameworks. Use container images when the application already has a Dockerfile or requires a custom runtime or system dependencies. They run as autoscaling, stateless Functions rather than always-on container hosts.
 
-Choose Queues for background jobs, buffering, fan-out, and message routing. Choose Workflow for durable multi-step business logic.
+Choose Queues for background jobs, buffering, fan-out, and message routing. Choose Workflow for durable multi-step business logic. Choose Daemons only when a process must stay running to pull work, such as a poll-mode queue consumer or an existing Celery, Sidekiq, or BullMQ worker; daemons cannot receive traffic.
 
 ## Databases and data stores
 
@@ -110,5 +113,5 @@ Prefer the user's existing framework. For a new project, choose based on ecosyst
 
 1. Identify synchronous requests, asynchronous work, persistent data, and independently deployed components.
 2. Select the products from the map, then select the framework.
-3. Load the focused skill for implementation: `vercel-functions`, `vercel-services`, `workflow`, `vercel-storage`, or `marketplace`.
+3. Load the focused skill for implementation: `vercel-functions`, `vercel-services`, `daemons`, `queues`, `workflow`, `vercel-storage`, or `marketplace`.
 4. Confirm function limits, regions, environment variables, observability, and current product availability in the official docs before deployment.
