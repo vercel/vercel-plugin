@@ -134,7 +134,7 @@ chainTo:
   -
     pattern: "from\\s+['\"]@prisma/client['\"]|from\\s+['\"]prisma['\"]"
     targetSkill: vercel-storage
-    message: 'Prisma ORM detected — loading Vercel Storage guidance for Neon Postgres integration with Prisma, connection pooling, and Marketplace provisioning.'
+    message: 'Prisma ORM detected — loading Vercel Storage guidance for Marketplace Postgres providers (Prisma Postgres, Neon, Supabase, AWS Aurora, Nile), connection pooling, and Marketplace provisioning.'
     skipIfFileContains: "@neondatabase/serverless|POSTGRES_PRISMA_URL"
   -
     pattern: "from\\s+['\"]@libsql/client['\"]"
@@ -396,20 +396,20 @@ const { data, error } = await supabase.from('users').select('*')
 
 Install via Vercel Marketplace: `vercel integration add supabase`
 
-### Prisma ORM (Marketplace Native)
+### Prisma Postgres (Marketplace Native)
 
-Type-safe ORM with auto-generated client, migrations, and Prisma Accelerate for connection pooling.
+Managed PostgreSQL with built-in connection pooling. The integration sets `DATABASE_URL`, which works with any Postgres client: Prisma ORM, Drizzle, Kysely, or `pg`.
 
 ```bash
-npm install prisma @prisma/client
-npx prisma init
+npm install pg
 ```
 
 ```ts
-import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg'
 
-const prisma = new PrismaClient()
-const users = await prisma.user.findMany()
+// Create the pool once and reuse it; keep it small per function instance
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 })
+const { rows } = await pool.query('SELECT * FROM users')
 ```
 
 Install via Vercel Marketplace: `vercel integration add prisma`
