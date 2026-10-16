@@ -64,7 +64,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (33 skills)
+### Skills (34 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -99,6 +99,7 @@ A text-form relational graph covering:
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Global Config (formerly Edge Config), Neon Postgres, Upstash Redis, migration from sunset packages                             |
+| `vercel-tracing`        | OpenTelemetry instrumentation setup, sampling, span search, request inspection, trace-based debugging and performance                |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
 | `workflow`              | Workflow SDK — durable execution, WorkflowAgent, steps, Worlds, pause/resume                                                         |
 
@@ -273,7 +274,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 33 skills
+├── skills/                          # 34 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content

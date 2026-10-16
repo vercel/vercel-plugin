@@ -57,6 +57,13 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: domains  (public search, registration, project domains, DNS, transfers, renewals)
 │   ⤳ skill: vercel-cli  (vercel domains, vercel dns, vercel certs)
 │
+├── Vercel Tracing (OpenTelemetry spans from deployed traffic)     ⤳ skill: vercel-tracing  📖 docs: https://vercel.com/docs/tracing
+│   ⊃ Always-on tracing (sampled production and preview requests)
+│   ⊃ Session tracing (browser-session capture)
+│   → @vercel/otel + @opentelemetry/api (framework and custom spans)
+│   ↔ Vercel Functions / Logs (request IDs and trace inspection)
+│   ↔ Vercel CLI (vercel traces inspect, search, create, config)
+│
 ├── Environment Variables                        ⤳ skill: env-vars
 │   → Deployment Engine
 │   ↔ Vercel CLI (vercel env)
@@ -593,6 +600,7 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │
 ├── Other
 │   ⊃ vercel logs (runtime logs; `vercel logs requests` for CDN requests)
+│   ⊃ vercel traces (span search, trace inspection, sampling rules)    ⤳ skill: vercel-tracing
 │   ⊃ vercel inspect (deployment details)
 │   ⊃ vercel domains (manage domains)
 │   ⊃ vercel certs (SSL certificates)

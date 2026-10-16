@@ -76,6 +76,10 @@ retrieval:
     - vercel metrics
 chainTo:
   -
+    pattern: '\b(?:vercel|vc)\s+traces\b'
+    targetSkill: vercel-tracing
+    message: 'vercel traces command detected — loading Vercel Tracing guidance for span search, request inspection, and sampling rules.'
+  -
     pattern: '"functions"\s*:\s*\{|"maxDuration"\s*:|"memory"\s*:'
     targetSkill: vercel-functions
     message: 'Functions configuration detected in vercel.json — loading Vercel Functions guidance for runtime options, streaming, and Fluid Compute.'
