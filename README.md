@@ -13,6 +13,7 @@
 | [Grok Build](https://x.ai/news/grok-build-cli)                | Supported |
 | [Kimi Code](https://kimi.com)                                 | Supported |
 | [OpenCode](https://opencode.ai) 2                             | Supported |
+| [Neotask](https://neotask.ai)                                 | Supported |
 
 ### Prerequisites
 
@@ -35,6 +36,14 @@ opencode plugin add github:vercel/vercel-plugin
 ```
 
 OpenCode loads the same skills, agents, commands (`/vercel:deploy`, `/vercel:env`, `/vercel:status`, `/vercel:bootstrap`), session context, and Vercel MCP server. Run `/mcps` in OpenCode to sign in to the MCP server. Node.js and Bun are not needed for OpenCode.
+
+For Neotask, install it with the Neotask CLI:
+
+```bash
+neotask construct install vercel
+```
+
+Neotask uses your Vercel connection for the Vercel MCP server and does not run the plugin's hooks.
 
 ## What It Does
 
