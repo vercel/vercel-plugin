@@ -84,7 +84,7 @@ Choose Queues for background jobs, buffering, fan-out, and message routing. Choo
 
 Provision data stores through the Marketplace so credentials are injected into the project and environments stay connected. Check the current catalog before choosing a provider.
 
-- **Postgres:** Neon, Supabase, AWS/Aurora, Nile, Prisma Postgres
+- **Postgres:** Prisma Postgres, Neon, Supabase, AWS/Aurora, Nile
 - **MySQL:** AWS/Aurora
 - **Redis and key-value:** Upstash, Redis
 - **Document and NoSQL:** MongoDB Atlas, AWS
