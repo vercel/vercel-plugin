@@ -3,6 +3,12 @@
  * SessionStart hook: inject a thin Vercel session context.
  * Claude Code receives plain-text stdout.
  * Cursor receives `{ additional_context: "..." }` JSON on stdout.
+ *
+ * hooks.json runs this hook twice: once for the session context and greenfield
+ * guidance, and once with `--knowledge-update` for the knowledge update. Claude
+ * Code caps each hook's output at 10,000 characters and replaces longer output
+ * with a file path and a preview of up to 2,000 characters, and the two
+ * together no longer fit in one hook.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -18,6 +24,8 @@ interface InjectClaudeMdInput {
   cursor_version?: string;
   [key: string]: unknown;
 }
+
+const KNOWLEDGE_UPDATE_FLAG = "--knowledge-update";
 
 const GREENFIELD_CONTEXT = `<!-- vercel-plugin:greenfield-execution -->
 ## Greenfield execution mode
@@ -61,12 +69,14 @@ export function buildInjectClaudeMdParts(
     parts.push(content);
   }
 
-  if (knowledgeUpdate !== null) {
-    parts.push(knowledgeUpdate);
-  }
-
+  // Greenfield guidance belongs to the session context, so it comes before the
+  // knowledge update, which hooks.json prints from a second invocation.
   if (greenfield) {
     parts.push(GREENFIELD_CONTEXT);
+  }
+
+  if (knowledgeUpdate !== null) {
+    parts.push(knowledgeUpdate);
   }
 
   return parts;
@@ -92,6 +102,7 @@ function stripFrontmatter(content: string): string {
 function main(): void {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
+  const knowledgeUpdateOnly = process.argv.includes(KNOWLEDGE_UPDATE_FLAG);
   const projectRoot = resolveInjectClaudeMdProjectRoot();
   const isGreenfield = isGreenfieldDirectory(projectRoot);
   const greenfieldOverride = process.env.VERCEL_PLUGIN_GREENFIELD === "true";
@@ -103,14 +114,16 @@ function main(): void {
     }
     return;
   }
-  const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
-  const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
+  const thinSessionContext = knowledgeUpdateOnly ? null : safeReadFile(join(pluginRoot(), "vercel-session.md"));
+  const knowledgeUpdateRaw = knowledgeUpdateOnly
+    ? safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"))
+    : null;
   const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
   const parts = buildInjectClaudeMdParts(
     thinSessionContext,
     process.env,
     knowledgeUpdate,
-    isGreenfield || greenfieldOverride,
+    !knowledgeUpdateOnly && (isGreenfield || greenfieldOverride),
   );
 
   if (parts.length === 0) {

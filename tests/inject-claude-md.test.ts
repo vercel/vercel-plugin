@@ -1,15 +1,49 @@
 import { afterEach, beforeEach, describe, test, expect } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "inject-claude-md.mjs");
+// Claude Code saves a hook's stdout that is longer than this to a file and
+// shows Claude only the file path and a preview of up to 2,000 characters
+// (https://code.claude.com/docs/en/hooks, "Output size limits").
+const CLAUDE_CODE_HOOK_OUTPUT_CAP = 10_000;
 let tempDir: string;
+
+/** Arguments of each SessionStart command in hooks.json that runs this hook. */
+function sessionStartInvocations(): string[][] {
+  const hooksJson = JSON.parse(readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8")) as {
+    hooks: { SessionStart: { hooks: { command: string }[] }[] };
+  };
+  return hooksJson.hooks.SessionStart
+    .flatMap((group) => group.hooks)
+    .map((hook) => hook.command.split('/hooks/inject-claude-md.mjs"'))
+    .filter((split) => split.length === 2)
+    .map(([, args]) => args.split(" ").filter(Boolean));
+}
+
+/** Runs every registered invocation, as Claude Code does at session start. */
+async function runSessionStart(
+  payload: Record<string, unknown>,
+  env?: Record<string, string | undefined>,
+): Promise<{ code: number; outputs: string[]; stdout: string }> {
+  const results = [];
+  for (const args of sessionStartInvocations()) {
+    results.push(await runHook(payload, env, args));
+  }
+  const outputs = results.map((result) => result.stdout);
+  return {
+    code: results.find((result) => result.code !== 0)?.code ?? 0,
+    outputs,
+    stdout: outputs.filter(Boolean).join("\n\n"),
+  };
+}
 
 async function runHook(
   payload: Record<string, unknown>,
   env?: Record<string, string | undefined>,
+  args: string[] = [],
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   const mergedEnv: Record<string, string> = { ...(process.env as Record<string, string>) };
   for (const [key, value] of Object.entries(env || {})) {
@@ -20,7 +54,7 @@ async function runHook(
     }
   }
 
-  const proc = Bun.spawn(["node", HOOK_SCRIPT], {
+  const proc = Bun.spawn(["node", HOOK_SCRIPT, ...args], {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
@@ -45,7 +79,7 @@ describe("inject-claude-md", () => {
   });
 
   test("injects thin session context instead of the full vercel ecosystem graph", async () => {
-    const { code, stdout } = await runHook({ session_id: "inject-thin-session" });
+    const { code, stdout } = await runSessionStart({ session_id: "inject-thin-session" });
     expect(code).toBe(0);
     expect(stdout).toContain("Vercel Plugin Session Context");
     expect(stdout).toContain("Vercel Knowledge Updates");
@@ -57,7 +91,7 @@ describe("inject-claude-md", () => {
     // so a wrong limit here overrides the agent's correct knowledge. The
     // published limit is 4.5 MB (vercel.com/docs/functions/limitations); the
     // 100 MB claim cited a changelog URL that does not exist.
-    const { code, stdout } = await runHook({ session_id: "inject-knowledge-limits" });
+    const { code, stdout } = await runSessionStart({ session_id: "inject-knowledge-limits" });
     expect(code).toBe(0);
     expect(stdout).toContain("Vercel Knowledge Updates");
     expect(stdout).toMatch(/4\.5 ?MB/);
@@ -69,7 +103,7 @@ describe("inject-claude-md", () => {
   });
 
   test("session-start knowledge updates state documented product status", async () => {
-    const { code, stdout } = await runHook({ session_id: "inject-knowledge-status" });
+    const { code, stdout } = await runSessionStart({ session_id: "inject-knowledge-status" });
     expect(code).toBe(0);
     // vercel.com/blog/a-new-programming-model-for-durable-execution (2026-04-16): "Today, Vercel Workflows is generally available"
     expect(stdout).toMatch(/\*\*Vercel Workflows\*\*:.*GA since April 2026\./);
@@ -96,7 +130,7 @@ describe("inject-claude-md", () => {
   test("injects the always-on capability-routing contract", async () => {
     // The load-bearing contract: every activated session gets the signal-gated
     // routing table + the anti-hardcode rule, in the always-on layer.
-    const { code, stdout } = await runHook({ session_id: "inject-discover-first" });
+    const { code, stdout } = await runSessionStart({ session_id: "inject-discover-first" });
     expect(code).toBe(0);
     expect(stdout).toContain("Integrations on Vercel");
     // first-action contract: load the marketplace skill (which owns the discover-first workflow)
@@ -115,7 +149,7 @@ describe("inject-claude-md", () => {
     mkdirSync(projectDir);
     writeFileSync(join(projectDir, "README.md"), "# Plain project");
 
-    const { code, stdout } = await runHook(
+    const { code, stdout } = await runSessionStart(
       { session_id: "inject-thin-skip" },
       { CLAUDE_PROJECT_ROOT: projectDir },
     );
@@ -132,7 +166,7 @@ describe("inject-claude-md", () => {
     mkdirSync(projectDir);
     writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
 
-    const { code, stdout } = await runHook(
+    const { code, stdout } = await runSessionStart(
       { session_id: "inject-nextjs-bundled-docs" },
       { CLAUDE_PROJECT_ROOT: projectDir },
     );
@@ -141,6 +175,33 @@ describe("inject-claude-md", () => {
     expect(stdout).toContain("node_modules/next/dist/docs/");
     expect(stdout).toContain("npx @next/codemod@canary agents-md");
     expect(stdout).toContain("npx skills add vercel/next.js");
+  });
+
+  test("each session-start output fits within Claude Code's hook output cap", async () => {
+    // Claude Code measures each hook's stdout on its own. Over the cap, Claude
+    // sees only a file path and at most the first 2,000 characters.
+    const vercelProject = join(tempDir, "vercel-project");
+    mkdirSync(vercelProject);
+    writeFileSync(join(vercelProject, "vercel.json"), "{}");
+    const emptyProject = join(tempDir, "empty-project");
+    mkdirSync(emptyProject);
+
+    for (const projectDir of [vercelProject, emptyProject]) {
+      const { code, outputs, stdout } = await runSessionStart(
+        { session_id: "inject-output-cap" },
+        { CLAUDE_PROJECT_ROOT: projectDir },
+      );
+
+      expect(code).toBe(0);
+      for (const output of outputs) {
+        expect(output.trim().length).toBeLessThanOrEqual(CLAUDE_CODE_HOOK_OUTPUT_CAP);
+      }
+      expect(stdout).toContain("Vercel Plugin Session Context");
+      expect(stdout).toContain("## Integrations on Vercel");
+      if (projectDir === emptyProject) {
+        expect(stdout).toContain("Greenfield execution mode");
+      }
+    }
   });
 
   test("still injects for empty directories", async () => {
@@ -166,5 +227,13 @@ describe("inject-claude-md", () => {
     const result = JSON.parse(stdout);
     expect(result.additional_context).toContain("Vercel Plugin Session Context");
     expect(result.additional_context).not.toContain("Vercel Ecosystem — Relational Knowledge Graph");
+
+    const knowledgeUpdate = await runHook(
+      { conversation_id: "inject-thin-cursor", cursor_version: "1.0.0", workspace_roots: [ROOT] },
+      undefined,
+      ["--knowledge-update"],
+    );
+    expect(knowledgeUpdate.code).toBe(0);
+    expect(JSON.parse(knowledgeUpdate.stdout).additional_context).toContain("Vercel Knowledge Updates");
   });
 });

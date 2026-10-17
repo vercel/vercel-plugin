@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import { formatOutput } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
 import { hasSessionStartActivationMarkers, isGreenfieldDirectory } from "./session-start-activation.mjs";
+var KNOWLEDGE_UPDATE_FLAG = "--knowledge-update";
 var GREENFIELD_CONTEXT = `<!-- vercel-plugin:greenfield-execution -->
 ## Greenfield execution mode
 
@@ -35,11 +36,11 @@ function buildInjectClaudeMdParts(content, env = process.env, knowledgeUpdate = 
   if (content !== null) {
     parts.push(content);
   }
-  if (knowledgeUpdate !== null) {
-    parts.push(knowledgeUpdate);
-  }
   if (greenfield) {
     parts.push(GREENFIELD_CONTEXT);
+  }
+  if (knowledgeUpdate !== null) {
+    parts.push(knowledgeUpdate);
   }
   return parts;
 }
@@ -59,6 +60,7 @@ function stripFrontmatter(content) {
 function main() {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
+  const knowledgeUpdateOnly = process.argv.includes(KNOWLEDGE_UPDATE_FLAG);
   const projectRoot = resolveInjectClaudeMdProjectRoot();
   const isGreenfield = isGreenfieldDirectory(projectRoot);
   const greenfieldOverride = process.env.VERCEL_PLUGIN_GREENFIELD === "true";
@@ -69,14 +71,14 @@ function main() {
     }
     return;
   }
-  const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
-  const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
+  const thinSessionContext = knowledgeUpdateOnly ? null : safeReadFile(join(pluginRoot(), "vercel-session.md"));
+  const knowledgeUpdateRaw = knowledgeUpdateOnly ? safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md")) : null;
   const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
   const parts = buildInjectClaudeMdParts(
     thinSessionContext,
     process.env,
     knowledgeUpdate,
-    isGreenfield || greenfieldOverride
+    !knowledgeUpdateOnly && (isGreenfield || greenfieldOverride)
   );
   if (parts.length === 0) {
     return;
