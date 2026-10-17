@@ -468,7 +468,7 @@ Server plugin + matching client plugin + re-run migrations.
 | Passkeys (WebAuthn) | `passkey` from `@better-auth/passkey` | `passkeyClient` |
 | Enterprise SSO (SAML/OIDC) | `sso` from `@better-auth/sso` | — |
 | Stripe subscriptions | `stripe` from `@better-auth/stripe` | `stripeClient` |
-| Third-party tokens via Vercel Connect | `genericOAuth` + `connect` from `@vercel/connect/betterauth` | — |
+| Sign in through a Vercel Connect connector | `genericOAuth` from `better-auth/plugins/generic-oauth` + `connect` from `@vercel/connect/betterauth` | — (v1.7 signs in with `authClient.signIn.social`; `genericOAuthClient` only exists on v1.6 and earlier) |
 
 ### Agent Tooling
 
@@ -653,7 +653,7 @@ Clerk provides an upgrade CLI that scans your codebase and applies codemods: `np
 - **Accessing protected deployments from CLI or tests** → `⤳ skill: access-protected-vercel-deployment`
 - **Environment variable management** → `⤳ skill: env-vars`
 - **Neon Postgres / Upstash Redis for Better Auth** → `⤳ skill: vercel-storage`
-- **Third-party OAuth tokens through Better Auth (`@vercel/connect/betterauth`)** → `⤳ skill: vercel-connect`
+- **Sign-in through a Vercel Connect connector with Better Auth (`@vercel/connect/betterauth`); provider API tokens use `getToken()`** → `⤳ skill: vercel-connect`
 
 ## Official Documentation
 
