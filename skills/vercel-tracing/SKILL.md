@@ -20,6 +20,7 @@ metadata:
     - '@opentelemetry/api'
   promptSignals:
     phrases:
+      - "vercel traces"
       - "vc traces"
       - "@vercel/otel"
       - "registerotel"
@@ -66,8 +67,19 @@ metadata:
       - [loader, slow]
       - [action, slow]
       - [server, slow]
-      - [app, slow]
-      - [take, seconds]
+      - [app is, slow]
+      - [app feels, slow]
+      - [app got, slow]
+      - [app loads, slow]
+      - [take, seconds, route]
+      - [take, seconds, endpoint]
+      - [take, seconds, api]
+      - [take, seconds, page]
+      - [take, seconds, dashboard]
+      - [take, seconds, request]
+      - [take, seconds, loader]
+      - [take, seconds, query]
+      - [take, seconds, server]
       - [p95, latency]
       - [slow, since, deploy]
       - [slower, since, deploy]

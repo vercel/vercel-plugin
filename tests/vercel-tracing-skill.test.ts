@@ -13,6 +13,7 @@ import {
   normalizePromptText,
   type CompiledPromptSignals,
 } from "../hooks/src/prompt-patterns.mts";
+import { analyzePrompt } from "../hooks/src/prompt-analysis.mts";
 import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -124,6 +125,62 @@ describe("Vercel tracing prompt activation", () => {
     "Optimize performance of my React app",
   ])("does not match build, browser, or unrelated intent: %s", (prompt) => {
     expect(matchesPrompt(prompt)).toBe(false);
+  });
+
+  // Prompt terms match as substrings, so "app" also hits "approach" and "apply",
+  // and a bare "take" + "seconds" pair hits any wait measured in seconds.
+  test.each([
+    "Which approach should I take if I want to roll out the feature slowly?",
+    "Apply the review suggestions slowly, one commit at a time.",
+    "It takes a few seconds to install dependencies.",
+    "Write a function that takes 5 seconds to resolve.",
+    "The countdown takes 10 seconds before redirecting.",
+  ])("does not match words that only contain a trigger term: %s", (prompt) => {
+    expect(matchesPrompt(prompt)).toBe(false);
+  });
+});
+
+describe("Vercel tracing and Vercel CLI prompt routing", () => {
+  let skillMap: Record<string, any>;
+
+  beforeAll(() => {
+    skillMap = loadValidatedSkillMap(resolve(ROOT, "skills")).skills;
+  });
+
+  function route(prompt: string) {
+    return analyzePrompt(prompt, skillMap, "", 8_000, 2, {
+      lexicalEnabled: false,
+      likelySkills: [],
+    });
+  }
+
+  test.each([
+    "Use vercel traces to find slow spans in my project.",
+    "Run vercel traces search for errors in the last hour.",
+    "How do I change sampling with vercel traces config?",
+    "Inspect this request with vc traces.",
+    "Check the vercel traces of my deployment.",
+  ])("routes `vercel traces` investigation to vercel-tracing first: %s", (prompt) => {
+    expect(route(prompt).selectedSkills[0]).toBe("vercel-tracing");
+  });
+
+  test.each([
+    "Use vercel traces to find slow spans in my project.",
+    "Run vercel traces search for errors in the last hour.",
+  ])("does not also load vercel-cli for a tracing-only prompt: %s", (prompt) => {
+    expect(route(prompt).perSkillResults["vercel-cli"].matched).toBe(false);
+  });
+
+  test.each([
+    "Check vercel logs for my production deployment.",
+    "Show me vercel logs for errors.",
+    "My vercel deployment failed.",
+    "What is the deployment status?",
+  ])("leaves general CLI prompts to vercel-cli: %s", (prompt) => {
+    const report = route(prompt);
+
+    expect(report.selectedSkills[0]).toBe("vercel-cli");
+    expect(report.perSkillResults["vercel-tracing"].matched).toBe(false);
   });
 });
 
