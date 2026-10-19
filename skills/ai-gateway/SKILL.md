@@ -168,7 +168,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | `budgets set/inspect/remove --default`, `budgets list --defaults` | Set per-scope default limits covering projects, keys, or members without a custom budget. Needs CLI 59.13+; the older `budgets defaults` group is deprecated |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
 | `virtual-models create/list/inspect/edit/remove/restore` | Manage reusable, team-scoped model configurations addressed as `vmc/<slug>` |
-| `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `/v1/ai-gateway/rules` |
+| `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `https://api.vercel.com/ai-gateway/rules` |
 | `setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
 
