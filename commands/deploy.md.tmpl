@@ -17,7 +17,7 @@ Run these checks before any deployment. Stop on failure and print actionable gui
 3. **Monorepo detection** — Look for `turbo.json` or `pnpm-workspace.yaml` at the repo root.
    - If detected: confirm which package is targeted. If ambiguous, ask the user before proceeding.
 4. **Uncommitted changes** — Run `git status --porcelain`.
-   - If output is non-empty: warn the user that `vercel` uploads the local working tree, so uncommitted and untracked files **will** ship in this deployment (files in `.vercelignore` and the default ignore list excepted). Ask whether to continue or commit first.
+   - If output is non-empty: warn the user that `vercel` uploads the local working tree, so uncommitted and untracked files **will** ship in this deployment (only files matched by `.vercelignore` or the CLI's default ignore list are skipped; `.gitignore` rules do not apply). Ask whether to continue or commit first.
    - If not a git repo, skip this check.
 5. **Observability preflight** (production deploys only) —
 
