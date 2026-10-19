@@ -1,7 +1,7 @@
 ---
 name: daemons
 description: Vercel Daemons guidance — long-running background workers built from a Dockerfile and declared under the `daemons` key in vercel.json. Use when running queue consumers, Celery/Sidekiq/BullMQ workers, workflow workers, or job runners next to an app on Vercel; configuring daemon instances per region, memory, or command; handling SIGTERM; or choosing between Daemons, Functions, Queues, and Workflows.
-summary: "Vercel Daemons (public beta) run long-running containers with no inbound traffic, declared under the top-level `daemons` key in vercel.json as `{ root, entrypoint: 'Dockerfile', instances: { iad1: 2 } }`. Vercel builds the image, rolls it out with the production deployment, keeps the instance counts per region, and sends SIGTERM (10s default grace, configurable with `terminationGracePeriodSeconds`) on rollout. Production only during the beta."
+summary: "Vercel Daemons (public beta) run long-running containers with no inbound traffic, declared under the top-level `daemons` key in vercel.json as `{ root, entrypoint: 'Dockerfile', instances: { iad1: 2 } }`. Vercel builds the image, rolls it out with the production deployment, keeps the instance counts per region, and sends SIGTERM (30s default grace, configurable with `terminationGracePeriodSeconds`) on rollout. Production only during the beta."
 metadata:
   priority: 6
   docs:
@@ -158,7 +158,7 @@ Daemons are always declared at the top level, never inside `services`. They run 
 | `instances` | `Record<region, number>` | Yes | Instances per region ID, each `0`–`100`. Vercel runs only in the listed regions |
 | `command` | `string[]` | No | Replaces the image's `ENTRYPOINT` and `CMD`. Not run through a shell |
 | `resources` | `{ requests: { memory } }` | No | `1Gi` (1 vCPU), `2Gi` (1 vCPU, default), `4Gi` (2 vCPU), `8Gi` (4 vCPU) |
-| `terminationGracePeriodSeconds` | `number` | No | Seconds to wait after `SIGTERM` before terminating, `0`–`3600`, default `10` |
+| `terminationGracePeriodSeconds` | `number` | No | Seconds to wait after `SIGTERM` before terminating, `0`–`3600`, default `30` |
 
 - **`instances` vs `replicas`**: the published `vercel.json` schema and the Build Output API use `instances`. `replicas` is a deprecated alias that is ignored when `instances` is set. If the project already uses `replicas`, leave it working, but write `instances` in new configuration.
 - **Names**: lowercase letters only, joined by `_`, `__`, or one or more `-` (`worker`, `email_sender`, `celery-beat`; not `Worker`, `worker1`, `_worker`), 64 characters max. Two names that collapse to the same image repository once repeated hyphens are merged, such as `a-b` and `a--b`, fail the build. A daemon and a service may share a name.
@@ -195,7 +195,7 @@ Daemons are always declared at the top level, never inside `services`. They run 
 
 ## Graceful Shutdown
 
-Vercel sends `SIGTERM` on rollout, scale-down, removal, and manual restart, then waits 10 seconds by default (`terminationGracePeriodSeconds`, `0`–`3600`) before terminating the process. Stop taking new work immediately and finish the job in progress. Instances can stop at any time, so jobs must be idempotent and safe to retry; acknowledge a queue message only after processing it.
+Vercel sends `SIGTERM` on rollout, scale-down, removal, and manual restart, then waits 30 seconds by default (`terminationGracePeriodSeconds`, `0`–`3600`) before terminating the process. Stop taking new work immediately and finish the job in progress. Instances can stop at any time, so jobs must be idempotent and safe to retry; acknowledge a queue message only after processing it.
 
 ```ts
 // worker/worker.ts
@@ -278,7 +278,7 @@ With `vercel build` or a custom builder, `.vercel/output/config.json` lists daem
 |-------|-------|
 | Instances per region | 100 per daemon |
 | Memory per instance | 1, 2 (default), 4, or 8 GiB |
-| Shutdown grace period | 10 seconds after `SIGTERM` by default, configurable up to 3,600 seconds with `terminationGracePeriodSeconds` |
+| Shutdown grace period | 30 seconds after `SIGTERM` by default, configurable up to 3,600 seconds with `terminationGracePeriodSeconds` |
 | CPU architecture | Linux `amd64` |
 
 Default per-team quotas apply during the beta: Hobby is limited to 1–2 GiB instances and a monthly Active CPU-hour allowance (instances stop when it runs out), Pro allows all sizes up to a concurrent vCPU and memory cap, and Enterprise is custom. Check [Daemons limits](https://vercel.com/docs/daemons/limits) for the current numbers before sizing a deployment.
@@ -291,7 +291,7 @@ Not supported during the beta: preview deployments, inbound HTTP or TCP traffic,
 2. **Testing on a preview**: daemons never start for preview deployments during the beta. Deploy to production or run the image locally.
 3. **Ignored scaling change**: a dashboard scaling override wins over `instances` until it is cleared.
 4. **Unsafe overlap**: old and new versions run side by side during a rollout. Keep message formats and schema migrations backward compatible.
-5. **No SIGTERM handling**: the process is killed 10 seconds after `SIGTERM` unless `terminationGracePeriodSeconds` is raised. Make jobs idempotent and acknowledge only after completion.
+5. **No SIGTERM handling**: the process is killed 30 seconds after `SIGTERM` (the default) unless `terminationGracePeriodSeconds` is raised. Make jobs idempotent and acknowledge only after completion.
 6. **Shell syntax in `command`**: `$VAR` and `&&` are not expanded. Wrap in `sh -c`.
 7. **Monorepo root directory**: projects with a subfolder root directory cannot add daemons yet.
 8. **Stale OIDC SDK**: use `@vercel/oidc` ≥ 4.0.0 or `vercel-oidc` ≥ 0.10.0 so the token file is read.

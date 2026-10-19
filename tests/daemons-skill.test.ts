@@ -90,6 +90,14 @@ describe("Vercel Daemons guidance", () => {
     expect(skill).toContain("⤳ skill: queues");
   });
 
+  // The platform default moved from 10s to 30s in vercel/api#99394.
+  test("states the 30-second default shutdown grace period everywhere", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain("`terminationGracePeriodSeconds` | `number` | No | Seconds to wait after `SIGTERM` before terminating, `0`–`3600`, default `30`");
+    expect(skill).not.toMatch(/\b10\s?(s|sec|seconds)\b[^\n]*SIGTERM|SIGTERM[^\n]*\b10\s?(s|sec|seconds)\b/);
+  });
+
   test("vercel.json examples never put daemons inside services", () => {
     const skill = readFileSync(SKILL_PATH, "utf8");
     for (const m of skill.matchAll(/```json filename="vercel.json"\n([\s\S]*?)```/g)) {
