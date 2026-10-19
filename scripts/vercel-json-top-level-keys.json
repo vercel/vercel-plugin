@@ -1,6 +1,6 @@
 {
   "source": "https://openapi.vercel.sh/vercel.json",
-  "fetchedAt": "2026-09-24",
+  "fetchedAt": "2026-10-16",
   "keys": [
     "$schema",
     "alias",
@@ -11,6 +11,7 @@
     "bunVersion",
     "cleanUrls",
     "crons",
+    "daemons",
     "devCommand",
     "env",
     "experimentalAtproto",
@@ -29,6 +30,7 @@
     "ignoreCommand",
     "images",
     "installCommand",
+    "manualProvisioning",
     "name",
     "outputDirectory",
     "passiveRegions",

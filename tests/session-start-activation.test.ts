@@ -128,6 +128,24 @@ describe("session-start activation", () => {
     );
   });
 
+  test("daemons configuration profiles the Vercel Daemons skill", async () => {
+    const projectDir = join(tempDir, "daemons-project");
+    mkdirSync(projectDir);
+    writeFileSync(
+      join(projectDir, "vercel.json"),
+      JSON.stringify({
+        daemons: {
+          worker: { root: "worker/", entrypoint: "Dockerfile", instances: { iad1: 2 } },
+        },
+      }),
+    );
+
+    const result = await runProfiler(projectDir);
+
+    expect(result.code).toBe(0);
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("daemons");
+  });
+
   test("the eve package activates the plugin and profiles the eve skill", async () => {
     const projectDir = join(tempDir, "eve-project");
     mkdirSync(projectDir);

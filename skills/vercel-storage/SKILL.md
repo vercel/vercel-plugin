@@ -472,7 +472,7 @@ const turso = createClient({
 const result = await turso.execute('SELECT * FROM users')
 ```
 
-Install via Vercel Marketplace: `vercel integration add turso`
+Install via Vercel Marketplace: `vercel integration add tursocloud`
 
 ## Storage Decision Matrix
 

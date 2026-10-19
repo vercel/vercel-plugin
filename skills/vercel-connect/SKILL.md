@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance for securely obtaining scoped credentials for third-party services on behalf of apps or users. Use when wiring up provider API access, OAuth, API-key services, MCP servers, triggers, framework adapters, or eve agent connections.
+description: Vercel Connect expert guidance for securely obtaining scoped credentials for third-party services on behalf of apps or users. Use when wiring up provider API access, OAuth, API-key services, MCP servers, triggers, framework adapters, eve agent connections, or provider tokens for Passport-authenticated users.
 metadata:
   priority: 5
   docs:
@@ -48,12 +48,15 @@ metadata:
       - "notion token"
       - "salesforce connection"
       - "api key connector"
+      - "passport identity"
+      - "passport-authenticated user"
     allOf:
       - [slack, token]
       - [github, token]
       - [oauth, token]
       - [mcp, connect]
       - [mcp, server]
+      - [passport, token]
     anyOf:
       - "vercel connect"
       - "@vercel/connect"
@@ -86,10 +89,14 @@ retrieval:
     - add snowflake connection
     - connect an AI SDK app to an authenticated MCP server
     - configure Connect triggers
+    - get a provider token for a Passport-authenticated user
   entities:
     - Vercel Connect
     - getToken
     - "@vercel/connect"
+    - "@vercel/passport"
+    - requireIdentity
+    - Passport
     - OAuth
     - Slack
     - GitHub
@@ -105,6 +112,7 @@ retrieval:
     - wire up Linear in my eve agent
     - connect my agent to a MCP server
     - add Snowflake credentials to my project
+    - use my Passport identity to get a Slack token
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/eve['\"]"
@@ -137,11 +145,12 @@ Use Vercel Connect when you need to:
 
 ## Modes of tokens
 
-The SDK supports three subject types. Pick based on what's acting:
+The SDK supports four subject types. Pick based on what's acting:
 
 - **`user`**: actions performed on behalf of a specific end user (e.g., post a Slack message as the user). Requires a user `id` and optional `issuer`.
 - **`app`**: actions performed as the app itself (e.g., post as a Slack bot or use a GitHub installation). It skips per-user consent but may still require a provider installation or supported app grant.
 - **`jwt-bearer`**: federated identity through the OAuth JWT-bearer grant. Pass `sub` (required), plus optional `iss`, `aud`, and `additionalClaims`.
+- **`token`**: token exchange. Pass `{ token }` with an existing subject token; the SDK infers `type: "token"` in `@vercel/connect` 2.4.0+.
 
 For user subjects, derive `subject.id` from a stable identity in the authenticated server-side session. Never accept it from a request body or other client input. Keep `getToken()`, Connect auth providers, and MCP clients on the server.
 
@@ -212,6 +221,24 @@ Use these root APIs when needed:
 - `startAuthorization()` after `UserAuthorizationRequiredError` to begin user consent.
 - `revokeToken()` and `deleteTokenCacheEntry()` for revocation and cache eviction.
 - `forceRefresh` and `validityBufferMs` only when the default cache behavior does not fit the call.
+
+#### Passport-authenticated users: `@vercel/passport`
+
+If the application already authenticates users with Passport, pass the identity returned by `requireIdentity()` directly as the Connect `subject`. There is no need to manually construct a separate user subject:
+
+```typescript
+import { getToken } from "@vercel/connect";
+import { requireIdentity } from "@vercel/passport";
+
+const identity = await requireIdentity();
+
+const token = await getToken("slack/xaa-slack", {
+  subject: identity,
+  scopes: ["users:read"],
+});
+```
+
+Keep both calls on the server. Replace `slack/xaa-slack` with your linked connector UID and request only the scopes needed by the operation; `users:read` is the scope used in this example. Passport supplies the authenticated user identity, while Connect supplies the provider API token. Connector attachment and provider authorization requirements still apply.
 
 #### eve agents: `@vercel/connect/eve`
 

@@ -102,7 +102,8 @@ const PACKAGE_MARKERS: Record<string, string[]> = {
   "workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
-  "@flags-sdk/vercel": ["flags-sdk"],
+  "@flags-sdk/vercel": ["flags-sdk", "vercel-flags"],
+  "@vercel/flags-core": ["vercel-flags"],
 };
 
 const SETUP_ENV_TEMPLATE_FILES: string[] = [
@@ -201,6 +202,7 @@ export function profileProject(projectRoot: string): string[] {
     if (vercelConfig.services) {
       skills.add("vercel-services");
     }
+    if (vercelConfig.daemons) skills.add("daemons");
   }
 
   return [...skills].sort();
