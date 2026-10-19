@@ -55,7 +55,7 @@ Changes take effect on the next deployment.
 vercel microfrontends remove-from-group
 ```
 
-After removal, update `microfrontends.json` in the default app to remove the project's entry — the CLI will warn you if it's still referenced but won't block the removal.
+After removal, update `microfrontends.json` in the default app to remove the project's entry — if it's still referenced, the CLI warns you and asks for an extra confirmation; in a non-interactive environment, pass `--yes` or the removal fails.
 
 **Dashboard:**
 1. Remove the microfrontend from `microfrontends.json` in the default app

@@ -58,8 +58,8 @@ Split a large application into independently deployable units that render as one
 **CLI (`vercel microfrontends` / `vercel mf`):**
 - `create-group` — create a new group; interactive by default, or fully non-interactive with `--non-interactive` (options: `--name`, `--project` (repeatable), `--default-app`, `--default-route`, `--project-default-route` (repeatable, format: `<project>=<route>`, required for each non-default project in non-interactive mode), `--yes` to skip confirmation prompt); note: `--non-interactive` is blocked if adding the projects would exceed the free tier limit — the user must confirm billing changes interactively
 - `add-to-group` — add the current project to an existing group; always asks for confirmation (there is no `--yes`), so it needs an interactive terminal, and it refuses to run with `--non-interactive` when adding would go past the free project limit (options: `--group` and `--default-route` pre-fill the prompts)
-- `remove-from-group` — remove the current project from its group; requires interactive terminal (option: `--yes` skips project-link prompt only)
-- `delete-group` — delete a group and all its settings, irreversible; requires interactive terminal (option: `--group` to pre-select group)
+- `remove-from-group` — remove the current project from its group; without `--yes` it needs an interactive terminal (option: `--yes` skips the project-link prompt and removal confirmations, including the warning for projects still referenced in `microfrontends.json`)
+- `delete-group` — delete a group and all its settings, irreversible; without `--yes` it needs an interactive terminal (options: `--group` to pre-select group, `--yes` skips the deletion confirmation; pass both to delete without prompts)
 - `inspect-group` — retrieve group metadata (project names, frameworks, git repos, root dirs); useful for automating setup (options: `--group`, `--format=json`, `--config-file-name`)
 - `pull` — pull remote `microfrontends.json` for local development (option: `--dpl`)
 - `microfrontends proxy` — local dev proxy · `microfrontends port` — print auto-assigned port
