@@ -80,7 +80,7 @@ Special triggers in PreToolUse:
 
 ### Skill Structure (`skills/<name>/SKILL.md`)
 
-35 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
+37 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
 
 ```yaml
 ---
