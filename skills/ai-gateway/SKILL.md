@@ -8,7 +8,7 @@ metadata:
     - "https://vercel.com/docs/ai-gateway"
     - "https://vercel.com/docs/ai-gateway/getting-started"
     - "https://vercel.com/docs/ai-gateway/models-and-providers/virtual-models"
-    - "https://vercel.com/docs/ai-gateway/modalities/evaluation"
+    - "https://vercel.com/docs/ai-gateway/modalities/decision"
     - "https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe"
     - "https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway"
   sitemap: "https://vercel.com/docs/sitemap.md"
