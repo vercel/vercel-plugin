@@ -344,7 +344,7 @@ The firewall sits in front of every request. A misconfigured rule can block real
   - `vercel firewall attack-mode enable` — requires explicit interactive confirmation; have the user run it.
   - `vercel firewall system-mitigations pause` — pauses platform DDoS protection across the project; have the user run it and resume ASAP.
 
-- **Inspect before recommending publish.** A `deny` with a loose condition (e.g., `path` starts with `/`) blocks the entire site. Always `vercel firewall rules inspect "Name" --expand` and `vercel firewall diff` before handing the publish step to the user.
+- **Inspect before recommending publish.** A `deny` with a loose condition (e.g., `path` starts with `/`) blocks the entire site. Always `vercel firewall rules inspect "Name"` and `vercel firewall diff` before handing the publish step to the user.
 
 - **Tune rate limits gently.** Start with a generous `--rate-limit-requests` (5–10× the expected legitimate rate) and `--rate-limit-action log`. After the user reviews dashboard data, tighten the limit and switch the action to `rate_limit`, `challenge`, or `deny`.
 

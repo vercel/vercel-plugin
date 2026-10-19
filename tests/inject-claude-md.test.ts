@@ -77,8 +77,8 @@ describe("inject-claude-md", () => {
     expect(stdout).toMatch(/\*\*Vercel Services\*\*:.*Beta on all plans\./);
     // vercel.com/docs/kms: "Key Management Service is available in Beta on all plans"
     expect(stdout).toMatch(/\*\*Vercel KMS\*\*:.*Beta on all plans\./);
-    // vercel.com/docs/agent-resources/vercel-mcp: "Vercel MCP is available in Beta on all plans"
-    expect(stdout).toMatch(/\*\*Vercel MCP server\*\*:.*Beta on all plans\./);
+    // vercel.com/docs/agent-resources/vercel-mcp: "Vercel MCP is available on all plans"
+    expect(stdout).toMatch(/\*\*Vercel MCP server\*\*:.*Available on all plans\./);
     // vercel.com/docs navigation labels "Container Registry beta" and "eve beta"
     expect(stdout).toMatch(/\*\*Vercel Container Registry\*\*:.*Beta\./);
     expect(stdout).toMatch(/\*\*eve\*\*:[^\n]*Beta\./);

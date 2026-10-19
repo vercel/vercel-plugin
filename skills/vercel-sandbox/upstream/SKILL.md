@@ -208,7 +208,7 @@ Pass `image` to control the environment. Managed images live under `vercel/sandb
 
 **Custom images** (bake in your own tools) go through Vercel Container Registry: `vercel vcr build docker . my-repo:latest --push`, then `image: "my-repo:latest"`. Team-scoped (`team/project/repo:tag`) and public images work too. Note: Sandbox does **not** run a Dockerfile `ENTRYPOINT`/`CMD` — start processes yourself with `runCommand` after create. Pin a digest (`image@sha256:...`) for reproducibility.
 
-## Drives (beta)
+## Drives
 
 A drive is persistent storage you mount into a sandbox as a directory; unlike a snapshot (a full-filesystem copy per sandbox), a drive is one directory many sandboxes share and keep updating across runs. Good for agent workspaces, dependency caches, and shared data.
 

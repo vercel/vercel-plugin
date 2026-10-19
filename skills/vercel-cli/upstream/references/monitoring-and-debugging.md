@@ -7,7 +7,7 @@ For production issues, start broad and narrow with bounded commands:
 1. Identify project and scope.
 2. List recent deployments: `vercel list <project> --scope <team> --status READY --format json`.
 3. Inspect the relevant deployment: `vercel inspect <deployment-url>`.
-4. Check logs for a bounded window: `vercel logs <deployment-url> --since 1h --limit 100 --json`.
+4. Check logs for a bounded window: `vercel logs --deployment <deployment-url> --since 1h --limit 100 --json`.
 5. If metrics are available, inspect schema first, then query a relevant metric with a bounded time window and group-by.
 6. If logs or metrics are unavailable, report the permission, subscription, retention, or no-data limitation and use deployments, activity, or inspect output as fallback evidence.
 
@@ -57,20 +57,26 @@ vercel httpstat /api/health --deployment <deployment-url>
 
 ## Logs
 
+`vercel logs` reads runtime log entries by default; `vercel logs requests` reads CDN request records (status, method, cache result, path) and excludes background function executions. Each run returns a bounded result and exits: by default the latest 100 records from the last 30 minutes, newest first.
+
 ```bash
-vercel logs <deployment-url>                   # view logs
-vercel logs --follow                           # stream live
-vercel logs --level error --level warning      # filter by severity (error, warning, info, fatal)
-vercel logs --source serverless                # filter by source (serverless, edge-function, edge-middleware, static)
-vercel logs --since 2024-01-01                 # filter by time
-vercel logs --query "timeout"                  # search
+vercel logs                                                         # recent runtime logs for the linked project
+vercel logs --deployment <deployment-url>                           # one deployment
+vercel logs --environment production --query 'level:error'          # production errors
+vercel logs --query 'level:(error OR warning) AND timeout' --since 2h
+vercel logs --query 'requestId:"<request-id>"' --json               # what one request logged
+vercel logs requests --query 'httpStatus >= 500 AND httpStatus < 600' --since 1h
+vercel logs requests --query 'requestPath:*checkout* AND cacheResult:MISS'
+vercel logs --next <cursor>                                         # continue a previous query
 ```
 
-With `--follow` and no deployment, the CLI tries the latest deployment on the current Git branch, your latest deployment, then the latest production deployment. Use `--environment production` or `--environment preview` to constrain automatic resolution.
+Filter with `--query` (KQL-inspired: `field:value`, `field:(a OR b)`, `field != value`, `field:*text*`, `AND`/`OR`/`NOT`, and numeric comparisons for requests). `vercel logs runtime --help` and `vercel logs requests --help` list the common fields. The `--level`, `--source`, `--status-code`, `--request-id`, and `--search` flags were removed; express them as query fields. `--branch` and `--expand` were dropped without a replacement; full messages are shown by default. Select a deployment with `--deployment`, not a positional argument. Without `--deployment` or `--environment`, logs cover every environment of the project. Only team-owned projects are supported. Older CLI versions use different flags; check `vercel logs --help` first.
 
-In agents, pipes, and CI, log messages expand automatically; do not add `--expand` solely for non-TTY output.
+Set `--since` and `--until` to the affected window.
 
-Use `--follow` only for live debugging. Historical log queries should be bounded with `--since`, `--until`, and `--limit`.
+With `--json` (implied by `--non-interactive` and in agents), output is JSON Lines: one `{"type":"log"|"request","data":{...}}` line per record, optional `warning` lines, and a final `summary` line with `recordsReturned`, `timeRange`, `pagination: { hasMore, next }`, and `excludedIntervals`. Read fields under `.data`, for example `jq 'select(.type == "log") | .data.message'`. Before concluding that something did not happen, check `pagination.hasMore` and `excludedIntervals`. To read more, pass `pagination.next` to `--next` rather than raising `--limit` or widening the window; the cursor keeps the original target, filter, and window, and only `--limit` can change.
+
+CDN request history beyond the plan's free window, and filters on fields that need Observability Plus or a Priority project, fail with an access error that names the requirement. Report that as an entitlement limit, not as missing traffic.
 
 ## Metrics
 

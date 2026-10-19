@@ -101,9 +101,8 @@ vercel inspect <deployment-url>
 # List recent deployments
 vercel ls
 
-# View logs for a deployment
-vercel logs <deployment-url>
-vercel logs <deployment-url> --follow
+# View recent runtime logs for a deployment
+vercel logs --deployment <url>
 ```
 
 Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, framework, Node.js version, function count.
@@ -113,7 +112,7 @@ Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, f
 If the deployment state is **ERROR** or the deploy command exited non-zero:
 
 ```bash
-vercel logs <deployment-url>
+vercel inspect <deployment-url> --logs
 ```
 
 Present the last 50 lines of build logs to help diagnose the failure. Highlight any lines containing `error`, `Error`, `ERR!`, or `FATAL`.
@@ -127,7 +126,7 @@ If the deployment state is **READY**, note the URL is live and accessible.
 For production deployments, wait 60 seconds after READY state, then scan for early runtime errors:
 
 ```bash
-vercel logs <deployment-url> --level error --since 1h
+vercel logs --deployment <deployment-url> --query 'level:error' --since 1h
 ```
 
 Or via MCP if available: use `get_runtime_logs` with level filter `error`.
@@ -138,7 +137,7 @@ Or via MCP if available: use `get_runtime_logs` with level filter `error`.
 |---------|--------|
 | No errors | ✓ Clean deploy — no runtime errors in first hour |
 | Errors detected | List error count and first 5 unique error messages. Suggest: check drain payloads for correlated traces, review function logs in Dashboard |
-| 500 status codes in logs | Correlate timestamps with drain data (if configured) or `vercel logs <url> --json` for structured output. Flag for immediate investigation |
+| 500 status codes in logs | Correlate timestamps with drain data (if configured) or `vercel logs requests --deployment <url> --query 'httpStatus >= 500' --json` for structured output. Flag for immediate investigation |
 | Timeout errors | Check function duration limits in `vercel.json` or project settings. Consider increasing `maxDuration` |
 
 **Fallback (no drains):**
@@ -146,11 +145,11 @@ Or via MCP if available: use `get_runtime_logs` with level filter `error`.
 If no drains are configured, the error scan relies on CLI and Dashboard:
 
 ```bash
-# Stream live errors
-vercel logs <deployment-url> --level error --follow
+# Recent errors (bounded; rerun with a later --since to check again)
+vercel logs --deployment <deployment-url> --query 'level:error' --since 1h
 
 # JSON output for parsing
-vercel logs <deployment-url> --level error --since 1h --json
+vercel logs --deployment <deployment-url> --query 'level:error' --since 1h --json
 ```
 
 > For richer post-deploy monitoring, configure drains to forward logs/traces to an external platform via Dashboard or REST API.
@@ -180,7 +179,7 @@ For production deploys, also include:
 
 ```
 ### Post-Deploy Observability
-- **Error scan**: <N errors found / clean> (scanned via vercel logs --level error --since 1h)
+- **Error scan**: <N errors found / clean> (scanned via vercel logs -q level:error --since 1h)
 - **Drains**: <N configured / none>
 - **Monitoring**: <active / gaps identified>
 ```
@@ -195,5 +194,5 @@ Based on the deployment outcome:
 - **Build error** → "Check the build logs above. Common fixes: verify `build` script in package.json, check for missing env vars with `/env list`, ensure dependencies are installed."
 - **Missing env vars** → "Run `/env pull` to sync environment variables locally, or `/env list` to review what's configured on Vercel."
 - **Monorepo issues** → "Set the Root Directory in Project Settings to the app's folder; `vercel.json` has no `rootDirectory` key."
-- **Post-deploy errors detected** → "Review errors above. Check `vercel logs <url> --level error` for details. If drains are configured, correlate with external monitoring."
+- **Post-deploy errors detected** → "Review errors above. Check `vercel logs --deployment <url> -q level:error` for details. If drains are configured, correlate with external monitoring."
 - **No monitoring configured** → "Set up drains or install an error tracking integration before the next production deploy. Run `/status` for a full observability diagnostic."

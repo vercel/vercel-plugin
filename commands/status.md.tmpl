@@ -171,9 +171,9 @@ If drains are unavailable (Hobby plan or not yet configured), use these alternat
 | Need | Alternative | How |
 |------|-------------|-----|
 | View runtime logs | **Vercel Dashboard** | `https://vercel.com/{team}/{project}/deployments` → select deployment → Logs tab |
-| Stream logs from terminal | **Vercel CLI** | `vercel logs <deployment-url> --follow` |
+| Query logs from terminal | **Vercel CLI** | `vercel logs --deployment <deployment-url>` (runtime) or `vercel logs requests --deployment <deployment-url>` (CDN requests) |
 | Query logs programmatically | **MCP / REST API** | `get_runtime_logs` tool or `/v3/deployments/:id/events` |
-| Monitor errors post-deploy | **CLI** | `vercel logs <url> --level error --since 1h` |
+| Monitor errors post-deploy | **CLI** | `vercel logs --deployment <url> --query 'level:error' --since 1h` |
 | Web Analytics data | **Dashboard only** | `https://vercel.com/{team}/{project}/analytics` |
 | Observability metrics | **Vercel CLI** | `vercel metrics schema`, then `vercel metrics <metric-id> --format=json` |
 | Speed Insights dashboard | **Dashboard** | `https://vercel.com/{team}/{project}/speed-insights` |
@@ -188,7 +188,7 @@ If drains are unavailable (Hobby plan or not yet configured), use these alternat
 | Business event tracking | Web Analytics custom events | Track conversions, feature usage |
 | Core Web Vitals monitoring | Speed Insights + `vercel metrics vercel.speed_insights_metric.lcp -a p75 --group-by route --since 7d` | Real user data per route |
 | Query platform metrics | `vercel metrics` / `vc metrics` | Function invocations, request counts, AI Gateway spend, Speed Insights, grouped by schema dimensions |
-| Function debugging | Runtime Logs (CLI `vercel logs` / Dashboard (`https://vercel.com/{team}/{project}/logs`) / REST) | Real-time, per-invocation logs |
+| Function debugging | Runtime Logs (CLI `vercel logs` / Dashboard (`https://vercel.com/{team}/{project}/logs`) / REST) | Per-invocation runtime logs |
 | Export logs to external platform | Drains (JSON/NDJSON/Syslog) | Centralize observability (Pro+) |
 | Export analytics data | Drains (Web Analytics type) | Warehouse pageviews + custom events (Pro+) |
 | OpenTelemetry traces | Drains (OTel-compatible endpoint) | Standards-based distributed tracing (Pro+) |
@@ -256,13 +256,13 @@ Present the diagnostic report:
 
 Based on the diagnostic results, suggest relevant actions:
 
-- **Build errors** → "Run `/deploy` to trigger a fresh build, or check `vercel logs <url>` for details."
+- **Build errors** → "Run `/deploy` to trigger a fresh build, or check `vercel inspect <url> --logs` for details."
 - **Missing env vars** → "Run `/env list` to review, or `/env pull` to sync locally."
 - **DNS not configured** → "Update your domain DNS records. See the Vercel domains dashboard."
 - **No deployments** → "Run `/deploy` to create your first deployment."
 - **Stale deployment** → "Your latest deployment is over 7 days old. Consider redeploying."
 - **No vercel.json** → "Add a `vercel.json` if you need custom build, function, or routing configuration."
-- **No drains (Hobby)** → "View logs via Dashboard or `vercel logs <url> --follow`. Upgrade to Pro for drain-based forwarding."
+- **No drains (Hobby)** → "View logs via Dashboard or `vercel logs --deployment <url>`. Upgrade to Pro for drain-based forwarding."
 - **No drains (Pro+)** → "Configure drains for centralized observability via Dashboard or REST API."
 - **Errored drain** → "Test the endpoint: `POST /v1/drains/<id>/test`. Check URL reachability and format compatibility."
 - **Missing analytics** → "Install `@vercel/analytics` and add `<Analytics />` to your root layout."

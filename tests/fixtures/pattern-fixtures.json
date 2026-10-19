@@ -2,10 +2,10 @@
   "$schema": "Pattern fixture dry-run: maps file paths and bash commands to expected skill matches",
   "fixtures": [
     {
-      "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions, services)",
+      "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions, services, daemons)",
       "type": "path",
       "input": "vercel.json",
-      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions", "vercel-services"]
+      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions", "vercel-services", "daemons"]
     },
     {
       "description": "middleware.ts triggers routing-middleware and auth",

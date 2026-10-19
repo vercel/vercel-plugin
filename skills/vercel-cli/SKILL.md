@@ -1,6 +1,6 @@
 ---
 name: vercel-cli
-description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, managing domains, managing feature flags with vercel flags, or interacting with the Vercel platform from the command line.
+description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, inspecting or searching request traces, debugging a deployed app on Vercel (errors, 5xx responses, timeouts, slow routes, or a single failing request), managing domains, managing feature flags with vercel flags, or interacting with the Vercel platform from the command line.
 metadata:
   priority: 4
   docs:
@@ -28,6 +28,7 @@ metadata:
       - "deploy status"
       - "vercel logs"
       - "vercel metrics"
+      - "vercel traces"
       - "deployment logs"
       - "deploy logs"
       - "vercel inspect"
@@ -43,6 +44,7 @@ metadata:
       - [vercel, status]
       - [vercel, logs]
       - [vercel, metrics]
+      - [vercel, traces]
       - [deploy, error]
       - [deploy, failed]
       - [deploy, stuck]
@@ -74,6 +76,7 @@ retrieval:
     - vercel link
     - vercel logs
     - vercel metrics
+    - vercel traces
 chainTo:
   -
     pattern: '"functions"\s*:\s*\{|"maxDuration"\s*:|"memory"\s*:'

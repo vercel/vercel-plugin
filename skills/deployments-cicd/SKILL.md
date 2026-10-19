@@ -106,8 +106,8 @@ vercel deploy --prod --skip-domain
 # Promote it (instant, no rebuild)
 vercel promote <deployment-url-or-id>
 
-# Rollback to the previous production deployment
-vercel rollback
+# Show pending rollback status (no argument does not roll back)
+vercel rollback status
 
 # Rollback to a specific deployment
 vercel rollback <deployment-url-or-id>
@@ -126,9 +126,8 @@ vercel inspect <deployment-url>
 # List recent deployments
 vercel ls
 
-# View logs for a deployment
-vercel logs <deployment-url>
-vercel logs <deployment-url> --follow
+# View recent runtime logs for a deployment
+vercel logs --deployment <url>
 ```
 
 ## CI/CD Integration
@@ -295,7 +294,7 @@ For production deploys, also include:
 
 ```
 ### Post-Deploy Observability
-- **Error scan**: <N errors found / clean> (scanned via vercel logs --level error --since 1h)
+- **Error scan**: <N errors found / clean> (scanned via vercel logs -q level:error --since 1h)
 - **Drains**: <N configured / none>
 - **Monitoring**: <active / gaps identified>
 ```
@@ -309,7 +308,7 @@ Based on the deployment outcome:
 - **Build error** → "Check the build logs above. Common fixes: verify `build` script in package.json, check for missing env vars with `/env list`, ensure dependencies are installed."
 - **Missing env vars** → "Run `/env pull` to sync environment variables locally, or `/env list` to review what's configured on Vercel."
 - **Monorepo issues** → "Set the Root Directory in Project Settings to the app's folder; `vercel.json` has no `rootDirectory` key."
-- **Post-deploy errors detected** → "Review errors above. Check `vercel logs <url> --level error` for details. If drains are configured, correlate with external monitoring."
+- **Post-deploy errors detected** → "Review errors above. Check `vercel logs --deployment <url> -q level:error` for details. If drains are configured, correlate with external monitoring."
 - **No monitoring configured** → "Set up drains or install an error tracking integration before the next production deploy. Run `/status` for a full observability diagnostic."
 
 ## Official Documentation

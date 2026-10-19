@@ -1,0 +1,87 @@
+name: vercel-flags
+description: "Feature flags, A/B tests, and gradual rollouts with Vercel Flags, in any app or framework. Use whenever the user is planning, adding, or changing a feature flag, toggle, kill switch, experiment, percentage rollout, or targeting rule, or wants to gate or hide a feature for some users, even before a library or provider is chosen. Covers choosing an integration (Flags SDK, `@vercel/flags-core`, OpenFeature), the Vercel dashboard, the `vercel flags` CLI (create, inspect, set, split, rollout, rules, segments, evaluations, archive), OIDC vs SDK keys, `FLAGS_SECRET`, and Flags Explorer overrides. For `flag()` declarations, adapters, precompute, and the Flags Explorer endpoint in Next.js or SvelteKit code, load the `flags-sdk` skill."
+summary: "Vercel Flags guidance — plan a flag, choose Flags SDK vs @vercel/flags-core vs OpenFeature, manage flags with the vercel flags CLI, run rollouts and A/B tests, and retire flags safely."
+metadata:
+  priority: 6
+  docs:
+    - "https://vercel.com/docs/flags"
+    - "https://vercel.com/docs/cli/flags"
+  sitemap: "https://vercel.com/sitemap.xml"
+  importPatterns:
+    - '@vercel/flags-core'
+  bashPatterns:
+    - '\bvercel\s+flags\b'
+    - '\bvc\s+flags\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*@vercel/flags-core\b'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*@vercel/flags-core\b'
+    - '\bbun\s+(install|i|add)\s+[^\n]*@vercel/flags-core\b'
+    - '\byarn\s+add\s+[^\n]*@vercel/flags-core\b'
+  promptSignals:
+    phrases:
+      - "feature flag"
+      - "feature flags"
+      - "vercel flags"
+      - "feature gate"
+      - "feature gating"
+      - "a/b test"
+      - "a/b testing"
+      - "ab test"
+      - "ab testing"
+      - "flag rollout"
+      - "gradual rollout"
+      - "percentage rollout"
+      - "kill switch"
+      - "flag variant"
+      - "traffic split"
+      - "targeting rules"
+      - "flag rules"
+      - "flag segments"
+      - "flag targeting"
+      - "flag evaluations"
+      - "flag overrides"
+      - "existing flag"
+      - "archive flag"
+      - "flags-core"
+    allOf:
+      - [flag, rollout]
+      - [flag, variant]
+      - [flag, toggle]
+      - [flag, experiment]
+      - [flag, archive]
+      - [experiment, variant]
+      - [split, test]
+    anyOf:
+      - "flag"
+      - "experiment"
+      - "experimentation"
+      - "rollout"
+      - "variant"
+    noneOf:
+      - "command-line flag"
+      - "command line flag"
+      - "cli flag"
+      - "compiler flag"
+      - "flag emoji"
+      - "rolling release"
+    minScore: 6
+retrieval:
+  aliases:
+    - feature flags
+    - feature toggles
+    - vercel flags
+    - a/b testing
+    - flags core
+  intents:
+    - add a feature flag
+    - run an a/b test
+    - gate a feature
+    - roll out gradually
+    - manage flags from cli
+    - archive a feature flag
+  entities:
+    - Vercel Flags
+    - vercel flags CLI
+    - "@vercel/flags-core"
+    - OpenFeature
+    - FLAGS_SECRET
+    - SDK keys
