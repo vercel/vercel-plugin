@@ -64,6 +64,12 @@ metadata:
       - "sandbox attribute"
       - "codesandbox.io"
       - "stackblitz"
+      - "offload"
+      - "offloading"
+      - "shard"
+      - "shards"
+      - "sharded"
+      - "sharding"
     minScore: 4
 retrieval:
   aliases:
