@@ -93,21 +93,20 @@ describe("inject-claude-md", () => {
     expect(stdout).toContain("Greenfield execution mode");
   });
 
-  test("injects the always-on capability-routing contract", async () => {
+  test("injects routing that preserves existing choices and scopes provisioning", async () => {
     // The load-bearing contract: every activated session gets the signal-gated
     // routing table + the anti-hardcode rule, in the always-on layer.
     const { code, stdout } = await runHook({ session_id: "inject-discover-first" });
     expect(code).toBe(0);
     expect(stdout).toContain("Integrations on Vercel");
-    // first-action contract: load the marketplace skill (which owns the discover-first workflow)
-    expect(stdout).toMatch(/first action/i);
-    expect(stdout).toMatch(/load the `?marketplace`? skill/i);
-    // anti-hardcode rule (the Stripe/provider-SDK failure mode)
-    expect(stdout).toMatch(/hardcode a provider SDK/i);
+    // Marketplace remains available for selected integrations, without becoming a generic precondition.
+    expect(stdout).not.toMatch(/FIRST action is to load/i);
+    expect(stdout).toMatch(/load\s+the\s+`?marketplace`?\s+skill/i);
+    expect(stdout).toContain("reuse the project's existing services");
+    expect(stdout).toContain("does not require an");
     // skill-routing: the marketplace skill is the single always-on entry point
     expect(stdout).toContain("`marketplace`");
-    // ambiguous stays loose — not over-strict
-    expect(stdout).toMatch(/ambiguous/i);
+    expect(stdout).toContain("never present a mock or");
   });
 
   test("skips injection for non-empty non-vercel projects", async () => {
@@ -139,7 +138,8 @@ describe("inject-claude-md", () => {
 
     expect(code).toBe(0);
     expect(stdout).toContain("node_modules/next/dist/docs/");
-    expect(stdout).toContain("npx @next/codemod@canary agents-md");
+    expect(stdout).toContain("use the relevant official version documentation");
+    expect(stdout).toContain("only when it belongs to the requested setup");
     expect(stdout).toContain("npx skills add vercel/next.js");
   });
 

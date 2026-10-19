@@ -48,8 +48,8 @@ Execute in this order:
 
 <!-- Sourced from bootstrap skill: Rules -->
 - Do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
-- Prefer Vercel-managed provisioning (`vercel integration ...`) for shared resources.
-- Use provider CLIs only as fallback when Vercel integration flow is unavailable.
+- Preserve existing providers and resources. Use Vercel-managed provisioning (`vercel integration ...`) for new resources when that integration path is selected.
+- Use the existing provider's supported setup path for external resources; use provider CLIs as fallback when the selected Vercel integration flow is unavailable.
 - Never echo secret values in terminal output, logs, or summaries.
 
 ## Commands
@@ -153,7 +153,7 @@ Confirm each checkpoint:
 
 - `vercel whoami` succeeds.
 - `.vercel/project.json` exists and matches chosen project.
-- Postgres integration path completed (Vercel integration, dashboard, or provider CLI fallback).
+- Required resource setup completed using the selected path; record Postgres as not required when the project does not use it.
 - `vercel env pull .env.local --yes` succeeds.
 - Required env key diff is empty.
 - Database command status is recorded (`db:push`, `db:seed`, `db:migrate`, `db:generate` as applicable).
@@ -169,9 +169,9 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: existing-provider | vercel-integration-neon | dashboard-neon | neon-cli | not-required
 - **Env Keys**: <count> required, <count> present, <count> missing
-- **Secrets**: AUTH_SECRET set in Vercel (value never shown)
+- **Secrets**: not-required | existing | configured (values never shown)
 - **Migration Status**: not-run | success | failed (<step>)
 - **Dev Result**: not-run | started | failed
 ```

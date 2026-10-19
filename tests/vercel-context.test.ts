@@ -112,8 +112,8 @@ describe("on-demand context injection", () => {
     const testSession = createTestSession();
     try {
       const { code, stdout } = await runPretoolHook({
-        tool_name: "Read",
-        tool_input: { file_path: "/Users/me/project/app/api/chat/route.ts" },
+        tool_name: "Edit",
+        tool_input: { file_path: "/Users/me/project/app/api/chat/route.ts", new_string: 'import { streamText } from "ai";' },
       }, testSession);
 
       expect(code).toBe(0);
@@ -121,7 +121,8 @@ describe("on-demand context injection", () => {
       const ctx = parsed.hookSpecificOutput.additionalContext as string;
       expect(ctx).toContain("Skill(ai-sdk)");
       expect(ctx).toContain("<!-- vercel-context-chunk:ai-stack -->");
-      expect(ctx).toContain("Default to AI SDK 7");
+      expect(ctx).toContain("Preserve the selected AI SDK and provider integration");
+      expect(ctx).not.toContain("Default to AI SDK 7");
     } finally {
       cleanupSessionArtifacts(testSession);
     }
