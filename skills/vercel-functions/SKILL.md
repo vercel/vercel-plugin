@@ -683,14 +683,17 @@ Zero-config streaming on the default Node.js runtime, including Server-Sent Even
 > **You do NOT need `runtime = 'edge'` for streaming or SSE.** Streaming responses (`ReadableStream`, `text/event-stream`) work on the default Node.js runtime — this is the single most common reason people wrongly reach for Edge. Stay on Node.js (Fluid Compute) so you keep full Node.js APIs, npm packages, and longer durations; Edge offers no streaming advantage and caps you at 25s to first byte.
 
 ```ts
-export async function GET() {
+export async function GET(request: Request) {
+  // Reading the request keeps this handler request-time; with Next.js Cache
+  // Components, a GET handler that reads no request data is prerendered at build.
+  const jobId = new URL(request.url).searchParams.get('jobId')
   const encoder = new TextEncoder()
   const events = ['started', 'progress', 'done']
   const stream = new ReadableStream({
     start(controller) {
       for (const event of events) {
         // SSE frames are "data: <payload>" followed by a blank line
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event })}\n\n`))
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ jobId, event })}\n\n`))
       }
       controller.close()
     },
