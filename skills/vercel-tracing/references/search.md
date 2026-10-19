@@ -4,7 +4,7 @@ Use this reference to find slow or failed spans across a team or project. Verify
 
 ## Select the team and project
 
-Search covers all projects in the selected team, even from a linked project directory. `--project` restricts search to one project. Pass `--scope <team>`, and ask the user which team if you don't know it: since CLI 64, agents ignore the team saved by `vercel switch`, and `vercel switch` itself is refused (`agent_cannot_switch`). `inspect` and `config` still operate on a single project.
+Search covers all projects in the selected team, even from a linked project directory. `--project` restricts search to one project. Pass `--scope <team>`, and ask the user which team if you don't know it: since CLI 64.0.2, agents ignore the team saved by `vercel switch`, and `vercel switch` itself is refused (`agent_cannot_switch`). `inspect` and `config` still operate on a single project.
 
 ## Find slow or failed requests
 
@@ -39,7 +39,7 @@ In non-interactive mode, the default when the CLI detects an agent, search print
 
 - Trace ID: `.data.span.traceId`
 - Span attributes: `.data.span.attributes`; events: `.data.span.events`; resource attributes: `.data.resource.attributes`
-- Request ID: `.data.span.attributes["vercel.request_id"]`
+- Request ID: `.data.span.attributes["vercel.request_id"]`. It can carry routing-region prefixes, such as `iad1::`; strip them before passing it to `inspect`, for example `jq -r 'select(.type == "span") | .data.span.attributes["vercel.request_id"] // empty | split("::") | last'`
 
 CLI versions before 64 print bare `{ span, resource }` objects with no summary line or `--next`; check `vercel traces search --help`.
 

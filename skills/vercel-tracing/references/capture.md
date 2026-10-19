@@ -10,7 +10,7 @@ Target the deployment explicitly, from a directory linked to the same project. `
 vercel traces create /api/status --deployment https://my-app-abc123.vercel.app --scope my-team --json
 ```
 
-Without `--deployment`, the CLI picks the linked project's deployment and prefers production. Production capture needs `--yes` in non-interactive mode. The CLI adds a protection bypass for protected deployments; for other access, `⤳ skill: access-protected-vercel-deployment`.
+Without `--deployment`, the CLI picks the linked project's deployment and prefers production. Production capture needs `--yes` when stdin is not a TTY, as in agent shells. The CLI adds a protection bypass for protected deployments; for other access, `⤳ skill: access-protected-vercel-deployment`.
 
 Pass curl options after `--`, for example to reproduce an authorized POST:
 

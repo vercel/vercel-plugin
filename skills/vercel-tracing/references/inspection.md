@@ -2,7 +2,7 @@
 
 Use this reference after finding or capturing a representative request.
 
-`vercel traces inspect` accepts either a trace ID or a request ID. A 32-character hexadecimal ID selects trace-ID lookup; any other ID selects request-ID lookup. Use a trace ID from `.data.span.traceId` in a JSON search result, or a request ID from logs, capture output, or `.data.span.attributes["vercel.request_id"]`. Prefer the trace ID; not every span has a request ID. After a team search, pass the result's project and the same team:
+`vercel traces inspect` accepts either a trace ID or a request ID. A 32-character hexadecimal ID selects trace-ID lookup; any other ID selects request-ID lookup. Use a trace ID from `.data.span.traceId` in a JSON search result, or a request ID from logs, capture output, or `.data.span.attributes["vercel.request_id"]`. JSON Lines keeps routing-region prefixes on that attribute, such as `iad1::`; pass only the part after the last `::`, as the search table and `vercel traces create` do. Prefer the trace ID; not every span has a request ID. After a team search, pass the result's project and the same team:
 
 ```bash
 vercel traces inspect 0870e4ead46aafba39ccfbcb001835db --scope my-team --project my-app

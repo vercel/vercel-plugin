@@ -4,7 +4,7 @@ Use this reference when related operations appear in disconnected traces or bene
 
 ## Outgoing requests
 
-`@vercel/otel` instruments global `fetch` and Node's `http`/`https` modules, so libraries built on them, such as axios on Node, are covered too. By default it sends context only to the deployment's own host (`VERCEL_URL`, `VERCEL_BRANCH_URL`, or the incoming request's host). Calls to another Vercel project, a custom domain, or an external service need an explicit allow rule.
+`@vercel/otel` instruments global `fetch` and Node's `http`/`https` modules, so libraries built on them, such as axios on Node, are covered too. By default it sends context only to the deployment's own host (`VERCEL_URL`, `VERCEL_BRANCH_URL`, or the incoming request's host). Calls to another Vercel project, any other domain, or an external service need an explicit allow rule.
 
 Merge fetch settings into the existing `registerOTel` call, using the application's actual destinations:
 

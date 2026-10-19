@@ -212,7 +212,7 @@ A limited span search is not a complete latency distribution. Use browser profil
 
 Confirm that `vercel traces --help` lists the subcommand needed. `vc` and `vercel` are equivalent.
 
-The CLI runs with `--non-interactive` by default when it detects an agent. In that mode `search` and `config` print JSON, `search --columns` is rejected, production capture needs `--yes`, and `config rm` returns the command for the user to run instead of prompting.
+The CLI runs with `--non-interactive` by default when it detects an agent and stdin is not a TTY. In that mode `search` and `config` print JSON, `search --columns` is rejected, production capture needs `--yes`, and `config rm` returns the command for the user to run instead of prompting.
 
 Search covers all projects in the selected team, even from a linked directory. Use `--scope` for the team and `--project` for one application's search. `inspect` and `config` remain project-scoped; after a team search, use the result's project for retrieval.
 
