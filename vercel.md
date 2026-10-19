@@ -65,11 +65,12 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Marketplace Integrations (auto-provisioned)
 │   ⤳ skill:bootstrap
 │
-├── Vercel Flags (feature flags & experimentation)     ⤳ skill: flags-sdk  📖 docs: https://vercel.com/docs/flags
-│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)
+├── Vercel Flags (feature flags & experimentation)     ⤳ skill: vercel-flags  📖 docs: https://vercel.com/docs/flags
+│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)   ⤳ skill: flags-sdk
+│   ⊃ @vercel/flags-core (other frameworks) and OpenFeature provider
 │   ⊃ Flags Explorer (override flags from the Vercel Toolbar)
 │   ⊃ Precompute pattern (static A/B variants via middleware rewrites)
-│   ↔ Vercel CLI (vercel flags — create, set, enable, disable, sdk-keys)
+│   ↔ Vercel CLI (vercel flags — create, set, split, rollout, rules, evaluations, archive)
 │   ↔ Global Config (alternative store via @flags-sdk/global-config adapter)
 │
 ├── Secure Compute (isolated infrastructure for compliance workloads)
@@ -91,7 +92,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (preview URLs)
 │   ↔ Preview Comments (inline annotation)
 │   ↔ Vercel Analytics (performance overlay)
-│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: flags-sdk
+│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: vercel-flags
 │
 ├── Vercel Templates (starter kits and example repos)
 │   → Deployment Engine (one-click deploy)
@@ -492,7 +493,7 @@ VERCEL GLOBAL CONFIG (active, first-party) ⤳ skill: vercel-storage  📖 docs:
 ├── Purpose: Global low-latency key-value for config
 │   ⇢ renamed from: Edge Config (July 2026; @vercel/global-config replaces @vercel/edge-config as drop-in)
 │   ⊃ Dynamic routing rules
-│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: flags-sdk)
+│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: vercel-flags)
 │   ⊃ @vercel/global-config package (supports Next.js 16 cacheComponents)
 │
 └── Use When: Config that must be read at the edge instantly

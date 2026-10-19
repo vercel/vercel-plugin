@@ -1,6 +1,6 @@
 name: flags-sdk
-description: "Feature flags, A/B tests, and gradual rollouts in any app or framework. Use whenever the user is planning, adding, or changing a feature flag, toggle, kill switch, experiment, or percentage rollout, or wants to gate or hide a feature for some users, even before a library or provider is chosen. Covers Vercel Flags, the Flags SDK (`flags`, `@flags-sdk/*`), `@vercel/flags-core`, OpenFeature, provider adapters such as Statsig, LaunchDarkly, and PostHog, Flags Explorer, and the `vercel flags` CLI."
-summary: "Flags SDK guidance — declare flags with flag(), connect provider adapters, manage Vercel Flags via the vercel flags CLI, precompute static variants, and set up the Flags Explorer."
+description: "Implement feature flags in Next.js or SvelteKit code with the Flags SDK (`flags` npm package). Use when installing or configuring the SDK, declaring flags with `flag()`, wiring a provider adapter (`@flags-sdk/vercel`, Statsig, LaunchDarkly, PostHog, GrowthBook, Global Config, OpenFeature, and others), using `identify`, `dedupe`, or `evaluate`, keeping pages static with precompute, setting up Flags Explorer, or encrypting flag values. For planning a flag, Vercel Flags rollouts and experiments, the `vercel flags` CLI, or other frameworks, use the `vercel-flags` skill."
+summary: "Flags SDK guidance for Next.js and SvelteKit — declare flags with flag(), connect provider adapters, precompute static variants, and set up the Flags Explorer endpoint."
 metadata:
   priority: 6
   docs:
@@ -23,57 +23,33 @@ metadata:
     - '@flags-sdk/*'
     - '@vercel/flags'
   bashPatterns:
-    - '\bvercel\s+flags\b'
-    - '\bvc\s+flags\b'
-    - '\bnpm\s+(install|i|add)\s+[^\n]*\bflags\b'
-    - '\bpnpm\s+(install|i|add)\s+[^\n]*\bflags\b'
-    - '\bbun\s+(install|i|add)\s+[^\n]*\bflags\b'
-    - '\byarn\s+add\s+[^\n]*\bflags\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
+    - '\bbun\s+(install|i|add)\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
+    - '\byarn\s+add\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
     - '\bnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\bbun\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\byarn\s+add\s+[^\n]*@flags-sdk/'
   promptSignals:
     phrases:
-      - "feature flag"
-      - "feature flags"
       - "flags sdk"
-      - "vercel flags"
       - "flags explorer"
-      - "feature gate"
-      - "feature gating"
-      - "a/b test"
-      - "a/b testing"
-      - "ab test"
-      - "ab testing"
-      - "flag rollout"
-      - "gradual rollout"
-      - "percentage rollout"
-      - "kill switch"
-      - "flag variant"
       - "flag adapter"
       - "precompute flags"
-      - "traffic split"
-      - "targeting rules"
-      - "flag rules"
-      - "flag segments"
-      - "flag targeting"
-      - "flag evaluations"
-      - "flag overrides"
-      - "existing flag"
+      - "flags/next"
+      - "flags/sveltekit"
+      - "@flags-sdk"
     allOf:
-      - [flag, rollout]
-      - [flag, variant]
-      - [flag, toggle]
-      - [flag, experiment]
-      - [experiment, variant]
-      - [split, test]
+      - [flag, precompute]
+      - [flag, adapter]
+      - [flag, next.js]
+      - [flag, nextjs]
+      - [flag, sveltekit]
     anyOf:
       - "flag"
-      - "experiment"
-      - "experimentation"
-      - "rollout"
-      - "variant"
+      - "precompute"
+      - "adapter"
     noneOf:
       - "command-line flag"
       - "command line flag"
@@ -84,20 +60,17 @@ metadata:
     minScore: 6
 retrieval:
   aliases:
-    - feature flags
-    - feature toggles
-    - vercel flags
     - flags sdk
-    - a/b testing
+    - flags/next
+    - flags/sveltekit
+    - flag adapters
   intents:
-    - add a feature flag
-    - run an a/b test
-    - gate a feature
-    - roll out gradually
-    - manage flags from cli
+    - declare a feature flag in code
+    - connect a flag provider adapter
+    - precompute flags for static pages
+    - set up flags explorer
   entities:
     - Flags SDK
-    - Vercel Flags
     - Flags Explorer
     - vercelAdapter
     - precompute

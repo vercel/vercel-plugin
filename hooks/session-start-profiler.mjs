@@ -406,7 +406,8 @@ var PACKAGE_MARKERS = {
   "workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
-  "@flags-sdk/vercel": ["flags-sdk"]
+  "@flags-sdk/vercel": ["flags-sdk", "vercel-flags"],
+  "@vercel/flags-core": ["vercel-flags"]
 };
 var SETUP_ENV_TEMPLATE_FILES = [
   ".env.example",

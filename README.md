@@ -64,7 +64,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (34 skills)
+### Skills (35 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -83,7 +83,7 @@ A text-form relational graph covering:
 | `domains`              | Public domain search and pricing, CLI and Registrar API operations, project domains, DNS, transfers, and renewals                    |
 | `env-vars`              | Environment variable management — .env files, vercel env commands, OIDC tokens                                                       |
 | `eve`                   | Filesystem-first framework for durable AI agents, agent applications, channels, sandboxes, schedules, evals, and frontend clients    |
-| `flags-sdk`             | Feature flags and A/B tests — Flags SDK, provider adapters, `vercel flags` CLI, precompute, Flags Explorer                           |
+| `flags-sdk`             | Flags SDK code in Next.js and SvelteKit — `flag()` declarations, provider adapters, precompute, Flags Explorer endpoint                |
 | `is-agentic`            | Score how ready a website, domain, or public MCP endpoint is for AI agents, and act on the Is Agentic report                        |
 | `knowledge-update`      | Knowledge update guidance for the plugin                                                                                             |
 | `marketplace`           | Integration discovery and installation (`vercel integration add` / `vercel install`), provider agent skills, auto-provisioned env vars, unified billing |
@@ -96,6 +96,7 @@ A text-form relational graph covering:
 | `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace                                         |
 | `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
+| `vercel-flags`          | Vercel Flags — plan flags, choose an integration, `vercel flags` CLI, rollouts, A/B tests, `@vercel/flags-core`, safe retirement       |
 | `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, Cron Jobs, configuration                         |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
@@ -248,6 +249,7 @@ skills/<name>/
 | `is-agentic`            | vercel-labs/is-agentic (private); public copy at [is-agentic.com](https://is-agentic.com/.well-known/agent-skills/is-agentic/SKILL.md) |
 | `react-best-practices`  | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)   |
 | `vercel-cli`            | [vercel/vercel](https://github.com/vercel/vercel)                         |
+| `vercel-flags`          | [vercel/flags](https://github.com/vercel/flags)                           |
 | `vercel-sandbox`        | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
 | `workflow`              | [vercel/workflow](https://github.com/vercel/workflow)                     |
 
@@ -274,7 +276,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 34 skills
+├── skills/                          # 35 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
