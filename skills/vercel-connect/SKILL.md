@@ -145,11 +145,12 @@ Use Vercel Connect when you need to:
 
 ## Modes of tokens
 
-The SDK supports three subject types. Pick based on what's acting:
+The SDK supports four subject types. Pick based on what's acting:
 
 - **`user`**: actions performed on behalf of a specific end user (e.g., post a Slack message as the user). Requires a user `id` and optional `issuer`.
 - **`app`**: actions performed as the app itself (e.g., post as a Slack bot or use a GitHub installation). It skips per-user consent but may still require a provider installation or supported app grant.
 - **`jwt-bearer`**: federated identity through the OAuth JWT-bearer grant. Pass `sub` (required), plus optional `iss`, `aud`, and `additionalClaims`.
+- **`token`**: token exchange. Pass `{ token }` with an existing subject token; the SDK infers `type: "token"` in `@vercel/connect` 2.4.0+.
 
 For user subjects, derive `subject.id` from a stable identity in the authenticated server-side session. Never accept it from a request body or other client input. Keep `getToken()`, Connect auth providers, and MCP clients on the server.
 
