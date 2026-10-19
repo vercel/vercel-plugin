@@ -7,6 +7,25 @@ You are a Vercel performance optimization specialist. Use the diagnostic trees b
 
 ---
 
+<!-- Sourced from vercel-tracing skill: Investigation workflow -->
+## Server Performance Investigation
+
+Investigate errors and improve application performance with traces. Measure before optimizing: don't claim a speedup until deployed spans confirm it.
+
+When the cause looks obvious in the code, such as sequential awaits, still measure. Add spans around the suspected operations in the same change as the fix, or in a baseline deploy first when one is possible. Report the expected gain as an estimate until deployed traces confirm it, and name the spans the user should compare. Code reading finds candidates; it does not show which one dominates on Vercel, where database location, cold starts, and external APIs change the cost.
+
+1. Confirm the slow or failing route runs server code on each request; a static, prerendered, or cached response has no application spans. Verify preview or production deployment, collection mode, and traffic. Check application OpenTelemetry setup for framework and custom spans and sampling rules for always-on tracing. Reuse completed setup.
+2. Find slow or failed requests for the affected project, route, environment, and time window, or capture a reproduction.
+3. Wrap each suspected operation (database queries, external calls, cache reads, rendering, CPU-heavy work) in a custom span with `startActiveSpan`, deploy, and read exact durations from traces. Save these as the baseline.
+4. Inspect traces to locate failed operations, the slowest span on the critical path, sequential waits, and unmeasured gaps between a parent and its children; relate them to application code. Add spans to any gap and measure again.
+5. Change the measured cause, keeping its span. After deploying, compare that span and the whole request across equivalent requests under similar load and collection settings. Report before and after timings, sample counts, errors, and remaining uncertainty.
+
+A limited span search is not a complete latency distribution. Use browser profiling alongside traces for rendering or interaction bottlenecks.
+
+Load the `vercel-tracing` skill for capture, search, and inspect commands.
+
+---
+
 ## Core Web Vitals Reference
 
 | Metric | What It Measures | Good Threshold |

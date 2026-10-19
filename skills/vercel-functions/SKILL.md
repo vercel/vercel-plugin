@@ -239,6 +239,10 @@ chainTo:
     pattern: 'import\s*\{[^}]*\bmetric\b[^}]*\}\s*from\s*[''"]@vercel/functions[''"]'
     targetSkill: custom-metrics
     message: '@vercel/functions metric() detected — loading Custom Metrics guidance for naming, attributes, and vc metrics queries.'
+  -
+    pattern: '@vercel/otel'
+    targetSkill: vercel-tracing
+    message: '@vercel/otel detected — loading Vercel Tracing guidance for instrumentation, sampling, and span inspection.'
 
 ---
 

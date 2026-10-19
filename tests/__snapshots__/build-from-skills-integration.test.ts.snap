@@ -17,9 +17,9 @@ exports[`CLI --json output shape --json output shape snapshot 1`] = `
     "template": "agents/deployment-expert.md",
   },
   {
-    "dependencyCount": 0,
+    "dependencyCount": 1,
     "diagnosticCount": 0,
-    "resolvedCount": 0,
+    "resolvedCount": 1,
     "status": "unchanged",
     "template": "agents/performance-optimizer.md",
   },
