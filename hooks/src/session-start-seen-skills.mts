@@ -2,11 +2,12 @@
 /**
  * SessionStart hook: initialize the seen-skills dedup state.
  *
- * On "clear" or "compact" events (Claude Code), wipes the claim dir and session
- * file so previously-injected skills can be re-injected into the fresh context.
+ * When the SessionStart `source` is "clear" or "compact" (Claude Code), wipes
+ * the claim dir and session file so previously-injected skills can be
+ * re-injected into the fresh context.
  *
- * On "startup" or "resume", this is a no-op for Claude Code (claim dir starts
- * empty or retains valid state).
+ * On a "startup" or "resume" source, this is a no-op for Claude Code (claim
+ * dir starts empty or retains valid state).
  *
  * Cursor always returns `{ env: { VERCEL_PLUGIN_SEEN_SKILLS: "" } }` on stdout.
  */
@@ -28,11 +29,12 @@ interface SessionStartSeenSkillsInput {
   session_id?: string;
   conversation_id?: string;
   cursor_version?: string;
-  hook_event_name?: string;
+  /** Why the session started: startup, resume, clear or compact (Claude Code). */
+  source?: string;
   [key: string]: unknown;
 }
 
-/** Events where previously-injected skills are no longer in the context window. */
+/** SessionStart `source` values where previously-injected skills are no longer in the context window. */
 const CONTEXT_CLEARING_EVENTS = new Set(["clear", "compact"]);
 
 export function parseSessionStartSeenSkillsInput(raw: string): SessionStartSeenSkillsInput | null {
@@ -84,9 +86,9 @@ function main(): void {
   }
 
   // Claude Code: reset dedup state on clear/compact so skills get re-injected.
-  const hookEvent = input?.hook_event_name ?? "";
+  const source = input?.source ?? "";
   const sessionId = input?.session_id ?? "";
-  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(hookEvent) && !!sessionId;
+  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(source) && !!sessionId;
 
   let removedFiles = 0;
   let removedDirs = 0;
@@ -98,7 +100,7 @@ function main(): void {
   }
 
   log.debug("session-start-seen-skills:decision", {
-    event: hookEvent || "unknown",
+    source: source || "unknown",
     sessionId: sessionId || "none",
     resetTriggered,
     removedFiles,
