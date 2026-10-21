@@ -47,12 +47,12 @@ When a database or cache client is installed, install its instrumentation packag
 import { registerOTel } from '@vercel/otel';
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== 'nodejs') {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { PgInstrumentation } = await import('@opentelemetry/instrumentation-pg');
+    registerOTel({ serviceName: 'checkout', instrumentations: ['auto', new PgInstrumentation()] });
+  } else {
     registerOTel({ serviceName: 'checkout' });
-    return;
   }
-  const { PgInstrumentation } = await import('@opentelemetry/instrumentation-pg');
-  registerOTel({ serviceName: 'checkout', instrumentations: ['auto', new PgInstrumentation()] });
 }
 ```
 
