@@ -41,7 +41,7 @@ AI SDK 7 then traces every call; pass `telemetry: { functionId: 'checkout-assist
 
 ## Add instrumentation packages
 
-When a database or cache client is installed, install its instrumentation package: `@opentelemetry/instrumentation-<client>` for `pg`, `mysql2`, `ioredis`, and `mongodb`, or `@prisma/instrumentation` for Prisma. Pass it to `registerOTel` and keep `'auto'` in the list; the option replaces the default, so a list without `'auto'` or `'fetch'` drops outbound fetch spans:
+When a database or cache client is installed, install its instrumentation package: `@opentelemetry/instrumentation-<client>` for `pg`, `mysql2`, `ioredis`, and `mongodb`, or `@prisma/instrumentation` for Prisma. Pick the release whose `@opentelemetry/instrumentation` dependency fits the range in `npm view @vercel/otel peerDependencies`; the latest release can need a newer OpenTelemetry API than `@vercel/otel` supports and fail `next build`. Check a release with `npm view @opentelemetry/instrumentation-pg@<version> dependencies`. Pass it to `registerOTel` and keep `'auto'` in the list; the option replaces the default, so a list without `'auto'` or `'fetch'` drops outbound fetch spans:
 
 ```ts
 import { registerOTel } from '@vercel/otel';

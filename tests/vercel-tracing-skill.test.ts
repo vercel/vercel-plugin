@@ -354,6 +354,12 @@ describe("Vercel tracing guidance", () => {
     expect(reference).not.toMatch(/instrumentations: \[new /);
   });
 
+  test("instrumentation packages are matched to the @vercel/otel peer range", () => {
+    const reference = readFileSync(resolve(SKILL_DIR, "references/library-spans.md"), "utf8");
+
+    expect(reference).toContain("npm view @vercel/otel peerDependencies");
+  });
+
   test("propagation matchers use full URLs, not bare hosts", () => {
     const reference = readFileSync(resolve(SKILL_DIR, "references/context-propagation.md"), "utf8");
 
