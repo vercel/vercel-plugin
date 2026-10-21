@@ -14,7 +14,7 @@ Use this reference when search is empty, retrieval fails, or expected span detai
 
 - A library emits no spans after `registerOTel`: most need an opt-in; see [library spans](library-spans.md).
 - Outbound fetch spans disappeared after adding `instrumentations` to `registerOTel`: the option replaces the default, so add `'auto'` back to the list.
-- The build log reports `Detected OpenTelemetry dependency: @vercel/otel`, but no fetch spans appear: Vercel leaves fetch spans to `@vercel/otel` when it is installed. Confirm that `registerOTel` runs in the deployed runtime, or remove the unused package.
+- The build log reports `Detected OpenTelemetry dependency`, but no fetch spans appear: Vercel leaves fetch spans to the application when it finds `@vercel/otel`, `@opentelemetry/api`, or `@opentelemetry/sdk-trace-node`. Confirm that `registerOTel` runs in the deployed runtime, or remove the unused OpenTelemetry packages.
 
 ## Inspect returns the wrong trace
 
