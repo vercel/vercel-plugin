@@ -12,7 +12,7 @@ Match `dependencies` in the application's `package.json`, or in each server app'
 | SDKs that call HTTP APIs (OpenAI, Stripe, Upstash, Supabase) | Outbound HTTP spans | Nothing to add; they have no spans of their own |
 | AI SDK 7 (`ai`) | No AI SDK spans | `registerTelemetry(new OpenTelemetry())` from `@ai-sdk/otel` |
 | AI SDK 6 and earlier | No AI SDK spans | `experimental_telemetry: { isEnabled: true }` on each call |
-| Flags SDK (`flags`) | No flag spans | `setTracerProvider(trace)` |
+| Flags SDK (`flags`) on Next.js | No flag spans | `setTracerProvider(trace)` |
 | Database and cache clients (`pg`, `mysql2`, `ioredis`, `mongodb`, Prisma) | No query spans | An OpenTelemetry instrumentation package; Prisma 4.2 to 6.0 also needs `previewFeatures = ["tracing"]` in `schema.prisma` |
 
 For other installed server libraries, check their docs or published `dist` for a telemetry option, a tracer setter, or an instrumentation package, and turn on any that exist. A dependency on `@opentelemetry/api` does not prove the library emits spans by default.
