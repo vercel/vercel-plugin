@@ -76,6 +76,24 @@ describe("Vercel tracing prompt activation", () => {
     expect(matchesPrompt(prompt)).toBe(true);
   });
 
+  test.each([
+    "Why don't my AI SDK calls show spans in Vercel traces?",
+    "Enable AI SDK telemetry for generateText.",
+    "Where do I call registerTelemetry?",
+    "Set experimental_telemetry on my streamText calls.",
+    "Add Flags SDK spans to my traces.",
+    "Call setTracerProvider for the flags package.",
+  ])("matches library span intent: %s", (prompt) => {
+    expect(matchesPrompt(prompt)).toBe(true);
+  });
+
+  test.each([
+    "Add a flags SDK flag for the new checkout.",
+    "Use the AI SDK to stream a chat response.",
+  ])("does not match library usage without tracing intent: %s", (prompt) => {
+    expect(matchesPrompt(prompt)).toBe(false);
+  });
+
   // Slowness complaints from the Next.js and Remix load evals.
   test.each([
     "The dashboard page is really slow to load in production. Can you figure out why?",
@@ -313,6 +331,27 @@ describe("Vercel tracing guidance", () => {
 
     expect(skill).not.toContain("references/remix.md");
     expect(existsSync(resolve(SKILL_DIR, "references/remix.md"))).toBe(false);
+  });
+
+  test("setup workflow turns on spans for the libraries in package.json", () => {
+    const skill = readFileSync(resolve(SKILL_DIR, "SKILL.md"), "utf8");
+    const reference = readFileSync(resolve(SKILL_DIR, "references/library-spans.md"), "utf8");
+
+    expect(skill).toContain(
+      "Turn on [library spans](references/library-spans.md) for the libraries in the application's `package.json`",
+    );
+    expect(reference).toContain("apply the row for each match");
+    expect(reference).toContain("registerTelemetry(new OpenTelemetry());");
+    expect(reference).toContain("setTracerProvider(trace);");
+    expect(reference).toContain("experimental_telemetry: { isEnabled: true }");
+    expect(reference).toContain("serverExternalPackages");
+  });
+
+  test("library instrumentations keep the default fetch instrumentation", () => {
+    const reference = readFileSync(resolve(SKILL_DIR, "references/library-spans.md"), "utf8");
+
+    expect(reference).toContain("instrumentations: ['auto', new PgInstrumentation()]");
+    expect(reference).not.toMatch(/instrumentations: \[new /);
   });
 
   test("propagation matchers use full URLs, not bare hosts", () => {

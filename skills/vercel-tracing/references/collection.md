@@ -4,7 +4,7 @@ Use this reference before setup or querying when collection is uncertain. Reuse 
 
 ## Choose the spans needed
 
-Infrastructure and outbound-fetch spans are automatic and need no application OpenTelemetry setup. Framework and custom spans need [application instrumentation](instrumentation.md) deployed to the target environment. See [automatic instrumentation](https://vercel.com/docs/tracing#automatic-instrumentation).
+Infrastructure and outbound-fetch spans are automatic and need no application OpenTelemetry setup. Framework and custom spans need [application instrumentation](instrumentation.md) deployed to the target environment. Library spans also need it, plus an [opt-in](library-spans.md) for each installed library that has one. See [automatic instrumentation](https://vercel.com/docs/tracing#automatic-instrumentation).
 
 ## Choose a collection mode
 

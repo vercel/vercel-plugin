@@ -10,6 +10,12 @@ Use this reference when search is empty, retrieval fails, or expected span detai
 4. Check deployed [instrumentation](instrumentation.md) for framework and custom spans. Incoming context and competing SDK providers can prevent collection; see [propagation](context-propagation.md).
 5. Check the telemetry limits below and the [search limits](search.md#limits-the-cli-enforces): search hides internal-kind spans from `vercel.*` services, which still appear in `inspect`. Custom spans from Edge runtime functions do not appear in traces.
 
+## Library or fetch spans are missing
+
+- A library emits no spans after `registerOTel`: most need an opt-in; see [library spans](library-spans.md).
+- Outbound fetch spans disappeared after adding `instrumentations` to `registerOTel`: the option replaces the default, so add `'auto'` back to the list.
+- The build log reports `Detected OpenTelemetry dependency: @vercel/otel`, but no fetch spans appear: Vercel leaves fetch spans to `@vercel/otel` when it is installed. Confirm that `registerOTel` runs in the deployed runtime, or remove the unused package.
+
 ## Inspect returns the wrong trace
 
 When `inspect <requestId>` shows `Endpoint: <unknown>`, only a few spans, or custom spans as roots, find the request's own trace: run `vercel traces search --request-id <id> --project <project> --json`, take the `.data.span.traceId` of the `GET <path>` span, and inspect that trace ID. Two causes:
