@@ -188,7 +188,7 @@ Daemons are always declared at the top level, never inside `services`. They run 
 - **Rollout**: when a deployment becomes production (deploy, promote, Instant Rollback, or a completed rolling release), Vercel starts the new instances and sends `SIGTERM` to the previous deployment's instances. For a short time both versions run at once, so both must be able to consume the same queue and tolerate the same database schema.
 - **Image, command, and environment variables** belong to the deployment. Change them with a new production deployment.
 - **Scaling with `vercel.json`**: change `instances` and deploy to production. The map replaces the previous one; regions removed from it stop.
-- **Scaling overrides**: in the project dashboard, **Daemons** → select the daemon → **Set Scaling Overrides**. Overrides persist across deployments and win over `instances` until cleared with **Clear scaling overrides**. If a `vercel.json` change to `instances` seems ignored, check for an override first. There is no autoscaling, and scaling from the CLI or API is not available yet.
+- **Scaling overrides**: in the project dashboard, **Daemons** → select the daemon → **Scale** → **Scale Daemon**, or with Vercel CLI 64.3.0+ run `vercel daemons scale worker iad1=3 fra1=0` (regions you don't name keep their counts). Overrides persist across deployments and win over `instances` until cleared with **Scale** → **Clear scaling overrides** or `vercel daemons scale worker --reset`. If a `vercel.json` change to `instances` seems ignored, check for an override first. There is no autoscaling.
 - **Stop without deleting**: set every region to `0` or `instances` to `{}`, or set a `0` override from the dashboard.
 - **Delete**: remove the daemon from `daemons` and deploy to production.
 - **Paused projects** stop all daemon instances; they start again when the project resumes.
@@ -266,7 +266,7 @@ docker run --env-file .env.local worker
 
 ## Logs and Observability
 
-Daemon output appears in the project's Logs with source `daemon` and the daemon's name, so you can filter to one daemon. The project dashboard's **Daemons** tab shows each daemon's instances, status, and logs.
+Daemon output appears in the project's Logs with source `daemon` and the daemon's name, so you can filter to one daemon. The project dashboard's **Daemons** tab shows each daemon's instances, status, and logs. Vercel CLI 64.3.0+ has `vercel daemons ls`, `vercel daemons inspect <name>`, and `vercel daemons instances ls|inspect|restart` (production only).
 
 ## Build Output API
 
@@ -289,7 +289,7 @@ Not supported during the beta: preview deployments, inbound HTTP or TCP traffic,
 
 1. **Expecting traffic**: a daemon that listens on a port receives nothing. Serve requests with Functions or Services, and have the daemon pull work.
 2. **Testing on a preview**: daemons never start for preview deployments during the beta. Deploy to production or run the image locally.
-3. **Ignored scaling change**: a dashboard scaling override wins over `instances` until it is cleared.
+3. **Ignored scaling change**: a scaling override (dashboard or CLI) wins over `instances` until it is cleared.
 4. **Unsafe overlap**: old and new versions run side by side during a rollout. Keep message formats and schema migrations backward compatible.
 5. **No SIGTERM handling**: the process is killed 30 seconds after `SIGTERM` (the default) unless `terminationGracePeriodSeconds` is raised. Make jobs idempotent and acknowledge only after completion.
 6. **Shell syntax in `command`**: `$VAR` and `&&` are not expanded. Wrap in `sh -c`.
