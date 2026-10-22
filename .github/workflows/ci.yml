@@ -28,6 +28,15 @@ jobs:
       - name: Build
         run: bun run build:all
 
+      - name: Build Antigravity package
+        run: bun run build:antigravity
+
+      - name: Upload Antigravity package
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-antigravity
+          path: dist/antigravity/*.zip
+
       - name: Typecheck
         run: bun run typecheck
 

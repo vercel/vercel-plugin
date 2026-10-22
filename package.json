@@ -10,6 +10,7 @@
     "vercel-plugin": "src/cli/index.ts"
   },
   "scripts": {
+    "build:antigravity": "bun run scripts/build-antigravity.ts",
     "build:hooks": "tsup --config hooks/tsup.config.ts",
     "build:from-skills": "bun run scripts/build-from-skills.ts",
     "build:skills": "bun run scripts/build-skills.ts",

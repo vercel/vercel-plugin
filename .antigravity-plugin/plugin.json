@@ -9,7 +9,6 @@
     "Investigate my latest failed Vercel deployment",
     "Build an AI agent with the Vercel AI SDK"
   ],
-  "category": "Developer Tools",
   "keywords": ["vercel", "nextjs", "ai-sdk", "deployment", "serverless", "mcp"],
   "author": {
     "name": "Vercel",
@@ -18,6 +17,5 @@
   "homepage": "https://github.com/vercel/vercel-plugin#readme",
   "repository": "https://github.com/vercel/vercel-plugin",
   "license": "Apache-2.0",
-  "skills": ["./skills"],
-  "mcpServers": "./mcp_config.json"
+  "skills": ["./skills"]
 }
