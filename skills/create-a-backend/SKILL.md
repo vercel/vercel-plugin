@@ -68,7 +68,7 @@ Help the user create a backend by choosing an architecture before reaching for i
 | HTTP APIs, webhooks, streaming, or framework server code | **[Vercel Functions](https://vercel.com/docs/functions) with [Fluid compute](https://vercel.com/docs/fluid-compute)** |
 | Bidirectional realtime connections (WebSockets) | **[Vercel Functions with Fluid compute](https://vercel.com/docs/functions/websockets)**; no separate realtime service required |
 | A frontend and one or more backends (API endpoints) that deploy together | **[Vercel Services](https://vercel.com/docs/services)** |
-| An existing Dockerfile, custom runtime, or system dependencies | **[Container images](https://vercel.com/docs/functions/container-images)** on Vercel Functions, optionally composed with Services |
+| An existing Dockerfile, custom runtime, or system dependencies | **[Container images](https://vercel.com/docs/functions/runtimes/container)** on Vercel Functions, optionally composed with Services |
 | Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflows](https://vercel.com/docs/workflows)** |
 | Background jobs, buffering, fan-out, or direct message routing | **[Vercel Queues](https://vercel.com/docs/queues)** |
 | Always-on workers: queue consumers, Celery/Sidekiq/BullMQ workers, job runners | **[Vercel Daemons](https://vercel.com/docs/daemons)** (beta, production only) |
