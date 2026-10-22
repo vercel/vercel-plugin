@@ -36,41 +36,6 @@ opencode plugin add github:vercel/vercel-plugin
 
 OpenCode loads the same skills, agents, commands (`/vercel:deploy`, `/vercel:env`, `/vercel:status`, `/vercel:bootstrap`), session context, and Vercel MCP server. Run `/mcps` in OpenCode to sign in to the MCP server. Node.js and Bun are not needed for OpenCode.
 
-### Antigravity
-
-Build the Antigravity package with Bun and `zip`:
-
-```bash
-bun run build:antigravity
-```
-
-The package in `dist/antigravity/` follows the Antigravity Plugin Marketplace
-Publishing Guide. It reuses the 37 skills and three advisory agents, and connects
-to the official Vercel MCP server through `mcp_config.json`. Antigravity limits
-skill bodies to 24 KB, so longer skills load their complete bundled guide on
-demand. The shared source skills stay unchanged.
-The agents keep Antigravity's default tool permissions. Claude lifecycle hooks,
-automatic context injection, telemetry, and `commands/` slash commands are not
-part of this integration.
-
-Validate and install the generated directory:
-
-```bash
-agy plugin validate ./dist/antigravity/vercel-plugin --strict
-agy plugin install ./dist/antigravity/vercel-plugin
-agy plugin list
-```
-
-In Antigravity, invoke `/vercel-cli` and authorize the Vercel MCP connection before
-using account tools. Keep generated files in your project; the installed plugin
-cache is read-only.
-
-Strict package validation and local installation passed with Antigravity CLI
-1.4.5, discovering 37 skills, three agents, and one MCP server with no hooks.
-Skill invocation and MCP OAuth still need testing in an authenticated session. Marketplace
-listing is a separate review process through Google's
-[interest form](https://forms.gle/2EX5RFYPoJe1UgxR9).
-
 ## What It Does
 
 This plugin gives AI agents a **relational knowledge graph** of the Vercel ecosystem plus a bundled skill library covering products, libraries, CLI, APIs, and workflows.
