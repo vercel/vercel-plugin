@@ -6,7 +6,7 @@ Use this reference when framework and custom spans are needed, or when SDK regis
 
 Check framework and adapter versions, SDK registration, and tracing flags. Enable built-in framework spans where available; they still need SDK and exporter setup to reach Vercel. Extend the existing provider rather than registering a second one.
 
-Install `@vercel/otel` and `@opentelemetry/api` with the application's package manager as needed. If the package manager does not install peer dependencies automatically, also install the peers listed by `npm view @vercel/otel peerDependencies`. Follow [Next.js](nextjs.md) or [SvelteKit](sveltekit.md) setup for those frameworks.
+Install `@vercel/otel` and `@opentelemetry/api` with the application's package manager as needed. If the package manager does not install peer dependencies automatically, also install the peers listed by `npm view @vercel/otel peerDependencies`. Follow [Next.js](nextjs.md), [SvelteKit](sveltekit.md), [Nitro](nitro.md), [Nuxt](nuxt.md), or [Astro](astro.md) setup for those frameworks.
 
 ## Integrate another framework
 

@@ -72,6 +72,9 @@ describe("Vercel tracing prompt activation", () => {
     "Call registerOTel from my SvelteKit server hooks.",
     "Sentry is conflicting with my OTel setup.",
     "Add OTel instrumentation to my Hono app.",
+    "Set up OTel in my Nuxt app.",
+    "Set up OTel in my Nitro server.",
+    "Wire OTel into my Astro site.",
   ])("matches setup, propagation, and debugging intent: %s", (prompt) => {
     expect(matchesPrompt(prompt)).toBe(true);
   });
@@ -135,6 +138,8 @@ describe("Vercel tracing prompt activation", () => {
     "It takes a few seconds to install dependencies.",
     "Write a function that takes 5 seconds to resolve.",
     "The countdown takes 10 seconds before redirecting.",
+    "Build a hotel booking site with Astro.",
+    "Create a Nuxt app for my hotel.",
   ])("does not match words that only contain a trigger term: %s", (prompt) => {
     expect(matchesPrompt(prompt)).toBe(false);
   });
@@ -289,7 +294,7 @@ describe("Vercel tracing guidance", () => {
     expect(reference).not.toContain("Do not pass a trace ID");
   });
 
-  test.each(["nextjs", "sveltekit"])(
+  test.each(["nextjs", "sveltekit", "nitro", "astro"])(
     "entrypoint links the %s framework reference",
     (framework) => {
       const skill = readFileSync(resolve(SKILL_DIR, "SKILL.md"), "utf8");
@@ -306,6 +311,45 @@ describe("Vercel tracing guidance", () => {
 
     expect(reference).toContain("sveltekit({ tracing: { server: true } })");
     expect(reference).toContain("instrumentation: { server: true }");
+  });
+
+  test("nitro reference extracts context around the whole h3 handler", () => {
+    const reference = readFileSync(resolve(SKILL_DIR, "references/nitro.md"), "utf8");
+
+    expect(reference).toContain("server/plugins/telemetry.ts");
+    expect(reference).toContain("nitroApp.h3App.handler = (event) => {");
+    expect(reference).toContain("propagation.extract(context.active(), getRequestHeaders(event))");
+    expect(reference).toContain("import { getRequestHeaders } from 'h3'");
+  });
+
+  test("nuxt reference defers server setup to nitro", () => {
+    const reference = readFileSync(resolve(SKILL_DIR, "references/nuxt.md"), "utf8");
+
+    expect(reference).toContain("[Nitro](nitro.md)");
+    expect(reference).not.toContain("nitroApp.h3App.handler");
+    expect(reference).toContain("useFetch");
+    expect(reference).toContain("tracingChannel");
+  });
+
+  test("astro reference extracts context in middleware around next()", () => {
+    const reference = readFileSync(resolve(SKILL_DIR, "references/astro.md"), "utf8");
+
+    expect(reference).toContain("src/middleware.ts");
+    expect(reference).toContain("src/middleware/index.ts");
+    expect(reference).toContain("src/middleware/index.js");
+    expect(reference).toContain("From `src/middleware/index.ts` it is `../telemetry`.");
+    expect(reference).toContain("Leave `middlewareMode` and `edgeMiddleware` as the app set them.");
+    expect(reference).not.toContain("remove `edgeMiddleware: true`");
+    expect(reference).toContain("if (context.isPrerendered) return run();");
+    expect(reference).not.toContain("if (context.isPrerendered) return next();");
+    expect(reference).toContain("const run = () => existing(context, next)");
+    expect(reference).not.toContain("const run = () => next()");
+    expect(reference).toContain("Rename the current `export const onRequest` to `const existing`");
+    expect(reference).toContain("Do not replace its body");
+    expect(reference).toContain("call that handler from `run`");
+    expect(reference).toContain("otelContext.with(parent, run)");
+    expect(reference).toContain("Do not set `output: 'server'`");
+    expect(reference).toContain("calls `middleware()` from `astro/fetch`");
   });
 
   test("no framework reference outside the supported set", () => {

@@ -15,7 +15,7 @@ Use this reference when search is empty, retrieval fails, or expected span detai
 When `inspect <requestId>` shows `Endpoint: <unknown>`, only a few spans, or custom spans as roots, find the request's own trace: run `vercel traces search --request-id <id> --project <project> --json`, take the `.data.span.traceId` of the `GET <path>` span, and inspect that trace ID. Two causes:
 
 - Startup spans share the request ID. Next.js emits `register instrumentation` and `prepare route module` as separate root traces.
-- The app does not extract incoming context, so each custom span starts its own trace and the request's trace has none. Enable `tracing.server` on SvelteKit, or follow [context propagation](context-propagation.md#incoming-requests) for other frameworks.
+- The app does not extract incoming context, so each custom span starts its own trace and the request's trace has none. Enable `tracing.server` on SvelteKit, add the extraction from the [Nitro](nitro.md), [Nuxt](nuxt.md), or [Astro](astro.md) reference, or follow [context propagation](context-propagation.md#incoming-requests) for other frameworks.
 
 ## Trace lookup returns 404
 
