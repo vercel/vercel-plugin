@@ -1011,13 +1011,16 @@ This document is part of the **Vercel plugin for Claude Code**. The plugin uses 
 
 ### SessionStart — Baseline injection
 
-On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
+On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. Claude Code caps each hook's output at 10,000 characters, so the hook splits this context at `##` sections into parts of at most 9,000 characters, and `hooks.json` runs it once per part. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
 
 Deeper `vercel.md` guidance is now loaded later in small topic chunks when prompt or tool-time skill matching shows it is relevant. Chunking is deduped per session so the same Vercel topic is not repeated on every prompt.
 
 **Hook config** (`hooks/hooks.json`):
 ```json
-"SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\"" }] }]
+"SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [
+  { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 1/2" },
+  { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 2/2" }
+] }]
 ````
 
 ### PreToolUse — Skill-map matching
