@@ -1,6 +1,6 @@
 ---
 name: create-a-backend
-description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, containers, Daemons, Workflow, Queues, and Marketplace databases; or selecting a supported backend framework or runtime.
+description: "Start here to build or migrate a backend on Vercel. Triggers: API, REST/GraphQL, server, webhooks, WebSockets, background jobs, workers, database-backed app, Express, Fastify, Hono, NestJS, FastAPI, Flask, Django, Go, Functions vs Services vs containers vs Daemons vs Workflow vs Queues."
 summary: Match backend workloads to the right architecture
 metadata:
   priority: 7

@@ -1,6 +1,6 @@
 ---
 name: is-agentic
-description: Score how ready a website, domain, or public MCP endpoint is for AI agents using Is Agentic, and read or act on the resulting report. Use when asked to check a site's agent readiness, get its Is Agentic score, fetch a scored report as JSON, or fix the issues that lower a site's score.
+description: "Agent-readiness score for a site, domain, or MCP server via Is Agentic. Triggers: agent-ready, AI-agent friendly, agent readiness audit, Is Agentic score/report, make site usable by AI agents, fix agent-readiness issues."
 metadata:
   priority: 4
   docs:
