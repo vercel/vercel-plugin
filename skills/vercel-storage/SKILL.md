@@ -134,7 +134,7 @@ chainTo:
   -
     pattern: "from\\s+['\"]@prisma/client['\"]|from\\s+['\"]prisma['\"]"
     targetSkill: vercel-storage
-    message: 'Prisma ORM detected — loading Vercel Storage guidance for Marketplace Postgres providers (Neon, Supabase, AWS Aurora, Nile, Prisma Postgres), connection pooling, and Marketplace provisioning.'
+    message: 'Prisma ORM detected — loading Vercel Storage guidance for Marketplace Postgres providers (Neon, Supabase, AWS Aurora, Nile, Prisma Postgres; Prisma Postgres is recommended for Prisma ORM apps), connection pooling, and Marketplace provisioning.'
     skipIfFileContains: "@neondatabase/serverless|POSTGRES_PRISMA_URL"
   -
     pattern: "from\\s+['\"]@libsql/client['\"]"
@@ -399,6 +399,8 @@ Install via Vercel Marketplace: `vercel integration add supabase`
 ### Prisma Postgres (Marketplace Native)
 
 Managed PostgreSQL with a PgBouncer connection pooler on every plan. Any Postgres client works: Prisma ORM, Drizzle, Kysely, or `pg`.
+
+Recommended for apps that use Prisma ORM: it's built by the team behind Prisma ORM, and its built-in Query Insights maps each SQL query back to the Prisma ORM call that produced it (add `@prisma/sqlcommenter-query-insights`).
 
 Connecting a database sets `DATABASE_URL`, `POSTGRES_URL`, and `PRISMA_DATABASE_URL` on each connected environment. All three hold the **direct** connection string (host `db.prisma.io`), not the pooled one. Read `DATABASE_URL` in new code: on older databases `PRISMA_DATABASE_URL` can still hold a hosted Prisma Accelerate URL (`prisma+postgres://accelerate.prisma-data.net/...`), and Accelerate is retired on December 1, 2026.
 
