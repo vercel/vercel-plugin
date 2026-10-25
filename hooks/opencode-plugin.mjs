@@ -6,7 +6,7 @@ import { join, sep } from "path";
 import { setTimeout as delay } from "timers/promises";
 import { promisify } from "util";
 import { pluginRoot, safeReadFile, safeReadJson } from "./hook-env.mjs";
-import { buildInjectClaudeMdParts } from "./inject-claude-md.mjs";
+import { buildInjectClaudeMdOutputs } from "./inject-claude-md.mjs";
 import { createLogger, logCaughtError } from "./logger.mjs";
 import { hasSessionStartActivationMarkers } from "./session-start-activation.mjs";
 import {
@@ -127,13 +127,13 @@ async function buildSessionContext(directory, root, env, cliStatus) {
   if (!profilerActive && !greenfieldOverride) return null;
   const profilerMessages = profilerActive ? buildSessionStartProfilerUserMessages(greenfield, await cliStatus()) : [];
   const knowledgeUpdate = safeReadFile(join(root, "skills", "knowledge-update", "SKILL.md"));
-  const injectParts = buildInjectClaudeMdParts(
+  const injectOutputs = buildInjectClaudeMdOutputs(
     safeReadFile(join(root, "vercel-session.md")),
     env,
     knowledgeUpdate === null ? null : extractFrontmatter(knowledgeUpdate).body.trim(),
     greenfield !== null || greenfieldOverride
   );
-  return [...profilerMessages, ...injectParts].join("\n\n") || null;
+  return [...profilerMessages, ...injectOutputs].join("\n\n") || null;
 }
 var defaultDeps = {
   root: pluginRoot(import.meta.url),

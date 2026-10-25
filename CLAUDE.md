@@ -28,7 +28,8 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 |-------|------|---------|---------|
 | SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
 | SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `inject-claude-md.mjs --part 1/2` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `inject-claude-md.mjs --part 2/2` | `startup\|resume\|clear\|compact` | — |
 | PostToolUse | `posttooluse-skill-telemetry.mjs` | `Skill` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
@@ -39,7 +40,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 **Entry-point hooks** (wired in hooks.json):
 - `session-start-seen-skills.mts` — initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in `CLAUDE_ENV_FILE`
 - `session-start-profiler.mts` — activates only for greenfield directories or detected Vercel, Next.js, or eve projects, then scans config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost)
-- `inject-claude-md.mts` — outputs the thin session-start Vercel context plus knowledge update guidance for that same activation set
+- `inject-claude-md.mts` — outputs the thin session-start Vercel context plus knowledge update guidance for that same activation set. Claude Code caps each hook's output at 10,000 characters, so the hook packs the context in order into parts of at most 9,000 characters, split at `##` sections, and hooks.json runs it once per part (`--part <i>/<n>`). `tests/inject-claude-md.test.ts` fails when the content needs more parts than hooks.json runs; add an invocation rather than raising the limit
 - `posttooluse-skill-telemetry.mts` — on `Skill` tool use, reports the bare name of a plugin-namespaced (`vercel:`/`vercel-plugin:`), plugin-shipped skill/command (`skill:invoked`); other namespaces, bare names, and arguments are dropped. Also the `--send` entrypoint that the detached sender runs for every skill event
 - `session-end-cleanup.mts` — deletes session-scoped temp files
 
