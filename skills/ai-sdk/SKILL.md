@@ -209,13 +209,13 @@ validate:
     upgradeWhy: 'Guides migration from CoreMessage to ModelMessage/UIMessage with convertToModelMessages().'
   -
     pattern: agent\.generateText\(
-    message: 'agent.generateText() was renamed to agent.generate() in AI SDK v6'
+    message: 'Agent has no generateText() method — use agent.generate() (AI SDK 5+)'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from agent.generateText() to agent.generate() with correct v6 Agent class patterns.'
   -
     pattern: agent\.streamText\(
-    message: 'agent.streamText() was renamed to agent.stream() in AI SDK v6'
+    message: 'Agent has no streamText() method — use agent.stream() (AI SDK 5+)'
     severity: error
     upgradeToSkill: ai-sdk
     upgradeWhy: 'Guides migration from agent.streamText() to agent.stream() with correct v6 Agent class patterns.'
