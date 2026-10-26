@@ -286,5 +286,5 @@ For project-level rules that take effect without a deployment, use `vercel route
 ## References
 
 - 📖 docs: https://vercel.com/docs/routing-middleware
-- 📖 API reference: https://vercel.com/docs/routing-middleware/api
+- 📖 API reference: https://vercel.com/docs/routing-middleware/js-reference
 - 📖 getting started: https://vercel.com/docs/routing-middleware/getting-started
