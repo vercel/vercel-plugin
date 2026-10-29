@@ -176,11 +176,11 @@ vercel connect attach <connector>
 vercel connect token <connector> --subject app
 ```
 
-The CLI also supports `detach`, `update`, `remove`, and `open`. Run `vercel connect <command> --help` before using optional installation, scope, trigger, branch, or custom-environment flags.
+The CLI also supports `discover`, `categories`, `detach`, `update`, `remove`, and `open`. Run `vercel connect <command> --help` before using optional installation, scope, trigger, branch, or custom-environment flags.
 
 Use current-project behavior from a Vercel-linked project directory. Creating a connector and attaching it are distinct operations. Connector creation or token authorization may open a browser. Show the returned URL and wait for the person to finish the provider flow. `--yes` permits automatic browser opening; it does not force reauthorization.
 
-`vercel connect create <service>` supports 100+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
+`vercel connect create <service>` supports 1000+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect discover [query]` (CLI 64.1.0+) to find a service's name, then `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
 
 For MCP servers there are two ways to register. For a known service, run `vercel connect create <service>` and pick the MCP connection method (e.g. `vercel connect create linear --name my-agent` gives the connector `linear/my-agent`). For any other OAuth-protected server, pass its URL (e.g. `vercel connect create mcp.linear.app --name linear`): Vercel discovers the OAuth endpoints from the URL and creates a custom OAuth connector (`oauth/linear`). Either way, attach it to the project with `vercel connect attach <connector>` before requesting tokens. The service name or URL you pass to `create` is not necessarily the MCP runtime URL; that goes in the connection's `url`.
 
