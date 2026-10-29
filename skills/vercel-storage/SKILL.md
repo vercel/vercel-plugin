@@ -81,6 +81,7 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@libsql/client\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@libsql/client\b'
     - '\byarn\s+add\s+[^\n]*@libsql/client\b'
+    - '\bvercel\s+storage\b'
   importPatterns:
     - "@vercel/blob"
     - "@vercel/edge-config"
@@ -165,6 +166,8 @@ retrieval:
   intents:
     - add storage
     - set up database
+    - create a redis database
+    - create a postgres database
     - configure blob storage
     - use global config
     - use edge config
@@ -186,8 +189,8 @@ You are an expert in Vercel's storage options. Know which products are active, w
 
 Choose storage provisioning paths in this order:
 
-1. **Preferred**: Vercel-managed Neon/Upstash through the Vercel Marketplace (`vercel integration add ...` or dashboard). This path auto-provisions accounts/resources and injects environment variables into the linked Vercel project.
-   - **Prisma ORM projects** (`prisma/schema.prisma`): prefer Prisma Postgres, `vercel integration add prisma`.
+1. **Preferred**: Vercel-managed Neon/Upstash through the Vercel Marketplace (`vercel install <integration>` or dashboard). This path auto-provisions accounts/resources and injects environment variables into the linked Vercel project. Do not use `vercel storage create` for these: it only creates Blob stores and Global Config (see [Installing Marketplace Storage](#installing-marketplace-storage)).
+   - **Prisma ORM projects** (`prisma/schema.prisma`): prefer Prisma Postgres, `vercel install prisma`.
 2. **Fallback**: Provider CLI/manual provisioning only when Marketplace is unavailable or you must use an existing external account.
 
 When using fallback/manual provisioning, you must add/sync environment variables yourself and then re-run `vercel env pull .env.local --yes` locally.
@@ -541,18 +544,39 @@ Install via Vercel Marketplace: `vercel integration add tursocloud`
 
 ## Installing Marketplace Storage
 
-Use the Vercel CLI or the Marketplace dashboard at `https://vercel.com/dashboard/{team}/stores`:
+`vercel storage create` only creates first-party stores (`--type blob` or `--type global-config`). Redis, Postgres, and every other Marketplace database are provisioned with `vercel install` (alias of `vercel integration add`), which installs the integration if needed, creates the resource, connects it to the linked project, and runs `vercel env pull`:
 
 ```bash
-# Install a storage integration (auto-provisions env vars)
-vercel integration add neon
-vercel integration add upstash
+# Find storage integrations and their product slugs
+vercel integration discover --category storage
+
+# See the products, metadata keys, and billing plans for one integration
+vercel install upstash --help
+
+# Provision without prompts (name, plan, and metadata come from --help above)
+vercel install upstash --name my-redis --billing-plan <plan-id> --meta primaryRegion=iad1
+
+# Pick a product from a multi-product integration
+vercel install <integration>/<product>
+
+# Provision without connecting to the linked project (also skips env pull)
+vercel install neon --name my-db --no-connect
 
 # List installed integrations
 vercel integration list
 ```
 
 `vercel install <slug>` (or `vercel i <slug>`) is an alias for `vercel integration add <slug>`. Either form also installs the provider's own agent skills from [skills.sh](https://skills.sh) for providers that publish them — follow those instead of recalling the provider's API from memory. If the database provisions but only the skill install fails, don't re-run the command — that can create a *second* database. Have the user run the `npx skills add …` recovery command the CLI prints instead.
+
+After provisioning, `vercel storage` works across first-party and Marketplace stores:
+
+```bash
+vercel storage status                 # stores, projects, environments, and env vars for the linked project
+vercel storage list                   # every store in the team, including Marketplace resources
+vercel storage connect my-redis --yes # connect an existing store to the linked project
+```
+
+Deleting a Marketplace resource uses `vercel integration resource delete <resource>`, not `vercel storage delete`.
 
 Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard (`https://vercel.com/dashboard/{team}/integrations`) automatically provisions accounts, creates databases, and sets environment variables.
 
