@@ -30,6 +30,20 @@ function issueMentionsSyntheticTestSkill(issue: {
 }
 
 describe.serial("validate.ts", () => {
+  test("Kimi manifest uses native OAuth for the Vercel MCP server", async () => {
+    const manifest = JSON.parse(
+      await readFile(join(ROOT, ".kimi-plugin", "plugin.json"), "utf8"),
+    );
+
+    expect(manifest.mcpServers.vercel).toMatchObject({
+      transport: "http",
+      url: "https://mcp.vercel.com",
+      auth: "oauth",
+    });
+    expect(manifest.mcpServers.vercel.command).toBeUndefined();
+    expect(manifest.mcpServers.vercel.args).toBeUndefined();
+  });
+
   test("repo has no non-synthetic validation errors", async () => {
     const { report } = await runValidateJson();
     const unexpectedErrors = report.issues.filter(
