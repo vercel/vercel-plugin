@@ -25,7 +25,8 @@
   "mcpServers": {
     "vercel": {
       "transport": "http",
-      "url": "https://mcp.vercel.com"
+      "url": "https://mcp.vercel.com",
+      "auth": "oauth"
     }
   },
   "interface": {
