@@ -27,7 +27,7 @@ vercel ai-gateway virtual-models inspect coding-agent
 vercel ai-gateway models list --virtual
 ```
 
-The CLI supports create, list, inspect, edit, remove, and restore. The slug is immutable after creation. Changes apply to new requests within a few minutes.
+The CLI supports create, list, inspect, update, delete, and restore (`update` needs Vercel CLI 64.4+ and `delete` 64.6+; older CLIs use `edit` and `remove`). The slug is immutable after creation. Changes apply to new requests within a few minutes.
 
 The Virtual Model's **Provider Options** field is a provider-keyed JSON map, for example:
 
@@ -84,7 +84,7 @@ Do not promise that every agent discovers team Virtual Models automatically. Mod
 
 ## Operational cautions
 
-- Only team Owners and Members can manage Virtual Models, but any team member can call one.
+- Team Owners and Members can create Virtual Models; only the creator or a team Owner can edit, archive, remove, or restore one. Any team member can call one.
 - Archived or removed slugs stop serving requests. Know the callers before changing lifecycle state.
 - Virtual Model tags replace request tags when configured, so avoid unintentionally dropping caller attribution.
 - Required capabilities replace the request's capability list rather than merging with it.

@@ -27,7 +27,7 @@ Useful flags from the shipped help:
 - `--all`: configure every supported agent.
 - `--dry-run`: print the planned diff without writing.
 - `--key <KEY>`: reuse an existing AI Gateway key instead of creating one. Do not put a literal key in a saved command or agent transcript; prefer the CLI's interactive or OS credential-store path.
-- `--budget <AMOUNT>` and `--refresh-period <PERIOD>`: set a spend limit on a newly created key.
+- `--amount <USD>` and `--refresh-period <PERIOD>`: set a spend limit on a newly created key (`--amount` needs Vercel CLI 65.4+; older CLIs use `--budget`).
 - `--expiration <PERIOD>`: expire a newly created key after a fixed period.
 - `--apply prompt`: emit an agent prompt instead of writing files, for setups handled by another coding agent.
 
