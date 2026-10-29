@@ -281,7 +281,7 @@ With `vercel build` or a custom builder, `.vercel/output/config.json` lists daem
 | Shutdown grace period | 30 seconds after `SIGTERM` by default, configurable up to 3,600 seconds with `terminationGracePeriodSeconds` |
 | CPU architecture | Linux `amd64` |
 
-Default per-team quotas apply during the beta: Hobby is limited to 1–2 GiB instances and a monthly Active CPU-hour allowance (instances stop when it runs out), Pro allows all sizes up to a concurrent vCPU and memory cap, and Enterprise is custom. Check [Daemons limits](https://vercel.com/docs/daemons/limits) for the current numbers before sizing a deployment.
+Default per-team quotas apply during the beta: Hobby is limited to 1–2 GiB instances and monthly Active CPU and Provisioned Memory quotas (Provisioned Memory counts every hour an instance runs, including while waiting for work; when either runs out, daemons stop until the first of the next month (UTC) or until the team upgrades to Pro), Pro allows all sizes up to a concurrent vCPU and memory cap, and Enterprise is custom. Check [Daemons limits](https://vercel.com/docs/daemons/limits) for the current numbers before sizing a deployment.
 
 Not supported during the beta: preview deployments, inbound HTTP or TCP traffic, autoscaling, persistent local storage (use Vercel Blob or a Marketplace database), running in `vercel dev`, being the target of a service binding or rewrite, builds without a `Dockerfile`/`Containerfile`, and projects whose root directory is a subfolder such as `apps/web`.
 
