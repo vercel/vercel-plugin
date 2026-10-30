@@ -133,7 +133,7 @@ describe("session-start-seen-skills hook", () => {
       // Fire the hook with a "clear" event
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "clear" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
       );
 
       expect(result.code).toBe(0);
@@ -161,7 +161,7 @@ describe("session-start-seen-skills hook", () => {
 
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "compact" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "compact" }),
       );
 
       expect(result.code).toBe(0);
@@ -187,7 +187,7 @@ describe("session-start-seen-skills hook", () => {
       // 3. Fire "clear" event via session-start hook
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "clear" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
       );
       expect(result.code).toBe(0);
 
@@ -213,7 +213,7 @@ describe("session-start-seen-skills hook", () => {
       // 3. Fire "compact" event via session-start hook
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "compact" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "compact" }),
       );
       expect(result.code).toBe(0);
 
@@ -253,7 +253,7 @@ describe("session-start-seen-skills hook", () => {
       // Fire "clear" event
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "clear" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
       );
       expect(result.code).toBe(0);
 
@@ -291,7 +291,7 @@ describe("session-start-seen-skills hook", () => {
 
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "startup" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "startup" }),
       );
 
       expect(result.code).toBe(0);
@@ -302,6 +302,35 @@ describe("session-start-seen-skills hook", () => {
     } finally {
       rmSync(dedupClaimDirPath(sessionId, "seen-skills"), { recursive: true, force: true });
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}
+    }
+  });
+
+  test("test_clear_event_preserves_other_sessions", async () => {
+    const stamp = Date.now();
+    const sessionA = `test-clear-a-${stamp}`;
+    const sessionB = `test-clear-b-${stamp}`;
+
+    try {
+      for (const id of [sessionA, sessionB]) {
+        expect(tryClaimSessionKey(id, "seen-skills", "nextjs")).toBe(true);
+        writeFileSync(dedupFilePath(id, "seen-skills"), "nextjs", "utf-8");
+      }
+
+      const result = await runSessionStart(
+        { CLAUDE_ENV_FILE: undefined },
+        JSON.stringify({ session_id: sessionA, hook_event_name: "SessionStart", source: "clear" }),
+      );
+      expect(result.code).toBe(0);
+
+      expect(existsSync(dedupClaimDirPath(sessionA, "seen-skills"))).toBe(false);
+      expect(existsSync(dedupFilePath(sessionA, "seen-skills"))).toBe(false);
+      expect(existsSync(dedupClaimDirPath(sessionB, "seen-skills"))).toBe(true);
+      expect(readFileSync(dedupFilePath(sessionB, "seen-skills"), "utf-8")).toBe("nextjs");
+    } finally {
+      for (const id of [sessionA, sessionB]) {
+        rmSync(dedupClaimDirPath(id, "seen-skills"), { recursive: true, force: true });
+        try { rmSync(dedupFilePath(id, "seen-skills")); } catch {}
+      }
     }
   });
 });
