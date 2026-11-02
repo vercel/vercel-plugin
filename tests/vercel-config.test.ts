@@ -115,6 +115,13 @@ describe("vercel-config.mjs", () => {
     expect(result!.relevantSkills.has("daemons")).toBe(true);
   });
 
+  test("resolveVercelJsonSkills maps the schedules key", () => {
+    const p = join(tempDir, "vercel-schedules.json");
+    writeFileSync(p, JSON.stringify({ schedules: {} }), "utf-8");
+    const result = resolveVercelJsonSkills(p);
+    expect(result!.relevantSkills.has("vercel-schedules")).toBe(true);
+  });
+
   test("resolveVercelJsonSkills maps mixed keys correctly", () => {
     const p = writeVercelJson({
       redirects: [],
@@ -135,6 +142,7 @@ describe("vercel-config.mjs", () => {
       "builds", "buildCommand", "installCommand", "outputDirectory", "framework",
       "services",
       "daemons",
+      "schedules",
     ];
     for (const key of expectedKeys) {
       const content: Record<string, unknown> = { [key]: {} };
