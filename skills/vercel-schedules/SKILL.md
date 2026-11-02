@@ -1,7 +1,7 @@
 ---
 name: vercel-schedules
 description: Vercel Schedules guidance — run a private function, route, or Vercel Queues topic on a cron cadence or once at a set time. Covers static schedules in vercel.json, dynamic per-user schedules with @vercel/schedules, handleSchedule, the vercel schedules CLI, environments, jitter, and migrating from Cron Jobs. Use when adding scheduled or recurring work, one-time reminders, or replacing `crons`.
-summary: "Vercel Schedules (beta) replaces Cron Jobs. Static schedules go in vercel.json under `schedules` and target a private `function` (with an `experimentalTriggers: [{ type: 'schedule/v1beta' }]` trigger), a public `path`, or a queue `topic`. Dynamic schedules come from `Schedules.create()` in `@vercel/schedules@alpha` or `vercel schedules create`, target queue topics only, and support one-time runs, payloads, and namespaces. Wrap function handlers in `handleSchedule`; make handlers idempotent with `executionId`."
+summary: "Vercel Schedules replaces Cron Jobs. Static schedules go in vercel.json under `schedules` and target a private `function` (with an `experimentalTriggers: [{ type: 'schedule/v1beta' }]` trigger; the default), a queue `topic`, or a public `path` (only to migrate Cron Jobs without code changes). Dynamic schedules come from `Schedules.create()` in `@vercel/schedules@alpha` or `vercel schedules create`, target queue topics only, and support one-time runs, payloads, and namespaces. Wrap function handlers in `handleSchedule`; make handlers idempotent with `executionId`."
 metadata:
   priority: 6
   docs:
@@ -104,8 +104,6 @@ chainTo:
 
 You are an expert in Vercel Schedules, which runs code on a recurring cron cadence or once at a specific time.
 
-Schedules is in **beta** and replaces Cron Jobs. During the beta, deployments that declare schedules fail unless the team has access, and the SDK is published under the `alpha` tag (`@vercel/schedules@alpha`). Check https://vercel.com/docs/schedules when details matter. Behavior and limits can change before GA.
-
 ## Choose static or dynamic
 
 | | Static | Dynamic |
@@ -123,9 +121,11 @@ Use **static** for jobs that belong to the app (nightly cleanup, hourly sync). U
 
 | Target | Use when | Retries |
 |---|---|---|
-| **`function`** (default choice) | Private work nobody else should call. No public URL, no secret needed. | No |
-| **`path`** | Migrating an existing Cron Job, or the route must stay public. Protect it with `CRON_SECRET`. | No |
+| **`function`** (default) | Any new static schedule. The handler has no public URL, and only Vercel's scheduler can invoke it, so there's no secret to manage. | No |
 | **`topic`** | Failed runs must be retried, you need a payload, or the schedule is dynamic. | Yes, via Queues |
+| **`path`** | Only when migrating an existing Cron Job and you don't want to change any code. | No |
+
+Prefer `function` over `path`. A `path` target exposes your handler to the public internet, and its only protection is a static `CRON_SECRET` that you have to store, check on every request, and rotate. A `function` target has neither problem. Don't pick `path` for new schedules, and don't pick it because a route "already exists". Wrapping the route in `handleSchedule` and adding the trigger is a small change.
 
 If a failed run must be retried, target a queue topic.
 
@@ -188,14 +188,16 @@ vercel schedules invoke cleanup            # run once in production
 | `timezone` | IANA name such as `America/New_York`. Defaults to `UTC`. Follows DST. |
 | `jitter` | Minutes, 1–15. Defaults to 1 on Pro/Enterprise. Hobby is always 15. |
 | `function` / `service` | Private function target (see rules above). |
-| `path` / `requestMethod` | Public route target. Path must start with `/`. Method defaults to **`POST`**. |
+| `path` / `requestMethod` | Public route target, for code-free Cron Jobs migration only. Path must start with `/`. Method defaults to **`POST`**. |
 | `topic` | Vercel Queues topic. Letters, digits, `_`, `-`. |
 
 The object key is the schedule name: 1–256 chars of ASCII letters, digits, `.`, `_`, `-`, starting with a letter or digit. **Keep names stable.** Renaming deletes the schedule and creates a new one with fresh state and history. A project can have up to 100 static schedules.
 
 Cron syntax: digits, `*`, `,`, `-`, `/` only. No `MON`/`JAN` names, and don't set both day-of-month and day-of-week.
 
-## Path targets
+## Path targets (Cron Jobs migration only)
+
+Use a path target only to move an existing Cron Job over without touching its route code. For anything else, use a `function` target. The route stays publicly reachable, so it must check `CRON_SECRET` on every request:
 
 ```json
 {
@@ -314,12 +316,13 @@ The shortest interval between runs must be at least the jitter window (`jitter_e
 
 ## Migrate from Cron Jobs
 
-Replace each `crons` entry with a named `schedules` entry. Keep `path` and `schedule`, and add `"requestMethod": "GET"`, because Cron Jobs send `GET` and path schedules default to `POST`. **Remove `crons` in the same change**, or the route runs twice. Existing `CRON_SECRET` checks and `vercel-cron/1.0` headers keep working. Leave `timezone` unset to keep UTC run times. Later, switch to a private `function` target with the **same name** so the schedule keeps its state.
+Replace each `crons` entry with a named `schedules` entry. Keep `path` and `schedule`, and add `"requestMethod": "GET"`, because Cron Jobs send `GET` and path schedules default to `POST`. **Remove `crons` in the same change**, or the route runs twice. Existing `CRON_SECRET` checks and `vercel-cron/1.0` headers keep working. Leave `timezone` unset to keep UTC run times. This is the only case where a `path` target makes sense. If you can change code, go straight to a private `function` target instead: wrap the handler in `handleSchedule`, add the `schedule/v1beta` trigger, replace `path`/`requestMethod` with `function`, drop the `CRON_SECRET` check, and keep the **same name** so the schedule keeps its state and history.
 
 ## Never do this on Vercel
 
 - `node-cron`, `setInterval`, or any in-process scheduler. Functions aren't long-lived, so they never fire reliably.
-- A public route with no `CRON_SECRET` check as a schedule target. Use a `function` target instead.
+- A `path` target for a new schedule. It exposes the handler publicly and depends on a static `CRON_SECRET`. Use a `function` target.
+- A `path` target with no `CRON_SECRET` check. Anyone on the internet can trigger it.
 - Renaming a schedule to "fix" it. That resets its state and history.
 
 ## Manage and debug
@@ -336,7 +339,7 @@ vercel schedules create send-reminder --at 2026-11-01T09:00 --timezone America/N
 
 In the dashboard, open the project and select **Schedules** to see next run times, execution history, and **Run Schedule**.
 
-Common SDK error codes: `not_enabled` (team lacks beta access), `invalid_cron_expression`, `invalid_jitter`, `jitter_exceeds_cadence`, `single_at_in_past`, `payload_too_large`, `static_schedule` (tried to update/delete a static one), `rate_limited` (wait `retryAfter` seconds).
+Common SDK error codes: `invalid_cron_expression`, `invalid_jitter`, `jitter_exceeds_cadence`, `single_at_in_past`, `payload_too_large`, `static_schedule` (tried to update/delete a static one), `rate_limited` (wait `retryAfter` seconds).
 
 ## Related
 

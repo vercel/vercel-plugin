@@ -113,4 +113,14 @@ describe("Vercel Schedules guidance", () => {
     expect(skill).toContain("CRON_SECRET");
     expect(skill).toContain("⤳ skill: queues");
   });
+
+  test("recommends function targets over path targets", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain("| **`function`** (default) |");
+    expect(skill).toContain("Prefer `function` over `path`.");
+    expect(skill).toContain("## Path targets (Cron Jobs migration only)");
+    expect(skill).not.toContain("not_enabled");
+    expect(skill).not.toContain("**beta**");
+  });
 });
