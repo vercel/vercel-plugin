@@ -21,14 +21,17 @@ var KEY_SKILL_MAP = {
   // Services
   services: ["vercel-services"],
   // Daemons
-  daemons: ["daemons"]
+  daemons: ["daemons"],
+  // Schedules
+  schedules: ["vercel-schedules"]
 };
 var VERCEL_JSON_SKILLS = /* @__PURE__ */ new Set([
   "daemons",
   "deployments-cicd",
   "routing-middleware",
   "vercel-services",
-  "vercel-functions"
+  "vercel-functions",
+  "vercel-schedules"
 ]);
 function resolveVercelJsonSkills(filePath) {
   const content = safeReadFile(filePath);
