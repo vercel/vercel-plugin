@@ -13,6 +13,7 @@
     "build:hooks": "tsup --config hooks/tsup.config.ts",
     "build:from-skills": "bun run scripts/build-from-skills.ts",
     "build:skills": "bun run scripts/build-skills.ts",
+    "check:sandbox-source": "bun run scripts/check-sandbox-source.ts",
     "build:skills:check": "bun run scripts/build-skills.ts --check",
     "build:from-skills:check": "bun run scripts/build-from-skills.ts --check",
     "build:all": "bun run build:skills && bun run build:hooks && bun run build:from-skills",

@@ -1,0 +1,40 @@
+name: Sandbox skill source
+
+on:
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/checkout@v4
+        with:
+          repository: vercel/sandbox
+          ref: main
+          path: .sandbox-source
+          sparse-checkout: skills/sandbox
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Record canonical revision
+        shell: bash
+        run: |
+          source_sha=$(git -C .sandbox-source rev-parse HEAD)
+          printf 'Canonical source: https://github.com/vercel/sandbox/tree/%s/skills/sandbox\n\n' "$source_sha" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Check bundled Sandbox source
+        shell: bash
+        run: bun run check:sandbox-source .sandbox-source/skills/sandbox 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"

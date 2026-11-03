@@ -252,7 +252,7 @@ skills/<name>/
 | `react-best-practices`  | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)   |
 | `vercel-cli`            | [vercel/vercel](https://github.com/vercel/vercel)                         |
 | `vercel-flags`          | [vercel/flags](https://github.com/vercel/flags)                           |
-| `vercel-sandbox`        | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
+| `vercel-sandbox`        | [vercel/sandbox](https://github.com/vercel/sandbox/tree/main/skills/sandbox) (canonical source; bundled copy currently differs) |
 | `workflow`              | [vercel/workflow](https://github.com/vercel/workflow)                     |
 
 ### Syncing an Upstream Skill
@@ -271,6 +271,24 @@ bun run build:skills:check
 ```
 
 Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
+
+### Check Sandbox against its canonical source
+
+The local build check only compares generated files with the bundled upstream copy. The **Sandbox skill source** workflow also compares that copy with `vercel/sandbox` every day at 09:23 UTC, or when run manually from GitHub Actions. Scheduled runs start after the workflow is merged into the default branch and may be delayed by GitHub.
+
+To run the same check locally, install [Bun](https://bun.sh) and use a current checkout of `vercel/sandbox`:
+
+```bash
+git clone --depth 1 https://github.com/vercel/sandbox.git /tmp/sandbox-skill-source
+bun run check:sandbox-source /tmp/sandbox-skill-source/skills/sandbox
+```
+
+Run this from the plugin repository; use an unused checkout path. The check reads files without modifying them. It compares the full upstream skill directory, then checks the generated skill and copied references while preserving the plugin's `overlay.yaml`. Exit codes are `0` for a match, `1` for drift, and `2` when the comparison cannot complete. Checkout failures also fail the workflow.
+
+The bundled Sandbox copy currently differs from the canonical skill, so the source check reports drift until a reviewed update aligns it. The workflow summary links the exact source revision and lists changed, missing, or extra files. Review those changes, refresh `skills/vercel-sandbox/upstream/`, run `bun run build:skills vercel-sandbox`, and review the generated diff. Check CLI release availability before teaching new commands.
+
+This workflow reports failures in GitHub Actions. It does not update files, open PRs, or add a moving upstream dependency to unrelated pull-request checks. GitHub notifications depend on each maintainer's notification settings.
+
 
 ## Architecture
 
