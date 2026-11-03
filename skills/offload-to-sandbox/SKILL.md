@@ -1,7 +1,7 @@
 ---
 name: offload-to-sandbox
 description: Offload heavy builds, full test suites and parallel experiments from the local machine to Vercel Sandboxes with the `vercel sandbox` CLI. Use when a local machine is overloaded or shared by several agents, when a test suite should be sharded, or when many tasks should run side by side without consuming local CPU, memory or disk.
-summary: "Offload heavy work to Vercel Sandboxes: build a base snapshot once (toolchain + deps + baseline build), create one non-persistent sandbox per task from it (`vercel sandbox create --name <task> --non-persistent --snapshot <snap_id> --vcpus 8 --timeout 3h`; Hobby allows 4 vCPUs and 45-minute sessions), push code as a tarball of git-tracked and untracked files while keeping heavy dirs like node_modules, run commands as one quoted `sh -c` string (long jobs detached with an exit-status file you poll), use standalone `sandbox read`, `write`, and `copy -r` for file transfers when their help confirms support, copy small result files back, shard suites across sandboxes, check failures against an untouched baseline in the same sandbox, and `vercel sandbox remove` every sandbox when done. `vercel sandbox exec` exits 0 even when the remote command fails, so read the remote exit status yourself."
+summary: "Offload heavy work to Vercel Sandboxes: build a base snapshot once (toolchain + deps + baseline build), create one non-persistent sandbox per task from it (`vercel sandbox create --name <task> --non-persistent --snapshot <snap_id> --vcpus 8 --timeout 3h`; Hobby allows 4 vCPUs and 45-minute sessions), push code as a tarball of git-tracked and untracked files while keeping heavy dirs like node_modules, run commands as one quoted `sh -c` string (long jobs use native detach/logs/wait when available, with status-file polling for older CLIs), use standalone `sandbox read`, `write`, and `copy -r` for file transfers when their help confirms support, copy small result files back, shard suites across sandboxes, check failures against an untouched baseline in the same sandbox, and `vercel sandbox remove` every sandbox when done. Older bundled `vercel sandbox exec` versions exit 0 even when the remote command fails; use the documented exit-status fallback."
 metadata:
   priority: 5
   docs:
@@ -13,7 +13,7 @@ metadata:
   pathPatterns: []
   importPatterns: []
   bashPatterns:
-    - '\b(?:(?:vercel|vc)\s+)?sandbox\s+(?:create|exec|copy|cp|read|cat|write|snapshot|run|fork)\b'
+    - '\b(?:(?:vercel|vc)\s+)?sandbox\s+(?:create|exec|copy|cp|read|cat|write|snapshot|run|fork|commands)\b'
   promptSignals:
     phrases:
       - "offload to a sandbox"
@@ -200,18 +200,68 @@ vercel sandbox exec --timeout 2h exp-parser -- sh -c 'cd /vercel/sandbox/cand &&
 ```
 
 - Pass the whole command as **one single-quoted string** to `sh -c`. Your local shell otherwise expands `$VARS` and globs before the sandbox sees them. zsh in particular errors on unmatched globs and treats `$var:r`, `$var:h` and similar as modifiers; use `${var}`.
-- **Don't trust the exit status of `vercel sandbox exec`.** It exits 0 even when the remote command fails (checked with `vercel` 64.5.0, which bundles Sandbox CLI 4.4.0). End the remote command with `echo "exit=$?"` and read that, or use `sbx exec`, which returns the remote status. The standalone Sandbox CLI (`npm i -g sandbox`, then `sandbox exec ...`) does pass the remote exit code through.
+- **Check the bundled CLI's exit behavior.** With `vercel` 64.5.0 (Sandbox CLI 4.4.0), `vercel sandbox exec` exits 0 even when the remote command fails. On that version, end the remote command with `echo "exit=$?"` and read that, or use `sbx exec`, which returns the remote status. The standalone Sandbox CLI (`npm i -g sandbox`, then `sandbox exec ...`) does pass the remote exit code through.
 - For anything longer than a line, write a script locally, `vercel sandbox copy` it in, and run it. That is easier to quote, review and rerun.
 - `exec --timeout` is optional and has no default. When it expires, the command is killed with SIGKILL and the CLI prints `Command was killed (SIGKILL, exit code 137)`. Without it, a command runs until it finishes or the session times out.
-- **Long jobs:** start them detached and poll, so the job doesn't depend on your local `exec` call staying connected or on an `exec` timeout. The session timeout still applies, so make sure it covers the job:
-
-  ```bash
-  vercel sandbox exec exp-parser -- sh -c 'cd /vercel/sandbox/cand && rm -f /tmp/test.status && nohup sh -c "npm run test:all > /tmp/test.log 2>&1; echo \$? > /tmp/test.status" > /dev/null 2>&1 &'
-  # later, cheap polls:
-  vercel sandbox exec --timeout 30s exp-parser -- sh -c 'cat /tmp/test.status 2>/dev/null || tail -3 /tmp/test.log'
-  ```
-
 - If you compare timings, run both versions in the same sandbox, because hosts of the same size can differ in speed.
+
+### Run long jobs with the standalone CLI
+
+Use native command management when your installed CLI supports it. With the standalone CLI installed and authenticated as described above, check:
+
+```bash
+sandbox --version
+sandbox exec --help
+sandbox commands --help
+```
+
+Confirm that `exec` lists `--detach` and `--stdin`, and that `commands` lists `get`, `logs`, `wait`, and `kill`. Check these independently of the file commands above: CLI releases may support command management before `read`, `write`, and recursive copy. The Vercel CLI bundles its own Sandbox CLI version.
+
+Start the task in the existing sandbox and save its command ID:
+
+```bash
+name=exp-parser
+: "${SBX_SCOPE:?set SBX_SCOPE to your team slug}"
+: "${SBX_PROJECT:?set SBX_PROJECT to your project name}"
+
+command_id=$(sandbox exec --scope "$SBX_SCOPE" --project "$SBX_PROJECT" --detach "$name" -- sh -c 'cd /vercel/sandbox/cand && npm run test:all')
+printf '%s\n' "$command_id"
+
+sandbox commands get --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "$name" "$command_id"
+sandbox commands logs --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "$name" "$command_id"
+sandbox commands wait --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "$name" "$command_id"
+```
+
+`get` checks status without waiting. `logs` streams stdout and stderr until the command exits; use it when you want to watch the task. `wait` returns the remote exit status, so use it to decide whether the task passed. Keep the sandbox name and command ID when returning to the job from another terminal.
+
+To cancel a still-running task, use its saved command ID:
+
+```bash
+sandbox commands kill --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "$name" "$command_id" --signal SIGTERM
+sandbox commands wait --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "$name" "$command_id"
+```
+
+Cancellation normally produces a non-zero exit status. Killing a command leaves the sandbox running. Command IDs belong to the current session; collect results before it stops. Detached commands still end when their command timeout or sandbox session timeout expires.
+
+### Pipe input without an interactive terminal
+
+For a command that reads input and then finishes, use `--stdin`:
+
+```bash
+printf 'hello\n' | sandbox exec --scope "$SBX_SCOPE" --project "$SBX_PROJECT" --stdin "$name" -- cat
+```
+
+This prints `hello`. The CLI forwards input and closes the remote stdin when the local input ends. Use `--stdin` for pipes and scripts; it cannot be combined with `--interactive`. For detached input, `exec --detach --stdin` keeps stdin open for later `commands write` calls; finish with `commands close-stdin` before waiting for a program that needs end-of-input. Wait for each write to finish before starting another. Treat command logs as text; use file transfers for binary artifacts.
+
+### Fall back on older CLI versions
+
+If native command management is unavailable, use the existing `sbx exec` wrapper for exit-status handling. For long jobs, keep the status-file approach below. The sandbox session timeout must cover the whole job:
+
+```bash
+vercel sandbox exec exp-parser -- sh -c 'cd /vercel/sandbox/cand && rm -f /tmp/test.status && nohup sh -c "npm run test:all > /tmp/test.log 2>&1; echo \$? > /tmp/test.status" > /dev/null 2>&1 &'
+# later, cheap polls:
+vercel sandbox exec --timeout 30s exp-parser -- sh -c 'cat /tmp/test.status 2>/dev/null || tail -3 /tmp/test.log'
+```
 
 ## Get results back
 

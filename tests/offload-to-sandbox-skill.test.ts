@@ -111,6 +111,9 @@ describe("offload-to-sandbox bash activation", () => {
     "sandbox copy -r ./task-input exp-parser:/vercel/sandbox/task-input",
     "vercel sandbox read exp-parser:/tmp/results.json",
     "vc sandbox write exp-parser:/tmp/check.sh",
+    "sandbox commands logs exp-parser cmd_123",
+    "sandbox commands wait exp-parser cmd_123",
+    "sandbox commands kill exp-parser cmd_123 --signal SIGTERM",
   ])("matches %s", (command) => {
     expect(matchBashWithReason(command, compiledSkill.compiledBash)).not.toBeNull();
   });
