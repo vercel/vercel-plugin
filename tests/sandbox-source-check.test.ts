@@ -13,12 +13,12 @@ function write(path: string, text: string) {
   writeFileSync(path, text);
 }
 
-function fixture() {
+function fixture(skillSource = source) {
   const root = mkdtempSync(join(tmpdir(), "sandbox-source-check-"));
   temporary.push(root);
   const canonical = join(root, "canonical");
   const skill = join(root, "skills/vercel-sandbox");
-  write(join(canonical, "SKILL.md"), source);
+  write(join(canonical, "SKILL.md"), skillSource);
   write(join(canonical, "references/nested/cli.md"), "Run sandbox exec.\n");
   cpSync(canonical, join(skill, "upstream"), { recursive: true });
   write(join(skill, "overlay.yaml"), "name: vercel-sandbox\ndescription: Plugin description\nmetadata:\n  priority: 4\n");
@@ -49,6 +49,12 @@ describe("Sandbox canonical source check", () => {
   test("accepts a real build with plugin-specific frontmatter and nested references", () => {
     const { canonical, root, skill } = fixture();
     expect(readFileSync(join(skill, "SKILL.md"), "utf8")).toContain("name: vercel-sandbox");
+    expect(checkSandboxSource(canonical, root)).toEqual([]);
+  });
+
+  test("uses the builder's frontmatter rules for whitespace-padded fences", () => {
+    const padded = source.replace("---\n\n# Sandbox", "--- \n\n# Sandbox") + "\n---\nMore guidance.\n";
+    const { canonical, root } = fixture(padded);
     expect(checkSandboxSource(canonical, root)).toEqual([]);
   });
 
@@ -98,19 +104,30 @@ describe("Sandbox canonical source check", () => {
     expect(checkSandboxSource(canonical, root)).toContain("Generated skill: missing references/nested/cli.md");
   });
 
+  test.each(["AGENTS.md", "rules/rule.md", "templates/example.md", "command/run.md"])("checks generated %s", (file) => {
+    const { canonical, root, skill } = fixture();
+    write(join(canonical, file), "Canonical guidance\n");
+    write(join(skill, "upstream", file), "Canonical guidance\n");
+    expect(checkSandboxSource(canonical, root)).toContain(`Generated skill: missing ${file}`);
+    write(join(skill, file), "Canonical guidance\n");
+    expect(checkSandboxSource(canonical, root)).toEqual([]);
+    write(join(skill, file), "Stale guidance\n");
+    expect(checkSandboxSource(canonical, root)).toContain(`Generated skill: changed ${file}`);
+  });
+
   test("does not report plugin-only metadata or README as canonical differences", () => {
     const { canonical, root, skill } = fixture();
     write(join(skill, "README.md"), "Plugin-specific maintenance notes");
     expect(checkSandboxSource(canonical, root)).toEqual([]);
   });
 
-  test("fails closed for missing, malformed, or linked source", () => {
+  test("fails closed for missing, empty, or linked source", () => {
     const { canonical, root } = fixture();
     expect(() => checkSandboxSource(join(root, "missing"), root)).toThrow();
     rmSync(join(canonical, "SKILL.md"));
     expect(() => checkSandboxSource(canonical, root)).toThrow("must contain SKILL.md");
-    write(join(canonical, "SKILL.md"), "---\nnot closed");
-    expect(() => checkSandboxSource(canonical, root)).toThrow("closed YAML frontmatter");
+    write(join(canonical, "SKILL.md"), "   \n");
+    expect(() => checkSandboxSource(canonical, root)).toThrow("must not be empty");
     write(join(canonical, "SKILL.md"), source);
     symlinkSync(join(canonical, "SKILL.md"), join(canonical, "linked.md"));
     expect(() => checkSandboxSource(canonical, root)).toThrow("regular file or directory");

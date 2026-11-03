@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const SKILLS_DIR = join(ROOT, "skills");
-const UPSTREAM_DIRS = ["references", "rules", "templates", "command"];
+export const UPSTREAM_DIRS = ["references", "rules", "templates", "command"];
 
 interface BuildResult {
   skill: string;
@@ -17,7 +17,7 @@ interface BuildResult {
   error?: string;
 }
 
-function extractUpstreamBody(upstreamPath: string): string {
+export function extractUpstreamBody(upstreamPath: string): string {
   const raw = readFileSync(upstreamPath, "utf-8");
   const lines = raw.split("\n");
   let dashCount = 0;

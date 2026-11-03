@@ -2,9 +2,9 @@
 
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { extractUpstreamBody, UPSTREAM_DIRS } from "./build-skills";
 
 const ROOT = resolve(import.meta.dir, "..");
-const COPIED_DIRS = ["references", "rules", "templates", "command"];
 
 type Files = Map<string, Buffer>;
 
@@ -35,13 +35,6 @@ function compare(expected: Files, actual: Files, label: string): string[] {
   return differences;
 }
 
-function body(source: Buffer): string {
-  const text = source.toString("utf8");
-  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/.exec(text);
-  if (!frontmatter) throw new Error("SKILL.md must start with closed YAML frontmatter");
-  return text.slice(frontmatter[0].length);
-}
-
 export function checkSandboxSource(canonicalDirectory: string, pluginRoot = ROOT): string[] {
   const skillDirectory = join(pluginRoot, "skills/vercel-sandbox");
   const canonical = filesIn(canonicalDirectory);
@@ -49,15 +42,17 @@ export function checkSandboxSource(canonicalDirectory: string, pluginRoot = ROOT
   if (!canonical.has("SKILL.md") || !bundled.has("SKILL.md")) {
     throw new Error("Both canonical and bundled directories must contain SKILL.md");
   }
-  body(canonical.get("SKILL.md")!);
+  if (!canonical.get("SKILL.md")!.toString("utf8").trim() || !bundled.get("SKILL.md")!.toString("utf8").trim()) {
+    throw new Error("Canonical and bundled SKILL.md must not be empty");
+  }
   const differences = compare(canonical, bundled, "Bundled source");
   const overlay = readFileSync(join(skillDirectory, "overlay.yaml"), "utf8");
-  const generated = Buffer.from(`---\n${overlay}---\n${body(bundled.get("SKILL.md")!)}`);
+  const generated = Buffer.from(`---\n${overlay}---\n${extractUpstreamBody(join(skillDirectory, "upstream/SKILL.md"))}`);
   const expected: Files = new Map([["SKILL.md", generated]]);
   const actual: Files = new Map();
   // Only files copied by build-skills belong to the generated comparison.
   const isGenerated = (name: string) => name === "SKILL.md" || name === "AGENTS.md" ||
-    COPIED_DIRS.some((directory) => name.startsWith(`${directory}/`));
+    UPSTREAM_DIRS.some((directory) => name.startsWith(`${directory}/`));
   for (const [name, bytes] of bundled) {
     if (name !== "SKILL.md" && isGenerated(name)) expected.set(name, bytes);
   }
@@ -78,7 +73,7 @@ if (import.meta.main) {
     if (differences.length) {
       console.error("Sandbox skill source drift detected:");
       for (const difference of differences) console.error(`- ${difference}`);
-      console.error("Review vercel/sandbox skills/sandbox, refresh skills/vercel-sandbox/upstream, then run bun run build:skills vercel-sandbox and review the diff. Preserve overlay.yaml and verify CLI release availability.");
+      console.error("Review vercel/sandbox skills/sandbox, refresh skills/vercel-sandbox/upstream, remove files and generated references deleted upstream, then run bun run build:skills vercel-sandbox and review the diff. Preserve overlay.yaml and verify CLI release availability.");
       process.exitCode = 1;
     } else {
       console.log("Sandbox source and generated skill match. Plugin overlay preserved.");
