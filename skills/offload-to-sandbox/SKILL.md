@@ -1,7 +1,7 @@
 ---
 name: offload-to-sandbox
 description: Offload heavy builds, full test suites and parallel experiments from the local machine to Vercel Sandboxes with the `vercel sandbox` CLI. Use when a local machine is overloaded or shared by several agents, when a test suite should be sharded, or when many tasks should run side by side without consuming local CPU, memory or disk.
-summary: "Offload heavy work to Vercel Sandboxes: build a base snapshot once (toolchain + deps + baseline build), create one non-persistent sandbox per task from it (`vercel sandbox create --name <task> --non-persistent --snapshot <snap_id> --vcpus 8 --timeout 3h`; Hobby allows 4 vCPUs and 45-minute sessions), push code as a tarball of git-tracked and untracked files while keeping heavy dirs like node_modules, run commands as one quoted `sh -c` string (long jobs detached with an exit-status file you poll), copy small result files back, shard suites across sandboxes, check failures against an untouched baseline in the same sandbox, and `vercel sandbox remove` every sandbox when done. `vercel sandbox exec` exits 0 even when the remote command fails, so read the remote exit status yourself."
+summary: "Offload heavy work to Vercel Sandboxes: build a base snapshot once (toolchain + deps + baseline build), create one non-persistent sandbox per task from it (`vercel sandbox create --name <task> --non-persistent --snapshot <snap_id> --vcpus 8 --timeout 3h`; Hobby allows 4 vCPUs and 45-minute sessions), push code as a tarball of git-tracked and untracked files while keeping heavy dirs like node_modules, run commands as one quoted `sh -c` string (long jobs detached with an exit-status file you poll), use standalone `sandbox read`, `write`, and `copy -r` for file transfers when their help confirms support, copy small result files back, shard suites across sandboxes, check failures against an untouched baseline in the same sandbox, and `vercel sandbox remove` every sandbox when done. `vercel sandbox exec` exits 0 even when the remote command fails, so read the remote exit status yourself."
 metadata:
   priority: 5
   docs:
@@ -13,7 +13,7 @@ metadata:
   pathPatterns: []
   importPatterns: []
   bashPatterns:
-    - '\b(?:vercel|vc)\s+sandbox\s+(?:create|exec|copy|cp|snapshot|run|fork)\b'
+    - '\b(?:(?:vercel|vc)\s+)?sandbox\s+(?:create|exec|copy|cp|read|cat|write|snapshot|run|fork)\b'
   promptSignals:
     phrases:
       - "offload to a sandbox"
@@ -152,6 +152,47 @@ sbx push exp-parser . /vercel/sandbox/cand
 - Don't push `.git` or dependency directories. If you need git history remotely, push a bundle or `git clone` inside the sandbox.
 - A tracked file you deleted but didn't stage makes `tar` fail. Stage the deletion (`git rm`) first.
 
+## Read, write, and copy files directly
+
+The standalone `sandbox` CLI supports file commands in releases containing [vercel/sandbox#380](https://github.com/vercel/sandbox/pull/380). Install or update it with `npm i -g sandbox`, then check the installed commands before using the examples:
+
+```bash
+sandbox --version
+sandbox read --help
+sandbox write --help
+sandbox copy --help
+```
+
+Confirm that `read` and `write` exist and that `copy --help` lists `--recursive`. If they are unavailable, keep using `vercel sandbox copy` and the `sbx` wrapper below. The Vercel CLI bundles its own Sandbox CLI version, so support in `sandbox` does not establish support in `vercel sandbox`.
+
+Use the same team and project as the existing task sandbox. Set `SBX_SCOPE` and `SBX_PROJECT` as described in [Authentication and scope](#authentication-and-scope); the standalone CLI must also be authenticated.
+
+```bash
+name=exp-parser
+: "${SBX_SCOPE:?set SBX_SCOPE to your team slug}"
+: "${SBX_PROJECT:?set SBX_PROJECT to your project name}"
+
+# Read a sandbox file to stdout without changing its bytes.
+sandbox read --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "${name}:/vercel/sandbox/cand/package.json"
+
+# Write a script from stdin and make it executable.
+sandbox write --scope "$SBX_SCOPE" --project "$SBX_PROJECT" --mode 755 "${name}:/vercel/sandbox/check.sh" <<'SCRIPT'
+#!/bin/sh
+cd /vercel/sandbox/cand
+npm test
+SCRIPT
+
+# Copy a prepared local directory into the sandbox.
+sandbox copy -r --scope "$SBX_SCOPE" --project "$SBX_PROJECT" ./task-input "${name}:/vercel/sandbox/task-input"
+
+# Download the result directory after the task has produced it.
+sandbox copy -r --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "${name}:/vercel/sandbox/results" ./results
+```
+
+`read` (also `cat`) prints file contents to stdout. `write` replaces the destination with stdin; redirect a local file with `< ./script.sh` when you already have one. Both return a non-zero status on failure.
+
+Recursive copy puts the source directory's **contents** inside the destination and preserves empty directories, symlinks, and permissions. Windows downloads reject filenames containing backslashes or colons. It copies every entry, including ignored files, and leaves unrelated destination files in place. Use it for prepared input directories and results. Keep `sbx push` for project updates that need Git-based selection, removal of stale files, and reuse of remote `node_modules`.
+
 ## Run commands
 
 ```bash
@@ -174,8 +215,8 @@ vercel sandbox exec --timeout 2h exp-parser -- sh -c 'cd /vercel/sandbox/cand &&
 
 ## Get results back
 
-- Have the remote side write compact result files (a summary of failing test names, exit codes, a JSON report) and copy just those back with `vercel sandbox copy exp-parser:/tmp/results.json ./results/results.json`. `copy` moves one file per call, and the destination must be a file path, not a directory.
-- A missing source file makes `copy` print an error without failing, so check that the local file exists afterwards (`sbx get` does).
+- Have the remote side write compact result files (a summary of failing test names, exit codes, a JSON report) and copy just those back with `vercel sandbox copy exp-parser:/tmp/results.json ./results/results.json`. With the bundled CLI described here, `copy` moves one file per call and needs a full destination file path. For a whole result directory, use [standalone recursive copy](#read-write-and-copy-files-directly) when available.
+- On that older bundled CLI, a missing source file makes `copy` print an error without failing, so check that the local file exists afterwards (`sbx get` does).
 - Compress large logs remotely and only fetch them when needed. Streaming megabytes of output through `exec` is slow and wastes context when an agent reads it.
 
 ## Shard and parallelize
