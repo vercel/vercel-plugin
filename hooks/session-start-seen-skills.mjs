@@ -44,9 +44,9 @@ function main() {
     process.stdout.write(formatSessionStartSeenSkillsCursorOutput());
     return;
   }
-  const hookEvent = input?.hook_event_name ?? "";
+  const source = input?.source ?? "";
   const sessionId = input?.session_id ?? "";
-  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(hookEvent) && !!sessionId;
+  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(source) && !!sessionId;
   let removedFiles = 0;
   let removedDirs = 0;
   if (resetTriggered) {
@@ -55,7 +55,7 @@ function main() {
     removedDirs = result.removedDirs;
   }
   log.debug("session-start-seen-skills:decision", {
-    event: hookEvent || "unknown",
+    source: source || "unknown",
     sessionId: sessionId || "none",
     resetTriggered,
     removedFiles,
