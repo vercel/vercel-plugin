@@ -57,10 +57,10 @@ Use the CLI when the user asks for CLI management:
 vercel ai-gateway api-keys create --name my-api-key
 ```
 
-The CLI can bind a budget, spend alerts, and an expiry at creation, which beats re-editing the key later (`--limit` needs Vercel CLI 59.13+; older CLIs use the deprecated `--budget`):
+The CLI can bind a budget, spend alerts, and an expiry at creation, which beats re-editing the key later (`--amount` needs Vercel CLI 65.4+; older CLIs use `--limit` (59.13+) or `--budget`):
 
 ```bash
-vercel ai-gateway api-keys create --limit 500 --alert-thresholds 75,100 --expiration 90d
+vercel ai-gateway api-keys create --amount 500 --alert-thresholds 75,100 --expiration 90d
 ```
 
 `inspect` shows a key's budget, spend, BYOK spend, alerts, and expiry; `list` shows every key. Run `vercel ai-gateway api-keys create --help` before scripting because available quota, expiration, alert, and restriction-exemption flags change.
@@ -140,7 +140,7 @@ Docs: <https://vercel.com/docs/ai-gateway/sdks-and-apis/ai-sdk-python>
 | OpenAI Chat Completions and OpenAI Responses SDKs | `https://ai-gateway.vercel.sh/v1` |
 | Anthropic Messages SDK | `https://ai-gateway.vercel.sh` |
 | OpenResponses HTTP | `https://ai-gateway.vercel.sh/v1/responses` |
-| Evaluation HTTP | `https://ai-gateway.vercel.sh/v1/evaluate` |
+| Decisions HTTP | `https://ai-gateway.vercel.sh/v1/decisions` (`/v1/evaluate` is deprecated) |
 | TypeSafe SDK | Set `baseURL` to `https://ai-gateway.vercel.sh/typesafe` |
 | Cohere Rerank | Follow the current Cohere Rerank page |
 

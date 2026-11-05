@@ -7,9 +7,9 @@ Use decision models (previously called evaluation models) to assess shared appli
 | Existing project | Use |
 | --- | --- |
 | JavaScript or TypeScript using AI SDK 7 | `experimental_decide` from `ai` 7.0.128+; earlier AI SDK 7 releases use the now-deprecated `experimental_evaluate` alias |
-| New non-AI-SDK client | Gateway's vendor-neutral `POST /v1/evaluate` |
+| Existing `/v1/evaluate` client | Deprecated `POST /v1/evaluate`; it keeps working, but migrate to `/v1/decisions` |
 | Existing TypeSafe client | Keep `@typesafe-ai/sdk` and change its API key and `baseURL` |
-| OpenAI SDK or OpenAI Decisions API client | OpenAI-compatible `POST /v1/decisions` with base URL `https://ai-gateway.vercel.sh/v1` |
+| New non-AI-SDK client, OpenAI SDK, or OpenAI Decisions API client | OpenAI-compatible `POST /v1/decisions` with base URL `https://ai-gateway.vercel.sh/v1` |
 
 Decisions are not supported through Chat Completions, Responses, or the Anthropic-compatible or Cohere-compatible endpoints. Use one of the surfaces above instead.
 
@@ -40,7 +40,24 @@ When using an explicit Gateway provider instance, use `gateway.decisionModel(<mo
 
 ## HTTP API
 
-For a client that does not use AI SDK, send Gateway's evaluation shape to `POST https://ai-gateway.vercel.sh/v1/evaluate`:
+For a client that does not use AI SDK, post OpenAI's Decisions shape to `POST https://ai-gateway.vercel.sh/v1/decisions`, or point the OpenAI SDK at `https://ai-gateway.vercel.sh/v1`:
+
+```bash
+curl https://ai-gateway.vercel.sh/v1/decisions \
+  -H "Authorization: Bearer $AI_GATEWAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "typesafe-ai/jev",
+    "input": "The support agent issued a full refund.",
+    "questions": [
+      { "type": "predicate", "name": "refunded", "instructions": "Was a refund issued?" }
+    ]
+  }'
+```
+
+The response lists `answers` in question order, with `model`, `usage`, and `provider_metadata.gateway` routing and cost. The endpoint accepts AI Gateway controls under `providerOptions.gateway`.
+
+`POST /v1/evaluate` is deprecated but keeps working for existing integrations, which send Gateway's evaluation shape:
 
 ```bash
 curl https://ai-gateway.vercel.sh/v1/evaluate \
@@ -76,7 +93,7 @@ The compatibility surface provides:
 - `GET /typesafe/v1/models` for the evaluation model list; and
 - TypeSafe's `noul`, choice, score, confidence, legend, snake-case usage, and error shapes.
 
-The TypeSafe-compatible request body also accepts AI Gateway controls under `providerOptions.gateway`. Use the generic `/v1/evaluate` endpoint for new HTTP integrations; use `/typesafe` when preserving an existing TypeSafe client is the goal.
+The TypeSafe-compatible request body also accepts AI Gateway controls under `providerOptions.gateway`. Use the OpenAI-compatible `/v1/decisions` endpoint for new HTTP integrations; use `/typesafe` when preserving an existing TypeSafe client is the goal.
 
 On any decision surface, use [Decision Fallbacks](https://vercel.com/docs/ai-gateway/models-and-providers/decision-fallbacks) to rerun a successful but uncertain decision with another model: a conditional entry in `providerOptions.gateway.models`, such as a `confidenceBelow` threshold on a Choice or Score question. A triggered fallback bills both stages.
 
