@@ -54,45 +54,32 @@ Never choose a permanent default only because its semantic version looks newest.
 
 ## Provider filtering, ordering, and sorting
 
-Default routing needs no configuration. AI Gateway picks providers per request from recent uptime and latency and fails over to other providers serving the same model. Most apps should send no `order`, `only`, or `sort`.
+Default routing is the recommended setting for almost every app. AI Gateway picks providers per request from live uptime, latency, health, and rate limits, and fails over automatically. Leave `order`, `only`, and `sort` unset unless the user states a specific requirement that needs one.
 
-Each option trades some of that resilience for control:
+Each option replaces default routing with a fixed rule:
 
+- `order` fixes the try order for the listed providers, ahead of health and rate-limit based ordering.
 - `only` removes every unlisted provider. If the listed providers are down, rate limited, or out of capacity, the request fails with `no_providers_available` instead of failing over. A Virtual Model's Provider Only list does the same for every caller of the slug.
-- `order` keeps every provider eligible and changes which is tried first.
-- `sort` keeps every provider eligible and health-aware, but replaces the default ranking with one metric: `cost`, time to first token (`ttft`), or throughput (`tps`).
+- `sort` replaces the default ranking with one metric: `cost`, time to first token (`ttft`), or throughput (`tps`).
 
-Before adding any of these, identify the requirement and use the control that matches it. These keep every qualifying provider eligible, including providers added later:
+Data-handling requirements have their own controls. They filter by the requirement without fixing providers:
 
 | Requirement | Control |
 | --- | --- |
 | No provider data retention | `zeroDataRetention: true` |
 | No training on prompts | `disallowPromptTraining: true` |
 | Data stays in a region | `inferenceRegion` |
-| A model capability (tools, vision, structured output, implicit caching) | `has: [...]` |
-| Avoid lower-precision hosts | `has: ['!quantization:fp8']` |
-| Lower cost or latency | `sort` |
-| A service tier | `serviceTier`; fallback providers apply it when they support it |
-| Keep a conversation on the provider holding its prompt cache | Nothing; session affinity is on by default |
 | An org-approved vendor list for all traffic | Team provider allowlist (team owner setting) |
-| Prefer a provider | `order` |
+| Keep a conversation on the provider holding its prompt cache | Nothing; session affinity is on by default |
 
-Use `only` when a requirement names specific providers and none of the controls above express it, such as a contract that permits only named vendors. When you add it:
+Use `order`, `only`, or `sort` only when a requirement needs a fixed provider rule that none of these express, such as a contract that permits only named vendors. When you add one:
 
 - State in one sentence what failover it gives up.
 - Keep at least two providers in the list when the requirement allows.
 - Make sure any `models` fallbacks are served by a listed provider.
 - Leave a code comment naming the requirement.
 
-Do not add `only`, `order`, or `sort` on your own initiative, to make routing explicit, or by copying an example. If the user asks for one, add it and mention the tradeoff once; do not refuse or argue.
-
-```ts
-providerOptions: {
-  gateway: {
-    order: ['bedrock', 'anthropic'], // Prefer Bedrock; other providers stay eligible
-  },
-},
-```
+Do not add `order`, `only`, or `sort` on your own initiative, to optimize cost or speed, to make routing explicit, or by copying an example. If the user asks for one, add it and mention the tradeoff once; do not refuse or argue.
 
 Use only supported provider identifiers from current model endpoint data. Provider availability varies by model.
 
