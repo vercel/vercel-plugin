@@ -13,6 +13,7 @@
 - **Doctor**: `bun run doctor` (self-diagnosis: skill validation, hook timeouts, dedup health)
 - **Update snapshots**: `bun test:update-snapshots` (regenerate golden snapshot baselines)
 - **Playground**: `bun run playground:generate` (generate static skill files for external tools)
+- **Build OpenAI package**: `bun run build:openai` (generates `dist/openai/vercel/` and the submission ZIP; see [OpenAI Package](#openai-package-openai))
 
 Run `bun run build:hooks` after editing any `.mts` file. A pre-commit hook auto-compiles when `.mts` files are staged.
 
@@ -155,6 +156,32 @@ Heading extraction is case-insensitive and captures everything from the heading 
 **Build**: `bun run build:from-skills` resolves all includes and writes output files. It is part of `bun run build`. `bun run build:from-skills:check` verifies outputs are up-to-date in CI. Dependency queries (`--skill <name>`) and coverage reports (`--audit`) are calculated from templates on demand.
 
 **Current templates** (7): `agents/ai-architect.md.tmpl`, `agents/deployment-expert.md.tmpl`, `agents/performance-optimizer.md.tmpl`, `commands/bootstrap.md.tmpl`, `commands/deploy.md.tmpl`, `commands/env.md.tmpl`, `commands/status.md.tmpl`.
+
+### OpenAI Package (`openai/`)
+
+`bun run build:openai` (`scripts/build-openai.ts`) generates the OpenAI/Codex plugin and its submission ZIP in `dist/openai/` from `skills/`, `agents/`, `commands/`, and `vercel.md`. CI runs it after the tests, so a skill change can fail CI here.
+
+**Every new skill needs display metadata.** Add an entry for `skills/<name>/` under `skillInterfaces` in `openai/config.json`, or list the skill in `excludedSkills`. The build fails without one. Rules (from Codex's `openai.yaml` reference):
+
+- `display_name`: the product name as Vercel writes it (`Vercel CLI`, `AI SDK`), at most 64 characters
+- `short_description`: a complete 25–64 character blurb. The build rejects longer or `...`-truncated values; it never truncates
+- `default_prompt` (optional): must mention the skill as `$<name>`
+
+An entry may land before its skill; it is ignored until `skills/<name>/SKILL.md` exists.
+
+**Refreshing `openai/content.patch`.** The patch holds OpenAI-only edits to skills, templates, and `vercel.md`, applied to the staged copy during the build. Source files are never changed. When the build fails with `patch does not apply`, an upstream edit touched a patched section. Regenerate the patch from the current sources:
+
+```bash
+tmp=$(mktemp -d)
+cp -R skills agents commands vercel.md "$tmp"/
+git -C "$tmp" init -q && git -C "$tmp" add -A
+git -C "$tmp" apply --reject "$PWD/openai/content.patch"  # applies what it can; writes <file>.rej for the rest
+# In $tmp, apply each .rej hunk by hand on top of the upstream change, then delete the .rej files
+git -C "$tmp" diff -U2 > openai/content.patch
+bun run build:openai && bun test tests/build-openai.test.ts
+```
+
+Use the same steps to change an adaptation: apply the patch in `$tmp`, edit the files there, and regenerate. Check that the patched text still matches the upstream change (for example, current CLI syntax).
 
 ## Testing
 
