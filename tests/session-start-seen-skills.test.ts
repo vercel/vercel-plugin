@@ -133,7 +133,7 @@ describe("session-start-seen-skills hook", () => {
       // Fire the hook with a "clear" event
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "clear" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
       );
 
       expect(result.code).toBe(0);
@@ -161,7 +161,7 @@ describe("session-start-seen-skills hook", () => {
 
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "compact" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "compact" }),
       );
 
       expect(result.code).toBe(0);
@@ -187,7 +187,7 @@ describe("session-start-seen-skills hook", () => {
       // 3. Fire "clear" event via session-start hook
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "clear" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
       );
       expect(result.code).toBe(0);
 
@@ -213,7 +213,7 @@ describe("session-start-seen-skills hook", () => {
       // 3. Fire "compact" event via session-start hook
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "compact" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "compact" }),
       );
       expect(result.code).toBe(0);
 
@@ -253,7 +253,7 @@ describe("session-start-seen-skills hook", () => {
       // Fire "clear" event
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "clear" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
       );
       expect(result.code).toBe(0);
 
@@ -291,7 +291,7 @@ describe("session-start-seen-skills hook", () => {
 
       const result = await runSessionStart(
         { CLAUDE_ENV_FILE: undefined },
-        JSON.stringify({ session_id: sessionId, hook_event_name: "startup" }),
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "startup" }),
       );
 
       expect(result.code).toBe(0);
@@ -304,6 +304,62 @@ describe("session-start-seen-skills hook", () => {
       try { rmSync(dedupFilePath(sessionId, "seen-skills")); } catch {}
     }
   });
+
+  test("test_clear_event_preserves_other_session_artifacts", async () => {
+    const sessionId = crypto.randomUUID();
+    const otherSessionId = crypto.randomUUID();
+
+    try {
+      expect(tryClaimSessionKey(sessionId, "seen-skills", "nextjs")).toBe(true);
+      expect(tryClaimSessionKey(otherSessionId, "seen-skills", "nextjs")).toBe(true);
+      expect(tryClaimSessionKey(otherSessionId, "seen-skills", "ai-sdk", "subagent-abc")).toBe(true);
+      writeFileSync(dedupFilePath(otherSessionId, "seen-skills"), "nextjs", "utf-8");
+
+      const result = await runSessionStart(
+        { CLAUDE_ENV_FILE: undefined },
+        JSON.stringify({ session_id: sessionId, hook_event_name: "SessionStart", source: "clear" }),
+      );
+
+      expect(result.code).toBe(0);
+      expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(false);
+      expect(existsSync(dedupClaimDirPath(otherSessionId, "seen-skills"))).toBe(true);
+      expect(existsSync(dedupClaimDirPath(otherSessionId, "seen-skills", "subagent-abc"))).toBe(true);
+      expect(readFileSync(dedupFilePath(otherSessionId, "seen-skills"), "utf-8")).toBe("nextjs");
+    } finally {
+      removeAllSessionDedupArtifacts(sessionId);
+      removeAllSessionDedupArtifacts(otherSessionId);
+    }
+  });
+
+  const preservingPayloads: Array<[string, (sessionId: string) => Record<string, unknown>]> = [
+    ["resume", (sessionId) => ({ session_id: sessionId, hook_event_name: "SessionStart", source: "resume" })],
+    ["unknown source", (sessionId) => ({ session_id: sessionId, hook_event_name: "SessionStart", source: "fork" })],
+    ["missing source", (sessionId) => ({ session_id: sessionId, hook_event_name: "SessionStart" })],
+    ["legacy hook_event_name clear", (sessionId) => ({ session_id: sessionId, hook_event_name: "clear" })],
+    ["legacy hook_event_name compact", (sessionId) => ({ session_id: sessionId, hook_event_name: "compact" })],
+    ["missing session_id", () => ({ hook_event_name: "SessionStart", source: "clear" })],
+    ["empty session_id", () => ({ session_id: "", hook_event_name: "SessionStart", source: "compact" })],
+    ["cursor payload", (sessionId) => ({ session_id: sessionId, conversation_id: "cursor-conversation", source: "clear" })],
+  ];
+
+  for (const [name, payload] of preservingPayloads) {
+    test(`test_${name.replaceAll(" ", "_")}_preserves_claim_dir`, async () => {
+      const sessionId = crypto.randomUUID();
+
+      try {
+        expect(tryClaimSessionKey(sessionId, "seen-skills", "nextjs")).toBe(true);
+        writeFileSync(dedupFilePath(sessionId, "seen-skills"), "nextjs", "utf-8");
+
+        const result = await runSessionStart({ CLAUDE_ENV_FILE: undefined }, JSON.stringify(payload(sessionId)));
+
+        expect(result.code).toBe(0);
+        expect(existsSync(dedupClaimDirPath(sessionId, "seen-skills"))).toBe(true);
+        expect(readFileSync(dedupFilePath(sessionId, "seen-skills"), "utf-8")).toBe("nextjs");
+      } finally {
+        removeAllSessionDedupArtifacts(sessionId);
+      }
+    });
+  }
 });
 
 describe("hook-env session temp path guards", () => {
