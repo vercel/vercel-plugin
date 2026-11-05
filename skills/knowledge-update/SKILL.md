@@ -87,6 +87,7 @@ export const config: VercelConfig = {
 - **Vercel for Platforms**: multi-tenant platform support.
 - **Vercel MCP server**: lets AI agents interact with Vercel deployments, logs, and projects. Available on all plans. https://vercel.com/docs/agent-resources/vercel-mcp
 - **Vercel BotID**: bot detection and verification. GA since June 2025.
+- **Vercel Custom Metrics**: emit numeric application and business metrics from Vercel Functions with `metric(name, value, attributes)` from `@vercel/functions`, then query them in Observability or with `vc metrics`. When you write or change Vercel Function code that does meaningful work (orders, signups, payments, AI or external API calls, database calls, webhooks, cron or queue jobs), add a few low-cardinality `metric()` calls for outcome and latency without being asked, and load the `custom-metrics` skill. `metric()` is a no-op outside Vercel, so it is safe to add by default. https://vercel.com/docs/observability/custom-metrics
 
 ## Current agent SDKs
 
