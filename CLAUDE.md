@@ -187,4 +187,5 @@ Snapshot updates: `bun run test:update-snapshots` (sets `UPDATE_SNAPSHOTS=1`).
 | `VERCEL_PLUGIN_TSX_EDIT_COUNT` | `0` | Current .tsx edit count (PreToolUse tracks) |
 | `VERCEL_PLUGIN_AUDIT_LOG_FILE` | — | Audit log path or `off` |
 | `VERCEL_PLUGIN_LEXICAL_PROMPT` | `on` | `0` to disable lexical stemmer fallback in UserPromptSubmit scoring |
+| `VERCEL_PLUGIN_TELEMETRY_SESSION_ID` | — | Profiler-set random UUID shared with the session's skill events; the Vercel CLI sends it with its telemetry. Not set when telemetry is off |
 | `VERCEL_PLUGIN_TELEMETRY` | — | `off` disables all telemetry (DAU ping, `skill:invoked`, `skill:injected`). `bunfig.toml` preloads `tests/_preload-telemetry-off.ts` so the test suite never phones home |
