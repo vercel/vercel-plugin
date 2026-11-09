@@ -175,7 +175,7 @@ Tracing only covers requests that run server code: dynamic routes, API routes, f
 | --- | --- |
 | [Collection](references/collection.md) | Deciding which spans need application setup, or choosing always-on tracing, request capture, or a browser session |
 | [Instrumentation](references/instrumentation.md) | Discovering a framework's startup hook, wiring and verifying SDK setup, or using Sentry |
-| [Next.js](references/nextjs.md) | Setting up Next.js instrumentation or enabling verbose spans |
+| [Next.js](references/nextjs.md) | Checking Next.js 16.5+ default tracing, setting up Next.js instrumentation, or enabling verbose spans |
 | [SvelteKit](references/sveltekit.md) | Enabling server tracing and the instrumentation hook on SvelteKit 2 or 3 |
 | [Library spans](references/library-spans.md) | Turning on spans from the AI SDK, Flags SDK, Workflow, or database and cache clients |
 | [Custom spans](references/custom-spans.md) | Measuring an application operation and recording failures |
@@ -190,18 +190,18 @@ Tracing only covers requests that run server code: dynamic routes, API routes, f
 ## Setup workflow
 
 1. Check existing setup: framework and adapter versions, any registered OpenTelemetry provider or Sentry v8+, and framework tracing flags. Extend an existing provider; never register a second one.
-2. Decide what needs application setup. Infrastructure and outbound-fetch spans are automatic; framework, library, and custom spans need `@vercel/otel`. See [collection](references/collection.md).
+2. Decide what needs application setup. Infrastructure and outbound-fetch spans are automatic; framework, library, and custom spans need `@vercel/otel`. On Next.js 16.5+, check [default tracing](references/nextjs.md) first. When Vercel adds `@vercel/otel`, framework spans need no setup, and step 3 is only for custom or library spans. See [collection](references/collection.md).
 3. Install `@vercel/otel` and `@opentelemetry/api`, then register the SDK once from the framework's verified server startup hook. On Next.js, that is `register()` in `instrumentation.ts`:
 
    ```ts
    import { registerOTel } from '@vercel/otel';
 
    export function register() {
-     registerOTel({ serviceName: 'checkout' });
+     registerOTel({ serviceName: process.env.VERCEL_PROJECT_NAME });
    }
    ```
 
-   For other frameworks, follow [SvelteKit](references/sveltekit.md) or [another framework](references/instrumentation.md#integrate-another-framework); see [Next.js](references/nextjs.md) for default tracing, verbose spans, and prerendering. Next.js and SvelteKit join the incoming request trace automatically; other frameworks may need [incoming-context extraction](references/context-propagation.md#incoming-requests). Add [custom spans](references/custom-spans.md) and [context propagation](references/context-propagation.md) where needed.
+   Under default tracing, Vercel stops adding `@vercel/otel` once this file exists, and `VERCEL_PROJECT_NAME` keeps the service name unchanged. For other frameworks, follow [SvelteKit](references/sveltekit.md) or [another framework](references/instrumentation.md#integrate-another-framework); see [Next.js](references/nextjs.md) for default tracing, verbose spans, and prerendering. Next.js and SvelteKit join the incoming request trace automatically; other frameworks may need [incoming-context extraction](references/context-propagation.md#incoming-requests). Add [custom spans](references/custom-spans.md) and [context propagation](references/context-propagation.md) where needed.
 4. Turn on [library spans](references/library-spans.md) for the libraries in the application's `package.json`, such as the AI SDK, the Flags SDK, or a database client.
 5. Build, deploy to preview or production, exercise a server-executed route, and [inspect its trace](references/inspection.md). Confirm span names and parent relationships with `inspect`, and `service.name` with search JSON. A local exporter check does not prove Vercel collection.
 

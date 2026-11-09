@@ -21,6 +21,8 @@ vercel traces config ls --scope my-team --project my-app --json
 
 Rules match an environment and optional path prefix. `set` changes the rate for an existing pair or appends a new rule. Environments are `production`, `preview`, and `any`. The first matching rule wins, so an earlier broad rule can shadow a later narrow rule. Up to 10 rules are allowed. CLI rates are integers from 1 to 100; use the dashboard for a zero-rate exclusion. A positive rule enables always-on tracing; removing all rules disables it. Requests matching no rule are not collected. Sampling makes one decision per trace, rather than sampling its spans independently; [size limits](troubleshooting.md#oversized-telemetry) can still leave spans missing.
 
+Next.js 16.5+ [default tracing](nextjs.md) starts with one rule, which `ls` shows as `any (all paths) 100%`. This default rule matches every request first, so any rule that `set` adds below it never applies. To trace less overall, change the default rule's rate in place with `set <rate> --environment any`. To give one path its own rate, `set` the path rule, have the user run `rm --environment any --default`, then `set` the default rule again so it lands below. This order never leaves the project without a rule, so tracing stays on. In the dashboard, which also accepts zero-rate exclusions, remove the default rule, add the path rule, and add the default rule back before saving.
+
 ## Trace Drains are separate
 
 Trace Drains use their own rules. An empty Drain rule set forwards all traces; an empty always-on tracing rule set collects none. Do not infer one configuration from the other. See [Trace Drain sampling](https://vercel.com/docs/drains/reference/traces#sampling-rate).
