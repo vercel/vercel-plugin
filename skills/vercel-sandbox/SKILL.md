@@ -150,7 +150,7 @@ Common `Sandbox.create()` options (all optional):
 | `resources` | `{ vcpus: 2 }` | `vcpus` can be `1` or an even number up to the plan max (Hobby 4, Pro 8, Enterprise 32). Each vCPU includes 2 GB RAM. Use `1` for cheap, low-intensity untrusted runs. |
 | `timeout` | `300_000` (5 min) | Session timeout in ms. When it elapses the session is stopped and any in-flight `runCommand` **rejects**. Extend with `sandbox.extendTimeout(ms)` up to the plan max session (Hobby 45 min, Pro/Ent 24h). |
 | `ports` | `[]` | Ports to expose, up to 15. Reach them with `sandbox.domain(port)`. Your server must listen on `0.0.0.0` (not `127.0.0.1`) to be reachable. |
-| `region` | project default or `iad1` | One of 19 regions. |
+| `region` | project default or `iad1` | One of all 20 Vercel compute regions. |
 | `persistent` | `true` | Auto-snapshots on stop and resumes on next call. Pass `false` for one-off work to avoid snapshot storage cost. |
 | `networkPolicy` | `"allow-all"` | Use `"deny-all"` or an allow-list for untrusted code. See [Network policy](#network-policy-and-credential-brokering). |
 | `env` | – | Environment variables for every command. Per-command `env` overrides these. Use this to inject a credential into the VM. |
