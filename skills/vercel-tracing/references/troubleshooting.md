@@ -33,4 +33,4 @@ A searchable ID does not guarantee `inspect` can retrieve it; the CLI prints `Tr
 
 Inspect span attributes for truncation markers. Reduce large payload attributes in the instrumentation and deploy before reproducing; sampling changes do not fix oversized telemetry. See [attribute truncation](https://vercel.com/docs/tracing#attribute-truncation) and [trace limits](https://vercel.com/docs/tracing#limitations).
 
-For current retention and pricing, consult [collection documentation](https://vercel.com/docs/tracing/always-on-tracing) rather than assuming the CLI's accepted window is retained.
+For current retention and pricing, consult [collection documentation](https://vercel.com/docs/tracing/configure-tracing) rather than assuming the CLI's accepted window is retained.

@@ -6,7 +6,7 @@ metadata:
   priority: 8
   docs:
     - "https://vercel.com/docs/tracing"
-    - "https://vercel.com/docs/tracing/always-on-tracing"
+    - "https://vercel.com/docs/tracing/configure-tracing"
     - "https://vercel.com/docs/tracing/session-tracing"
     - "https://vercel.com/docs/cli/traces"
     - "https://vercel.com/docs/tracing/instrumentation"
@@ -201,7 +201,7 @@ Tracing only covers requests that run server code: dynamic routes, API routes, f
    }
    ```
 
-   For other frameworks, follow [SvelteKit](references/sveltekit.md) or [another framework](references/instrumentation.md#integrate-another-framework); see [Next.js](references/nextjs.md) for verbose spans and prerendering. Next.js and SvelteKit join the incoming request trace automatically; other frameworks may need [incoming-context extraction](references/context-propagation.md#incoming-requests). Add [custom spans](references/custom-spans.md) and [context propagation](references/context-propagation.md) where needed.
+   For other frameworks, follow [SvelteKit](references/sveltekit.md) or [another framework](references/instrumentation.md#integrate-another-framework); see [Next.js](references/nextjs.md) for default tracing, verbose spans, and prerendering. Next.js and SvelteKit join the incoming request trace automatically; other frameworks may need [incoming-context extraction](references/context-propagation.md#incoming-requests). Add [custom spans](references/custom-spans.md) and [context propagation](references/context-propagation.md) where needed.
 4. Turn on [library spans](references/library-spans.md) for the libraries in the application's `package.json`, such as the AI SDK, the Flags SDK, or a database client.
 5. Build, deploy to preview or production, exercise a server-executed route, and [inspect its trace](references/inspection.md). Confirm span names and parent relationships with `inspect`, and `service.name` with search JSON. A local exporter check does not prove Vercel collection.
 
