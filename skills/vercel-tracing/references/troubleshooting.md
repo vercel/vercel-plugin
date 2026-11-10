@@ -7,8 +7,14 @@ Use this reference when search is empty, retrieval fails, or expected span detai
 1. Confirm `vercel traces --help` lists `search`. Distinguish authentication or API errors and rejected KQL from successful empty results.
 2. Check the selected team, project, environment, and query window. Search is team-wide unless `--project` is provided; retention may be shorter than accepted time bounds.
 3. Verify [collection](collection.md) and traffic after it was enabled. For always-on tracing, check first-match rules, excluded paths, and the inbound sampling decision. For targeted capture, check that the request or session was captured.
-4. Check deployed [instrumentation](instrumentation.md) for framework and custom spans. Incoming context and competing SDK providers can prevent collection; see [propagation](context-propagation.md).
+4. Check deployed [instrumentation](instrumentation.md) for framework and custom spans. Under Next.js 16.5+ [default tracing](nextjs.md), Vercel skips adding `@vercel/otel`, and framework spans go missing, when the project has an `instrumentation` file that doesn't call `registerOTel`, depends on `@opentelemetry/api` 1.10+ directly or through another package, or has an `instrumentationInject` entry. Incoming context and competing SDK providers can prevent collection; see [propagation](context-propagation.md).
 5. Check the telemetry limits below and the [search limits](search.md#limits-the-cli-enforces): search hides internal-kind spans from `vercel.*` services, which still appear in `inspect`. Custom spans from Edge runtime functions do not appear in traces.
+
+## Library or fetch spans are missing
+
+- A library emits no spans after `registerOTel`: most need an opt-in; see [library spans](library-spans.md).
+- Outbound fetch spans disappeared after adding `instrumentations` to `registerOTel`: the option replaces the default, so add `'auto'` back to the list.
+- The build log reports `Detected OpenTelemetry dependency`, but no fetch spans appear: Vercel leaves fetch spans to the application when it finds `@vercel/otel`, `@opentelemetry/api`, or `@opentelemetry/sdk-trace-node`. Confirm that `registerOTel` runs in the deployed runtime, or remove the unused OpenTelemetry packages.
 
 ## Inspect returns the wrong trace
 
@@ -27,4 +33,4 @@ A searchable ID does not guarantee `inspect` can retrieve it; the CLI prints `Tr
 
 Inspect span attributes for truncation markers. Reduce large payload attributes in the instrumentation and deploy before reproducing; sampling changes do not fix oversized telemetry. See [attribute truncation](https://vercel.com/docs/tracing#attribute-truncation) and [trace limits](https://vercel.com/docs/tracing#limitations).
 
-For current retention and pricing, consult [collection documentation](https://vercel.com/docs/tracing/always-on-tracing) rather than assuming the CLI's accepted window is retained.
+For current retention and pricing, consult [collection documentation](https://vercel.com/docs/tracing/configure-tracing) rather than assuming the CLI's accepted window is retained.
