@@ -1,7 +1,7 @@
 ---
 name: vercel-schedules
 description: Vercel Schedules guidance — run a private function, route, or Vercel Queues topic on a cron cadence or once at a set time. Covers static schedules in vercel.json, dynamic per-user schedules with @vercel/schedules, handleSchedule, the vercel schedules CLI, environments, jitter, and migrating from Cron Jobs. Use when adding scheduled or recurring work, one-time reminders, or replacing `crons`.
-summary: "Vercel Schedules replaces Cron Jobs. Static schedules go in vercel.json under `schedules` and target a private `function` (with an `experimentalTriggers: [{ type: 'schedule/v1beta' }]` trigger; the default), a queue `topic`, or a public `path` (only to migrate Cron Jobs without code changes). Dynamic schedules come from `Schedules.create()` in `@vercel/schedules@alpha` or `vercel schedules create`, target queue topics only, and support one-time runs, payloads, and namespaces. Wrap function handlers in `handleSchedule`; make handlers idempotent with `executionId`."
+summary: "Vercel Schedules replaces Cron Jobs. Static schedules go in vercel.json under `schedules` and target a private `function` (with an `experimentalTriggers: [{ type: 'schedule/v1beta' }]` trigger; the default), a queue `topic`, or a public `path` (only to migrate Cron Jobs without code changes). Dynamic schedules come from `Schedules.create()` in `@vercel/schedules` or `vercel schedules create`, target queue topics only, and support one-time runs, payloads, and namespaces. Wrap function handlers in `handleSchedule`; make handlers idempotent with `executionId`."
 metadata:
   priority: 6
   docs:
@@ -132,7 +132,7 @@ If a failed run must be retried, target a queue topic.
 ## Quickstart: private function on a static schedule
 
 ```bash
-npm i @vercel/schedules@alpha
+npm i @vercel/schedules
 ```
 
 ```ts

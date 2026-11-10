@@ -104,7 +104,7 @@ describe("Vercel Schedules guidance", () => {
   test("teaches the documented config, SDK surface, and migration path", () => {
     const skill = readFileSync(SKILL_PATH, "utf8");
 
-    expect(skill).toContain("npm i @vercel/schedules@alpha");
+    expect(skill).toContain("npm i @vercel/schedules");
     expect(skill).toContain("import { handleSchedule } from '@vercel/schedules';");
     expect(skill).toContain('"experimentalTriggers": [{ "type": "schedule/v1beta" }]');
     expect(skill).toContain("expression: { type: 'single', at: '2026-11-01T09:00' }");
