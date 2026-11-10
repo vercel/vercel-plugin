@@ -141,7 +141,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
 
 Reach for the Vercel CLI. `vercel metrics` gives aggregate numbers (requires [Observability Plus](https://vercel.com/docs/observability/observability-plus)); `vercel logs requests` shows per-request CDN behavior (status, cache result, path), and `vercel logs` shows the runtime logs a request produced.
 
-Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.6+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output. Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
+Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.7+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format json`). Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
 
 ### Cache hit rate
 
