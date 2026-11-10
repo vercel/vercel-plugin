@@ -60,7 +60,7 @@ Split a large application into independently deployable units that render as one
 - `add-to-group` — add the current project to an existing group; always asks for confirmation (there is no `--yes`), so it needs an interactive terminal, and it refuses to run with `--non-interactive` when adding would go past the free project limit (options: `--group` and `--default-route` pre-fill the prompts)
 - `remove-from-group` — remove the current project from its group; without `--yes` it needs an interactive terminal (option: `--yes` skips the project-link prompt and removal confirmations, including the warning for projects still referenced in `microfrontends.json`)
 - `delete-group` — delete a group and all its settings, irreversible; without `--yes` it needs an interactive terminal (options: `--group` to pre-select group, `--yes` skips the deletion confirmation; pass both to delete without prompts)
-- `inspect-group` — retrieve group metadata (project names, frameworks, git repos, root dirs); useful for automating setup (options: `--group`, `--format=json`, `--config-file-name`)
+- `inspect-group` — retrieve group metadata (project names, frameworks, git repos, root dirs); useful for automating setup (options: `--group`, `--json` (CLI 58.1+; older CLIs use `--format=json`), `--config-file-name`)
 - `pull` — pull remote `microfrontends.json` for local development (option: `--deployment`; needs Vercel CLI 65+, older CLIs use `--dpl`)
 - `microfrontends proxy` — local dev proxy · `microfrontends port` — print auto-assigned port
 
