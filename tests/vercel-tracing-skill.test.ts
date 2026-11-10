@@ -307,17 +307,33 @@ describe("Vercel tracing guidance", () => {
     expect(reference).not.toContain("Do not pass a trace ID");
   });
 
-  test.each(["nextjs", "sveltekit"])(
+  test.each([
+    ["nextjs", "registerOTel({ serviceName: process.env.VERCEL_PROJECT_NAME })"],
+    ["sveltekit", "registerOTel({ serviceName: 'checkout' })"],
+  ])(
     "entrypoint links the %s framework reference",
-    (framework) => {
+    (framework, registration) => {
       const skill = readFileSync(resolve(SKILL_DIR, "SKILL.md"), "utf8");
       const reference = readFileSync(resolve(SKILL_DIR, `references/${framework}.md`), "utf8");
 
       expect(skill).toContain(`(references/${framework}.md)`);
-      expect(reference).toContain("registerOTel({ serviceName: 'checkout' })");
+      expect(reference).toContain(registration);
       expect(reference).toContain("[SDK ownership](instrumentation.md)");
     },
   );
+
+  test("setup checks Next.js default tracing before adding instrumentation", () => {
+    const skill = readFileSync(resolve(SKILL_DIR, "SKILL.md"), "utf8");
+    const nextjs = readFileSync(resolve(SKILL_DIR, "references/nextjs.md"), "utf8");
+    const configuration = readFileSync(resolve(SKILL_DIR, "references/configuration.md"), "utf8");
+
+    expect(skill).toContain("On Next.js 16.5+, check [default tracing](references/nextjs.md) first.");
+    expect(skill).toContain("Vercel stops adding `@vercel/otel` once this file exists");
+    expect(nextjs.indexOf("get default tracing")).toBeLessThan(nextjs.indexOf("[SDK ownership](instrumentation.md)"));
+    expect(nextjs).toContain("OTEL_SERVICE_NAME");
+    expect(nextjs).toContain("`instrumentationInject` in its Next.js config, directly or through a plugin");
+    expect(configuration).toContain("rm --environment any --default");
+  });
 
   test("sveltekit reference covers SvelteKit 3 and 2.31+ configuration", () => {
     const reference = readFileSync(resolve(SKILL_DIR, "references/sveltekit.md"), "utf8");
