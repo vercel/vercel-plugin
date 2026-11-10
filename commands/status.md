@@ -82,7 +82,7 @@ Read `vercel.json` (if present) and summarize:
 - Build command overrides
 - Function configuration (runtime, memory, duration)
 - Rewrites / redirects count
-- Cron jobs defined
+- Schedules (`schedules`) and legacy Cron Jobs (`crons`) defined
 - Headers or middleware config
 
 If `vercel.json` does not exist, note "No vercel.json found — using framework defaults."

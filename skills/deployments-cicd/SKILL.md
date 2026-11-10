@@ -27,9 +27,9 @@ metadata:
 validate:
   -
     pattern: 'cron:\s*[''"]|from\s+[''"](node-cron)[''"]|cron\.schedule\('
-    message: 'Manual cron scheduling detected. Use Vercel Cron Jobs (vercel.json crons) for platform-native scheduled tasks.'
+    message: 'Manual cron scheduling detected. Use Vercel Schedules (beta), not legacy Cron Jobs.'
     severity: recommended
-    skipIfFileContains: 'vercel\.json.*crons|@vercel/cron'
+    skipIfFileContains: 'vercel\.json.*(crons|schedules)|@vercel/schedules'
 retrieval:
   aliases:
     - deploy

@@ -1,6 +1,6 @@
 ---
 name: vercel-functions
-description: Vercel Functions expert guidance — Node.js/Bun/Python runtimes, Fluid Compute, long-duration (30 min) functions, large functions (5 GB bundles), Docker/OCI container images, plan limits, streaming, WebSockets, and Cron Jobs. Use when configuring, debugging, or optimizing server-side code running on Vercel.
+description: Vercel Functions expert guidance — Node.js/Bun/Python runtimes, Fluid Compute, long-duration (30 min) functions, large functions (5 GB bundles), Docker/OCI container images, plan limits, streaming, WebSockets, and legacy Cron Jobs (new scheduled work belongs to vercel-schedules). Use when configuring, debugging, or optimizing server-side code running on Vercel.
 summary: "Vercel Functions run on Fluid Compute with Node.js as the default runtime — strongly prefer it over `runtime = 'edge'` (Vercel recommends migrating off Edge, and Next.js 16.3+ no longer supports it). Duration: 300s default on every plan including Hobby, 800s max on Pro/Enterprise, 1800s (30 min) per-function in the extended beta; beyond that use Vercel Workflow. Bundles: 250 MB standard (500 MB Python), 5 GB via the large functions beta (`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`). Request/response bodies cap at 4.5 MB. Memory is dashboard-only (Standard 2 GB/1 vCPU, Performance 4 GB/2 vCPU; Hobby fixed). Docker works: add `Dockerfile.vercel` to run an OCI image as an autoscaling, stateless, scale-to-zero Function."
 metadata:
   priority: 8
@@ -654,7 +654,7 @@ Registry limits: 2 GB per compressed layer, 15 GB total image size, 4 MB manifes
 
 Good fits: Go, Rust, Ruby, PHP, or other backends; apps needing system libraries like FFmpeg or Chromium; frameworks outside Vercel's auto-detection; guaranteed build/runtime parity across environments.
 
-Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Cron for those, or for an always-on worker loop, Vercel Daemons (`⤳ skill: daemons`).
+Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Schedules (`⤳ skill: vercel-schedules`) for those, or for an always-on worker loop, Vercel Daemons (`⤳ skill: daemons`).
 
 If your framework is already auto-detected and you have no system-library needs, the standard build is simpler and faster — a Dockerfile is not an upgrade by default.
 
@@ -806,9 +806,11 @@ function connect() {
 connect()
 ```
 
-## Cron Jobs
+## Scheduled work: Schedules and legacy Cron Jobs
 
-Schedule function invocations via `vercel.json`:
+For new scheduled work, use [Vercel Schedules](https://vercel.com/docs/schedules) (public beta on all plans; `⤳ skill: vercel-schedules`). Schedules replace Cron Jobs and add timezones, private targets, one-time runs, execution history, and enabling, disabling, or running a schedule without redeploying. A static schedule goes under `schedules` in `vercel.json` or `vercel.ts`. Target a private function with a `schedule/v1beta` trigger by default, or a queue topic when failed runs must be retried.
+
+[Cron Jobs](https://vercel.com/docs/schedules/cron-jobs) are a legacy feature that will be migrated to Schedules. Existing `crons` entries keep working. To move them, follow [Migrating from Cron Jobs](https://vercel.com/docs/schedules/migrate-from-cron-jobs) (`⤳ skill: vercel-schedules`). A legacy Cron Jobs config looks like this:
 
 ```json filename="vercel.json"
 {
@@ -850,8 +852,12 @@ export const config: VercelConfig = {
   functions: {
     'app/api/heavy/**': { maxDuration: 800 },
     'app/api/report/**': { maxDuration: 1800 }, // Pro/Ent extended-duration beta
+    'api/cleanup.ts': { experimentalTriggers: [{ type: 'schedule/v1beta' }] }, // private, scheduler-only
   },
-  crons: [{ path: '/api/cleanup', schedule: '0 0 * * *' }],
+  // Vercel Schedules (beta); typed in @vercel/config 0.13+. Legacy `crons` is still accepted.
+  schedules: {
+    cleanup: { schedule: '0 0 * * *', function: 'api/cleanup' },
+  },
 }
 ```
 
@@ -968,7 +974,8 @@ Cold start latency > 1s?
 - [Services](https://vercel.com/docs/services) — multiple backends/frontends in one project
 - [Streaming](https://vercel.com/docs/functions/streaming-functions)
 - [WebSockets](https://vercel.com/docs/functions/websockets)
-- [Cron Jobs](https://vercel.com/docs/cron-jobs)
+- [Schedules](https://vercel.com/docs/schedules) — recurring and one-time scheduled work (beta; replaces Cron Jobs)
+- [Cron Jobs](https://vercel.com/docs/schedules/cron-jobs) — legacy; [migrate to Schedules](https://vercel.com/docs/schedules/migrate-from-cron-jobs)
 - [Vercel Workflow](https://vercel.com/docs/workflows) — for anything beyond 30 minutes
 - [Edge Runtime](https://vercel.com/docs/functions/runtimes/edge) — legacy; Vercel recommends migrating to Node.js
 - [GitHub: Vercel](https://github.com/vercel/vercel)
