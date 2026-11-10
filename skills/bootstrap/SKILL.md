@@ -106,6 +106,17 @@ cp .env.example .env.local
 
 ## Resource Setup: Postgres
 
+### Prisma ORM projects
+
+If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+
+```bash
+vercel integration guide prisma
+vercel integration add prisma --scope <team>
+```
+
+It sets `DATABASE_URL` to the direct connection string. Then verify and pull env vars as in step 3 of the preferred path below. For production traffic from Vercel Functions, add the pooled string as described in the `vercel-storage` skill.
+
 ### Preferred path (Vercel-managed Neon)
 
 1. Read integration setup guidance:
@@ -209,7 +220,7 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli
 - **Env Keys**: <count> required, <count> present, <count> missing
 - **Secrets**: AUTH_SECRET set in Vercel (value never shown)
 - **Migration Status**: not-run | success | failed (<step>)

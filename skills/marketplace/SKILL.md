@@ -36,7 +36,7 @@ retrieval:
     - provider agent skills
 chainTo:
   -
-    pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
+    pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|@prisma/orm-postgres|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
     targetSkill: vercel-storage
     message: 'Database/storage integration detected — loading Storage guidance (Neon, Upstash, Supabase, Prisma Postgres, Mongo, …), connection pooling, and serverless patterns.'
   -
