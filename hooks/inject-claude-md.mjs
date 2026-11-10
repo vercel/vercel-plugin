@@ -182,13 +182,13 @@ function main() {
     knowledgeUpdate,
     isGreenfield || greenfieldOverride
   );
-  if (part !== null && part.index === part.count && outputs.length > part.count) {
+  if (platform !== "cursor" && part !== null && part.index === part.count && outputs.length > part.count) {
     process.stderr.write(
       `[vercel-plugin] inject-claude-md: the session context needs ${outputs.length} parts but hooks.json runs ${part.count}. Part ${part.count} prints the rest and may exceed Claude Code's hook output cap.
 `
     );
   }
-  const content = selectInjectClaudeMdPart(outputs, part);
+  const content = platform === "cursor" ? part === null || part.index === 1 ? outputs.join(PART_SEPARATOR) : "" : selectInjectClaudeMdPart(outputs, part);
   if (!content) {
     if (platform === "cursor") {
       process.stdout.write(JSON.stringify(formatOutput(platform, {})));

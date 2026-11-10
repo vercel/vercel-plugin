@@ -288,14 +288,21 @@ function main(): void {
     isGreenfield || greenfieldOverride,
   );
 
-  if (part !== null && part.index === part.count && outputs.length > part.count) {
+  if (platform !== "cursor" && part !== null && part.index === part.count && outputs.length > part.count) {
     process.stderr.write(
       `[vercel-plugin] inject-claude-md: the session context needs ${outputs.length} parts but hooks.json runs ${part.count}. ` +
         `Part ${part.count} prints the rest and may exceed Claude Code's hook output cap.\n`,
     );
   }
 
-  const content = selectInjectClaudeMdPart(outputs, part);
+  // Cursor keeps only the last additional_context when several hooks respond
+  // (https://cursor.com/docs/hooks), so part 1 prints everything and later parts print nothing.
+  const content =
+    platform === "cursor"
+      ? part === null || part.index === 1
+        ? outputs.join(PART_SEPARATOR)
+        : ""
+      : selectInjectClaudeMdPart(outputs, part);
   if (!content) {
     if (platform === "cursor") {
       process.stdout.write(JSON.stringify(formatOutput(platform, {})));

@@ -393,14 +393,23 @@ describe("inject-claude-md", () => {
     expect(result.additional_context).toContain("Vercel Plugin Session Context");
     expect(result.additional_context).not.toContain("Vercel Ecosystem — Relational Knowledge Graph");
 
+    // Cursor keeps only the last additional_context when several hooks respond
+    // (https://cursor.com/docs/hooks), so part 1 carries everything and part 2 adds none.
     const parts = await runSessionStart({
       conversation_id: "inject-thin-cursor",
       cursor_version: "1.0.0",
       workspace_roots: [ROOT],
     });
     expect(parts.code).toBe(0);
-    const contexts = parts.outputs.map((output) => JSON.parse(output).additional_context);
-    expect(contexts.join("\n\n")).toContain("Vercel Knowledge Updates");
-    expect(contexts.join("\n\n")).toContain("## Integrations on Vercel");
+    expect(parts.outputs).toHaveLength(2);
+    const [first, second] = parts.outputs.map((output) => JSON.parse(output));
+    const sessionHeading = readFileSync(join(ROOT, "vercel-session.md"), "utf-8").split("\n")[0];
+    const knowledgeUpdate = readKnowledgeUpdateBody(join(ROOT, "skills", "knowledge-update", "SKILL.md"));
+    const lastHeading = knowledgeUpdate.split("\n").filter((line) => line.startsWith("## ")).at(-1);
+    expect(sessionHeading).toBe("# Vercel Plugin Session Context");
+    expect(lastHeading).toBe("## Integrations on Vercel");
+    expect(first.additional_context).toContain(sessionHeading);
+    expect(first.additional_context).toContain(lastHeading);
+    expect(second).not.toHaveProperty("additional_context");
   });
 });
