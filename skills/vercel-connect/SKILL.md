@@ -156,7 +156,7 @@ For user subjects, derive `subject.id` from a stable identity in the authenticat
 
 ## CLI
 
-The `vercel connect` CLI operates in the selected Vercel team and supports machine-readable output with `--format=json` or `-F json`.
+The `vercel connect` CLI operates in the selected Vercel team and supports machine-readable output with `--json` (CLI 58.1+; older CLIs use `--format=json` or `-F json`).
 
 Use the full lifecycle instead of assuming connector creation also authorizes a project:
 

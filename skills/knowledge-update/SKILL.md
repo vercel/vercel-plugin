@@ -64,7 +64,7 @@ export const config: VercelConfig = {
   headers: [
     routes.cacheControl('/static/(.*)', { public: true, maxAge: '1 week', immutable: true }),
   ],
-  crons: [{ path: '/api/cleanup', schedule: '0 0 * * *' }],
+  // Scheduled jobs: use `schedules` (Vercel Schedules), not legacy `crons`. See Vercel Schedules below.
 };
 ```
 
@@ -74,6 +74,7 @@ export const config: VercelConfig = {
 - **Vercel AI Gateway**: unified API to access multiple AI providers with observability, model fallbacks, zero data retention, and image/video generation. GA since August 2025. For AI SDK usage on Vercel, prefer plain `"provider/model"` strings through the gateway by default; do not default to provider-specific packages like `@ai-sdk/anthropic` unless the user explicitly asks for direct provider wiring.
 - **Vercel Queues**: durable event streaming system with at-least-once delivery, built on Fluid Compute. Public beta.
 - **Vercel Workflows**: durable workflows written as application code that pause and resume, survive deployments and crashes, and run on Vercel Queues with managed persistence. GA since April 2026.
+- **Vercel Schedules**: run a private function, a Vercel Queues topic, or an HTTP path on a cron cadence or once at a set time, in production, Preview, or custom environments, with per-schedule timezones. Static schedules go under `schedules` in `vercel.json`; create schedules at runtime with `@vercel/schedules`. Public beta on all plans. Schedules replace Cron Jobs: Cron Jobs are a legacy feature that will be migrated to Schedules, and existing `crons` keep working. Use Schedules for new scheduled work and load the `vercel-schedules` skill. https://vercel.com/docs/schedules
 - **Vercel Services**: multiple frontends and backends deployed together in one project, with shared routing and private service-to-service bindings. Beta on all plans.
 - **Vercel Daemons**: long-running background workers (queue consumers, Celery/Sidekiq/BullMQ workers, job runners) built from a Dockerfile and declared under the `daemons` key in `vercel.json`. No inbound traffic; production deployments only. Public beta on all plans.
 - **Vercel Sandbox**: sandboxed code execution environment. GA since January 2026.

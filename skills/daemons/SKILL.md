@@ -110,7 +110,7 @@ Use a daemon when the process owns a continuous loop that retrieves work.
 | HTTP APIs, webhooks, streaming, WebSockets | Vercel Functions (`⤳ skill: vercel-functions`) | Daemons can't receive traffic |
 | Fire-and-forget background job, fan-out, buffering with Vercel invoking your handler | Vercel Queues push mode (`⤳ skill: queues`) | Serverless, scales automatically, works in previews |
 | Durable multi-step logic with sleep, hooks, or approvals | Vercel Workflows (`⤳ skill: workflow`) | Durable steps and replay |
-| Run code on a schedule | Cron Jobs (`⤳ skill: vercel-functions`) | Time-based trigger |
+| Run code on a schedule or once at a set time | Vercel Schedules (`⤳ skill: vercel-schedules`) | Time-based trigger; beta, replaces legacy Cron Jobs |
 | Run untrusted or AI-generated code in isolation | Vercel Sandbox (`⤳ skill: vercel-sandbox`) | Ephemeral microVMs |
 | Multiple frontends and backends in one project | Vercel Services (`⤳ skill: vercel-services`) | Daemons sit next to services; they are not services |
 

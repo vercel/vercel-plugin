@@ -140,7 +140,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 NEXT.JS (v16+)                           📖 docs: https://nextjs.org/docs
 ├── Agent docs: version-matched, bundled in node_modules/next/dist/docs/
 │   ⊃ Read these before writing Next.js code (official guidance)
-│   ⊃ 16.3+: `next dev` writes AGENTS.md / CLAUDE.md pointing at them
+│   ⊃ 16.3+: `next dev` writes AGENTS.md pointing at them (16.3 also writes a CLAUDE.md importing @AGENTS.md; 16.4+ writes only AGENTS.md)
 │   ⊃ 16.2: docs bundled, add AGENTS.md yourself; ≤16.1: npx @next/codemod@canary agents-md
 │   ⊃ Workflow skills (Cache Components, Partial Prefetching, dev loop): npx skills add vercel/next.js
 │
@@ -674,7 +674,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ----------------------------------- | -------------------------------- | ------------------------------------------------ |
 | Form submissions, in-app mutations  | Server Actions                   | Integrated with caching, progressive enhancement |
 | Public API, webhooks, large uploads | Route Handlers                   | REST semantics, streaming support                |
-| Scheduled tasks                     | Cron Jobs + Vercel Functions     | Reliable scheduling                              |
+| Scheduled tasks                     | Vercel Schedules (beta)          | Timezones, private targets; replaces legacy Cron Jobs |
 
 ### AI Features
 
@@ -752,7 +752,7 @@ Choose based on **where** the interception happens and **what** you need to do.
 
 | Mechanism                                                 | Layer                                       | Runtime                         | Use When                                                                                              | Avoid When                                                                      |
 | --------------------------------------------------------- | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Routing Middleware** (`proxy.entrypoint` in vercel.json or `middleware.ts`) | Vercel CDN, before cache                    | Node.js (`proxy` entrypoint) or Edge (`middleware.ts` default; `runtime: 'nodejs'` to switch) | Geo-redirects, A/B routing, header rewriting, defense-in-depth auth checks — any framework            | Heavy computation, database access, or auth as the sole protection layer        |
+| **Routing Middleware** (`proxy.entrypoint` in vercel.json or `middleware.ts`) | Vercel CDN, before cache                    | Node.js or Python (`proxy` entrypoint; must match the app's runtime), Bun (`bunVersion` in vercel.json), or Edge (`middleware.ts` default; `runtime: 'nodejs'` to switch) | Geo-redirects, A/B routing, header rewriting, defense-in-depth auth checks — any framework            | Heavy computation, database access, or auth as the sole protection layer        |
 | **`proxy.ts`** (Next.js 16+)                              | Application layer, replaces `middleware.ts` | Node.js                         | Same use cases as Routing Middleware but you need `node:*` modules, ORM calls, or full Node.js compat | You're not on Next.js 16+; prefer Routing Middleware for non-Next.js frameworks |
 | **Vercel Functions**                                      | Handles the full request                    | Node.js (default), Bun, Python, Rust | API endpoints, streaming and SSE responses, WebSockets, background work with `waitUntil`                   | Rewrites or redirects that must run before the cache (use Routing Middleware)   |
 
@@ -953,7 +953,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Add `.env*.local` to `.gitignore` — these files contain pulled secrets.
 - Use Fluid Compute for long-running functions — extends max duration to 800s on paid plans.
 - Use `waitUntil` (or `after` in Next.js) for background work after sending a response.
-- Configure cron jobs in `vercel.json` and verify with `CRON_SECRET` header.
+- Schedule recurring or one-time work with Vercel Schedules (`schedules` in `vercel.json`, private `function` targets; ⤳ skill: vercel-schedules). Cron Jobs are legacy: existing `crons` keep working (verify them with a `CRON_SECRET` check); migrate them to Schedules.
 - Use `vercel deploy --prebuilt` in CI for fastest deploys (separate build from deploy).
 - For monorepos, use Turborepo with remote caching and `--affected` for efficient CI.
 
