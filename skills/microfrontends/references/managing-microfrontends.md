@@ -55,7 +55,7 @@ Changes take effect on the next deployment.
 vercel microfrontends remove-from-group
 ```
 
-After removal, update `microfrontends.json` in the default app to remove the project's entry — the CLI will warn you if it's still referenced but won't block the removal.
+After removal, update `microfrontends.json` in the default app to remove the project's entry — if it's still referenced, the CLI warns you and asks for an extra confirmation; in a non-interactive environment, pass `--yes` or the removal fails.
 
 **Dashboard:**
 1. Remove the microfrontend from `microfrontends.json` in the default app
@@ -76,7 +76,7 @@ vercel microfrontends delete-group
 vercel mf delete-group --group="My Group"
 ```
 
-**Dashboard:** remove all projects from the group first — the option to delete the group then becomes available in **Settings** → **Microfrontends**.
+**Dashboard:** in team **Settings** → **Microfrontends** (or the default app's **Microfrontends** settings), open the group's menu and select **Delete Group** — no need to remove projects first.
 
 ## Fallback Environment
 
@@ -87,7 +87,7 @@ Controls where requests are routed when a microfrontend isn't built for a specif
 | Setting | Behavior |
 |---|---|
 | `Same Environment` | Falls back to a deployment in the same environment for the other project. Vercel auto-generates Preview deployments on the production branch. |
-| `Production` | Falls back to the promoted Production deployment of the other project. |
+| `Production` | Falls back to the promoted Production deployment of the other project. In a custom environment, only when the other project has no custom environment with the same name. |
 | Custom environment name | Falls back to a deployment in the specified custom environment. |
 
 ### Fallback behavior matrix
@@ -98,7 +98,7 @@ Controls where requests are routed when a microfrontend isn't built for a specif
 | Preview | Production | Preview | Production |
 | Preview | `staging` | Preview | `staging` |
 | `staging` | Same Environment | `staging` | `staging` |
-| `staging` | Production | `staging` | Production |
+| `staging` | Production | `staging` | `staging` if the project has one, otherwise Production |
 
 Configure in **Settings** → Microfrontends group → **Fallback Environment**.
 

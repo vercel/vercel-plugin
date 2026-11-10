@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance for securely obtaining scoped credentials for third-party services on behalf of apps or users. Use when wiring up provider API access, OAuth, API-key services, MCP servers, triggers, framework adapters, or eve agent connections.
+description: Vercel Connect expert guidance for securely obtaining scoped credentials for third-party services on behalf of apps or users. Use when wiring up provider API access, OAuth, API-key services, MCP servers, triggers, framework adapters, eve agent connections, or provider tokens for Passport-authenticated users.
 metadata:
   priority: 5
   docs:
@@ -48,12 +48,15 @@ metadata:
       - "notion token"
       - "salesforce connection"
       - "api key connector"
+      - "passport identity"
+      - "passport-authenticated user"
     allOf:
       - [slack, token]
       - [github, token]
       - [oauth, token]
       - [mcp, connect]
       - [mcp, server]
+      - [passport, token]
     anyOf:
       - "vercel connect"
       - "@vercel/connect"
@@ -86,10 +89,14 @@ retrieval:
     - add snowflake connection
     - connect an AI SDK app to an authenticated MCP server
     - configure Connect triggers
+    - get a provider token for a Passport-authenticated user
   entities:
     - Vercel Connect
     - getToken
     - "@vercel/connect"
+    - "@vercel/passport"
+    - requireIdentity
+    - Passport
     - OAuth
     - Slack
     - GitHub
@@ -105,6 +112,7 @@ retrieval:
     - wire up Linear in my eve agent
     - connect my agent to a MCP server
     - add Snowflake credentials to my project
+    - use my Passport identity to get a Slack token
 chainTo:
   -
     pattern: "from\\s+['\"]@vercel/connect/eve['\"]"
@@ -137,11 +145,12 @@ Use Vercel Connect when you need to:
 
 ## Modes of tokens
 
-The SDK supports three subject types. Pick based on what's acting:
+The SDK supports four subject types. Pick based on what's acting:
 
 - **`user`**: actions performed on behalf of a specific end user (e.g., post a Slack message as the user). Requires a user `id` and optional `issuer`.
 - **`app`**: actions performed as the app itself (e.g., post as a Slack bot or use a GitHub installation). It skips per-user consent but may still require a provider installation or supported app grant.
 - **`jwt-bearer`**: federated identity through the OAuth JWT-bearer grant. Pass `sub` (required), plus optional `iss`, `aud`, and `additionalClaims`.
+- **`token`**: token exchange. Pass `{ token }` with an existing subject token; the SDK infers `type: "token"` in `@vercel/connect` 2.4.0+.
 
 For user subjects, derive `subject.id` from a stable identity in the authenticated server-side session. Never accept it from a request body or other client input. Keep `getToken()`, Connect auth providers, and MCP clients on the server.
 
@@ -167,11 +176,11 @@ vercel connect attach <connector>
 vercel connect token <connector> --subject app
 ```
 
-The CLI also supports `detach`, `update`, `remove`, and `open`. Run `vercel connect <command> --help` before using optional installation, scope, trigger, branch, or custom-environment flags.
+The CLI also supports `discover`, `categories`, `detach`, `update`, `remove`, `revoke-tokens`, and `open` (`discover` and `categories` need CLI 64.1.0+). Run `vercel connect <command> --help` before using optional installation, scope, trigger, branch, or custom-environment flags.
 
 Use current-project behavior from a Vercel-linked project directory. Creating a connector and attaching it are distinct operations. Connector creation or token authorization may open a browser. Show the returned URL and wait for the person to finish the provider flow. `--yes` permits automatic browser opening; it does not force reauthorization.
 
-`vercel connect create <service>` supports 100+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
+`vercel connect create <service>` supports 1000+ services (for example `slack`, `github`, `microsoft`, `linear`, `snowflake`, `salesforce`, `notion`, `okta`), plus any OAuth or MCP server URL. Run `vercel connect discover [query]` (CLI 64.1.0+) to find a service's name, then `vercel connect create <service> --help` to see that service's products, connection methods (`oauth`, `api-key`, `mcp`, `custom-server`, etc.), and required credentials before registering it.
 
 For MCP servers there are two ways to register. For a known service, run `vercel connect create <service>` and pick the MCP connection method (e.g. `vercel connect create linear --name my-agent` gives the connector `linear/my-agent`). For any other OAuth-protected server, pass its URL (e.g. `vercel connect create mcp.linear.app --name linear`): Vercel discovers the OAuth endpoints from the URL and creates a custom OAuth connector (`oauth/linear`). Either way, attach it to the project with `vercel connect attach <connector>` before requesting tokens. The service name or URL you pass to `create` is not necessarily the MCP runtime URL; that goes in the connection's `url`.
 
@@ -212,6 +221,24 @@ Use these root APIs when needed:
 - `startAuthorization()` after `UserAuthorizationRequiredError` to begin user consent.
 - `revokeToken()` and `deleteTokenCacheEntry()` for revocation and cache eviction.
 - `forceRefresh` and `validityBufferMs` only when the default cache behavior does not fit the call.
+
+#### Passport-authenticated users: `@vercel/passport`
+
+If the application already authenticates users with Passport, pass the identity returned by `requireIdentity()` directly as the Connect `subject`. There is no need to manually construct a separate user subject:
+
+```typescript
+import { getToken } from "@vercel/connect";
+import { requireIdentity } from "@vercel/passport";
+
+const identity = await requireIdentity();
+
+const token = await getToken("slack/xaa-slack", {
+  subject: identity,
+  scopes: ["users:read"],
+});
+```
+
+Keep both calls on the server. Replace `slack/xaa-slack` with your linked connector UID and request only the scopes needed by the operation; `users:read` is the scope used in this example. Passport supplies the authenticated user identity, while Connect supplies the provider API token. Connector attachment and provider authorization requirements still apply.
 
 #### eve agents: `@vercel/connect/eve`
 
@@ -372,12 +399,14 @@ genericOAuth({
 
 #### Auth.js: `@vercel/connect/authjs`
 
-Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Auth.js additionally requires an `id`:
+Optional peer dependency: `@auth/core`. Use the connector as an `OAuth2Config` provider. Connector UIDs can contain a `/` (e.g. `linear/myagent`), and Auth.js additionally requires an `id` and a `name`:
 
 ```typescript
 import { connect } from "@vercel/connect/authjs";
 
-const providers = [connect({ id: "linear", connector: "linear/myagent" })];
+const providers = [
+  connect({ id: "linear", name: "Linear", connector: "linear/myagent" }),
+];
 ```
 
 ## Project links, installations, and environments

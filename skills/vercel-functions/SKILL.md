@@ -9,7 +9,7 @@ metadata:
     - "https://vercel.com/docs/functions/runtimes"
     - "https://vercel.com/docs/functions/limitations"
     - "https://vercel.com/docs/functions/configuring-functions/duration"
-    - "https://vercel.com/docs/functions/container-images"
+    - "https://vercel.com/docs/functions/runtimes/container"
     - "https://vercel.com/docs/fluid-compute"
     - "https://vercel.com/docs/functions/websockets"
   sitemap: "https://vercel.com/sitemap.xml"
@@ -152,10 +152,10 @@ validate:
     skipIfFileContains: 'use workflow|use step|from\s+[''""](workflow)[''""]'
   -
     pattern: 'from\s+[''"](express)[''""]|require\s*\(\s*[''"](express)[''""\)]'
-    message: 'Express.js detected in a Vercel project. Vercel Functions use the Web Request/Response API — Express middleware, req/res, and app.listen() do not work in serverless.'
+    message: 'Express.js detected in a Vercel project. Express deploys with zero configuration (default export or `app.listen`), but `express.static()` is ignored — serve static assets from `public/**`.'
     severity: recommended
     upgradeToSkill: vercel-functions
-    upgradeWhy: 'Replace Express with Next.js route handlers (export async function GET/POST) or Vercel Functions using the Web Request/Response API.'
+    upgradeWhy: 'If this is a Next.js app, prefer Route Handlers (export async function GET/POST) over a separate Express server; a standalone Express app deploys as-is and becomes a single Vercel Function on Fluid Compute.'
     skipIfFileContains: 'export\s+(async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)|from\s+[''""](next/server|@vercel/functions)[''""]'
 retrieval:
   aliases:
@@ -222,7 +222,7 @@ chainTo:
   -
     pattern: "from\\s+['\"]express['\"]|require\\s*\\(\\s*['\"]express['\"]"
     targetSkill: vercel-functions
-    message: 'Express.js detected — loading Vercel Functions guidance for Web Request/Response API route handlers that replace Express middleware and routing.'
+    message: 'Express.js detected — loading Vercel Functions guidance (an Express app deploys as a single Vercel Function on Fluid Compute; express.static() is ignored, use public/**).'
     skipIfFileContains: "export\\s+(async\\s+)?function\\s+(GET|POST|PUT|PATCH|DELETE)"
   -
     pattern: 'from\s+[''""](lru-cache|node-cache|memory-cache)[''""]|new\s+(LRUCache|NodeCache|Map)\(\s*\).*cache'
@@ -239,6 +239,10 @@ chainTo:
     pattern: 'import\s*\{[^}]*\bmetric\b[^}]*\}\s*from\s*[''"]@vercel/functions[''"]'
     targetSkill: custom-metrics
     message: '@vercel/functions metric() detected — loading Custom Metrics guidance for naming, attributes, and vc metrics queries.'
+  -
+    pattern: '@vercel/otel'
+    targetSkill: vercel-tracing
+    message: '@vercel/otel detected — loading Vercel Tracing guidance for instrumentation, sampling, and span inspection.'
 
 ---
 
@@ -476,7 +480,7 @@ To change the project-wide default: Settings → Functions → **Function Max Du
 Pro and Enterprise teams can run individual functions for up to **1800s**. Requirements, all of which are load-bearing:
 
 - **Per-function configuration only.** Durations above 800s must be set in code or in `vercel.json` for that function. **Project-level defaults above 800s are not supported** during the beta — raising the dashboard default will not get you to 1800s.
-- **Supported runtimes only**: `nodejs20.x`, `nodejs22.x`, `nodejs24.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
+- **Supported runtimes only**: `nodejs22.x`, `nodejs24.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
 - **Fluid Compute must be enabled** (default for new projects).
 - **Secure Compute and Static IPs do not support durations above 800s** during the beta. If the project uses either, you are capped at 800s.
 
@@ -650,7 +654,7 @@ Registry limits: 2 GB per compressed layer, 15 GB total image size, 4 MB manifes
 
 Good fits: Go, Rust, Ruby, PHP, or other backends; apps needing system libraries like FFmpeg or Chromium; frameworks outside Vercel's auto-detection; guaranteed build/runtime parity across environments.
 
-Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Cron for those.
+Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Cron for those, or for an always-on worker loop, Vercel Daemons (`⤳ skill: daemons`).
 
 If your framework is already auto-detected and you have no system-library needs, the standard build is simpler and faster — a Dockerfile is not an upgrade by default.
 
@@ -683,20 +687,24 @@ Zero-config streaming on the default Node.js runtime, including Server-Sent Even
 > **You do NOT need `runtime = 'edge'` for streaming or SSE.** Streaming responses (`ReadableStream`, `text/event-stream`) work on the default Node.js runtime — this is the single most common reason people wrongly reach for Edge. Stay on Node.js (Fluid Compute) so you keep full Node.js APIs, npm packages, and longer durations; Edge offers no streaming advantage and caps you at 25s to first byte.
 
 ```ts
-export async function POST(req: Request) {
+export async function GET(request: Request) {
+  // Reading the request keeps this handler request-time; with Next.js Cache
+  // Components, a GET handler that reads no request data is prerendered at build.
+  const jobId = new URL(request.url).searchParams.get('jobId')
   const encoder = new TextEncoder()
+  const events = ['started', 'progress', 'done']
   const stream = new ReadableStream({
-    async start(controller) {
-      for (const chunk of data) {
-        controller.enqueue(encoder.encode(chunk))
-        await new Promise(r => setTimeout(r, 100))
+    start(controller) {
+      for (const event of events) {
+        // SSE frames are "data: <payload>" followed by a blank line
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ jobId, event })}\n\n`))
       }
       controller.close()
     },
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/event-stream' },
+    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
   })
 }
 ```
@@ -707,7 +715,7 @@ For AI streaming, use the AI SDK's `toUIMessageStreamResponse()` (for chat UIs w
 
 Vercel Functions can hold open bidirectional WebSocket connections — use them for realtime features like interactive AI streaming, chat, and collaborative apps. There is **no separate WebSocket-server product and no third-party service (Pusher, Ably, etc.) required** — it runs on Vercel Functions directly. Requires **Fluid Compute**, which is the default for new projects.
 
-**How it works**: a WebSocket starts as an HTTP `GET` with an `Upgrade` header, so it passes through the same Routing Middleware, rewrites, Firewall rules, and rate limits as any other request. After the upgrade, the connection is pinned to a single function instance for its lifetime; Fluid Compute lets one instance serve many concurrent connections. Active CPU pricing means you're billed while processing messages, not for idle open connections — the same limits and pricing as other Function invocations apply.
+**How it works**: a WebSocket starts as an HTTP `GET` with an `Upgrade` header, so it passes through the same Routing Middleware, rewrites, Firewall rules, and rate limits as any other request. After the upgrade, the connection is pinned to a single function instance for its lifetime; Fluid Compute lets one instance serve many concurrent connections. Active CPU accrues only while processing messages, but Provisioned Memory bills until the connection closes (shared across the instance's connections) — the same limits and pricing as other Function invocations apply.
 
 ### `ws` (no extra config)
 
@@ -758,18 +766,18 @@ const socket = io('https://your-domain.com', {
 })
 ```
 
-Express, Hono, and Nitro (including Nuxt, via native WebSocket support) serve WebSockets the same way — export the HTTP server. Python frameworks work too: FastAPI handles the upgrade natively, and `python-socketio` is protocol-compatible with the JS Socket.IO client.
+Express and Hono serve WebSockets the same way — export the HTTP server. Nitro instead exports a `defineWebSocketHandler()` route file (e.g. `routes/_ws.ts` serves `/_ws`) after enabling WebSockets in config: `features: { websocket: true }` on Nitro v3 (the `nitro` package), `experimental: { websocket: true }` on Nitro v2 (`nitropack`). Nuxt 4 still runs on Nitro v2, so set `nitro: { experimental: { websocket: true } }` in `nuxt.config`. Python frameworks work too: FastAPI handles the upgrade natively, and `python-socketio` is protocol-compatible with the JS Socket.IO client.
 
 ### Next.js
 
-Next.js doesn't expose an API for handling WebSocket upgrades. Use `experimental_upgradeWebSocket()` from `@vercel/functions` inside a route handler:
+Next.js doesn't expose an API for handling WebSocket upgrades. Use `upgradeWebSocket()` from `@vercel/functions` (3.10.0+) inside a route handler:
 
 ```ts
 // app/api/ws/route.ts
-import { experimental_upgradeWebSocket, type WebSocketData } from '@vercel/functions'
+import { upgradeWebSocket, type WebSocketData } from '@vercel/functions'
 
 export async function GET() {
-  return experimental_upgradeWebSocket((ws) => {
+  return upgradeWebSocket((ws) => {
     ws.on('message', (data: WebSocketData) => ws.send(data))
   })
 }
@@ -889,7 +897,7 @@ What you **cannot** put here:
 │  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
 │  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
 │  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
-│  │   ├─ Runtimes: nodejs20/22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   ├─ Runtimes: nodejs22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
 │  │   └─ Blocked if the project uses Secure Compute or Static IPs
 │  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
 ├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
@@ -955,7 +963,7 @@ Cold start latency > 1s?
 - [Configuring memory / CPU](https://vercel.com/docs/functions/configuring-functions/memory)
 - [Functions API reference](https://vercel.com/docs/functions/functions-api-reference) — `waitUntil`, `getDeadline`, SIGTERM, cancellation
 - [Fluid Compute](https://vercel.com/docs/fluid-compute)
-- [Container Images](https://vercel.com/docs/functions/container-images) — Dockerfile on Vercel
+- [Container Images](https://vercel.com/docs/functions/runtimes/container) — Dockerfile on Vercel
 - [Vercel Container Registry](https://vercel.com/docs/container-registry) and its [limits and pricing](https://vercel.com/docs/container-registry/limits-and-pricing)
 - [Services](https://vercel.com/docs/services) — multiple backends/frontends in one project
 - [Streaming](https://vercel.com/docs/functions/streaming-functions)

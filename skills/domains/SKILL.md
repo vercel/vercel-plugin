@@ -110,9 +110,9 @@ Use existing authorization for the exact domain, term, price, and renewal prefer
 | Register a domain | `vercel domains buy example.com` |
 | Transfer from another registrar | `vercel domains transfer-in example.com` |
 | Renew registration | `vercel domains renew example.com` |
-| Enable or disable automatic renewal | `vercel domains auto-renew example.com on` / `off` |
+| Enable or disable automatic renewal | `vercel domains auto-renew enable example.com` / `disable` (CLI 65.1.0+; older CLIs: `auto-renew example.com on` / `off`) |
 
-Purchase, transfer, and renewal flows may require interactive input. JSON output does not bypass renewal's charge confirmation. For an authorized noninteractive operation, use the Registrar API with the required payload instead of inventing CLI flags. Moving between Vercel teams uses `domains move`, not `transfer-in`.
+Transfer flows may require interactive input. With Vercel CLI 63.1.0+, `domains buy` and `domains renew` run without prompts: pass `--scope <team> --json` without `--amount` to get the price, term, and next command without charging; after a person approves, run the returned command with `--amount <approved-price-in-USD>` (purchases also need registrant flags and exactly one of `--auto-renew` / `--no-auto-renew`). The CLI doesn't retry charges; if the outcome is unknown, run `domains inspect` before retrying. On older CLIs, use the Registrar API with the required payload instead of inventing CLI flags. Moving between Vercel teams uses `domains move`, not `transfer-in`.
 
 ## Registrar API
 

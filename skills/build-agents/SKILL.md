@@ -116,6 +116,17 @@ non-eve stacks and provider integrations unless migration is in scope. Use
 AI Gateway when it is selected; do not migrate a working provider integration
 solely because this skill is available.
 
+## Run code in a sandbox
+
+When an agent needs to execute generated code, run user-submitted scripts, or
+work in an isolated filesystem, load ⤳ skill:vercel-sandbox for Sandbox setup,
+authentication, and lifecycle guidance. For an eve project, also read its
+versioned sandbox docs before configuring the integration.
+
+For heavy builds, full test suites, or parallel experiments that should run
+away from the local machine, load ⤳ skill:offload-to-sandbox. Keep editing and
+quick checks local, and let that skill guide source transfer, results, and cleanup.
+
 ## Slack Agents
 
 For a Slack project that has selected eve, consult the Slack Agent Skill.

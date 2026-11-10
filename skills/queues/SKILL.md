@@ -213,12 +213,12 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 
 - **Python**: `vercel-queue` publishes and consumes with the same topic model, and FastAPI, Flask, and Django apps can use it; Celery and Dramatiq integrations are documented under the Python backend frameworks.
 - **Nitro / Nuxt**: declare `vercel.queues.triggers` in `nitro.config.ts` and handle messages with the `vercel:queue` runtime hook; `send` from `@vercel/queue` works in any server route.
-- **Poll mode**: pull messages from your own workers in any environment when push delivery to a Vercel Function does not fit.
+- **Poll mode**: pull messages from your own workers in any environment when push delivery to a Vercel Function does not fit. On Vercel, run an always-on poll-mode consumer as a daemon (`⤳ skill: daemons`).
 - **Payloads**: JSON by default; use `BufferTransport` for binary or `StreamTransport` for large bodies when constructing a `QueueClient`.
 
 ## Errors
 
-`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, `MessageNotFoundError`, and `QueueEmptyError`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
+`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, and `MessageNotFoundError`. `QueueEmptyError` is exported but never thrown; an empty poll-mode `receive` returns `{ ok: false, reason: 'empty' }`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
 
 ## Common Pitfalls
 

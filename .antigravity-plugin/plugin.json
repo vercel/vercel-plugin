@@ -1,0 +1,21 @@
+{
+  "name": "vercel-plugin",
+  "displayName": "Vercel",
+  "version": "0.54.1",
+  "description": "Build and deploy web apps and AI agents on Vercel with skills for Next.js, AI SDK, and cloud services, plus the official Vercel MCP server.",
+  "logo": "assets/vercel-antigravity.svg",
+  "suggestedPrompts": [
+    "Help me deploy this app to Vercel",
+    "Investigate my latest failed Vercel deployment",
+    "Build an AI agent with the Vercel AI SDK"
+  ],
+  "keywords": ["vercel", "nextjs", "ai-sdk", "deployment", "serverless", "mcp"],
+  "author": {
+    "name": "Vercel",
+    "url": "https://vercel.com"
+  },
+  "homepage": "https://github.com/vercel/vercel-plugin#readme",
+  "repository": "https://github.com/vercel/vercel-plugin",
+  "license": "Apache-2.0",
+  "skills": ["./skills"]
+}

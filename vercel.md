@@ -41,15 +41,19 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
-│   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⊃ Vercel Schedules (cron or one-time runs of private functions, paths, or queue topics; replaces Cron Jobs)
+│   ⊃ Cron Jobs (legacy scheduled function invocation → migrate to Schedules)
 │   ⊃ Custom Metrics (numeric samples from Functions → Observability / vc metrics)
 │   ⊃ Vercel Queues (durable topics, at-least-once delivery, consumer groups; beta — the primitive under Workflows)
+│   ⊃ Vercel Daemons (long-running containers with no inbound traffic, `daemons` key in vercel.json; beta, production only)
 │   ⤳ skill: create-a-backend  (backend product and framework selection)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: custom-metrics
 │   ⤳ skill: routing-middleware
 │   ⤳ skill: runtime-cache
 │   ⤳ skill: queues
+│   ⤳ skill: daemons
+│   ⤳ skill: vercel-schedules
 │
 ├── Domains & DNS
 │   → Deployment Engine
@@ -57,17 +61,25 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: domains  (public search, registration, project domains, DNS, transfers, renewals)
 │   ⤳ skill: vercel-cli  (vercel domains, vercel dns, vercel certs)
 │
+├── Vercel Tracing (OpenTelemetry spans from deployed traffic)     ⤳ skill: vercel-tracing  📖 docs: https://vercel.com/docs/tracing
+│   ⊃ Always-on tracing (sampled production and preview requests)
+│   ⊃ Session tracing (browser-session capture)
+│   → @vercel/otel + @opentelemetry/api (framework and custom spans)
+│   ↔ Vercel Functions / Logs (request IDs and trace inspection)
+│   ↔ Vercel CLI (vercel traces inspect, search, create, config)
+│
 ├── Environment Variables                        ⤳ skill: env-vars
 │   → Deployment Engine
 │   ↔ Vercel CLI (vercel env)
 │   ↔ Marketplace Integrations (auto-provisioned)
 │   ⤳ skill:bootstrap
 │
-├── Vercel Flags (feature flags & experimentation)     ⤳ skill: flags-sdk  📖 docs: https://vercel.com/docs/flags
-│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)
+├── Vercel Flags (feature flags & experimentation)     ⤳ skill: vercel-flags  📖 docs: https://vercel.com/docs/flags
+│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)   ⤳ skill: flags-sdk
+│   ⊃ @vercel/flags-core (other frameworks) and OpenFeature provider
 │   ⊃ Flags Explorer (override flags from the Vercel Toolbar)
 │   ⊃ Precompute pattern (static A/B variants via middleware rewrites)
-│   ↔ Vercel CLI (vercel flags — create, set, enable, disable, sdk-keys)
+│   ↔ Vercel CLI (vercel flags — create, set, split, rollout, rules, evaluations, archive)
 │   ↔ Global Config (alternative store via @flags-sdk/global-config adapter)
 │
 ├── Secure Compute (isolated infrastructure for compliance workloads)
@@ -89,7 +101,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (preview URLs)
 │   ↔ Preview Comments (inline annotation)
 │   ↔ Vercel Analytics (performance overlay)
-│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: flags-sdk
+│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: vercel-flags
 │
 ├── Vercel Templates (starter kits and example repos)
 │   → Deployment Engine (one-click deploy)
@@ -473,6 +485,13 @@ REACT BEST PRACTICES ⤳ skill: react-best-practices
 │
 └── Use When: After editing multiple TSX components, before shipping
 
+OFFLOAD TO SANDBOX ⤳ skill: offload-to-sandbox
+├── Purpose: Run heavy builds, test suites and parallel experiments on Vercel Sandboxes instead of the local machine
+│ ⊃ Base snapshot once, one sandbox per task, source pushes that keep dependencies, detached long jobs
+│ ⊃ Sharded suites, baseline failure triage, cost and cleanup
+│
+└── Use When: The local machine is overloaded or shared by agents, or a suite should be sharded
+
 ---
 
 ## 5. Storage & Data
@@ -490,7 +509,7 @@ VERCEL GLOBAL CONFIG (active, first-party) ⤳ skill: vercel-storage  📖 docs:
 ├── Purpose: Global low-latency key-value for config
 │   ⇢ renamed from: Edge Config (July 2026; @vercel/global-config replaces @vercel/edge-config as drop-in)
 │   ⊃ Dynamic routing rules
-│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: flags-sdk)
+│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: vercel-flags)
 │   ⊃ @vercel/global-config package (supports Next.js 16 cacheComponents)
 │
 └── Use When: Config that must be read at the edge instantly
@@ -592,7 +611,8 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │   ⊃ vercel integration remove (uninstall)
 │
 ├── Other
-│   ⊃ vercel logs (view function logs)
+│   ⊃ vercel logs (runtime logs; `vercel logs requests` for CDN requests)
+│   ⊃ vercel traces (span search, trace inspection, sampling rules)    ⤳ skill: vercel-tracing
 │   ⊃ vercel inspect (deployment details)
 │   ⊃ vercel domains (manage domains)
 │   ⊃ vercel certs (SSL certificates)
@@ -721,8 +741,9 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Long-running with I/O waits | Fluid Compute (default) | Shared instances, Active CPU pricing, waitUntil |
 | AI streaming responses | Streaming Functions | SSE, zero config |
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
-| Scheduled execution | Cron Jobs | vercel.json schedule config |
+| Scheduled execution (cron or one-time) | Vercel Schedules (`schedules` in vercel.json, `@vercel/schedules`) | Private function, path, or queue targets; timezones; per-environment state; replaces Cron Jobs |
 | Background jobs, buffering, fan-out to consumers | Vercel Queues (`@vercel/queue`) | Durable topics, at-least-once delivery, retries; Workflows for multi-step logic |
+| Always-on worker (queue consumer, Celery/Sidekiq/BullMQ, job runner) | Vercel Daemons (`daemons` in vercel.json) | Dockerfile-built, fixed instances per region, no inbound traffic; beta, production only |
 
 ### Disambiguation: Interception Compute
 

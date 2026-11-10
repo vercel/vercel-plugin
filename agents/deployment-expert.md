@@ -56,7 +56,7 @@ Build failed?
 │  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
 │  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
 │  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
-│  │   ├─ Runtimes: nodejs20/22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   ├─ Runtimes: nodejs22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
 │  │   └─ Blocked if the project uses Secure Compute or Static IPs
 │  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
 ├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
@@ -185,8 +185,8 @@ vercel deploy --prod --skip-domain
 # Promote it (instant, no rebuild)
 vercel promote <deployment-url-or-id>
 
-# Rollback to the previous production deployment
-vercel rollback
+# Show pending rollback status (no argument does not roll back)
+vercel rollback status
 
 # Rollback to a specific deployment
 vercel rollback <deployment-url-or-id>

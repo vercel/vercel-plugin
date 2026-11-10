@@ -23,7 +23,7 @@ Based on "$ARGUMENTS", determine the action:
 | Argument | Action | Destructive? |
 |----------|--------|-------------|
 | `list` / `ls` / _(none)_ | List env var names per environment | No |
-| `pull` | Download env vars to local `.env.local` | No (overwrites local file) |
+| `pull` | Download env vars to local `.env.local` | No (merges into local file; pulled values replace matching keys) |
 | `add <NAME>` | Add a new env var | Yes (if production) |
 | `rm <NAME>` / `remove <NAME>` | Remove an env var | **Yes** |
 | `diff` | Compare local vs Vercel key names | No |
@@ -211,9 +211,9 @@ vercel env add DATABASE_URL preview --git-branch=staging < ./staging-database-ur
 ## Common Gotchas
 
 <!-- Sourced from env-vars skill: Gotchas -->
-### `vercel env pull` Overwrites Custom Variables
+### `vercel env pull` Merges Into an Existing File
 
-`vercel env pull .env.local` **replaces the entire file** — any manually added variables (custom secrets, local overrides, debug flags) are lost. Always back up or re-add custom vars after pulling:
+`vercel env pull .env.local` merges into an existing file. Variables defined only locally are kept (logged as `Kept <KEYS>`; Vercel CLI 56+). Keys that also exist on Vercel take the pulled value, so a local override of one is replaced. Current CLIs also keep a real local value for a Secret they cannot read, and always refresh `VERCEL_OIDC_TOKEN`. Older CLIs replace the entire file, so back up custom vars first:
 
 ```bash
 # Save custom vars before pulling

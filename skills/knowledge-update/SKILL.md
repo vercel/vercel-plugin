@@ -22,7 +22,7 @@ metadata:
     minScore: 6
 ---
 
-# Vercel Knowledge Updates (2026-10-01)
+# Vercel Knowledge Updates (2026-10-26)
 
 Use this reference for the Vercel scope already present in the user's request
 or project. Verify version-sensitive details against current documentation
@@ -49,7 +49,7 @@ installations, resource provisioning, or deployment on its own.
 - **Vercel Functions also support Bun and Rust runtimes.**
 - **Vercel Functions support up to 5 GB package size** on Fluid Compute (Beta; existing projects opt in with `VERCEL_SUPPORT_LARGE_FUNCTIONS=1`) — a 20× increase from the old 250 MB limit. This unlocks Python data/AI libraries, browser automation (Playwright/Puppeteer), image processing, and larger backend apps on Vercel. https://vercel.com/changelog/vercel-functions-can-now-be-up-to-5-gb-in-package-size
 - **Vercel Function request and response bodies are limited to 4.5 MB.** Use direct Vercel Blob client uploads for larger files. https://vercel.com/docs/functions/limitations#request-body-size
-- **Vercel Functions support WebSockets** (Beta). Vercel Functions can hold open bidirectional WebSocket connections for realtime chat, collaborative apps, and interactive AI streaming. Use standard libraries (`ws`, Socket.IO) with Fluid Compute. Next.js uses `experimental_upgradeWebSocket()` from `@vercel/functions`. https://vercel.com/docs/functions/websockets
+- **Vercel Functions support WebSockets** (generally available). Vercel Functions can hold open bidirectional WebSocket connections for realtime chat, collaborative apps, and interactive AI streaming. Use standard libraries (`ws`, Socket.IO) with Fluid Compute. Next.js uses `upgradeWebSocket()` from `@vercel/functions` 3.10.0+. https://vercel.com/docs/functions/websockets
 - **vercel.ts supports typed Vercel project configuration**, dynamic logic, and environment variable access. When the task selects TypeScript configuration, follow the documented `@vercel/config` setup and typed export. An existing `vercel.json` does not require conversion as part of unrelated work. https://vercel.com/docs/project-configuration/vercel-ts
 
 ```ts
@@ -79,8 +79,9 @@ export const config: VercelConfig = {
 - **Vercel Queues**: durable event streaming system with at-least-once delivery, built on Fluid Compute. Public beta.
 - **Vercel Workflows**: durable workflows written as application code that pause and resume, survive deployments and crashes, and run on Vercel Queues with managed persistence. GA since April 2026.
 - **Vercel Services**: multiple frontends and backends deployed together in one project, with shared routing and private service-to-service bindings. Beta on all plans.
+- **Vercel Daemons**: long-running background workers (queue consumers, Celery/Sidekiq/BullMQ workers, job runners) built from a Dockerfile and declared under the `daemons` key in `vercel.json`. No inbound traffic; production deployments only. Public beta on all plans.
 - **Vercel Sandbox**: sandboxed code execution environment. GA since January 2026.
-- **Vercel Container Registry**: Docker-compatible registry built into Vercel. Stores images built from a Dockerfile or Containerfile to run on Vercel Functions or as custom Sandbox images. Beta.
+- **Vercel Container Registry**: Docker-compatible registry built into Vercel. Stores images built from a Dockerfile or Containerfile to run on Vercel Functions, as Daemons, or as custom Sandbox images. Beta.
 - **Rolling Releases**: gradual/canary rollout for deployments. GA since June 2025.
 - **Sign in with Vercel**: OAuth provider for third-party apps. GA since November 2025.
 - **Vercel Agent**: dashboard and Slack chat, code reviews, production investigations, installations, and approved actions. Public beta.
@@ -88,7 +89,7 @@ export const config: VercelConfig = {
 - **Vercel KMS**: managed signing keys for JWTs and messages, with automatic OIDC authentication from Vercel Functions and public JWKS verification. Beta on all plans.
 - **Vercel Drop**: browser-based deployment for a file, folder, or `.zip`, with no Git or CLI setup.
 - **Vercel for Platforms**: multi-tenant platform support.
-- **Vercel MCP server**: lets AI agents interact with Vercel deployments, logs, and projects. Beta on all plans.
+- **Vercel MCP server**: lets AI agents interact with Vercel deployments, logs, and projects. Available on all plans. https://vercel.com/docs/agent-resources/vercel-mcp
 - **Vercel BotID**: bot detection and verification. GA since June 2025.
 
 ## Current agent SDKs
@@ -98,9 +99,9 @@ export const config: VercelConfig = {
 
 ## Next.js
 
-- **Next.js ships version-matched docs in the `next` package.** Read the relevant page in `node_modules/next/dist/docs/` before writing Next.js code instead of relying on remembered APIs. On Next.js 16.3+, `next dev` writes `AGENTS.md` / `CLAUDE.md` rules that point there. On 16.2 the docs are bundled but `AGENTS.md` is not generated. If bundled docs are absent, use the relevant official version documentation; run a documentation-download codemod only when it belongs to the requested setup. https://nextjs.org/docs/app/guides/ai-agents
+- **Next.js ships version-matched docs in the `next` package.** Read the relevant page in `node_modules/next/dist/docs/` before writing Next.js code instead of relying on remembered APIs. On Next.js 16.3+, `next dev` writes `AGENTS.md` rules that point there (16.3 also writes a `CLAUDE.md` that imports `@AGENTS.md`; 16.4+ writes only `AGENTS.md`). On 16.2 the docs are bundled but `AGENTS.md` is not generated. If bundled docs are absent, use the relevant official version documentation; run a documentation-download codemod only when it belongs to the requested setup. https://nextjs.org/docs/app/guides/ai-agents
 - **Upgrade only when requested.** Follow the official migration guide for the requested release. If the user asks for latest, resolve the current stable release to an exact version first. Check Next.js, React, React DOM, and TypeScript type compatibility, and update only dependencies needed in the affected app. Use prereleases only when requested. Preview only the required documented codemods on the smallest applicable app path, review the diff, then apply those transforms. Avoid blanket transforms or workspace-wide upgrades. Migration guides ship in the bundled docs. https://nextjs.org/docs/app/getting-started/upgrading
-- **Official Next.js skills cover workflows, not reference knowledge**: `next-dev-loop`, `next-cache-components-adoption`, `next-cache-components-optimizer`, and the Partial Prefetching skills. Install with `npx skills add vercel/next.js --skill <name>`; propose them before installing.
+- **Official Next.js skills cover workflows, not reference knowledge**: `next-dev-loop`, `next-bundle-optimizer` (Next.js 16.4+), `next-cache-components-adoption`, `next-cache-components-optimizer`, and the Partial Prefetching skills. Install with `npx skills add vercel/next.js --skill <name>`; propose them before installing. https://nextjs.org/docs/app/guides/ai-agents
 
 ## Integrations on Vercel
 

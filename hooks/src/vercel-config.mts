@@ -42,6 +42,12 @@ const KEY_SKILL_MAP: Record<string, string[]> = {
 
   // Services
   services: ["vercel-services"],
+
+  // Daemons
+  daemons: ["daemons"],
+
+  // Schedules
+  schedules: ["vercel-schedules"],
 };
 
 /**
@@ -49,10 +55,12 @@ const KEY_SKILL_MAP: Record<string, string[]> = {
  * Used to identify candidates whose priority should be adjusted.
  */
 export const VERCEL_JSON_SKILLS = new Set([
+  "daemons",
   "deployments-cicd",
   "routing-middleware",
   "vercel-services",
   "vercel-functions",
+  "vercel-schedules",
 ]);
 
 // ---------------------------------------------------------------------------

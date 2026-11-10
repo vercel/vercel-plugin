@@ -75,7 +75,7 @@ Vercel and Next.js load environment variables in a specific order. Later files o
 1. `.env` (lowest priority)
 2. `.env.[environment]` (development, production, or test)
 3. `.env.local` (skipped in test environment)
-4. `.env.[environment].local` (highest priority, skipped in test)
+4. `.env.[environment].local` (highest priority)
 
 ### Critical Rules
 
@@ -263,9 +263,9 @@ vercel env add DATABASE_URL preview --git-branch=staging < ./staging-database-ur
 
 ## Gotchas
 
-### `vercel env pull` Overwrites Custom Variables
+### `vercel env pull` Merges Into an Existing File
 
-`vercel env pull .env.local` **replaces the entire file** — any manually added variables (custom secrets, local overrides, debug flags) are lost. Always back up or re-add custom vars after pulling:
+`vercel env pull .env.local` merges into an existing file. Variables defined only locally are kept (logged as `Kept <KEYS>`; Vercel CLI 56+). Keys that also exist on Vercel take the pulled value, so a local override of one is replaced. Current CLIs also keep a real local value for a Secret they cannot read, and always refresh `VERCEL_OIDC_TOKEN`. Older CLIs replace the entire file, so back up custom vars first:
 
 ```bash
 # Save custom vars before pulling
