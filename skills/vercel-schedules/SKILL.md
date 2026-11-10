@@ -112,7 +112,7 @@ You are an expert in Vercel Schedules, which runs code on a recurring cron caden
 | **Takes effect** | When the deployment becomes current for its environment/branch | Immediately |
 | **Targets** | `function`, `path`, or `topic` | `topic` only |
 | **One-time runs** | No | Yes |
-| **Payload / namespace** | No / always `default` | Optional JSON (≤ 8 KB) / any namespace |
+| **Payload / namespace** | No / always `default` | Optional JSON (≤ 16 KB; 8 KB with `--local`) / any namespace |
 | **Update or delete** | Edit config and redeploy | SDK or CLI |
 
 Use **static** for jobs that belong to the app (nightly cleanup, hourly sync). Use **dynamic** for jobs the app creates for users (a reminder per customer, a report at 09:00 in each tenant's timezone).
@@ -191,7 +191,7 @@ vercel schedules invoke cleanup            # run once in production
 | `path` / `requestMethod` | Public route target, for code-free Cron Jobs migration only. Path must start with `/`. Method defaults to **`POST`**. |
 | `topic` | Vercel Queues topic. Letters, digits, `_`, `-`. |
 
-The object key is the schedule name: 1–256 chars of ASCII letters, digits, `.`, `_`, `-`, starting with a letter or digit. **Keep names stable.** Renaming deletes the schedule and creates a new one with fresh state and history. A project can have up to 100 static schedules.
+The object key is the schedule name: 1–256 chars of ASCII letters, digits, `.`, `_`, `-`, starting with a letter or digit. **Keep names stable.** Renaming deletes the schedule and creates a new one with fresh state and history. On Hobby, a deployment can declare up to 100 static schedules. On every plan, the CLI rejects a `vercel.json` with more than 500 `schedules` entries (Vercel CLI 65.11+; older CLIs cap it at 100).
 
 Cron syntax: digits, `*`, `,`, `-`, `/` only. No `MON`/`JAN` names, and don't set both day-of-month and day-of-week.
 
