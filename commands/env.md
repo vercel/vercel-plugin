@@ -31,7 +31,7 @@ Based on "$ARGUMENTS", determine the action:
 For any operation that mutates **production** environment variables (`add` or `rm` targeting production):
 
 > ⚠️ **Production environment mutation requested.**
-> This will change environment variables on your live production deployment.
+> This will change the environment variables that new production deployments use. The live production deployment keeps its current values until you redeploy with `/deploy prod`.
 > **Ask the user for explicit confirmation before proceeding.** Do not mutate production env vars without a clear "yes."
 
 ## Commands
