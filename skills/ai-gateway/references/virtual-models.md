@@ -84,7 +84,7 @@ Do not promise that every agent discovers team Virtual Models automatically. Mod
 
 ## Operational cautions
 
-- Only team Owners and Members can manage Virtual Models, but any team member can call one.
+- Team Owners and Members can create Virtual Models; only the creator or a team Owner can edit, archive, remove, or restore one. Any team member can call one.
 - Archived or removed slugs stop serving requests. Know the callers before changing lifecycle state.
 - Virtual Model tags replace request tags when configured, so avoid unintentionally dropping caller attribution.
 - Required capabilities replace the request's capability list rather than merging with it.

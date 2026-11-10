@@ -140,7 +140,7 @@ Docs: <https://vercel.com/docs/ai-gateway/sdks-and-apis/ai-sdk-python>
 | OpenAI Chat Completions and OpenAI Responses SDKs | `https://ai-gateway.vercel.sh/v1` |
 | Anthropic Messages SDK | `https://ai-gateway.vercel.sh` |
 | OpenResponses HTTP | `https://ai-gateway.vercel.sh/v1/responses` |
-| Evaluation HTTP | `https://ai-gateway.vercel.sh/v1/evaluate` |
+| Decisions HTTP | `https://ai-gateway.vercel.sh/v1/decisions` (`/v1/evaluate` is deprecated) |
 | TypeSafe SDK | Set `baseURL` to `https://ai-gateway.vercel.sh/typesafe` |
 | Cohere Rerank | Follow the current Cohere Rerank page |
 
