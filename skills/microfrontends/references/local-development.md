@@ -10,7 +10,7 @@ The `@vercel/microfrontends` local development proxy routes requests between loc
 - Requests matching a child app's routing paths are sent to the local dev server (if running) or to the production fallback
 - Requests not matching any child app go to the default app
 
-> **Warning (Next.js):** Traffic a child application receives directly will be redirected to the local proxy. Set `MFE_DISABLE_LOCAL_PROXY_REWRITE=1` to disable this.
+> **Warning (Next.js):** Traffic the default or a child application receives directly will be redirected to the local proxy. Set `MFE_DISABLE_LOCAL_PROXY_REWRITE=1` to disable this.
 
 ## Application Setup
 

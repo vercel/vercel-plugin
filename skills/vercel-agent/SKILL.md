@@ -49,7 +49,7 @@ You are an expert in Vercel Agent — AI-powered development tools built into th
 
 Vercel Agent is an AI assistant built into Vercel. It uses project, deployment, log, metric, configuration, usage, and repository context to answer questions, investigate production issues, review code, install supported products, and propose approved actions.
 
-Dashboard chat, Slack chat, Investigations, and Code Review are in public beta for Pro and Enterprise teams.
+Dashboard chat, Slack chat, Investigations, Code Review, and Security Review are in public beta for Pro and Enterprise teams.
 
 ## Capabilities
 
