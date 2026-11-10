@@ -274,7 +274,7 @@ Daemon output appears in the project's Logs with source `daemon` and the daemon'
 
 ## Build Output API
 
-With `vercel build` or a custom builder, `.vercel/output/config.json` lists daemons as `"daemons": { "worker": {} }` (the complete set; omitted daemons are stopped), and each has `.vercel/output/daemons/<name>/.vc-config.json` with `runtime: "container"`, an `image` already in Vercel Container Registry, `instances`, and optional `command`, `resources`, `terminationGracePeriodSeconds`, `livenessProbe`, and `bindings`. `vercel build` builds and pushes the images and writes these files for you; during the beta, set `VERCEL_ENABLE_DAEMONS_BOA=1` when you run `vercel build` locally.
+With `vercel build` or a custom builder, `.vercel/output/config.json` lists daemons as `"daemons": { "worker": {} }` (the complete set; omitted daemons are stopped), and each has `.vercel/output/daemons/<name>/.vc-config.json` with `runtime: "container"`, an `image` already in Vercel Container Registry, `instances`, and optional `command`, `resources`, `terminationGracePeriodSeconds`, `livenessProbe`, and `bindings`. `vercel build` builds and pushes the images and writes these files for you; running `vercel build` locally builds daemons with Vercel CLI 65.6.0+.
 
 ## Limits
 
