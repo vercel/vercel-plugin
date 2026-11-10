@@ -111,8 +111,8 @@ vercel firewall rules add "Block crawlers" \
   --condition '{"type":"user_agent","op":"sub","value":"crawler"}' \
   --action deny --yes
 
-# JSON — works in scripts and agents
-vercel firewall rules add --json '{"name":"Block crawlers","conditionGroup":[{"conditions":[{"type":"user_agent","op":"sub","value":"crawler"}]}],"action":{"mitigate":{"action":"deny"}}}' --yes
+# JSON payload — works in scripts and agents (`--data` needs CLI 64.2+; older CLIs use `--json <payload>`)
+vercel firewall rules add --data '{"name":"Block crawlers","conditionGroup":[{"conditions":[{"type":"user_agent","op":"sub","value":"crawler"}]}],"action":{"mitigate":{"action":"deny"}}}' --yes
 ```
 
 ### Multiple conditions (AND) and OR groups
@@ -132,14 +132,14 @@ vercel firewall rules add "Block dangerous methods" \
   --action challenge --yes
 ```
 
-### Edit and manage
+### Update and manage
+
+`rules update` needs CLI 64.4+; older CLIs use `rules edit`, which still works as a deprecated alias.
 
 ```bash
-vercel firewall rules edit "My Rule" --action challenge --yes      # change action
-vercel firewall rules edit "My Rule" --name "New Name" --yes       # rename
-vercel firewall rules edit "My Rule" --enabled --yes               # enable
-vercel firewall rules edit "My Rule" --disabled --yes              # disable
-vercel firewall rules edit "My Rule" \
+vercel firewall rules update "My Rule" --action challenge --yes    # change action
+vercel firewall rules update "My Rule" --name "New Name" --yes     # rename
+vercel firewall rules update "My Rule" \
   --condition '{"type":"path","op":"pre","value":"/new"}' --yes    # replace conditions
 
 vercel firewall rules enable  "My Rule"
@@ -152,7 +152,7 @@ vercel firewall rules reorder "My Rule" --position 3 --yes         # 1-based
 
 Rules are evaluated in priority order (top to bottom). Reorder to control which rule matches first.
 
-NOTE: When using `edit` with `--condition`, it will overwrite all conditions listed in the rule. Make sure to specify all conditions when editing a rule.
+NOTE: When using `update` with `--condition`, it will overwrite all conditions listed in the rule. Make sure to specify all conditions when editing a rule.
 
 ### Condition format
 
@@ -326,7 +326,7 @@ The firewall sits in front of every request. A misconfigured rule can block real
   3. **Block in preview first.** Edit the rule to `deny` (or `challenge`) and add an `environment = preview` condition so production stays in log mode. This lets the user hit a preview deployment and confirm the block fires correctly without exposing real users:
 
      ```bash
-     vercel firewall rules edit "Block exploit probes" \
+     vercel firewall rules update "Block exploit probes" \
        --action deny \
        --condition '{"type":"path","op":"inc","value":["/wp-admin","/.env","/.git/config","/phpmyadmin"]}' \
        --condition '{"type":"environment","op":"eq","value":"preview"}' \
@@ -337,10 +337,10 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
   4. **Block in production.** Once the user is satisfied with the production log data, edit to `deny` / `challenge` and have them publish. Keep the dashboard URL handy for the first 24h in case you need to roll back with `--action log` or `rules disable`.
 
-- **Stage drafts; let the user publish.** Mutating commands (`rules add/edit/enable/disable/remove/reorder`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
+- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/reorder`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
 
 - **Don't run commands the CLI blocks for agents.** Surface what the user needs to do instead:
-  - `vercel firewall rules add --ai "..."` and `vercel firewall rules add` (wizard) — TTY-only. Use `--condition` flags or `--json`.
+  - `vercel firewall rules add --ai "..."` and `vercel firewall rules add` (wizard) — TTY-only. Use `--condition` flags or `--data`.
   - `vercel firewall attack-mode enable` — requires explicit interactive confirmation; have the user run it.
   - `vercel firewall system-mitigations pause` — pauses platform DDoS protection across the project; have the user run it and resume ASAP.
 
