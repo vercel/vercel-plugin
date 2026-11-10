@@ -1,6 +1,6 @@
 ---
 name: vercel-cli
-description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, inspecting or searching request traces, debugging a deployed app on Vercel (errors, 5xx responses, timeouts, slow routes, or a single failing request), managing domains, managing feature flags with vercel flags, or interacting with the Vercel platform from the command line.
+description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, debugging a deployed app on Vercel (errors, 5xx responses, timeouts, slow routes, or a single failing request), managing domains, managing feature flags with vercel flags, or interacting with the Vercel platform from the command line. Use the vercel-tracing skill instead for `vercel traces` span search, trace inspection, and sampling rules, or for OpenTelemetry setup.
 metadata:
   priority: 4
   docs:
@@ -28,7 +28,6 @@ metadata:
       - "deploy status"
       - "vercel logs"
       - "vercel metrics"
-      - "vercel traces"
       - "deployment logs"
       - "deploy logs"
       - "vercel inspect"
@@ -44,7 +43,6 @@ metadata:
       - [vercel, status]
       - [vercel, logs]
       - [vercel, metrics]
-      - [vercel, traces]
       - [deploy, error]
       - [deploy, failed]
       - [deploy, stuck]
@@ -78,6 +76,10 @@ retrieval:
     - vercel metrics
     - vercel traces
 chainTo:
+  -
+    pattern: '\b(?:vercel|vc)\s+traces\b'
+    targetSkill: vercel-tracing
+    message: 'vercel traces command detected — loading Vercel Tracing guidance for span search, request inspection, and sampling rules.'
   -
     pattern: '"functions"\s*:\s*\{|"maxDuration"\s*:|"memory"\s*:'
     targetSkill: vercel-functions

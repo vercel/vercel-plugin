@@ -41,7 +41,8 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
-│   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⊃ Vercel Schedules (cron or one-time runs of private functions, paths, or queue topics; replaces Cron Jobs)
+│   ⊃ Cron Jobs (legacy scheduled function invocation → migrate to Schedules)
 │   ⊃ Custom Metrics (numeric samples from Functions → Observability / vc metrics)
 │   ⊃ Vercel Queues (durable topics, at-least-once delivery, consumer groups; beta — the primitive under Workflows)
 │   ⊃ Vercel Daemons (long-running containers with no inbound traffic, `daemons` key in vercel.json; beta, production only)
@@ -52,12 +53,20 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: runtime-cache
 │   ⤳ skill: queues
 │   ⤳ skill: daemons
+│   ⤳ skill: vercel-schedules
 │
 ├── Domains & DNS
 │   → Deployment Engine
 │   ↔ Vercel Firewall
 │   ⤳ skill: domains  (public search, registration, project domains, DNS, transfers, renewals)
 │   ⤳ skill: vercel-cli  (vercel domains, vercel dns, vercel certs)
+│
+├── Vercel Tracing (OpenTelemetry spans from deployed traffic)     ⤳ skill: vercel-tracing  📖 docs: https://vercel.com/docs/tracing
+│   ⊃ Always-on tracing (sampled production and preview requests)
+│   ⊃ Session tracing (browser-session capture)
+│   → @vercel/otel + @opentelemetry/api (framework and custom spans)
+│   ↔ Vercel Functions / Logs (request IDs and trace inspection)
+│   ↔ Vercel CLI (vercel traces inspect, search, create, config)
 │
 ├── Environment Variables                        ⤳ skill: env-vars
 │   → Deployment Engine
@@ -476,6 +485,13 @@ REACT BEST PRACTICES ⤳ skill: react-best-practices
 │
 └── Use When: After editing multiple TSX components, before shipping
 
+OFFLOAD TO SANDBOX ⤳ skill: offload-to-sandbox
+├── Purpose: Run heavy builds, test suites and parallel experiments on Vercel Sandboxes instead of the local machine
+│ ⊃ Base snapshot once, one sandbox per task, source pushes that keep dependencies, detached long jobs
+│ ⊃ Sharded suites, baseline failure triage, cost and cleanup
+│
+└── Use When: The local machine is overloaded or shared by agents, or a suite should be sharded
+
 ---
 
 ## 5. Storage & Data
@@ -596,6 +612,7 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │
 ├── Other
 │   ⊃ vercel logs (runtime logs; `vercel logs requests` for CDN requests)
+│   ⊃ vercel traces (span search, trace inspection, sampling rules)    ⤳ skill: vercel-tracing
 │   ⊃ vercel inspect (deployment details)
 │   ⊃ vercel domains (manage domains)
 │   ⊃ vercel certs (SSL certificates)
@@ -724,7 +741,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Long-running with I/O waits | Fluid Compute (default) | Shared instances, Active CPU pricing, waitUntil |
 | AI streaming responses | Streaming Functions | SSE, zero config |
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
-| Scheduled execution | Cron Jobs | vercel.json schedule config |
+| Scheduled execution (cron or one-time) | Vercel Schedules (`schedules` in vercel.json, `@vercel/schedules`) | Private function, path, or queue targets; timezones; per-environment state; replaces Cron Jobs |
 | Background jobs, buffering, fan-out to consumers | Vercel Queues (`@vercel/queue`) | Durable topics, at-least-once delivery, retries; Workflows for multi-step logic |
 | Always-on worker (queue consumer, Celery/Sidekiq/BullMQ, job runner) | Vercel Daemons (`daemons` in vercel.json) | Dockerfile-built, fixed instances per region, no inbound traffic; beta, production only |
 

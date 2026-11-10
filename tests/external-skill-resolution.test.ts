@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -60,7 +60,22 @@ describe("react-best-practices SKILL.md", () => {
     expect(content).toContain("Eliminating Waterfalls");
     expect(content).toContain("Bundle Size Optimization");
     expect(content).toContain("Re-render Optimization");
-    expect(content).toContain("accessibility");
+  });
+
+  test("description rule count matches the shipped rule files", () => {
+    const content = readFileSync(skillPath, "utf-8");
+    const description = content.match(/^description: (.*)$/m)?.[1] ?? "";
+    const ruleFiles = readdirSync(join(SKILLS_DIR, "react-best-practices", "rules")).filter(
+      (file) => file.endsWith(".md") && !file.startsWith("_"),
+    );
+    expect(description).toContain(`${ruleFiles.length} rules`);
+  });
+
+  test("retrieval metadata does not advertise accessibility coverage", () => {
+    const content = readFileSync(skillPath, "utf-8");
+    const frontmatter = content.split("\n---\n")[0];
+    const retrieval = frontmatter.slice(frontmatter.indexOf("\nretrieval:"));
+    expect(retrieval).not.toMatch(/accessib|a11y/i);
   });
 });
 

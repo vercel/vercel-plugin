@@ -218,7 +218,7 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 
 ## Errors
 
-`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, `MessageNotFoundError`, and `QueueEmptyError`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
+`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, and `MessageNotFoundError`. `QueueEmptyError` is exported but never thrown; an empty poll-mode `receive` returns `{ ok: false, reason: 'empty' }`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
 
 ## Common Pitfalls
 

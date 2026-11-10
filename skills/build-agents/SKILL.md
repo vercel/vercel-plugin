@@ -139,6 +139,17 @@ framework or you are modifying an established non-eve stack. Use Vercel AI
 Gateway model strings by default; do not introduce provider API keys unless
 the user needs a non-Vercel or provider-specific setup.
 
+## Run code in a sandbox
+
+When an agent needs to execute generated code, run user-submitted scripts, or
+work in an isolated filesystem, load ⤳ skill:vercel-sandbox for Sandbox setup,
+authentication, and lifecycle guidance. For an eve project, also read its
+versioned sandbox docs before configuring the integration.
+
+For heavy builds, full test suites, or parallel experiments that should run
+away from the local machine, load ⤳ skill:offload-to-sandbox. Keep editing and
+quick checks local, and let that skill guide source transfer, results, and cleanup.
+
 ## Slack Agents
 
 Slack agents still default to eve. For Slack-specific projects, leverage the

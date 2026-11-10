@@ -64,7 +64,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (35 skills)
+### Skills (38 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -88,6 +88,7 @@ A text-form relational graph covering:
 | `knowledge-update`      | Knowledge update guidance for the plugin                                                                                             |
 | `marketplace`           | Integration discovery and installation (`vercel integration add` / `vercel install`), provider agent skills, auto-provisioned env vars, unified billing |
 | `microfrontends`        | Multi-zone and microfrontend architecture, routing, deployment boundaries, and shared dependencies                                   |
+| `offload-to-sandbox`    | Offload heavy builds, test suites, and parallel agent work to Vercel Sandboxes with the `vercel sandbox` CLI: base snapshots, sharding, cleanup |
 | `queues`                | Vercel Queues — durable topics, `@vercel/queue` publish/consume, consumer groups, retries, delays, idempotency, Queues vs Workflows   |
 | `react-best-practices`  | React/Next.js performance optimization — 64 rules across 8 categories                                                                |
 | `routing-middleware`    | Request interception before cache, rewrites, redirects, personalization — Edge/Node.js/Bun runtimes                                  |
@@ -99,6 +100,7 @@ A text-form relational graph covering:
 | `vercel-flags`          | Vercel Flags — plan flags, choose an integration, `vercel flags` CLI, rollouts, A/B tests, `@vercel/flags-core`, safe retirement       |
 | `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, Cron Jobs, configuration                         |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
+| `vercel-schedules`      | Vercel Schedules — static `schedules` in vercel.json, private `schedule/v1beta` functions, dynamic `@vercel/schedules`, one-time runs, Cron Jobs migration |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Global Config (formerly Edge Config), Neon Postgres, Upstash Redis, migration from sunset packages                             |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
@@ -276,7 +278,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 35 skills
+├── skills/                          # 38 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content

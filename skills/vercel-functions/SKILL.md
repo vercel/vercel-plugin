@@ -9,7 +9,7 @@ metadata:
     - "https://vercel.com/docs/functions/runtimes"
     - "https://vercel.com/docs/functions/limitations"
     - "https://vercel.com/docs/functions/configuring-functions/duration"
-    - "https://vercel.com/docs/functions/container-images"
+    - "https://vercel.com/docs/functions/runtimes/container"
     - "https://vercel.com/docs/fluid-compute"
     - "https://vercel.com/docs/functions/websockets"
   sitemap: "https://vercel.com/sitemap.xml"
@@ -239,6 +239,10 @@ chainTo:
     pattern: 'import\s*\{[^}]*\bmetric\b[^}]*\}\s*from\s*[''"]@vercel/functions[''"]'
     targetSkill: custom-metrics
     message: '@vercel/functions metric() detected — loading Custom Metrics guidance for naming, attributes, and vc metrics queries.'
+  -
+    pattern: '@vercel/otel'
+    targetSkill: vercel-tracing
+    message: '@vercel/otel detected — loading Vercel Tracing guidance for instrumentation, sampling, and span inspection.'
 
 ---
 
@@ -476,7 +480,7 @@ To change the project-wide default: Settings → Functions → **Function Max Du
 Pro and Enterprise teams can run individual functions for up to **1800s**. Requirements, all of which are load-bearing:
 
 - **Per-function configuration only.** Durations above 800s must be set in code or in `vercel.json` for that function. **Project-level defaults above 800s are not supported** during the beta — raising the dashboard default will not get you to 1800s.
-- **Supported runtimes only**: `nodejs20.x`, `nodejs22.x`, `nodejs24.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
+- **Supported runtimes only**: `nodejs22.x`, `nodejs24.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
 - **Fluid Compute must be enabled** (default for new projects).
 - **Secure Compute and Static IPs do not support durations above 800s** during the beta. If the project uses either, you are capped at 800s.
 
@@ -683,20 +687,24 @@ Zero-config streaming on the default Node.js runtime, including Server-Sent Even
 > **You do NOT need `runtime = 'edge'` for streaming or SSE.** Streaming responses (`ReadableStream`, `text/event-stream`) work on the default Node.js runtime — this is the single most common reason people wrongly reach for Edge. Stay on Node.js (Fluid Compute) so you keep full Node.js APIs, npm packages, and longer durations; Edge offers no streaming advantage and caps you at 25s to first byte.
 
 ```ts
-export async function POST(req: Request) {
+export async function GET(request: Request) {
+  // Reading the request keeps this handler request-time; with Next.js Cache
+  // Components, a GET handler that reads no request data is prerendered at build.
+  const jobId = new URL(request.url).searchParams.get('jobId')
   const encoder = new TextEncoder()
+  const events = ['started', 'progress', 'done']
   const stream = new ReadableStream({
-    async start(controller) {
-      for (const chunk of data) {
-        controller.enqueue(encoder.encode(chunk))
-        await new Promise(r => setTimeout(r, 100))
+    start(controller) {
+      for (const event of events) {
+        // SSE frames are "data: <payload>" followed by a blank line
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ jobId, event })}\n\n`))
       }
       controller.close()
     },
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/event-stream' },
+    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
   })
 }
 ```
@@ -762,14 +770,14 @@ Express and Hono serve WebSockets the same way — export the HTTP server. Nitro
 
 ### Next.js
 
-Next.js doesn't expose an API for handling WebSocket upgrades. Use `experimental_upgradeWebSocket()` from `@vercel/functions` inside a route handler:
+Next.js doesn't expose an API for handling WebSocket upgrades. Use `upgradeWebSocket()` from `@vercel/functions` (3.10.0+) inside a route handler:
 
 ```ts
 // app/api/ws/route.ts
-import { experimental_upgradeWebSocket, type WebSocketData } from '@vercel/functions'
+import { upgradeWebSocket, type WebSocketData } from '@vercel/functions'
 
 export async function GET() {
-  return experimental_upgradeWebSocket((ws) => {
+  return upgradeWebSocket((ws) => {
     ws.on('message', (data: WebSocketData) => ws.send(data))
   })
 }
@@ -889,7 +897,7 @@ What you **cannot** put here:
 │  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
 │  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
 │  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
-│  │   ├─ Runtimes: nodejs20/22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   ├─ Runtimes: nodejs22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
 │  │   └─ Blocked if the project uses Secure Compute or Static IPs
 │  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
 ├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
@@ -955,7 +963,7 @@ Cold start latency > 1s?
 - [Configuring memory / CPU](https://vercel.com/docs/functions/configuring-functions/memory)
 - [Functions API reference](https://vercel.com/docs/functions/functions-api-reference) — `waitUntil`, `getDeadline`, SIGTERM, cancellation
 - [Fluid Compute](https://vercel.com/docs/fluid-compute)
-- [Container Images](https://vercel.com/docs/functions/container-images) — Dockerfile on Vercel
+- [Container Images](https://vercel.com/docs/functions/runtimes/container) — Dockerfile on Vercel
 - [Vercel Container Registry](https://vercel.com/docs/container-registry) and its [limits and pricing](https://vercel.com/docs/container-registry/limits-and-pricing)
 - [Services](https://vercel.com/docs/services) — multiple backends/frontends in one project
 - [Streaming](https://vercel.com/docs/functions/streaming-functions)

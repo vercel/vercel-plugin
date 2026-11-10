@@ -1,5 +1,5 @@
 name: react-best-practices
-description: React best-practices reviewer for TSX files. Triggers after editing multiple TSX components to run a condensed quality checklist covering component structure, hooks usage, accessibility, performance, and TypeScript patterns.
+description: Vercel's React and Next.js performance rules (70 rules in 8 categories ordered by impact - eliminating waterfalls, bundle size, server-side performance, client-side data fetching, re-renders, rendering performance, JavaScript performance, and advanced patterns). Use when writing, reviewing, or refactoring React components, Next.js pages, or data fetching for performance. Not an accessibility or TypeScript style guide.
 metadata:
   priority: 4
   docs:
@@ -27,17 +27,21 @@ validate:
 retrieval:
   aliases:
     - react review
-    - component quality
-    - tsx linter
+    - react performance
+    - nextjs performance
     - react patterns
   intents:
-    - review react code
-    - improve component quality
-    - check accessibility
+    - review react code for performance
+    - eliminate request waterfalls
+    - reduce bundle size
+    - reduce re-renders
     - optimize react
   entities:
     - hooks
-    - accessibility
     - React
+    - Next.js
     - TSX
     - component
+    - waterfall
+    - bundle size
+    - re-render
