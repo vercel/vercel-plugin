@@ -13,7 +13,7 @@ This only works for routes that run server code on each request. Static and prer
    ```
 
 2. Read the handler and list each awaited operation that could cost time: database queries, external API calls, cache reads, file or blob I/O, rendering, serialization, and CPU-heavy loops. Note which run sequentially and which run in parallel.
-3. Check what is already measured. Automatic outbound-fetch spans time the function's outbound HTTP requests; Next.js emits route and render spans once [instrumented](instrumentation.md). Add custom spans only for operations that are not already visible.
+3. Check what is already measured. Automatic outbound-fetch spans time the function's outbound HTTP requests; Next.js emits route and render spans once [instrumented](instrumentation.md). Turn on [library spans](library-spans.md) for installed libraries that are missing them, such as AI SDK calls or database queries. Add custom spans only for operations that are not already visible.
 
 ## 2. Wrap each operation in a span
 
