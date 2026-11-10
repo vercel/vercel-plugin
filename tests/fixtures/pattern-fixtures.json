@@ -160,7 +160,7 @@
     {
       "description": "vercel ai-gateway budgets triggers ai-gateway and vercel-cli",
       "type": "bash",
-      "input": "vercel ai-gateway budgets set team --limit 500 --refresh-period monthly",
+      "input": "vercel ai-gateway budgets set team --amount 500 --refresh-period monthly",
       "expectedSkills": ["ai-gateway", "vercel-cli"]
     },
     {
