@@ -1,7 +1,7 @@
 ---
 name: vercel-schedules
 description: Vercel Schedules guidance — run a private function, route, or Vercel Queues topic on a cron cadence or once at a set time. Covers static schedules in vercel.json, dynamic per-user schedules with @vercel/schedules, handleSchedule, the vercel schedules CLI, environments, jitter, and migrating from Cron Jobs. Use when adding scheduled or recurring work, one-time reminders, or replacing `crons`.
-summary: "Vercel Schedules replaces Cron Jobs. Static schedules go in vercel.json under `schedules` and target a private `function` (with an `experimentalTriggers: [{ type: 'schedule/v1beta' }]` trigger; the default), a queue `topic`, or a public `path` (only to migrate Cron Jobs without code changes). Dynamic schedules come from `Schedules.create()` in `@vercel/schedules@alpha` or `vercel schedules create`, target queue topics only, and support one-time runs, payloads, and namespaces. Wrap function handlers in `handleSchedule`; make handlers idempotent with `executionId`."
+summary: "Vercel Schedules replaces Cron Jobs. Static schedules go in vercel.json under `schedules` and target a private `function` (with an `experimentalTriggers: [{ type: 'schedule/v1beta' }]` trigger; the default), a queue `topic`, or a public `path` (only to migrate Cron Jobs without code changes). Dynamic schedules come from `Schedules.create()` in `@vercel/schedules` or `vercel schedules create`, target queue topics only, and support one-time runs, payloads, and namespaces. Wrap function handlers in `handleSchedule`; make handlers idempotent with `executionId`."
 metadata:
   priority: 6
   docs:
@@ -112,7 +112,7 @@ You are an expert in Vercel Schedules, which runs code on a recurring cron caden
 | **Takes effect** | When the deployment becomes current for its environment/branch | Immediately |
 | **Targets** | `function`, `path`, or `topic` | `topic` only |
 | **One-time runs** | No | Yes |
-| **Payload / namespace** | No / always `default` | Optional JSON (≤ 8 KB) / any namespace |
+| **Payload / namespace** | No / always `default` | Optional JSON (≤ 16 KB; 8 KB with `--local`) / any namespace |
 | **Update or delete** | Edit config and redeploy | SDK or CLI |
 
 Use **static** for jobs that belong to the app (nightly cleanup, hourly sync). Use **dynamic** for jobs the app creates for users (a reminder per customer, a report at 09:00 in each tenant's timezone).
@@ -132,7 +132,7 @@ If a failed run must be retried, target a queue topic.
 ## Quickstart: private function on a static schedule
 
 ```bash
-npm i @vercel/schedules@alpha
+npm i @vercel/schedules
 ```
 
 ```ts
@@ -191,7 +191,7 @@ vercel schedules invoke cleanup            # run once in production
 | `path` / `requestMethod` | Public route target, for code-free Cron Jobs migration only. Path must start with `/`. Method defaults to **`POST`**. |
 | `topic` | Vercel Queues topic. Letters, digits, `_`, `-`. |
 
-The object key is the schedule name: 1–256 chars of ASCII letters, digits, `.`, `_`, `-`, starting with a letter or digit. **Keep names stable.** Renaming deletes the schedule and creates a new one with fresh state and history. A project can have up to 100 static schedules.
+The object key is the schedule name: 1–256 chars of ASCII letters, digits, `.`, `_`, `-`, starting with a letter or digit. **Keep names stable.** Renaming deletes the schedule and creates a new one with fresh state and history. On Hobby, a deployment can declare up to 100 static schedules. On every plan, the CLI rejects a `vercel.json` with more than 500 `schedules` entries (Vercel CLI 65.11+; older CLIs cap it at 100).
 
 Cron syntax: digits, `*`, `,`, `-`, `/` only. No `MON`/`JAN` names, and don't set both day-of-month and day-of-week.
 
