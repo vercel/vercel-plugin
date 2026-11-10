@@ -73,7 +73,7 @@ Help the user create a backend by choosing an architecture before reaching for i
 | Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflows](https://vercel.com/docs/workflows)** |
 | Background jobs, buffering, fan-out, or direct message routing | **[Vercel Queues](https://vercel.com/docs/queues)** |
 | Always-on workers: queue consumers, Celery/Sidekiq/BullMQ workers, job runners | **[Vercel Daemons](https://vercel.com/docs/daemons)** (beta, production only) |
-| Scheduled HTTP work | **[Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)**; use Workflow when the job itself must be durable |
+| Recurring or one-time scheduled work | **[Vercel Schedules](https://vercel.com/docs/schedules)** (beta; replaces legacy Cron Jobs); load ⤳ skill:vercel-schedules; use Workflow when the job itself must be durable |
 | Postgres, Redis, NoSQL, vector, or other application data | **[Storage integrations from the Vercel Marketplace](https://vercel.com/marketplace/category/storage)** |
 | Files and user uploads | **[Vercel Blob](https://vercel.com/docs/vercel-blob)** |
 | Global, read-heavy configuration | **[Global Config](https://vercel.com/docs/global-config)** |
