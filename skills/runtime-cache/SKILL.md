@@ -62,7 +62,7 @@ The Runtime Cache is a **per-region key-value store** accessible from Vercel Fun
 
 - **Regional**: Each Vercel region has its own isolated cache
 - **Isolated**: Scoped per deployment environment (`preview` vs `production`); scoped per project on Pro/Enterprise, but shared across all projects on a Hobby team
-- **Persistent across deployments**: Cached data survives new deploys; invalidation via TTL or `expireTag`
+- **Persistent across deployments**: Cached data survives new deploys (except Next.js 16 `use cache: remote` entries, keyed per build); invalidation via TTL or `expireTag`
 - **Ephemeral**: Fixed storage limit per project; LRU eviction when full
 - **Framework-agnostic**: Works with any framework via `@vercel/functions`
 
@@ -206,9 +206,9 @@ async function getData() {
 
 ```bash
 # Purge all cached data
-vercel cache purge                    # CDN + Data cache
+vercel cache purge                    # CDN + Runtime + Data cache
 vercel cache purge --type cdn         # CDN only
-vercel cache purge --type data        # Data cache only
+vercel cache purge --type data        # Runtime + Data cache
 vercel cache purge --yes              # skip confirmation
 
 # Invalidate by tag (stale-while-revalidate)
