@@ -69,12 +69,12 @@ Results preserve input order. Available entries include `domain`, `available`, `
 For keyword/TLD discovery, a recent CLI can generate candidates:
 
 ```bash
-vercel domains search acme --tld com --tld dev --available --format=json
-vercel domains check example.com example.dev --format=json
-vercel domains price example.com --format=json
+vercel domains search acme --tld com --tld dev --available --json
+vercel domains check example.com example.dev --json
+vercel domains price example.com --json
 ```
 
-Check `vercel domains --help` and the selected subcommand's `--help` against the installed version. If discovery is unavailable or the CLI asks for login, use the public endpoint directly. CLI `search` accepts a keyword; API `search` accepts exact names. Do not substitute one input shape for the other.
+Check `vercel domains --help` and the selected subcommand's `--help` against the installed version (`--json` needs CLI 58.1+; older CLIs use `--format=json`). If discovery is unavailable or the CLI asks for login, use the public endpoint directly. CLI `search` accepts a keyword; API `search` accepts exact names. Do not substitute one input shape for the other.
 
 ## Connect and diagnose an existing domain
 
@@ -84,7 +84,7 @@ For authenticated work, inspect `vercel whoami` and use `--scope <team>` when se
 vercel domains ls --scope my-team
 vercel domains inspect example.com --scope my-team
 vercel domains add example.com my-project --scope my-team
-vercel domains verify example.com --project my-project --format=json --scope my-team
+vercel domains verify example.com --project my-project --json --scope my-team
 ```
 
 Use the actual expected DNS records and ownership-verification values returned for that domain and project. Do not hardcode a universal A record or CNAME target. Configure records at the authoritative DNS provider; `vercel dns` changes Vercel DNS only. Preserve unrelated records, especially MX and email-verification TXT records. Nameserver changes require carrying over the zone's required records.
@@ -92,7 +92,7 @@ Use the actual expected DNS records and ownership-verification values returned f
 | Task | CLI |
 | --- | --- |
 | List DNS records | `vercel dns ls example.com` |
-| Inspect a record | `vercel dns inspect <record-id> --format=json` |
+| Inspect a record | `vercel dns inspect <record-id> --json` |
 | Add the required TXT record | `vercel dns add example.com <record-name> TXT <record-value>` |
 | Update an existing record | `vercel dns update <record-id> --value <record-value>` |
 | Remove a specific record | `vercel dns rm <record-id>` |

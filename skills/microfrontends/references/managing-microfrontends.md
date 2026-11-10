@@ -24,14 +24,14 @@ If you omit `--group`, the command is interactive and lets you select a group. I
 # Interactive selection
 vercel microfrontends inspect-group
 
-# JSON output for scripting/agents
-vercel mf inspect-group --group="My Group" --format=json
+# JSON output for scripting/agents (`--json` needs CLI 58.1+; older CLIs use `--format=json`)
+vercel mf inspect-group --group="My Group" --json
 
 # With a custom config filename
-vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --format=json
+vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --json
 ```
 
-> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --format=json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
+> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
 
 ## Adding Microfrontends
 
