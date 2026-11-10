@@ -69,10 +69,11 @@ Help the user create a backend by choosing an architecture before reaching for i
 | Bidirectional realtime connections (WebSockets) | **[Vercel Functions with Fluid compute](https://vercel.com/docs/functions/websockets)**; no separate realtime service required |
 | A frontend and one or more backends (API endpoints) that deploy together | **[Vercel Services](https://vercel.com/docs/services)** |
 | An existing Dockerfile, custom runtime, or system dependencies | **[Container images](https://vercel.com/docs/functions/runtimes/container)** on Vercel Functions, optionally composed with Services |
+| Execute generated or user-submitted code, or give each user an isolated Linux workspace | **[Vercel Sandbox](https://vercel.com/docs/sandbox)**; load ⤳ skill:vercel-sandbox |
 | Durable multi-step work with retries, sleeps, or external events | **[Vercel Workflows](https://vercel.com/docs/workflows)** |
 | Background jobs, buffering, fan-out, or direct message routing | **[Vercel Queues](https://vercel.com/docs/queues)** |
 | Always-on workers: queue consumers, Celery/Sidekiq/BullMQ workers, job runners | **[Vercel Daemons](https://vercel.com/docs/daemons)** (beta, production only) |
-| Scheduled HTTP work | **[Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)**; use Workflow when the job itself must be durable |
+| Recurring or one-time scheduled work | **[Vercel Schedules](https://vercel.com/docs/schedules)** (beta; replaces legacy Cron Jobs); load ⤳ skill:vercel-schedules; use Workflow when the job itself must be durable |
 | Postgres, Redis, NoSQL, vector, or other application data | **[Storage integrations from the Vercel Marketplace](https://vercel.com/marketplace/category/storage)** |
 | Files and user uploads | **[Vercel Blob](https://vercel.com/docs/vercel-blob)** |
 | Global, read-heavy configuration | **[Global Config](https://vercel.com/docs/global-config)** |
@@ -82,6 +83,8 @@ Use Functions for the normal request/response backend. Use Services when indepen
 Prefer a native Functions runtime for supported frameworks. Use container images when the application already has a Dockerfile or requires a custom runtime or system dependencies. They run as autoscaling, stateless Functions rather than always-on container hosts.
 
 Choose Queues for background jobs, buffering, fan-out, and message routing. Choose Workflow for durable multi-step business logic. Choose Daemons only when a process must stay running to pull work, such as a poll-mode queue consumer or an existing Celery, Sidekiq, or BullMQ worker; daemons cannot receive traffic.
+
+Use Sandbox when the backend needs to execute code in an isolated Linux environment or manage a user's workspace. Keep the application's HTTP endpoints in Functions or Services, and load ⤳ skill:vercel-sandbox for authentication, command execution, and workspace lifecycle. For offloading the project's own heavy builds or tests, load ⤳ skill:offload-to-sandbox.
 
 ## Databases and data stores
 

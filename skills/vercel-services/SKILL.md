@@ -228,7 +228,7 @@ vercel dev
 Use local-only mode when cloud authentication is unnecessary:
 
 ```bash
-vercel dev -L
+vercel dev --local
 ```
 
 Deploy the project normally with `vercel` or Git integration. All services participate in the same preview and production deployment.
