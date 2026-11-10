@@ -131,12 +131,12 @@ Run the deployed code at least once, then use the linked project and correct tea
 vc metrics schema
 vc metrics schema orders.duration_ms
 
-vc metrics orders.created -a sum --group-by outcome --since 24h
-vc metrics orders.duration_ms -a p95 --since 1h
-vc metrics orders.duration_ms -a p95 --group-by outcome --since 24h --format=json
+vc metrics orders.created --aggregation sum --group-by outcome --since 24h
+vc metrics orders.duration_ms --aggregation p95 --since 1h
+vc metrics orders.duration_ms --aggregation p95 --group-by outcome --since 24h --json
 ```
 
-`vc` and `vercel` are equivalent. Always inspect the exact metric first with `vc metrics schema <name>` because the schema reports the available aggregations and discovered tag dimensions. Use `-S <team>` and `-p <project>` when the current link or scope is ambiguous; use `--all` only for a deliberate team-wide query.
+`vc` and `vercel` are equivalent. Use `--aggregation`; `-a` still works but is a deprecated shorthand. Use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format=json`). Always inspect the exact metric first with `vc metrics schema <name>` because the schema reports the available aggregations and discovered tag dimensions. Use `-S <team>` and `-p <project>` when the current link or scope is ambiguous; use `--all` only for a deliberate team-wide query.
 
 Custom Metrics querying requires Observability Plus and availability for the selected team. If a metric is missing:
 
