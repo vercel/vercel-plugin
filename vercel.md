@@ -674,7 +674,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ----------------------------------- | -------------------------------- | ------------------------------------------------ |
 | Form submissions, in-app mutations  | Server Actions                   | Integrated with caching, progressive enhancement |
 | Public API, webhooks, large uploads | Route Handlers                   | REST semantics, streaming support                |
-| Scheduled tasks                     | Cron Jobs + Vercel Functions     | Reliable scheduling                              |
+| Scheduled tasks                     | Vercel Schedules (beta)          | Timezones, private targets; replaces legacy Cron Jobs |
 
 ### AI Features
 
@@ -953,7 +953,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Add `.env*.local` to `.gitignore` — these files contain pulled secrets.
 - Use Fluid Compute for long-running functions — extends max duration to 800s on paid plans.
 - Use `waitUntil` (or `after` in Next.js) for background work after sending a response.
-- Configure cron jobs in `vercel.json` and verify with `CRON_SECRET` header.
+- Schedule recurring or one-time work with Vercel Schedules (`schedules` in `vercel.json`, private `function` targets; ⤳ skill: vercel-schedules). Cron Jobs are legacy: existing `crons` keep working (verify them with a `CRON_SECRET` check); migrate them to Schedules.
 - Use `vercel deploy --prebuilt` in CI for fastest deploys (separate build from deploy).
 - For monorepos, use Turborepo with remote caching and `--affected` for efficient CI.
 

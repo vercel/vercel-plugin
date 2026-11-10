@@ -98,7 +98,7 @@ A text-form relational graph covering:
 | `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
 | `vercel-flags`          | Vercel Flags — plan flags, choose an integration, `vercel flags` CLI, rollouts, A/B tests, `@vercel/flags-core`, safe retirement       |
-| `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, Cron Jobs, configuration                         |
+| `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, legacy Cron Jobs, configuration                  |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-schedules`      | Vercel Schedules — static `schedules` in vercel.json, private `schedule/v1beta` functions, dynamic `@vercel/schedules`, one-time runs, Cron Jobs migration |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
@@ -321,7 +321,7 @@ back into the repository.
 - Chat SDK (multi-platform chat bots — Slack, Telegram, Teams, Discord)
 - Workflow SDK (WorkflowAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
-- Vercel Functions (Fluid Compute, Node.js/Bun/Python/Rust, streaming, WebSockets, Cron Jobs)
+- Vercel Functions (Fluid Compute, Node.js/Bun/Python/Rust, streaming, WebSockets, legacy Cron Jobs)
 - Vercel Services (multiple frontends and backends, public rewrites, private bindings)
 - Storage (Blob, Global Config, Neon Postgres, Upstash Redis)
 - Routing Middleware (request interception, Edge/Node.js/Bun runtimes)
@@ -329,6 +329,7 @@ back into the repository.
 - Vercel Flags (feature flags, Flags Explorer, gradual rollouts, A/B testing)
 - Vercel Queues (durable event streaming, topics, consumer groups, retries)
 - Vercel Daemons (long-running background workers from a Dockerfile, instances per region)
+- Vercel Schedules (recurring and one-time runs of private functions, routes, or queue topics; replaces Cron Jobs)
 - Vercel Agent (chat, code review, investigations, approved actions)
 - Vercel Sandbox (Firecracker microVMs for untrusted code)
 - Sign in with Vercel (OAuth 2.0/OIDC identity provider)
