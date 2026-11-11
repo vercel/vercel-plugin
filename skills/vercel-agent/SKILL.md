@@ -69,12 +69,8 @@ Dashboard chat, Slack chat, Investigations, Code Review, and Security Review are
 - Supports inline suggestions and full patch proposals
 
 ### Security Review
-- Reviews deployments for security vulnerabilities and reports each finding to the team's **Vulnerabilities** dashboard
-- Adds a **Vercel Security Review** GitHub check to each commit it reviews. On private or internal repositories with an open PR, it also comments the findings on the PR
-- On **public repositories** the check only names what it reviewed and links to the dashboard, so an unpatched vulnerability isn't disclosed. The finding details are not in GitHub
-- To read or triage findings from a terminal or coding agent, use `vercel security vulnerabilities` (list, `inspect`, `dismiss`, `reopen`). See the vercel-cli skill's `references/security.md`
-- Findings are `open` until fixed or dismissed; `closed` means a later review no longer detects the issue
-- Findings include source code and how to exploit it. Don't copy them into public PRs, issues, or logs
+- Reviews code for security vulnerabilities and reports findings to the team's **Vulnerabilities** dashboard and as a GitHub check
+- Read and triage findings with `vercel security vulnerabilities` (see the vercel-cli skill's `references/security.md`)
 
 ### Investigation
 - Analyzes anomaly alerts, failed deployments, runtime errors, cost issues, and performance issues using project logs and metrics.
