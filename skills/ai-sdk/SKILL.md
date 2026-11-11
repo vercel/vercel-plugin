@@ -1,6 +1,6 @@
 ---
 name: ai-sdk
-description: Vercel AI SDK expert guidance. Use when building AI-powered features — chat interfaces, text generation, structured output, tool calling, agents, MCP integration, streaming, embeddings, reranking, image generation, or working with any LLM provider.
+description: Vercel AI SDK expert guidance. Use when building AI-powered features — chat interfaces, text generation, structured output, tool calling, MCP integration, streaming, embeddings, reranking, image generation, or working with any LLM provider. For new agent apps, use build-agents.
 metadata:
   priority: 8
   docs:
