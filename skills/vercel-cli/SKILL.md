@@ -1,6 +1,6 @@
 ---
 name: vercel-cli
-description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, debugging a deployed app on Vercel (errors, 5xx responses, timeouts, slow routes, or a single failing request), managing domains, managing feature flags with vercel flags, or interacting with the Vercel platform from the command line. Use the vercel-tracing skill instead for `vercel traces` span search, trace inspection, and sampling rules, or for OpenTelemetry setup.
+description: Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, debugging a deployed app on Vercel (errors, 5xx responses, timeouts, slow routes, or a single failing request), managing domains, managing feature flags with vercel flags, reading or triaging Security Review vulnerabilities with vercel security (including a failing Vercel Security Review check), or interacting with the Vercel platform from the command line. Use the vercel-tracing skill instead for `vercel traces` span search, trace inspection, and sampling rules, or for OpenTelemetry setup.
 metadata:
   priority: 4
   docs:
@@ -37,6 +37,8 @@ metadata:
       - "deployment error"
       - "check vercel"
       - "vercel status"
+      - "vercel security"
+      - "security review"
     allOf:
       - [check, deployment]
       - [check, deploy]
@@ -75,6 +77,7 @@ retrieval:
     - vercel logs
     - vercel metrics
     - vercel traces
+    - vercel security
 chainTo:
   -
     pattern: '\b(?:vercel|vc)\s+traces\b'
@@ -149,6 +152,7 @@ Use this to route to the correct reference file:
 - **Connectors (`vercel connect`)** → `references/connectors.md`
 - **Routing rules** → `references/routing.md`
 - **Firewall (WAF rules, IP blocks, rate limiting)** → `references/firewall.md`
+- **Security Review vulnerabilities, a failing Vercel Security Review check, or Security Dashboard checks (`vercel security`)** → `references/security.md`
 - **Access a preview deployment** → use `vercel curl` (see `references/monitoring-and-debugging.md`)
 - **CLI command is unavailable or output is missing required fields** → use `vercel api` after first-class CLI paths are unavailable or insufficient (see `references/advanced.md`)
 - **Node.js backends (Express, Hono, etc.)** → `references/node-backends.md`

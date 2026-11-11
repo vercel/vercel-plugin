@@ -1,6 +1,6 @@
 ---
 name: vercel-agent
-description: Vercel Agent guidance — dashboard and Slack chat, code review, production investigation, approved actions, and product installation. Use when configuring or working with Vercel's AI assistant.
+description: Vercel Agent guidance — dashboard and Slack chat, code review, Security Review, production investigation, approved actions, and product installation. Use when configuring or working with Vercel's AI assistant.
 metadata:
   priority: 4
   docs:
@@ -28,10 +28,12 @@ retrieval:
     - set up vercel agent
     - automate code review
     - investigate incident
+    - read security review findings
     - configure ai tools
   entities:
     - Vercel Agent
     - code review
+    - Security Review
     - incident investigation
     - approved actions
 chainTo:
@@ -66,6 +68,14 @@ Dashboard chat, Slack chat, Investigations, Code Review, and Security Review are
 - Generates and validates patches in **Vercel Sandbox** (secure execution)
 - Supports inline suggestions and full patch proposals
 
+### Security Review
+- Reviews deployments for security vulnerabilities and reports each finding to the team's **Vulnerabilities** dashboard
+- Adds a **Vercel Security Review** GitHub check to each commit it reviews. On private or internal repositories with an open PR, it also comments the findings on the PR
+- On **public repositories** the check only names what it reviewed and links to the dashboard, so an unpatched vulnerability isn't disclosed. The finding details are not in GitHub
+- To read or triage findings from a terminal or coding agent, use `vercel security vulnerabilities` (list, `inspect`, `dismiss`, `reopen`). See the vercel-cli skill's `references/security.md`
+- Findings are `open` until fixed or dismissed; `closed` means a later review no longer detects the issue
+- Findings include source code and how to exploit it. Don't copy them into public PRs, issues, or logs
+
 ### Investigation
 - Analyzes anomaly alerts, failed deployments, runtime errors, cost issues, and performance issues using project logs and metrics.
 - Observability Plus includes 10 investigations per billing cycle. Additional investigations are billed by token use.
@@ -99,3 +109,5 @@ Select **Agent** in the top-right corner of the Vercel dashboard to start a conv
 - 📖 docs: https://vercel.com/docs/agent
 - 📖 pricing: https://vercel.com/docs/agent/pricing
 - 📖 permissions: https://vercel.com/docs/agent/chat/permissions
+- 📖 security review: https://vercel.com/docs/agent/security-review/usage
+- 📖 CLI: https://vercel.com/docs/cli/security
