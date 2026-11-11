@@ -1,7 +1,7 @@
 {
   "name": "vercel-plugin",
   "displayName": "Vercel",
-  "version": "0.55.0",
+  "version": "0.55.1",
   "description": "Build and deploy web apps and AI agents on Vercel with skills for Next.js, AI SDK, and cloud services, plus the official Vercel MCP server.",
   "logo": "assets/vercel-antigravity.svg",
   "suggestedPrompts": [
