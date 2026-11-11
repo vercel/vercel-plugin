@@ -32,10 +32,10 @@
       "expectedSkills": []
     },
     {
-      "description": "a Prisma schema alone does not establish Vercel bootstrap requirements",
+      "description": "a Prisma schema discovers bootstrap and storage guidance; provisioning remains scoped to selected Vercel resources",
       "type": "path",
       "input": "prisma/schema.prisma",
-      "expectedSkills": ["vercel-storage"]
+      "expectedSkills": ["bootstrap", "vercel-storage"]
     },
     {
       "description": ".github/workflows/deploy.yml triggers deployments-cicd and vercel-agent, not workflow",

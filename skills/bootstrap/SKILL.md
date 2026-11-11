@@ -11,6 +11,7 @@ metadata:
     - '.vercel/project.json'
     - '.vercel/repo.json'
     - 'vercel.ts'
+    - 'prisma/schema.prisma'
   bashPatterns:
     - '\\bvercel\\s+link\\b'
     - '\\bvercel\\s+integration\\s+(?:add|install)\\b'
@@ -53,11 +54,20 @@ retrieval:
 
 # Project Bootstrap Orchestrator
 
+## Applicability
+
 Apply this sequence only to setup that depends on Vercel-linked resources
 already selected by the user or project. Preserve the chosen framework,
 providers, existing resources, and confirmed UI: do not change layout, theme,
 fonts, or component libraries as part of environment setup. General planning
 and local-only repositories do not require this Vercel bootstrap sequence.
+
+A `prisma/schema.prisma` file makes the Prisma guidance discoverable; it does
+not select Vercel hosting or authorize database provisioning. First inspect
+the existing connection and the requested setup. If the task does not use
+Vercel-linked resources, follow the existing provider's workflow without
+requiring Vercel authentication, linking, or env pulls before migrations or
+development.
 
 For the applicable Vercel setup, execute bootstrap in strict order. Do not run
 migrations or the development server until project linking and environment
@@ -66,7 +76,7 @@ project; Postgres and AUTH_SECRET are not universal prerequisites.
 
 ## Rules
 
-- Do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
+- For setup that depends on selected Vercel resources, do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
 - Preserve existing providers and resources. Use Vercel-managed provisioning (`vercel integration ...`) for new resources when that integration path is selected.
 - Use the existing provider's supported setup path for external resources; use provider CLIs as fallback when the selected Vercel integration flow is unavailable.
 - Never echo secret values in terminal output, logs, or summaries.
@@ -98,9 +108,15 @@ cp .env.example .env.local
 
 ## Resource Setup: Postgres
 
+Reuse an existing database and verify its connection before considering a new
+resource. Provision only when the task requires a new Postgres database and
+the Vercel integration path has been selected. Preserve an explicitly chosen
+provider; the defaults below apply only when the provider is still unchosen.
+
 ### Prisma ORM projects
 
-If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+For an eligible new database in a repo with `prisma/schema.prisma`, prefer
+Prisma Postgres over the Neon default below:
 
 ```bash
 vercel integration guide prisma

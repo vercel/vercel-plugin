@@ -77,6 +77,16 @@ describe("explain file matching", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("No skills matched");
   });
+
+  test("a Prisma schema retains bootstrap and storage discovery", async () => {
+    const { stdout, exitCode } = await runCli("explain", "prisma/schema.prisma", "--json");
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    const bootstrap = result.matches.find((match: { skill: string }) => match.skill === "bootstrap");
+    expect(bootstrap?.injected).toBe(true);
+    expect(bootstrap?.injectionMode).toBe("full");
+    expect(result.matches.some((match: { skill: string }) => match.skill === "vercel-storage")).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -31,8 +31,12 @@ describe("selected-stack routing evidence", () => {
     expect(matchImportWithReason(source, sdk.compiledImports)).toBeNull();
   });
 
-  test.each(["package.json", "prisma/schema.prisma", ".env.example"])("does not require Vercel bootstrap from generic setup files: %s", (path) => {
+  test.each(["package.json", ".env.example", "drizzle.config.ts"])("does not require Vercel bootstrap from generic setup files: %s", (path) => {
     expect(matchPathWithReason(path, bootstrap.compiledPaths)).toBeNull();
+  });
+
+  test("keeps Prisma bootstrap guidance discoverable from its schema", () => {
+    expect(matchPathWithReason("prisma/schema.prisma", bootstrap.compiledPaths)).not.toBeNull();
   });
 
   test.each([".vercel/project.json", ".vercel/repo.json", "vercel.ts"])("recognizes explicit Vercel project configuration: %s", (path) => {

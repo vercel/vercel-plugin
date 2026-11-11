@@ -4,7 +4,12 @@ description: Bootstrap a repository with Vercel-linked resources by running pref
 
 # Vercel Project Bootstrap
 
-Run a deterministic bootstrap flow for new or partially configured repositories.
+Run a deterministic bootstrap flow for repositories using selected Vercel resources.
+
+## Applicability
+
+<!-- Sourced from bootstrap skill: Applicability -->
+{{include:skill:bootstrap:Applicability}}
 
 ## Preflight
 
@@ -21,8 +26,8 @@ Stop with clear guidance if CLI auth or linkage fails.
 Execute in this order:
 
 1. Preflight validation and project linking.
-2. Resource provisioning (prefer Vercel-managed Neon integration).
-3. Secret/bootstrap env setup (`AUTH_SECRET`, env pull, key verification).
+2. Verify existing resources; provision only required new resources through the selected provider. When choosing a new Vercel-managed Postgres database, prefer Prisma Postgres for Prisma ORM projects and Neon otherwise.
+3. Required secret/bootstrap env setup (`AUTH_SECRET` only when needed, env pull, key verification).
 4. Application bootstrap (`db:*` then `dev`) only after env checks pass.
 
 <!-- Sourced from bootstrap skill: Rules -->
