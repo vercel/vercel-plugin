@@ -145,7 +145,7 @@ vercel firewall rules update "My Rule" \
 vercel firewall rules enable  "My Rule"
 vercel firewall rules disable "My Rule"
 vercel firewall rules remove  "My Rule" --yes                      # aliases: rm, delete
-vercel firewall rules move    "My Rule" --first  --yes             # move to highest priority (`move` needs CLI 65.2+; older CLIs use `reorder`)
+vercel firewall rules move    "My Rule" --first  --yes             # move to highest priority; alias: reorder (deprecated)
 vercel firewall rules move    "My Rule" --last   --yes
 vercel firewall rules move    "My Rule" --position 3 --yes         # 1-based
 ```
