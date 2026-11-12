@@ -253,7 +253,7 @@ Only spend credits, create keys, change budgets, change routing rules, or write 
 ## Routing invariants
 
 - Model IDs use the exact `provider/model` strings returned by `/v1/models`.
-- Default routing already fails over across providers. Add `order` (preference), `only` (hard filter, no failover outside it), or `sort` (one-metric ranking) only for a stated requirement.
+- Leave `order`, `only`, and `sort` unset. Default routing adapts to health and rate limits and fails over; add one only for a stated requirement.
 - `models` lists fallback models after the primary model.
 - `caching: 'auto'` manages provider prompt-cache markers. It is not an HTTP response cache.
 - `providerTimeouts` applies to BYOK provider attempts. Streaming requests clear it at the first stream chunk; non-streaming requests time the complete response.
