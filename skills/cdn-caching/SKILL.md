@@ -154,6 +154,24 @@ vercel metrics vercel.request.count -S <team> -p <project> \
   --environment production --group-by cache_result --since 24h
 ```
 
+To get the hit rate itself, compute it in one query with `--data`, which takes several metrics and a formula over them (needs a Vercel CLI release with `vercel metrics --data`; check `vercel metrics --help`). The query uses the API's camelCase dimension names (`cacheResult`, `route`), and `--environment`/`--group-by` can't be combined with `--data`, so put them in the query:
+
+```bash
+vercel metrics -S <team> -p <project> --since 24h --data '{
+  "filter": "environment:production",
+  "metrics": {
+    "served": {"metric": "vercel.request.count", "aggregation": "count", "filter": "cacheResult:(HIT OR STALE OR PRERENDER)"},
+    "cacheable": {"metric": "vercel.request.count", "aggregation": "count", "filter": "cacheResult:(HIT OR STALE OR PRERENDER OR MISS OR REVALIDATED)"}
+  },
+  "formulas": {"hitRate": "served / cacheable * 100"},
+  "groupBy": ["route"],
+  "orderBy": [{"metric": "cacheable", "direction": "desc"}],
+  "rowLimit": 20
+}'
+```
+
+Drop `groupBy`, `orderBy`, and `rowLimit` for one overall number.
+
 **Step 2 — where misses concentrate.** Split the `MISS` bucket (and optionally `STALE`) by `path_type`, then by `route` or `request_path`:
 
 ```bash
@@ -184,14 +202,20 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> --aggrega
 **Write utilization = cache serves ÷ ISR writes** — cached reads per regeneration.
 
 ```bash
-# numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
-vercel metrics vercel.request.count -S <team> -p <project> \
-  --environment production -q "cache_result:(HIT OR STALE)" \
-  --group-by route --aggregation sum --since 24h
-# denominator: ISR writes
-vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  --environment production --group-by route --aggregation sum --since 24h
+vercel metrics -S <team> -p <project> --since 24h --data '{
+  "filter": "environment:production",
+  "metrics": {
+    "serves": {"metric": "vercel.request.count", "aggregation": "count", "filter": "cacheResult:(HIT OR STALE OR PRERENDER)"},
+    "writes": {"metric": "vercel.isr_operation.write_units", "aggregation": "sum"}
+  },
+  "formulas": {"servesPerWrite": "serves / writes"},
+  "groupBy": ["route"],
+  "orderBy": [{"metric": "writes", "direction": "desc"}],
+  "rowLimit": 20
+}'
 ```
+
+Both metrics support `route`, so the formula is computed per route. A route with no ISR writes shows `servesPerWrite` as empty (division by zero is `null`). With an older CLI, run the two metrics as separate queries (`vercel.request.count -q "cache_result:(HIT OR STALE OR PRERENDER)"` and `vercel.isr_operation.write_units --aggregation sum`, both `--group-by route`) and divide per route.
 
 High is good; near or below ~1 means you regenerate about as fast as the page is read (wasted writes) → lengthen the revalidate interval or move time-based to on-demand tag revalidation.
 
