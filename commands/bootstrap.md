@@ -4,7 +4,28 @@ description: Bootstrap a repository with Vercel-linked resources by running pref
 
 # Vercel Project Bootstrap
 
-Run a deterministic bootstrap flow for new or partially configured repositories.
+Run a deterministic bootstrap flow for repositories using selected Vercel resources.
+
+## Applicability
+
+<!-- Sourced from bootstrap skill: Applicability -->
+Apply this sequence only to setup that depends on Vercel-linked resources
+already selected by the user or project. Preserve the chosen framework,
+providers, existing resources, and confirmed UI: do not change layout, theme,
+fonts, or component libraries as part of environment setup. General planning
+and local-only repositories do not require this Vercel bootstrap sequence.
+
+A `prisma/schema.prisma` file makes the Prisma guidance discoverable; it does
+not select Vercel hosting or authorize database provisioning. First inspect
+the existing connection and the requested setup. If the task does not use
+Vercel-linked resources, follow the existing provider's workflow without
+requiring Vercel authentication, linking, or env pulls before migrations or
+development.
+
+For the applicable Vercel setup, execute bootstrap in strict order. Do not run
+migrations or the development server until project linking and environment
+verification are complete. Run only the resource sections required by the
+project; Postgres and AUTH_SECRET are not universal prerequisites.
 
 ## Preflight
 
@@ -42,14 +63,14 @@ Stop with clear guidance if CLI auth or linkage fails.
 Execute in this order:
 
 1. Preflight validation and project linking.
-2. Resource provisioning (prefer Vercel-managed Neon integration).
-3. Secret/bootstrap env setup (`AUTH_SECRET`, env pull, key verification).
+2. Verify existing resources; provision only required new resources through the selected provider. When choosing a new Vercel-managed Postgres database, prefer Prisma Postgres for Prisma ORM projects and Neon otherwise.
+3. Required secret/bootstrap env setup (`AUTH_SECRET` only when needed, env pull, key verification).
 4. Application bootstrap (`db:*` then `dev`) only after env checks pass.
 
 <!-- Sourced from bootstrap skill: Rules -->
-- Do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
-- Prefer Vercel-managed provisioning (`vercel integration ...`) for shared resources.
-- Use provider CLIs only as fallback when Vercel integration flow is unavailable.
+- For setup that depends on selected Vercel resources, do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
+- Preserve existing providers and resources. Use Vercel-managed provisioning (`vercel integration ...`) for new resources when that integration path is selected.
+- Use the existing provider's supported setup path for external resources; use provider CLIs as fallback when the selected Vercel integration flow is unavailable.
 - Never echo secret values in terminal output, logs, or summaries.
 
 ## Commands
@@ -67,9 +88,15 @@ If `.env.example` is absent, use `.env.sample` or `.env.template`.
 ### 2. Provision Postgres
 
 <!-- Sourced from bootstrap skill: Resource Setup: Postgres -->
+Reuse an existing database and verify its connection before considering a new
+resource. Provision only when the task requires a new Postgres database and
+the Vercel integration path has been selected. Preserve an explicitly chosen
+provider; the defaults below apply only when the provider is still unchosen.
+
 ### Prisma ORM projects
 
-If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+For an eligible new database in a repo with `prisma/schema.prisma`, prefer
+Prisma Postgres over the Neon default below:
 
 ```bash
 vercel integration guide prisma
@@ -164,7 +191,7 @@ Confirm each checkpoint:
 
 - `vercel whoami` succeeds.
 - `.vercel/project.json` exists and matches chosen project.
-- Postgres integration path completed (Vercel integration, dashboard, or provider CLI fallback).
+- Required resource setup completed using the selected path; record Postgres as not required when the project does not use it.
 - `vercel env pull .env.local --yes` succeeds.
 - Required env key diff is empty.
 - Database command status is recorded (`db:push`, `db:seed`, `db:migrate`, `db:generate` as applicable).
@@ -180,9 +207,9 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: existing-provider | vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli | not-required
 - **Env Keys**: <count> required, <count> present, <count> missing
-- **Secrets**: AUTH_SECRET set in Vercel (value never shown)
+- **Secrets**: not-required | existing | configured (values never shown)
 - **Migration Status**: not-run | success | failed (<step>)
 - **Dev Result**: not-run | started | failed
 ```

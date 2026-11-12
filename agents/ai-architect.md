@@ -202,12 +202,12 @@ Use when: Q&A over custom documents, knowledge bases, semantic search.
 ## Migration from Older AI SDK Patterns
 
 <!-- Sourced from ai-sdk skill: Keep the SDK Current -->
-Outdated installs are the most common source of errors. Compare the installed version against the latest:
-
-- **Installed:** the `version` field in `node_modules/ai/package.json`.
-- **Latest:** run `npm view ai version`.
-
-If the installed version is a major version (or more) behind the latest, tell the user they are on an old release, and recommend upgrading before continuing. Migration guides are at https://ai-sdk.dev/docs/migration-guides.
+Use the installed version's documentation for the requested change. Investigate
+an upgrade when the user requests one or a specific compatibility issue makes
+it relevant; do not make being behind the latest release a prerequisite for
+continuing unrelated work. Migration guides are at
+https://ai-sdk.dev/docs/migration-guides. Keep any version change within the
+authorized task scope.
 
 Common renames when upgrading: `parameters` → `inputSchema`, `maxSteps` → `stopWhen: isStepCount(n)` (`stepCountIs` in AI SDK 6), `generateObject`/`streamObject` → `generateText`/`streamText` with `Output.object()`, `toDataStreamResponse()` → `toUIMessageStreamResponse()`, `useChat({ api })` → `useChat({ transport: new DefaultChatTransport({ api }) })`, `tool-invocation` parts → `tool-<toolName>` parts, `DurableAgent` (`@workflow/ai`) → `WorkflowAgent` (`@ai-sdk/workflow`). For AI SDK 7 specifically (Node.js 22 minimum, ESM-only, `telemetry`, `finalStep`, `runtimeContext`, `toolsContext`), run the v7 codemods and follow https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0.
 

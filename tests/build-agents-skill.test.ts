@@ -51,7 +51,16 @@ describe("build-agents prompt activation", () => {
     "Design a multi-agent system with tools and approvals.",
     "Which agent framework should I use for this application?",
     "Implement a tool-calling agent for release-note triage.",
-  ])("matches generic agent-building intent: %s", (prompt) => {
+  ])("does not choose the Vercel/eve stack from generic intent: %s", (prompt) => {
+    expect(matchesPrompt(prompt)).toBe(false);
+  });
+
+  test.each([
+    "Build an eve agent that triages support tickets.",
+    "Add scheduled research to our existing eve agent.",
+    "Scaffold eve for the agent architecture we selected.",
+    "Design an agent architecture on Vercel.",
+  ])("matches an explicitly selected stack: %s", (prompt) => {
     expect(matchesPrompt(prompt)).toBe(true);
   });
 
@@ -64,7 +73,7 @@ describe("build-agents prompt activation", () => {
     expect(matchesPrompt(prompt)).toBe(false);
   });
 
-  test("is the top prompt-analysis match for a generic agent build", () => {
+  test("does not select build-agents for an unchosen stack", () => {
     const report = analyzePrompt(
       "build me an agent",
       skillMap,
@@ -74,8 +83,8 @@ describe("build-agents prompt activation", () => {
       { lexicalEnabled: false },
     );
 
-    expect(report.selectedSkills[0]).toBe("build-agents");
-    expect(report.perSkillResults["build-agents"].matched).toBe(true);
+    expect(report.selectedSkills).not.toContain("build-agents");
+    expect(report.perSkillResults["build-agents"].matched).toBe(false);
     expect(report.perSkillResults.eve.matched).toBe(false);
   });
 

@@ -123,7 +123,7 @@ describe("session timeline subagent integration", () => {
       expect(parseInjectedSkills(leadInstall.stdout)).toContain("ai-sdk");
 
       const leadRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/api/chat/route.ts" } },
+        { tool_name: "Edit", tool_input: { file_path: "/Users/me/notion-clone/app/api/chat/route.ts", new_string: 'import { streamText } from "ai";' } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "ai-sdk" },
       );
 
@@ -135,7 +135,7 @@ describe("session timeline subagent integration", () => {
 
       const subagentSession = `timeline-subagent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const subagentRead = await runHookEnv(
-        { tool_name: "Read", tool_input: { file_path: "/Users/me/notion-clone/app/api/chat/route.ts" } },
+        { tool_name: "Edit", tool_input: { file_path: "/Users/me/notion-clone/app/api/chat/route.ts", new_string: 'import { streamText } from "ai";' } },
         { VERCEL_PLUGIN_SEEN_SKILLS: "", VERCEL_PLUGIN_HOOK_DEBUG: "1" },
         { sessionId: subagentSession },
       );

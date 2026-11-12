@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: Project bootstrapping orchestrator for repos that depend on Vercel-linked resources (databases, auth, and managed integrations). Use when setting up or repairing a repository so linking, environment provisioning, env pulls, and first-run db/dev commands happen in the correct safe order.
+description: Set up or repair repositories that already use, or have selected, Vercel-linked resources. Coordinate project linking, required integrations, environment verification, and first-run commands while preserving the chosen framework, providers, and UI. Generic local setup or planning alone does not require Vercel linking or provisioning.
 metadata:
   priority: 8
   docs:
@@ -8,33 +8,18 @@ metadata:
     - "https://nextjs.org/docs/app/getting-started/installation"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
-    - '.env.example'
-    - '.env.sample'
-    - '.env.template'
-    - 'README*'
-    - 'docs/**/setup*'
-    - 'package.json'
-    - 'drizzle.config.*'
+    - '.vercel/project.json'
+    - '.vercel/repo.json'
+    - 'vercel.ts'
     - 'prisma/schema.prisma'
-    - 'auth.*'
-    - 'src/**/auth.*'
   bashPatterns:
-    - '\\bcp\\s+\\.env\\.(?:example|sample|template)\\s+\\.env\\.local\\b'
-    - '\\b(?:npm|pnpm|bun|yarn)\\s+run\\s+db:(?:push|seed|migrate|generate)\\b'
-    - '\\b(?:npm|pnpm|bun|yarn)\\s+run\\s+dev\\b'
     - '\\bvercel\\s+link\\b'
     - '\\bvercel\\s+integration\\s+(?:add|install)\\b'
     - '\\bvercel\\s+env\\s+pull\\b'
   importPatterns:
-    - '@neondatabase/serverless'
-    - 'drizzle-orm'
-    - '@upstash/redis'
     - '@vercel/blob'
     - '@vercel/edge-config'
     - '@vercel/global-config'
-    - 'next-auth'
-    - '@auth/core'
-    - 'better-auth'
 chainTo:
   -
     pattern: '@vercel/(postgres|kv)|\b(KV_REST_API_URL|POSTGRES_URL)\b'
@@ -43,21 +28,20 @@ chainTo:
   -
     pattern: 'from\s+[''""](next-auth|@auth/core|@clerk/nextjs|better-auth)[''""]'
     targetSkill: auth
-    message: 'Auth library detected during bootstrap — loading Auth guidance for Clerk Marketplace setup and middleware patterns.'
+    message: 'Auth library detected during Vercel bootstrap — load guidance for the configured provider without changing the chosen authentication architecture.'
   -
-    pattern: 'OPENAI_API_KEY|ANTHROPIC_API_KEY|AI_GATEWAY'
+    pattern: 'AI_GATEWAY|VERCEL_OIDC'
     targetSkill: env-vars
-    message: 'AI provider env vars detected — loading Environment Variables guidance for OIDC-based auth via vercel env pull.'
+    message: 'Vercel AI authentication detected — load environment guidance for the selected authentication path.'
     skipIfFileContains: 'VERCEL_OIDC|vercel env pull'
 retrieval:
   aliases:
-    - project setup
-    - repo init
-    - getting started
-    - scaffold
+    - Vercel project setup
+    - Vercel repo initialization
+    - Vercel resource bootstrap
   intents:
-    - set up project
-    - initialize repo
+    - set up a project using selected Vercel resources
+    - initialize a Vercel-linked repository
     - link vercel project
     - pull env vars
   entities:
@@ -70,13 +54,31 @@ retrieval:
 
 # Project Bootstrap Orchestrator
 
-Execute bootstrap in strict order. Do not run migrations or development server until project linking and environment verification are complete.
+## Applicability
+
+Apply this sequence only to setup that depends on Vercel-linked resources
+already selected by the user or project. Preserve the chosen framework,
+providers, existing resources, and confirmed UI: do not change layout, theme,
+fonts, or component libraries as part of environment setup. General planning
+and local-only repositories do not require this Vercel bootstrap sequence.
+
+A `prisma/schema.prisma` file makes the Prisma guidance discoverable; it does
+not select Vercel hosting or authorize database provisioning. First inspect
+the existing connection and the requested setup. If the task does not use
+Vercel-linked resources, follow the existing provider's workflow without
+requiring Vercel authentication, linking, or env pulls before migrations or
+development.
+
+For the applicable Vercel setup, execute bootstrap in strict order. Do not run
+migrations or the development server until project linking and environment
+verification are complete. Run only the resource sections required by the
+project; Postgres and AUTH_SECRET are not universal prerequisites.
 
 ## Rules
 
-- Do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
-- Prefer Vercel-managed provisioning (`vercel integration ...`) for shared resources.
-- Use provider CLIs only as fallback when Vercel integration flow is unavailable.
+- For setup that depends on selected Vercel resources, do not run `db:push`, `db:migrate`, `db:seed`, or `dev` until Vercel linking is complete and env keys are verified.
+- Preserve existing providers and resources. Use Vercel-managed provisioning (`vercel integration ...`) for new resources when that integration path is selected.
+- Use the existing provider's supported setup path for external resources; use provider CLIs as fallback when the selected Vercel integration flow is unavailable.
 - Never echo secret values in terminal output, logs, or summaries.
 
 ## Preflight
@@ -106,9 +108,15 @@ cp .env.example .env.local
 
 ## Resource Setup: Postgres
 
+Reuse an existing database and verify its connection before considering a new
+resource. Provision only when the task requires a new Postgres database and
+the Vercel integration path has been selected. Preserve an explicitly chosen
+provider; the defaults below apply only when the provider is still unchosen.
+
 ### Prisma ORM projects
 
-If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+For an eligible new database in a repo with `prisma/schema.prisma`, prefer
+Prisma Postgres over the Neon default below:
 
 ```bash
 vercel integration guide prisma
@@ -191,21 +199,13 @@ npm run dev
 
 Use the repository package manager (`npm`, `pnpm`, `bun`, or `yarn`) and run only scripts that exist in `package.json`.
 
-## UI Baseline for Next.js + shadcn Projects
-
-After linkage and env verification, establish the UI foundation before feature work:
-1. Add a baseline primitive set: `npx shadcn@latest add button card input label textarea select switch tabs dialog alert-dialog sheet dropdown-menu badge separator skeleton table`
-2. Apply the Geist font fix in `layout.tsx` and `globals.css`.
-3. Confirm the app shell uses `bg-background text-foreground`.
-4. Default to dark mode for product, admin, and AI apps unless the repo is clearly marketing-first.
-
 ## Bootstrap Verification
 
 Confirm each checkpoint:
 
 - `vercel whoami` succeeds.
 - `.vercel/project.json` exists and matches chosen project.
-- Postgres integration path completed (Vercel integration, dashboard, or provider CLI fallback).
+- Required resource setup completed using the selected path; record Postgres as not required when the project does not use it.
 - `vercel env pull .env.local --yes` succeeds.
 - Required env key diff is empty.
 - Database command status is recorded (`db:push`, `db:seed`, `db:migrate`, `db:generate` as applicable).
@@ -220,9 +220,9 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: existing-provider | vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli | not-required
 - **Env Keys**: <count> required, <count> present, <count> missing
-- **Secrets**: AUTH_SECRET set in Vercel (value never shown)
+- **Secrets**: not-required | existing | configured (values never shown)
 - **Migration Status**: not-run | success | failed (<step>)
 - **Dev Result**: not-run | started | failed
 ```

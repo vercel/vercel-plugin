@@ -65,16 +65,27 @@ describe("explain file matching", () => {
     expect(stdout).toContain("INJECT");
   });
 
-  test("app/api/chat/route.ts matches ai-sdk", async () => {
+  test("a generic chat path does not establish AI SDK usage", async () => {
     const { stdout, exitCode } = await runCli("explain", "app/api/chat/route.ts");
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("ai-sdk");
+    expect(stdout).not.toContain("ai-sdk");
+    expect(stdout).toContain("chat-sdk");
   });
 
   test("nonexistent-pattern.xyz matches nothing", async () => {
     const { stdout, exitCode } = await runCli("explain", "nonexistent-pattern.xyz");
     expect(exitCode).toBe(0);
     expect(stdout).toContain("No skills matched");
+  });
+
+  test("a Prisma schema retains bootstrap and storage discovery", async () => {
+    const { stdout, exitCode } = await runCli("explain", "prisma/schema.prisma", "--json");
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    const bootstrap = result.matches.find((match: { skill: string }) => match.skill === "bootstrap");
+    expect(bootstrap?.injected).toBe(true);
+    expect(bootstrap?.injectionMode).toBe("full");
+    expect(result.matches.some((match: { skill: string }) => match.skill === "vercel-storage")).toBe(true);
   });
 });
 

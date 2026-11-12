@@ -26,7 +26,7 @@ exports[`CLI --json output shape --json output shape snapshot 1`] = `
   {
     "dependencyCount": 1,
     "diagnosticCount": 0,
-    "resolvedCount": 9,
+    "resolvedCount": 10,
     "status": "unchanged",
     "template": "commands/bootstrap.md",
   },
