@@ -179,6 +179,19 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+### With Private npm Packages
+
+Pass `credentials: { npm: true }` when the sandbox runs a coding agent or installs your team's private npm packages. Vercel injects the team's npm credentials into the sandbox network policy, so installs authenticate with no token inside the sandbox.
+
+```typescript
+const sandbox = await Sandbox.create({ credentials: { npm: true } });
+await sandbox.runCommand("npm", ["install"]);
+```
+
+- Covers installs with npm, pnpm, and Bun. Publishing from the sandbox stays unauthenticated.
+- When the team has no npm credentials, creation fails with a 400 error.
+- CLI: `sandbox create --credentials=npm`.
+
 ### From Tarball
 
 ```typescript
