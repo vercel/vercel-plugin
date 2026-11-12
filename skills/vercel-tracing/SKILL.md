@@ -1,6 +1,6 @@
 ---
 name: vercel-tracing
-description: Set up OpenTelemetry instrumentation for Vercel Tracing and query the resulting spans. Use when adding or fixing `@vercel/otel`, wiring a framework's server startup hook (Next.js, SvelteKit, and others), adding custom spans, turning on spans from libraries such as the AI SDK, Flags SDK, or database clients, propagating trace context between services, configuring always-on tracing sampling, searching or inspecting spans with `vercel traces`, or debugging failed or slow server requests.
+description: Set up OpenTelemetry instrumentation for Vercel Tracing and query the resulting spans. Use when adding or fixing `@vercel/otel`, wiring a framework's server startup hook (Next.js, SvelteKit, Nuxt, Nitro, Astro, and others), adding custom spans, turning on spans from libraries such as the AI SDK, Flags SDK, or database clients, propagating trace context between services, configuring always-on tracing sampling, searching or inspecting spans with `vercel traces`, or debugging failed or slow server requests.
 summary: Instrument server code with @vercel/otel, then debug and optimize requests with vercel traces
 metadata:
   priority: 8
@@ -62,6 +62,9 @@ metadata:
       - [flags sdk, tracing]
       - [sentry, otel]
       - [sveltekit, otel]
+      - [nuxt, " otel"]
+      - [nitro, " otel"]
+      - [astro, " otel"]
       - [always, tracing]
       - [traces, disconnected]
       - [api, slow]
@@ -158,6 +161,7 @@ retrieval:
   examples:
     - add OpenTelemetry to my app deployed on Vercel
     - set up @vercel/otel in my SvelteKit app
+    - add OpenTelemetry to my Nuxt, Nitro, or Astro app
     - propagate trace context to my backend API
     - debug production errors in my Vercel app
     - this endpoint is slow, make it faster
@@ -177,6 +181,9 @@ Tracing only covers requests that run server code: dynamic routes, API routes, f
 | [Instrumentation](references/instrumentation.md) | Discovering a framework's startup hook, wiring and verifying SDK setup, or using Sentry |
 | [Next.js](references/nextjs.md) | Checking Next.js 16.5+ default tracing, setting up Next.js instrumentation, or enabling verbose spans |
 | [SvelteKit](references/sveltekit.md) | Enabling server tracing and the instrumentation hook on SvelteKit 2 or 3 |
+| [Nitro](references/nitro.md) | Registering the SDK in a Nitro 2 server plugin and joining route handlers to the request trace |
+| [Nuxt](references/nuxt.md) | Nuxt notes on top of the Nitro setup: Vue pages, `useFetch`, and `tracingChannel` |
+| [Astro](references/astro.md) | Registering the SDK from `src/middleware.ts` and joining on-demand routes to the request trace |
 | [Library spans](references/library-spans.md) | Turning on spans from the AI SDK, Flags SDK, Workflow, or database and cache clients |
 | [Custom spans](references/custom-spans.md) | Measuring an application operation and recording failures |
 | [Context propagation](references/context-propagation.md) | Connecting traces across services: outbound URL matching, non-fetch clients and queues, incoming requests |
@@ -201,7 +208,7 @@ Tracing only covers requests that run server code: dynamic routes, API routes, f
    }
    ```
 
-   Under default tracing, Vercel stops adding `@vercel/otel` once this file exists, and `VERCEL_PROJECT_NAME` keeps the service name unchanged. For other frameworks, follow [SvelteKit](references/sveltekit.md) or [another framework](references/instrumentation.md#integrate-another-framework); see [Next.js](references/nextjs.md) for default tracing, verbose spans, and prerendering. Next.js and SvelteKit join the incoming request trace automatically; other frameworks may need [incoming-context extraction](references/context-propagation.md#incoming-requests). Add [custom spans](references/custom-spans.md) and [context propagation](references/context-propagation.md) where needed.
+   Under default tracing, Vercel stops adding `@vercel/otel` once this file exists, and `VERCEL_PROJECT_NAME` keeps the service name unchanged. For other frameworks, follow [SvelteKit](references/sveltekit.md), [Nitro](references/nitro.md), [Nuxt](references/nuxt.md), [Astro](references/astro.md), or [another framework](references/instrumentation.md#integrate-another-framework); see [Next.js](references/nextjs.md) for default tracing, verbose spans, and prerendering. Next.js and SvelteKit join the incoming request trace automatically. Nitro, Nuxt, and Astro need the extraction shown in their reference, and other frameworks may need [incoming-context extraction](references/context-propagation.md#incoming-requests). Add [custom spans](references/custom-spans.md) and [context propagation](references/context-propagation.md) where needed.
 4. Turn on [library spans](references/library-spans.md) for the libraries in the application's `package.json`, such as the AI SDK, the Flags SDK, or a database client.
 5. Build, deploy to preview or production, exercise a server-executed route, and [inspect its trace](references/inspection.md). Confirm span names and parent relationships with `inspect`, and `service.name` with search JSON. A local exporter check does not prove Vercel collection.
 

@@ -49,7 +49,7 @@ Adapt `queue.send` to the actual client. Put the carrier where the transport car
 
 ## Incoming requests
 
-Next.js 14.0.1+ and SvelteKit with `tracing.server` enabled extract incoming context automatically. Prefer the framework's tracing integration when it already does this. Otherwise, extract the headers and run the existing handler inside that context:
+Next.js 14.0.1+ and SvelteKit with `tracing.server` enabled extract incoming context automatically. Prefer the framework's tracing integration when it already does this. [Nitro](nitro.md) and [Astro](astro.md) show where to extract. [Nuxt](nuxt.md) follows the Nitro reference. For any other framework, extract the headers and run the existing handler inside that context:
 
 ```ts
 import { context, propagation } from '@opentelemetry/api';
