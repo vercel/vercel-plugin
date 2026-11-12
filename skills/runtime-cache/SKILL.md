@@ -276,7 +276,7 @@ Monitor hit rates, invalidation patterns, and storage usage in the Vercel Dashbo
 
 ## References
 
-- 📖 docs: https://vercel.com/docs/caching/runtime-cache
+- 📖 docs: https://vercel.com/docs/runtime-cache
 - 📖 changelog: https://vercel.com/changelog/introducing-the-runtime-cache-api
 - 📖 CLI cache: https://vercel.com/docs/cli/cache
 - 📖 CDN cache purging: https://vercel.com/docs/caching/cdn-cache/purge
