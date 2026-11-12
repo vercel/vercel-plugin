@@ -85,7 +85,7 @@ Dashboard chat, Slack chat, Investigations, Code Review, and Security Review are
 ## Pricing
 
 - Paid Vercel Agent work uses the underlying provider inference rate with no markup, plus a Vercel Token Rate of $0.25 per million input, output, and cached tokens.
-- Chat and Slack include a limited number of simple requests during the public beta.
+- Chat and Slack share 50 free messages per team member per day during the beta (resets 00:00 UTC); approving a proposed plan is charged even with free messages left.
 - Observability Plus includes 10 investigations per billing cycle.
 - Installation has no Agent charge, though installed products retain their normal usage charges.
 

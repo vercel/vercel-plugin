@@ -300,10 +300,10 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
 │   ⊃ Built-in Observability
 │
 ├── Image Generation (gateway-native)
-│   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image-preview' + generateText → result.files
+│   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image' + generateText → result.files
 │   ⊃ Image-only models: generateImage (Imagen 4.0, Flux 2, Grok Imagine)
-│   ⊃ Default model: google/gemini-3.1-flash-image-preview
-│   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image Preview
+│   ⊃ Default model: google/gemini-3.1-flash-image
+│   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image
 │
 ├── Supported Providers
 │   ⊃ OpenAI, Anthropic, Google, Meta, xAI, Mistral
@@ -686,7 +686,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Chat interface | AI SDK `useChat` + `streamText` + AI Gateway + AI Elements | Streaming UI, provider-agnostic |
 | Chat UI components (messages, tools, reasoning) | AI Elements (`npx ai-elements`) | Pre-built, handles UIMessage parts |
 | Custom chat rendering (no AI Elements) | Manual `message.parts` iteration | Full control over rendering |
-| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
+| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
 | Image generation (image-only models) | `generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
@@ -894,8 +894,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | `isLoading` (useChat) | `status === "streaming" \|\| status === "submitted"` | v6 status enum |
 | `onResponse()` callback | Transport configuration | Removed in AI SDK 5 |
 | `body` option (useChat) | Pass data through transport | v6 transport pattern |
-| DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
-| `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
+| DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image'` | Better quality, faster, cheaper |
+| `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image` | Dramatically better quality |
 | `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
@@ -941,8 +941,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
 - Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@latest`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
-- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
-- **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image-preview`; DALL-E 2/3 → use Gemini 3.1 Flash Image Preview.
+- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
+- **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image`; DALL-E 2/3 → use Gemini 3.1 Flash Image.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
 - Use `mcp-to-ai-sdk` CLI to generate static tool definitions from MCP servers for security.
 - Use AI SDK DevTools (`npx @ai-sdk/devtools`) during development for debugging.
