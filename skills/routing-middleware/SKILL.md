@@ -216,7 +216,7 @@ export default function middleware(request: Request) {
 |-------|-------|
 | Max URL length | 14 KB |
 | Max request body | 4 MB |
-| Max request headers | 64 headers / 32 KB total |
+| Max request headers | 64 headers; 32 KB per header (name included) |
 
 ## Three CDN Routing Mechanisms
 
