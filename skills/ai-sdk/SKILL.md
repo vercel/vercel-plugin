@@ -192,7 +192,7 @@ validate:
     severity: recommended
     upgradeToSkill: ai-gateway
     upgradeWhy: 'Guides migration from DALL-E to Gemini 3.1 Flash Image via AI Gateway for better, faster, cheaper image generation.'
-    skipIfFileContains: gemini-3\.1-flash-image-preview
+    skipIfFileContains: gemini-3\.1-flash-image
   -
     pattern: experimental_generateImage
     message: 'experimental_generateImage is not needed — use generateText with model: "google/gemini-3.1-flash-image" instead. Images come back in result.files'
