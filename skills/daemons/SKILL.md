@@ -281,6 +281,7 @@ With `vercel build` or a custom builder, `.vercel/output/config.json` lists daem
 | Limit | Value |
 |-------|-------|
 | Instances per region | 100 per daemon |
+| Instances per project environment | 50 by default across all daemons and regions (contact Vercel Support to raise); older daemons start first, and each daemon that doesn't get its full count logs an error |
 | Memory per instance | 1, 2 (default), 4, or 8 GiB |
 | Shutdown grace period | 30 seconds after `SIGTERM` by default, configurable up to 3,600 seconds with `terminationGracePeriodSeconds` |
 | CPU architecture | Linux `amd64` |
