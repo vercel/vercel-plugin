@@ -145,9 +145,9 @@ vercel firewall rules update "My Rule" \
 vercel firewall rules enable  "My Rule"
 vercel firewall rules disable "My Rule"
 vercel firewall rules remove  "My Rule" --yes                      # aliases: rm, delete
-vercel firewall rules reorder "My Rule" --first  --yes             # move to highest priority
-vercel firewall rules reorder "My Rule" --last   --yes
-vercel firewall rules reorder "My Rule" --position 3 --yes         # 1-based
+vercel firewall rules move    "My Rule" --first  --yes             # move to highest priority (`move` needs CLI 65.2+; older CLIs use `reorder`)
+vercel firewall rules move    "My Rule" --last   --yes
+vercel firewall rules move    "My Rule" --position 3 --yes         # 1-based
 ```
 
 Rules are evaluated in priority order (top to bottom). Reorder to control which rule matches first.
@@ -337,7 +337,7 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
   4. **Block in production.** Once the user is satisfied with the production log data, edit to `deny` / `challenge` and have them publish. Keep the dashboard URL handy for the first 24h in case you need to roll back with `--action log` or `rules disable`.
 
-- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/reorder`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
+- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
 
 - **Don't run commands the CLI blocks for agents.** Surface what the user needs to do instead:
   - `vercel firewall rules add --ai "..."` and `vercel firewall rules add` (wizard) — TTY-only. Use `--condition` flags or `--data`.
