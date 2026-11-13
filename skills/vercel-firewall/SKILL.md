@@ -61,11 +61,11 @@ retrieval:
 
 # Vercel Firewall
 
-You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, IP blocks, system bypass, Attack Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
+You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, managed rulesets, IP blocks, system bypass, Attack Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
 
 ## Core Knowledge
 
-- **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with IP blocks and custom rules. Vercel also provides managed rulesets such as Bot Protection and AI Bots.
+- **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with IP blocks and custom rules. Vercel also provides managed rulesets such as OWASP Core Ruleset, Bot Protection, and AI Bots.
 - **Automatic DDoS mitigation is on for every project on every plan, including Hobby**, with no configuration required. It covers L3/L4/L7 attacks.
 - **Vercel does not bill for traffic blocked by DDoS mitigations or WAF.** Usage is only incurred for requests served before mitigation kicked in or not classified as an attack. You do not pay for requests or bandwidth for denies, challenges, or rate-limits from WAF custom rules or managed rules.
 - **Custom rules** allows the user to define their own Firewall rules. Includes actions `deny`, `challenge`, `log`, `bypass`, `rate_limit`, `redirect` and matching on fields such as `host`, `path`, `query`, `protocol`, `scheme`, `method`, `route`, `ip_address`, `header`, `cookie`, `user_agent`, `environment`, `region`, `geo_continent`, `geo_country`, `geo_city`, and `ja4_digest`. See https://vercel.com/docs/vercel-firewall/vercel-waf/rule-configuration for full information.
@@ -81,7 +81,7 @@ vercel firewall diff                      # show unpublished draft changes
 vercel firewall diff --json
 ```
 
-`rules` and `ip-blocks` changes are **staged** as drafts — `vercel firewall publish` makes them live (see [Publishing](#publishing)). `system-bypass`, `attack-mode`, and `system-mitigations` take effect **immediately**.
+`rules`, `managed-rulesets`, and `ip-blocks` changes are **staged** as drafts — `vercel firewall publish` makes them live (see [Publishing](#publishing)). `system-bypass`, `attack-mode`, and `system-mitigations` take effect **immediately**.
 
 ## Custom rules
 
@@ -228,6 +228,26 @@ Method scoping matters — `GET /api/foo` and `POST /api/foo` will likely need d
 
 For more sophisticated counting (custom buckets, hashing identifiers from headers/cookies, sliding windows from your own code) point the user at the **Rate Limiting SDK**: https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting-sdk.
 
+## Managed rulesets
+
+WAF managed rulesets are Vercel-maintained rule sets: `owasp` (OWASP Core Ruleset, alias `crs`), `traffic-sources`, and `vercel-ruleset`. `managed-rulesets` needs CLI 65.16+. Bot Protection and AI Bots are managed through `rules update` and `bot-management` instead (see [AI Bots categories](#ai-bots-categories)). Changes are staged; run `publish` to make them live.
+
+```bash
+vercel firewall managed-rulesets list                  # rulesets the team can use, with each rule group's action
+vercel firewall managed-rulesets list --json
+vercel firewall managed-rulesets enable  owasp --yes   # OWASP starts with its default rule groups
+vercel firewall managed-rulesets disable owasp --yes
+vercel firewall managed-rulesets update owasp --group sqli --action deny --yes
+vercel firewall managed-rulesets update owasp --group php  --action off  --yes
+```
+
+- `--group` takes a rule group ID from `list`, such as `sqli` or `xss` for OWASP. Underscores in catalog IDs become hyphens (`traffic_source_tor` → `traffic-source-tor`).
+- `--action` takes the ruleset's actions plus `off`: `log`, `deny`, or `off` for OWASP; Traffic Sources also takes `challenge`.
+- A rule group can only be changed while its ruleset is on. Enable the ruleset first.
+- These commands show the project's own settings. A team-level managed ruleset can turn a ruleset on, or apply a stricter action, for every project, so don't report a ruleset as off or a group as `log` without saying a team setting may override it.
+- When turning on OWASP is refused for the plan, follow the error. It names `vercel project priority enable` only when the team can enable a Priority project; otherwise OWASP needs Enterprise, or adding it from the project's Firewall page in the dashboard. The CLI can't buy it.
+- As with new custom rules, start rule groups on `log`, review traffic, then move to `deny`. OWASP groups can match legitimate requests (rich text, code snippets, unusual query strings).
+
 ## IP blocks
 
 [IP blocking](https://vercel.com/docs/vercel-firewall/vercel-waf/ip-blocking) blocks IPs or CIDRs entirely. Staged — requires `publish`.
@@ -351,7 +371,7 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
   4. **Block in production.** Once the user is satisfied with the production log data, edit to `deny` / `challenge` and have them publish. Keep the dashboard URL handy for the first 24h in case you need to roll back with `--action log` or `rules disable`.
 
-- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **let the user approve the publish** — don't push to production on their behalf. Either ask them to run `vercel firewall publish` themselves, or run it, show them the preview it returns, and run the `next[]` command only after they approve. Use `discard --yes` only if the user asks to abandon staged changes.
+- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `managed-rulesets enable/disable/update`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **let the user approve the publish** — don't push to production on their behalf. Either ask them to run `vercel firewall publish` themselves, or run it, show them the preview it returns, and run the `next[]` command only after they approve. Use `discard --yes` only if the user asks to abandon staged changes.
 
 - **Don't run commands the CLI blocks for agents.** Surface what the user needs to do instead:
   - `vercel firewall rules add --ai "..."` and `vercel firewall rules add` (wizard) — TTY-only. Use `--condition` flags or `--data`.
