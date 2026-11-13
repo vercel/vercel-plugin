@@ -72,7 +72,7 @@ You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Ve
 
 ## Overview
 
-Project must be linked first (`vercel link`).
+Commands act on the linked project (`vercel link`). Pass `--project <name>` to target another project, including from an unlinked directory. On Enterprise, team owners can pass `--team-level` to `rules`, `ip-blocks`, `diff`, `publish`, and `discard` to manage the team-level configuration, which applies to every project in the team.
 
 ```bash
 vercel firewall overview                  # active rules, blocks, bypasses, attack-mode, drafts
@@ -81,7 +81,7 @@ vercel firewall diff                      # show unpublished draft changes
 vercel firewall diff --json
 ```
 
-`rules` and `ip-blocks` changes are **staged** as drafts — run `vercel firewall publish --yes` to make them live. `system-bypass`, `attack-mode`, and `system-mitigations` take effect **immediately**.
+`rules` and `ip-blocks` changes are **staged** as drafts — `vercel firewall publish` makes them live (see [Publishing](#publishing)). `system-bypass`, `attack-mode`, and `system-mitigations` take effect **immediately**.
 
 ## Custom rules
 
@@ -153,6 +153,15 @@ vercel firewall rules move    "My Rule" --position 3 --yes         # 1-based
 Rules are evaluated in priority order (top to bottom). Reorder to control which rule matches first.
 
 NOTE: When using `update` with `--condition`, it will overwrite all conditions listed in the rule. Make sure to specify all conditions when editing a rule.
+
+### AI Bots categories
+
+The AI Bots managed ruleset has separate AI Crawlers and AI Assistants categories, each with its own action. `--category` needs CLI 65.7+ and only applies to `ai-bots`; its actions are `allow`, `log`, and `deny`. Like other rule changes, it stages a draft.
+
+```bash
+vercel firewall rules update ai-bots --category ai-crawlers   --action deny  --yes
+vercel firewall rules update ai-bots --category ai-assistants --action allow --yes
+```
 
 ### Condition format
 
@@ -274,10 +283,14 @@ vercel firewall system-mitigations resume --yes
 ## Publishing
 
 ```bash
-vercel firewall diff                      # review staged changes
-vercel firewall publish --yes             # push drafts to production
-vercel firewall discard --yes             # throw away drafts
+vercel firewall diff                                       # review staged changes
+vercel firewall publish                                    # push drafts to production; prompts for approval
+vercel firewall publish --project my-app --confirm-name my-app  # approve by naming the project
+vercel firewall publish --team-level --confirm-name my-team     # team-level: name the team
+vercel firewall discard --yes                              # throw away drafts
 ```
+
+From CLI 65.10, `publish` is approved by naming its target with `--confirm-name`. `--yes` still works for people and scripts, with a deprecation warning, but **agents can't approve with `--yes`**. Run without approval, an agent gets a `confirmation_required` error with a preview of what goes live and, in `next[]`, the command to run once the user approves. That command includes `--effects-digest`, so drafts added after the preview don't go live under the old approval. Older CLIs use `publish --yes`.
 
 ## Querying firewall traffic from the CLI
 
@@ -291,6 +304,7 @@ vercel firewall traffic list --action deny --dimension rule --json
 - `traffic list` reports requests by action plus top lists across 10 dimensions: `ip`, `ja4`, `asn`, `user-agent`, `path`, `rule`, `host`, `bot`, `country`, `action`. Use `--dimension` to choose which top lists to include.
 - `traffic inspect <dimension> <value>` (e.g. `vercel firewall traffic inspect rule rule_abc123 --group-by ip`) drills into one value with a breakdown by a second dimension.
 - `--since`/`--until` accept `1h`, `24h`, `3d`, `7d`, etc., or an ISO date; `--json` is best for programmatic review.
+- `-q, --query <KQL>` narrows either command (repeatable, ANDed), using the schema's camelCase dimension names such as `clientIp` or `wafRuleId`. Older CLIs call it `--filter`.
 - `--since` must fall inside your plan's retention, or the query requires Observability Plus. Shortening the window with `--until` does not help if `--since` is already too far back.
 
 For an **active-attack triage** lens — "is something happening right now?" — narrow the window:
@@ -306,7 +320,7 @@ Also available: `vercel firewall status` (config in evaluation order), `vercel f
 
 The firewall sits in front of every request. A misconfigured rule can block real users, kill SEO crawlers, or break checkout. Treat changes like a production database migration: stage, review, and let the user pull the trigger.
 
-- **Roll new rules out in stages, not in one shot.** A new rule's blast radius is unpredictable until real traffic hits it. Walk every meaningful rule through the stages below, asking the user to `vercel firewall publish --yes` between each. Don't skip stages even if a rule "obviously" matches only attackers — common JA4s and user agents collide with real users far more often than they look like they will.
+- **Roll new rules out in stages, not in one shot.** A new rule's blast radius is unpredictable until real traffic hits it. Walk every meaningful rule through the stages below, asking the user to run `vercel firewall publish` between each. Don't skip stages even if a rule "obviously" matches only attackers — common JA4s and user agents collide with real users far more often than they look like they will.
   1. **Log everywhere.** Add the rule with `--action log` so it records hits to the Firewall dashboard but blocks nothing.
 
      ```bash
@@ -337,12 +351,13 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
   4. **Block in production.** Once the user is satisfied with the production log data, edit to `deny` / `challenge` and have them publish. Keep the dashboard URL handy for the first 24h in case you need to roll back with `--action log` or `rules disable`.
 
-- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
+- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **let the user approve the publish** — don't push to production on their behalf. Either ask them to run `vercel firewall publish` themselves, or run it, show them the preview it returns, and run the `next[]` command only after they approve. Use `discard --yes` only if the user asks to abandon staged changes.
 
 - **Don't run commands the CLI blocks for agents.** Surface what the user needs to do instead:
   - `vercel firewall rules add --ai "..."` and `vercel firewall rules add` (wizard) — TTY-only. Use `--condition` flags or `--data`.
   - `vercel firewall attack-mode enable` — requires explicit interactive confirmation; have the user run it.
   - `vercel firewall system-mitigations pause` — pauses platform DDoS protection across the project; have the user run it and resume ASAP.
+  - `vercel project priority enable` — when a rule is refused because the project isn't a Priority project, the CLI points here (`vercel buy pro` on Hobby). It's a paid upgrade agents can't confirm; have the user decide and run it.
 
 - **Inspect before recommending publish.** A `deny` with a loose condition (e.g., `path` starts with `/`) blocks the entire site. Always `vercel firewall rules inspect "Name"` and `vercel firewall diff` before handing the publish step to the user.
 
