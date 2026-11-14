@@ -1,5 +1,5 @@
 // hooks/src/compat.mts
-import { appendFileSync } from "fs";
+import { upsertSessionEnvExports } from "./session-env-file.mjs";
 var cursorSessionEnv = /* @__PURE__ */ new Map();
 var currentHookEventName;
 function isRecord(value) {
@@ -24,9 +24,6 @@ function normalizeToolOutputValue(value) {
   } catch {
     return String(value);
   }
-}
-function escapeShellEnvValue(value) {
-  return value.replace(/(["\\$`])/g, "\\$1");
 }
 function drainCursorSessionEnv() {
   if (cursorSessionEnv.size === 0) return void 0;
@@ -108,8 +105,7 @@ function setSessionEnv(platform, key, value) {
   }
   const envFile = getEnvFilePath();
   if (!envFile) return;
-  appendFileSync(envFile, `export ${key}="${escapeShellEnvValue(value)}"
-`);
+  upsertSessionEnvExports(envFile, { [key]: value });
 }
 function getProjectRoot() {
   return process.env.CLAUDE_PROJECT_ROOT ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd();
