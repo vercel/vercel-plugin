@@ -212,30 +212,27 @@ describe("compat", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
     const envFile = join(tempDir, "claude.env")
     tempDirs.push(tempDir)
-    const values = {
-      SPECIAL: '$HOME "quoted" `tick` back\\slash \'single\'',
-      MULTILINE: "line one\nline 'two'\r\n\\n literal",
-    }
+    const special = '$HOME "quoted" `tick` back\\slash \'single\' a,b'
 
-    upsertSessionEnvExports(envFile, values)
-    upsertSessionEnvExports(envFile, values)
+    upsertSessionEnvExports(envFile, { SPECIAL: special })
+    upsertSessionEnvExports(envFile, { SPECIAL: special })
 
-    expect(readFileSync(envFile, "utf-8").split("\n").filter(Boolean)).toHaveLength(2)
-    const result = spawnSync(
-      "bash",
-      ["-c", '. "$1" && printf "%s\\0%s" "$SPECIAL" "$MULTILINE"', "bash", envFile],
-      { encoding: "utf-8" },
-    )
+    expect(readFileSync(envFile, "utf-8").split("\n").filter(Boolean)).toHaveLength(1)
+    const result = spawnSync("bash", ["-c", '. "$1" && printf "%s" "$SPECIAL"', "bash", envFile], {
+      encoding: "utf-8",
+    })
     expect(result.status).toBe(0)
-    expect(result.stdout).toBe(`${values.SPECIAL}\0${values.MULTILINE}`)
+    expect(result.stdout).toBe(special)
   })
 
-  it("test_upsertSessionEnvExports_rejects_invalid_names_without_writing", () => {
+  it("test_upsertSessionEnvExports_rejects_bad_names_and_line_breaks_without_writing", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
     const envFile = join(tempDir, "claude.env")
     tempDirs.push(tempDir)
 
     expect(() => upsertSessionEnvExports(envFile, { "BAD=NAME": "x" })).toThrow(TypeError)
+    expect(() => upsertSessionEnvExports(envFile, { OK: "1", LINES: "a\nb" })).toThrow(TypeError)
+    expect(() => upsertSessionEnvExports(envFile, { CR: "a\rb" })).toThrow(TypeError)
     expect(existsSync(envFile)).toBe(false)
   })
 })

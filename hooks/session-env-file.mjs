@@ -2,10 +2,6 @@
 import { readFileSync, renameSync, rmSync, writeFileSync } from "fs";
 var SHELL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 function quoteShellValue(value) {
-  if (/[\r\n]/.test(value)) {
-    const escaped = value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-    return `$'${escaped}'`;
-  }
   return `"${value.replace(/(["\\$`])/g, "\\$1")}"`;
 }
 function readEnvFile(envFile) {
@@ -33,6 +29,12 @@ function upsertSessionEnvExports(envFile, vars) {
   if (invalidKey !== void 0) {
     throw new TypeError(
       `Invalid shell env var name: ${JSON.stringify(invalidKey)}`
+    );
+  }
+  const multilineKey = keys.find((key) => /[\r\n]/.test(vars[key]));
+  if (multilineKey !== void 0) {
+    throw new TypeError(
+      `Env var ${multilineKey} has a line break, which CLAUDE_ENV_FILE cannot hold`
     );
   }
   const prefixes = keys.map((key) => `export ${key}=`);

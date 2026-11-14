@@ -3,14 +3,6 @@ import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 const SHELL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function quoteShellValue(value: string): string {
-  if (/[\r\n]/.test(value)) {
-    const escaped = value
-      .replace(/\\/g, "\\\\")
-      .replace(/'/g, "\\'")
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "\\r");
-    return `$'${escaped}'`;
-  }
   return `"${value.replace(/(["\\$`])/g, "\\$1")}"`;
 }
 
@@ -45,6 +37,14 @@ export function upsertSessionEnvExports(
   if (invalidKey !== undefined) {
     throw new TypeError(
       `Invalid shell env var name: ${JSON.stringify(invalidKey)}`,
+    );
+  }
+
+  // claude code parses this file line by line, so a value with a line break cannot be stored
+  const multilineKey = keys.find((key) => /[\r\n]/.test(vars[key]));
+  if (multilineKey !== undefined) {
+    throw new TypeError(
+      `Env var ${multilineKey} has a line break, which CLAUDE_ENV_FILE cannot hold`,
     );
   }
 
