@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
@@ -10,6 +11,7 @@ import {
   normalizeInput,
   setSessionEnv,
 } from "./src/compat.mts"
+import { upsertSessionEnvExports } from "./src/session-env-file.mts"
 
 const originalClaudeEnvFile = process.env.CLAUDE_ENV_FILE
 const originalClaudeProjectDir = process.env.CLAUDE_PROJECT_DIR
@@ -159,5 +161,78 @@ describe("compat", () => {
     })
 
     expect(formatOutput("cursor", {})).toEqual({})
+  })
+
+  it("test_setSessionEnv_replaces_existing_export_instead_of_appending", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
+    const envFile = join(tempDir, "claude.env")
+    tempDirs.push(tempDir)
+    process.env.CLAUDE_ENV_FILE = envFile
+
+    for (const value of ["first", "second", "third"]) {
+      setSessionEnv("claude-code", "VERCEL_PLUGIN_SETUP_MODE", value)
+      setSessionEnv("claude-code", "VERCEL_PLUGIN_BOOTSTRAP_HINTS", "greenfield")
+    }
+
+    expect(readFileSync(envFile, "utf-8")).toBe(
+      'export VERCEL_PLUGIN_SETUP_MODE="third"\nexport VERCEL_PLUGIN_BOOTSTRAP_HINTS="greenfield"\n',
+    )
+  })
+
+  it("test_upsertSessionEnvExports_keeps_other_lines_and_prefix_sharing_keys", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
+    const envFile = join(tempDir, "claude.env")
+    tempDirs.push(tempDir)
+    writeFileSync(
+      envFile,
+      'export FOO_BAR="keep"\r\nexport FOO="old"\nexport FOO="older"\n\nexport OTHER="1"\n',
+      "utf-8",
+    )
+
+    upsertSessionEnvExports(envFile, { FOO: "new" })
+
+    expect(readFileSync(envFile, "utf-8")).toBe(
+      'export FOO_BAR="keep"\nexport OTHER="1"\nexport FOO="new"\n',
+    )
+  })
+
+  it("test_upsertSessionEnvExports_creates_missing_file_and_skips_empty_input", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
+    const envFile = join(tempDir, "claude.env")
+    tempDirs.push(tempDir)
+
+    upsertSessionEnvExports(envFile, {})
+    expect(existsSync(envFile)).toBe(false)
+
+    upsertSessionEnvExports(envFile, { EMPTY: "" })
+    expect(readFileSync(envFile, "utf-8")).toBe('export EMPTY=""\n')
+  })
+
+  it("test_upsertSessionEnvExports_values_survive_shell_sourcing", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
+    const envFile = join(tempDir, "claude.env")
+    tempDirs.push(tempDir)
+    const special = '$HOME "quoted" `tick` back\\slash \'single\' a,b'
+
+    upsertSessionEnvExports(envFile, { SPECIAL: special })
+    upsertSessionEnvExports(envFile, { SPECIAL: special })
+
+    expect(readFileSync(envFile, "utf-8").split("\n").filter(Boolean)).toHaveLength(1)
+    const result = spawnSync("bash", ["-c", '. "$1" && printf "%s" "$SPECIAL"', "bash", envFile], {
+      encoding: "utf-8",
+    })
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe(special)
+  })
+
+  it("test_upsertSessionEnvExports_rejects_bad_names_and_line_breaks_without_writing", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "compat-claude-"))
+    const envFile = join(tempDir, "claude.env")
+    tempDirs.push(tempDir)
+
+    expect(() => upsertSessionEnvExports(envFile, { "BAD=NAME": "x" })).toThrow(TypeError)
+    expect(() => upsertSessionEnvExports(envFile, { OK: "1", LINES: "a\nb" })).toThrow(TypeError)
+    expect(() => upsertSessionEnvExports(envFile, { CR: "a\rb" })).toThrow(TypeError)
+    expect(existsSync(envFile)).toBe(false)
   })
 })

@@ -1,9 +1,10 @@
 // hooks/src/patterns.mts
 import { createHash } from "crypto";
-import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { basename } from "path";
 import { join, resolve } from "path";
+import { upsertSessionEnvExports } from "./session-env-file.mjs";
 var REGEX_META_CHARS = ".()+[]{}|^$\\";
 function parseBraceExpansion(pattern, startIndex) {
   let depth = 0;
@@ -181,23 +182,16 @@ function isHighPrioritySkill(skill, skillMap, minPriority = COMPACTION_REINJECT_
   const priority = skillMap?.[skill]?.priority;
   return typeof priority === "number" && priority >= minPriority;
 }
-function escapeShellEnvValue(value) {
-  return value.replace(/(["\\$`])/g, "\\$1");
-}
 function persistCompactionResetEnv(nextSeenEnv) {
   process.env.VERCEL_PLUGIN_SEEN_SKILLS = nextSeenEnv;
   process.env.VERCEL_PLUGIN_CONTEXT_COMPACTED = "";
   const envFile = process.env.CLAUDE_ENV_FILE;
   if (!envFile) return;
   try {
-    appendFileSync(
-      envFile,
-      [
-        `export VERCEL_PLUGIN_SEEN_SKILLS="${escapeShellEnvValue(nextSeenEnv)}"`,
-        'export VERCEL_PLUGIN_CONTEXT_COMPACTED=""'
-      ].join("\n") + "\n",
-      "utf-8"
-    );
+    upsertSessionEnvExports(envFile, {
+      VERCEL_PLUGIN_SEEN_SKILLS: nextSeenEnv,
+      VERCEL_PLUGIN_CONTEXT_COMPACTED: ""
+    });
   } catch {
   }
 }
