@@ -56,7 +56,7 @@ Present a concise result block:
 Suggest logical follow-ups:
 
 - After deploy → check logs, inspect build, verify preview URL.
-- After env change → pull to local, redeploy if production.
+- After env change → pull to local, redeploy the affected environment (`/deploy`, or `/deploy prod` for production).
 - After status → fix any flagged issues, run deploy if stale.
 
 ## File Naming
