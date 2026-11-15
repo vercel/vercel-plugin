@@ -10,6 +10,8 @@ vercel project inspect my-app        # inspect project
 vercel project rm my-app             # remove project
 ```
 
+`vercel project inspect` shows the Git repository that the project is connected to and its production branch (the `repository` field with `--json`). For the linked project, it also warns when the Git remotes of the current directory have a different name. Pushes deploy the project only when they go to the connected repository, so check this before you rely on `git push` to deploy.
+
 ## Deployments
 
 ```bash
