@@ -38,6 +38,15 @@ Set `rootDirectory` in `vercel.json` when your app isn't at the repo root:
 }
 ```
 
+Root Directory is also a project setting. Set it, and the other settings that a monorepo project with a Git connection needs, with `vercel project update`:
+
+```bash
+vercel project update my-app --root-directory apps/api
+vercel project update my-app --ignore-command "git diff --quiet HEAD^ HEAD ./"  # skip the build when the app did not change
+vercel project update my-app --no-source-files-outside-root-directory          # build with only the files in the Root Directory
+vercel project update my-app --git-branch main                                 # production branch; needs a connected Git repository
+```
+
 ## Turborepo
 
 Turborepo requires an explicit `build` task. Define it in `turbo.json`:
