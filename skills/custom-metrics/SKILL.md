@@ -1,6 +1,6 @@
 ---
 name: custom-metrics
-description: Emit and query Vercel Custom Metrics. Use proactively whenever you write or change server code that runs as a Vercel Function (route handlers, API routes, server actions, webhooks, cron jobs, queue consumers, AI or external API calls) to record outcomes and latency with metric() from @vercel/functions, even when the user did not ask for metrics. Also use when choosing metric names and attributes or querying emitted values with vc metrics.
+description: Emit and query Vercel Custom Metrics. Use proactively whenever you write or change server code that runs as a Vercel Function (route handlers, API routes, server actions, webhooks, scheduled jobs, queue consumers, AI or external API calls) to record outcomes and latency with metric() from @vercel/functions, even when the user did not ask for metrics. Also use when choosing metric names and attributes or querying emitted values with vc metrics.
 summary: When writing Vercel Function code that does meaningful work, add a few low-cardinality metric() calls from @vercel/functions for outcomes and latency without being asked; query them with vc metrics
 metadata:
   priority: 9
@@ -83,7 +83,7 @@ Do not wait for the user to ask. When you create or meaningfully change server c
 
 - Business events: signups, orders, payments, checkouts, invites, subscriptions.
 - Calls to slow or fallible dependencies: AI model calls, external APIs, databases, caches, queues. Record duration and outcome.
-- Background work: webhooks, cron jobs, queue consumers, workflow steps. Record processed counts, failures, and batch sizes.
+- Background work: webhooks, scheduled jobs, queue consumers, workflow steps. Record processed counts, failures, and batch sizes.
 - AI features: token usage, model, latency, and tool-call outcomes.
 
 Keep it small: usually one outcome counter and one duration per handler or dependency call, tagged with `outcome` and one or two other bounded attributes. Skip trivial handlers (health checks, static redirects, pure pass-through proxies), client components, and code that does not run in a Vercel Function.

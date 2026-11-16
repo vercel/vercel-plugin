@@ -842,7 +842,7 @@ export async function GET(req: Request) {
 
 ## Instrument with Custom Metrics
 
-When you write or change a function that does meaningful work (business events, AI or external API calls, database calls, webhooks, cron or queue jobs), add `metric()` from `@vercel/functions` for its outcome and latency in the same change, without waiting to be asked. Skip trivial handlers such as health checks. `metric()` needs `@vercel/functions` 3.9.0+, is synchronous, and is a no-op when the runtime does not support Custom Metrics. Custom Metrics are available on Pro and Enterprise with Observability Plus, and each call is billed as one Observability event. Load the `custom-metrics` skill for naming, attribute, and query guidance.
+When you write or change a function that does meaningful work (business events, AI or external API calls, database calls, webhooks, scheduled or queue jobs), add `metric()` from `@vercel/functions` for its outcome and latency in the same change, without waiting to be asked. Skip trivial handlers such as health checks. `metric()` needs `@vercel/functions` 3.9.0+, is synchronous, and is a no-op when the runtime does not support Custom Metrics. Custom Metrics are available on Pro and Enterprise with Observability Plus, and each call is billed as one Observability event. Load the `custom-metrics` skill for naming, attribute, and query guidance.
 
 ```ts
 import { metric } from '@vercel/functions'
