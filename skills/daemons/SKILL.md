@@ -153,7 +153,7 @@ Daemons are always declared at the top level, never inside `services`. They run 
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `root` | `string` | Yes | Source directory, relative to `vercel.json`. Must stay inside the project. Files under it are not published as static assets |
+| `root` | `string` | Yes | Source directory, relative to `vercel.json`. Must stay inside the repository. Files under it are not published as static assets |
 | `entrypoint` | `string` | Yes | Path to the `Dockerfile` or `Containerfile`, relative to `root`. Its directory is the build context |
 | `instances` | `Record<region, number>` | Yes | Instances per region ID, each `0`–`100`. Vercel runs only in the listed regions |
 | `command` | `string[]` | No | Replaces the image's `ENTRYPOINT` and `CMD`. Not run through a shell |
@@ -272,6 +272,8 @@ docker run --env-file .env.local worker
 
 Daemon output appears in the project's Logs with source `daemon` and the daemon's name, so you can filter to one daemon. The project dashboard's **Daemons** tab shows each daemon's instances, status, and logs. Vercel CLI 64.3.0+ has `vercel daemons ls`, `vercel daemons inspect <name>`, and `vercel daemons instances ls|inspect|restart` (production only).
 
+Daemons can send OpenTelemetry traces to Vercel Tracing through an OTLP/HTTP Unix socket at `VERCEL_OTEL_SOCKET_PATH` (OTLP/gRPC is not supported). In Node.js, `@vercel/otel` 2.3.0+ exports to it automatically: call `registerOTel({ serviceName: 'my-daemon' })` before the worker starts. Setting `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, or passing a custom `traceExporter`, opts out of the socket.
+
 ## Build Output API
 
 With `vercel build` or a custom builder, `.vercel/output/config.json` lists daemons as `"daemons": { "worker": {} }` (the complete set; omitted daemons are stopped), and each has `.vercel/output/daemons/<name>/.vc-config.json` with `runtime: "container"`, an `image` already in Vercel Container Registry, `instances`, and optional `command`, `resources`, `terminationGracePeriodSeconds`, `livenessProbe`, and `bindings`. `vercel build` builds and pushes the images and writes these files for you; running `vercel build` locally builds daemons with Vercel CLI 65.6.0+.
@@ -308,5 +310,6 @@ Not supported during the beta: preview deployments, inbound HTTP or TCP traffic,
 - 📖 managing daemons: https://vercel.com/docs/daemons/managing-daemons
 - 📖 limits and quotas: https://vercel.com/docs/daemons/limits
 - 📖 Build Output API: https://vercel.com/docs/build-output-api/daemons
+- 📖 tracing: https://vercel.com/docs/daemons/tracing
 - 📖 Queues poll mode: https://vercel.com/docs/queues/poll-mode
 - 📖 Functions vs containers vs Daemons: https://vercel.com/kb/guide/vercel-functions-containers-daemons
