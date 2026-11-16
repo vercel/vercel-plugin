@@ -382,7 +382,7 @@ chainTo:
   -
     pattern: 'process\.env\.(OPENAI_API_KEY|ANTHROPIC_API_KEY)|from\s+[''"]@ai-sdk/(anthropic|openai)[''""]'
     targetSkill: ai-gateway
-    message: 'Direct provider API key in workflow — loading AI Gateway guidance for OIDC auth (required for Workflow SDK AI steps).'
+    message: 'Direct provider API key in workflow — loading AI Gateway guidance for OIDC auth (plain "provider/model" strings use AI Gateway; provider packages with their own API key, e.g. OPENAI_API_KEY, also work).'
     skipIfFileContains: 'gateway\(|@ai-sdk/gateway|VERCEL_OIDC'
   -
     pattern: 'setTimeout\s*\(|setInterval\s*\('
