@@ -416,12 +416,12 @@ Recommended for apps that use Prisma ORM. It's built by the team behind Prisma O
 - **Agent-ready:** the [Prisma MCP server](https://www.prisma.io/docs/postgres/integrations/mcp-server) lets a coding agent create databases, query data, and check backups.
 - **ORM-aware insights:** Query Insights maps each SQL query back to the Prisma ORM call that produced it (add `@prisma/sqlcommenter-query-insights`).
 
-Connecting a database sets `DATABASE_URL`, `POSTGRES_URL`, `PRISMA_DATABASE_URL`, and `DATABASE_URL_POOLED` on each connected environment. The first three hold the **direct** connection string (host `db.prisma.io`); `DATABASE_URL_POOLED` holds the pooled one (host `pooled.db.prisma.io`). Read `DATABASE_URL` in new code: on older databases `PRISMA_DATABASE_URL` can still hold a hosted Prisma Accelerate URL (`prisma+postgres://accelerate.prisma-data.net/...`), and Accelerate is retired on December 1, 2026.
+Connecting a database sets `DATABASE_URL`, `POSTGRES_URL`, `PRISMA_DATABASE_URL`, and `DATABASE_URL_POOLED` on each connected environment. The first three hold the **direct** connection string (host `db.prisma.io`); `DATABASE_URL_POOLED` holds the pooled one (host `pooled.db.prisma.io`). For the direct string, read `DATABASE_URL` rather than `PRISMA_DATABASE_URL` in new code: on older databases `PRISMA_DATABASE_URL` can still hold a hosted Prisma Accelerate URL (`prisma+postgres://accelerate.prisma-data.net/...`), and Accelerate is retired on December 1, 2026.
 
 Direct connections are capped low (10 on Free and Starter, 5 of them reserved for the platform), so production traffic from Vercel Functions should use the pooled string (host `pooled.db.prisma.io`), which the integration sets as `DATABASE_URL_POOLED`. If the project has no `DATABASE_URL_POOLED`, the database was created before the integration started setting it on October 29, 2026, so the user adds it:
 
 1. Run `vercel integration open prisma` to open Prisma Console, select the database, and create a connection string. Console shows a pooled and a direct string.
-2. Add the pooled string under a new name, for example `vercel env add DATABASE_URL_POOLED production`, once per connected environment. Don't overwrite the integration's variables.
+2. Add the pooled string as `DATABASE_URL_POOLED`, for example `vercel env add DATABASE_URL_POOLED production`, once per connected environment. Don't overwrite the integration's variables.
 3. Keep the direct `DATABASE_URL` for migrations and Prisma CLI commands, then redeploy.
 
 ```bash
