@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import { resolve, join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const ROOT = resolve(import.meta.dir, "..");
 const CLI = join(ROOT, "src", "cli", "index.ts");
@@ -126,6 +127,25 @@ describe("explain --json", () => {
     const { stdout } = await runCli("explain", "vercel deploy --prod", "--json");
     const result = JSON.parse(stdout);
     expect(result.targetType).toBe("bash");
+  });
+
+  test("command without a known CLI name or flag is bash", async () => {
+    const { stdout } = await runCli("explain", "eve info", "--json");
+    const result = JSON.parse(stdout);
+    expect(result.targetType).toBe("bash");
+    expect(result.matches.map((m: { skill: string }) => m.skill)).toContain("eve");
+  });
+
+  test("existing file whose path has spaces stays a file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "explain-"));
+    const file = join(dir, "my middleware.ts");
+    writeFileSync(file, "");
+    try {
+      const { stdout } = await runCli("explain", file, "--json");
+      expect(JSON.parse(stdout).targetType).toBe("file");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
