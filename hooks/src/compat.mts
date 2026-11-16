@@ -5,7 +5,7 @@
  * platform-specific output without duplicating translation logic.
  */
 
-import { appendFileSync } from "node:fs"
+import { upsertSessionEnvExports } from "./session-env-file.mjs"
 
 /**
  * Supported hook payload/output platforms.
@@ -68,10 +68,6 @@ function normalizeToolOutputValue(value: unknown): string | undefined {
   } catch {
     return String(value)
   }
-}
-
-function escapeShellEnvValue(value: string): string {
-  return value.replace(/(["\\$`])/g, "\\$1")
 }
 
 function drainCursorSessionEnv(): Record<string, string> | undefined {
@@ -196,7 +192,7 @@ export function setSessionEnv(platform: string, key: string, value: string): voi
   const envFile = getEnvFilePath()
   if (!envFile) return
 
-  appendFileSync(envFile, `export ${key}="${escapeShellEnvValue(value)}"\n`)
+  upsertSessionEnvExports(envFile, { [key]: value })
 }
 
 /**

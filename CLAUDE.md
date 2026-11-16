@@ -48,6 +48,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `hook-env.mts` — shared runtime helpers (env parsing, path resolution)
 - `skill-map-frontmatter.mts` — YAML parser + frontmatter extraction + `buildSkillMap()` + `validateSkillMap()`
 - `patterns.mts` — glob→regex conversion, seen-skills helpers, ranking, atomic file claims
+- `session-env-file.mts` — writes `export` lines to `CLAUDE_ENV_FILE`, replacing any earlier line for the same key so resumes and compactions do not grow the file
 - `prompt-patterns.mts` — prompt signal compiler + scorer (phrases/allOf/anyOf/noneOf)
 - `prompt-analysis.mts` — dry-run analysis reports for prompt matching
 - `vercel-config.mts` — vercel.json key→skill routing (±10 priority)
