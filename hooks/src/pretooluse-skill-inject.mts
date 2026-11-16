@@ -20,7 +20,7 @@
 
 import type { SyncHookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 import { readFileSync, realpathSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   detectPlatform,
@@ -343,6 +343,33 @@ export function loadSkills(pluginRoot?: string, logger?: Logger): LoadedSkills |
 // Pipeline stage 3: matchSkills
 // ---------------------------------------------------------------------------
 
+/**
+ * CI config files that nearly every repository has, whether or not it uses
+ * Vercel. Only deployments-cicd lists them as plain path patterns; other
+ * skills (e.g. vercel-agent's deploy*.yml / preview*.yml) keep path-only matching.
+ */
+const GENERIC_CI_SKILL = "deployments-cicd";
+const GENERIC_CI_PATH =
+  /(^|\/)\.github\/workflows\/[^/]+$|(^|\/)\.gitlab-ci\.ya?ml$|(^|\/)bitbucket-pipelines\.ya?ml$/i;
+const VERCEL_SIGNAL = /vercel/i;
+
+/**
+ * A generic CI path says nothing about Vercel, so a path match on one only
+ * counts when the file name, the content in the tool input, or (for
+ * Read/Edit) the file on disk mentions Vercel. Only the file name is checked,
+ * not the whole path, so a checkout under e.g. `~/vercel-clone/` is not a signal.
+ */
+function ciFileMentionsVercel(toolName: string, filePath: string, fileContent: string): boolean {
+  if (VERCEL_SIGNAL.test(basename(filePath)) || VERCEL_SIGNAL.test(fileContent)) return true;
+  // Write replaces the whole file, so the old contents on disk do not apply.
+  if (toolName === "Write") return false;
+  try {
+    return VERCEL_SIGNAL.test(readFileSync(filePath, "utf-8"));
+  } catch {
+    return false;
+  }
+}
+
 export interface MatchResult {
   matchedEntries: CompiledSkillEntry[];
   matchReasons: Record<string, { pattern: string; matchType: string }>;
@@ -380,7 +407,15 @@ export function matchSkills(
 
     for (const entry of compiledSkills) {
       l.trace("pattern-eval-start", { skill: entry.skill, target: filePath, patternCount: entry.compiledPaths.length });
-      const reason = matchPathWithReason(filePath, entry.compiledPaths);
+      let reason = matchPathWithReason(filePath, entry.compiledPaths);
+      if (
+        reason &&
+        entry.skill === GENERIC_CI_SKILL &&
+        GENERIC_CI_PATH.test(filePath.replace(/\\/g, "/")) &&
+        !ciFileMentionsVercel(toolName, filePath, fileContent)
+      ) {
+        reason = null;
+      }
       l.trace("pattern-eval-result", { skill: entry.skill, matched: !!reason, reason: reason || (null as unknown as string) });
       if (reason) {
         matchedEntries.push(entry);

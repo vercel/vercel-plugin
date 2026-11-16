@@ -2,7 +2,7 @@
 
 // hooks/src/pretooluse-skill-inject.mts
 import { readFileSync, realpathSync } from "fs";
-import { join, resolve } from "path";
+import { basename, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import {
   detectPlatform
@@ -202,6 +202,18 @@ function loadSkills(pluginRoot, logger) {
   const compiledSkills = compileSkillPatterns(skillMap, callbacks);
   return { skillMap, compiledSkills };
 }
+var GENERIC_CI_SKILL = "deployments-cicd";
+var GENERIC_CI_PATH = /(^|\/)\.github\/workflows\/[^/]+$|(^|\/)\.gitlab-ci\.ya?ml$|(^|\/)bitbucket-pipelines\.ya?ml$/i;
+var VERCEL_SIGNAL = /vercel/i;
+function ciFileMentionsVercel(toolName, filePath, fileContent) {
+  if (VERCEL_SIGNAL.test(basename(filePath)) || VERCEL_SIGNAL.test(fileContent)) return true;
+  if (toolName === "Write") return false;
+  try {
+    return VERCEL_SIGNAL.test(readFileSync(filePath, "utf-8"));
+  } catch {
+    return false;
+  }
+}
 function matchSkills(toolName, toolInput, compiledSkills, logger) {
   const l = logger || log;
   if (!SUPPORTED_TOOLS.includes(toolName)) {
@@ -219,7 +231,10 @@ function matchSkills(toolName, toolInput, compiledSkills, logger) {
     const fileContent = contentParts.join("\n");
     for (const entry of compiledSkills) {
       l.trace("pattern-eval-start", { skill: entry.skill, target: filePath, patternCount: entry.compiledPaths.length });
-      const reason = matchPathWithReason(filePath, entry.compiledPaths);
+      let reason = matchPathWithReason(filePath, entry.compiledPaths);
+      if (reason && entry.skill === GENERIC_CI_SKILL && GENERIC_CI_PATH.test(filePath.replace(/\\/g, "/")) && !ciFileMentionsVercel(toolName, filePath, fileContent)) {
+        reason = null;
+      }
       l.trace("pattern-eval-result", { skill: entry.skill, matched: !!reason, reason: reason || null });
       if (reason) {
         matchedEntries.push(entry);

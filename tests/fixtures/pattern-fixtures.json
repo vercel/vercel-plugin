@@ -38,7 +38,7 @@
       "expectedSkills": ["vercel-storage", "bootstrap"]
     },
     {
-      "description": ".github/workflows/deploy.yml triggers deployments-cicd and vercel-agent, not workflow",
+      "description": ".github/workflows/deploy.yml path-matches deployments-cicd and vercel-agent, not workflow (the hook additionally requires a Vercel mention before injecting deployments-cicd)",
       "type": "path",
       "input": ".github/workflows/deploy.yml",
       "expectedSkills": ["deployments-cicd", "vercel-agent"]
