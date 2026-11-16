@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { loadSkills, matchSkills } from "../hooks/pretooluse-skill-inject.mjs";
 import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 // Content-contract guards for the deployments-cicd skill. SKILL.md keeps the
@@ -70,6 +72,68 @@ describe("deployments-cicd release guidance", () => {
     expect(allContent).toContain("types: [vercel.deployment.ready]");
     expect(allContent).toContain("uses: vercel/repository-dispatch/actions/status@v1");
     expect(allContent).toContain("ref: ${{ github.event.client_payload.git.sha }}");
+  });
+});
+
+describe("deployments-cicd generic CI path matching", () => {
+  const ciFile = "name: CI\non: [pull_request]\njobs: {test: {runs-on: ubuntu-latest}}\n";
+  const vercelCiFile = "name: Deploy\non: [push]\njobs: {deploy: {steps: [{run: vercel deploy --prod}]}}\n";
+
+  function matched(toolName: string, toolInput: Record<string, unknown>): string[] {
+    const { compiledSkills } = loadSkills(ROOT)!;
+    return [...matchSkills(toolName, toolInput, compiledSkills)!.matched];
+  }
+
+  test("ignores CI files that never mention Vercel", () => {
+    expect(matched("Write", { file_path: ".github/workflows/ci.yml", content: ciFile })).not.toContain("deployments-cicd");
+    expect(matched("Write", { file_path: ".gitlab-ci.yml", content: ciFile })).not.toContain("deployments-cicd");
+    expect(matched("Write", { file_path: "bitbucket-pipelines.yml", content: ciFile })).not.toContain("deployments-cicd");
+  });
+
+  test("gates Windows-style CI paths the same way", () => {
+    expect(matched("Write", { file_path: "C:\\repo\\.github\\workflows\\ci.yml", content: ciFile }))
+      .not.toContain("deployments-cicd");
+    expect(matched("Write", { file_path: "C:\\repo\\.gitlab-ci.yml", content: ciFile })).not.toContain("deployments-cicd");
+    expect(matched("Write", { file_path: "C:\\repo\\.github\\workflows\\ci.yml", content: vercelCiFile }))
+      .toContain("deployments-cicd");
+  });
+
+  test("only gates deployments-cicd, not vercel-agent's deploy/preview patterns", () => {
+    const skills = matched("Write", { file_path: ".github/workflows/deploy.yml", content: ciFile });
+    expect(skills).not.toContain("deployments-cicd");
+    expect(skills).toContain("vercel-agent");
+  });
+
+  test("ignores 'vercel' in parent folders of the CI file", () => {
+    const filePath = join(tmpdir(), "vercel-x", ".github/workflows/ci.yml");
+    expect(matched("Write", { file_path: filePath, content: ciFile })).not.toContain("deployments-cicd");
+    expect(matched("Edit", { file_path: filePath, old_string: "pull_request", new_string: "push" }))
+      .not.toContain("deployments-cicd");
+  });
+
+  test("still matches CI files that use Vercel", () => {
+    expect(matched("Write", { file_path: ".github/workflows/deploy.yml", content: vercelCiFile }))
+      .toContain("deployments-cicd");
+    expect(matched("Write", { file_path: ".github/workflows/vercel-preview.yml", content: ciFile }))
+      .toContain("deployments-cicd");
+    expect(matched("Read", { file_path: "vercel.json" })).toContain("deployments-cicd");
+  });
+
+  test("reads the file on disk for Read and Edit", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vercel-plugin-ci-"));
+    try {
+      mkdirSync(join(dir, ".github/workflows"), { recursive: true });
+      const plain = join(dir, ".github/workflows/ci.yml");
+      const vercel = join(dir, ".github/workflows/release.yml");
+      writeFileSync(plain, ciFile);
+      writeFileSync(vercel, vercelCiFile);
+      expect(matched("Read", { file_path: plain })).toEqual([]);
+      expect(matched("Read", { file_path: vercel })).toContain("deployments-cicd");
+      expect(matched("Edit", { file_path: vercel, old_string: "push", new_string: "release" }))
+        .toContain("deployments-cicd");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
