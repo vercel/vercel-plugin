@@ -167,7 +167,7 @@ retrieval:
 
 Use Vercel Tracing to instrument server code with OpenTelemetry and inspect spans from deployed traffic. The workflow is **register `@vercel/otel` from the framework's server startup hook → deploy and exercise a server route → search and inspect the trace with `vercel traces`**. Use the same traces to debug failed requests and measure slow operations. Read only the references needed for the current task.
 
-Tracing only covers requests that run server code: dynamic routes, API routes, functions, and on-demand rendering. Static and prerendered pages and CDN cache hits run no application code, so traces cannot explain or speed them up; optimize those with caching, bundle size, and Core Web Vitals work instead.
+Tracing only covers server code: requests to dynamic routes, API routes, functions, and on-demand rendering, and [daemons](https://vercel.com/docs/daemons/tracing) (Public Beta, production only) that export spans to the Unix socket at `VERCEL_OTEL_SOCKET_PATH`. In a Node.js daemon, call `registerOTel` from `@vercel/otel` 2.3.0+ at the top of the worker's entry file; in other languages, point an OpenTelemetry exporter that supports Unix sockets (OTLP/HTTP, not gRPC) at that path. Setting `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT`, or passing a custom `traceExporter` to `registerOTel`, bypasses the socket. Find daemon spans by the `serviceName` the daemon registers, with `vercel traces search --project <project> --service <serviceName>`. Static and prerendered pages and CDN cache hits run no application code, so traces cannot explain or speed them up; optimize those with caching, bundle size, and Core Web Vitals work instead.
 
 ## Reference index
 
