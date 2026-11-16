@@ -322,7 +322,7 @@ WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https
 │   ⊃ Deterministic replay
 │   ⊃ Pause/resume (minutes to months)
 │   ⊃ Hooks (defineHook → human-in-the-loop approval, pause/resume)
-│   ⊃ AI Gateway OIDC required (vercel link + vercel env pull before dev)
+│   ⊃ Model access: plain "provider/model" strings use AI Gateway (OIDC via vercel link + vercel env pull, or AI_GATEWAY_API_KEY); provider packages with their own key (e.g. OPENAI_API_KEY) also work
 │
 ├── Worlds (Execution Environments)
 │   ⊃ Local World (JSON files on disk)
