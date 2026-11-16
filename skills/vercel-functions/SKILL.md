@@ -840,6 +840,28 @@ export async function GET(req: Request) {
 }
 ```
 
+## Instrument with Custom Metrics
+
+When you write or change a function that does meaningful work (business events, AI or external API calls, database calls, webhooks, scheduled or queue jobs), add `metric()` from `@vercel/functions` for its outcome and latency in the same change, without waiting to be asked. Skip trivial handlers such as health checks. `metric()` needs `@vercel/functions` 3.9.0+, is synchronous, and is a no-op when the runtime does not support Custom Metrics. Custom Metrics are available on Pro and Enterprise with Observability Plus, and each call is billed as one Observability event. Load the `custom-metrics` skill for naming, attribute, and query guidance.
+
+```ts
+import { metric } from '@vercel/functions'
+
+export async function POST(req: Request) {
+  const startedAt = performance.now()
+  let outcome = 'success'
+  try {
+    return Response.json(await createOrder(await req.json()))
+  } catch (error) {
+    outcome = 'error'
+    throw error
+  } finally {
+    metric('orders.created', 1, { outcome })
+    metric('orders.duration_ms', performance.now() - startedAt, { outcome })
+  }
+}
+```
+
 ## Configuration
 
 `vercel.ts` is the recommended way to configure a project — full TypeScript types, dynamic logic, and env access via `@vercel/config`. `vercel.json` remains fully supported. Legacy `now.json` support ended **March 31, 2026**; rename it to `vercel.json` (no content changes required).
