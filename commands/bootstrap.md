@@ -76,7 +76,7 @@ vercel integration guide prisma
 vercel integration add prisma --scope <team>
 ```
 
-It sets `DATABASE_URL` to the direct connection string. Then verify and pull env vars as in step 3 of the preferred path below. For production traffic from Vercel Functions, add the pooled string as described in the `vercel-storage` skill.
+It sets `DATABASE_URL` to the direct connection string and `DATABASE_URL_POOLED` to the pooled one. Then verify and pull env vars as in step 3 of the preferred path below. For production traffic from Vercel Functions, read `DATABASE_URL_POOLED` and fall back to `DATABASE_URL`; keep `DATABASE_URL` for Prisma CLI commands such as migrations. Databases created before October 29, 2026 have no `DATABASE_URL_POOLED`: add it as described in the `vercel-storage` skill.
 
 ### Preferred path (Vercel-managed Neon)
 
