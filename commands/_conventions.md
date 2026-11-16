@@ -28,7 +28,7 @@ Before executing, state what will happen:
 The operational core. Follow these conventions:
 
 - **MCP-first, CLI-fallback** — Prefer the Vercel MCP server for reads; use CLI for writes or when MCP lacks coverage.
-- **Structured output** — Request `--format=json` where available; parse and present results in a readable summary.
+- **Structured output** — Request `--json` where available (Vercel CLI 58.1+; older CLIs use `--format=json`); parse and present results in a readable summary.
 - **No secrets in output** — Never echo environment variable values. Show names and metadata only.
 - **Confirmation for destructive ops** — Production deploys, env removal, cache purge, and domain changes require an explicit "yes" from the user.
 

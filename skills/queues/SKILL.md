@@ -114,7 +114,7 @@ Vercel Queues (public beta) gives you durable, append-only topics. Producers pub
 |------|-----|-----|
 | Fire-and-forget background job, fan-out, buffering | **Queues** | Direct publish/consume, independent consumer groups |
 | Multi-step logic with sleep, hooks, or human approval | **Workflows** (`⤳ skill: workflow`) | Durable steps and replay built on top of Queues |
-| Scheduled invocation on a cron | Cron Jobs (`⤳ skill: vercel-functions`) | Time-based trigger, not message-based |
+| Scheduled invocation on a cron or once at a set time | Vercel Schedules (`⤳ skill: vercel-schedules`); a schedule can publish to a queue topic | Time-based trigger, not message-based; beta, replaces legacy Cron Jobs |
 
 ## Quickstart (Next.js App Router)
 
@@ -218,7 +218,7 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 
 ## Errors
 
-`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, `MessageNotFoundError`, and `QueueEmptyError`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
+`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, and `MessageNotFoundError`. `QueueEmptyError` is exported but never thrown; an empty poll-mode `receive` returns `{ ok: false, reason: 'empty' }`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
 
 ## Common Pitfalls
 

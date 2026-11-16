@@ -157,7 +157,7 @@ Each phase gets a structured JSON score via `claude -p --json-schema --model hai
 | | benchmark-agents (WezTerm) | benchmark-sandbox |
 |---|---|---|
 | **Environment** | Local macOS terminal panes | Remote Vercel Sandboxes (Amazon Linux) |
-| **Parallelism** | Limited by local resources | Up to 10 (Hobby) or 2,000 (Pro) concurrent |
+| **Parallelism** | Limited by local resources | Up to 10 (Hobby) or 10,000 (Pro) concurrent |
 | **Session type** | Interactive TTY via `/bin/zsh -ic` | Direct `sh -c` invocation (PTY not required) |
 | **Artifact access** | Direct filesystem (`~/.claude/debug/`) | `sandbox.readFile()` / poll via `runCommand` |
 | **Port exposure** | `localhost:3000` | Public `https://sb-XXX.vercel.run` URLs |

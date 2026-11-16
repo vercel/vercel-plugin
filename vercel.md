@@ -41,7 +41,8 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
-│   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⊃ Vercel Schedules (cron or one-time runs of private functions, paths, or queue topics; replaces Cron Jobs)
+│   ⊃ Cron Jobs (legacy scheduled function invocation → migrate to Schedules)
 │   ⊃ Custom Metrics (numeric samples from Functions → Observability / vc metrics)
 │   ⊃ Vercel Queues (durable topics, at-least-once delivery, consumer groups; beta — the primitive under Workflows)
 │   ⊃ Vercel Daemons (long-running containers with no inbound traffic, `daemons` key in vercel.json; beta, production only)
@@ -52,6 +53,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: runtime-cache
 │   ⤳ skill: queues
 │   ⤳ skill: daemons
+│   ⤳ skill: vercel-schedules
 │
 ├── Domains & DNS
 │   → Deployment Engine
@@ -138,7 +140,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 NEXT.JS (v16+)                           📖 docs: https://nextjs.org/docs
 ├── Agent docs: version-matched, bundled in node_modules/next/dist/docs/
 │   ⊃ Read these before writing Next.js code (official guidance)
-│   ⊃ 16.3+: `next dev` writes AGENTS.md / CLAUDE.md pointing at them
+│   ⊃ 16.3+: `next dev` writes AGENTS.md pointing at them (16.3 also writes a CLAUDE.md importing @AGENTS.md; 16.4+ writes only AGENTS.md)
 │   ⊃ 16.2: docs bundled, add AGENTS.md yourself; ≤16.1: npx @next/codemod@canary agents-md
 │   ⊃ Workflow skills (Cache Components, Partial Prefetching, dev loop): npx skills add vercel/next.js
 │
@@ -298,10 +300,10 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
 │   ⊃ Built-in Observability
 │
 ├── Image Generation (gateway-native)
-│   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image-preview' + generateText → result.files
+│   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image' + generateText → result.files
 │   ⊃ Image-only models: generateImage (Imagen 4.0, Flux 2, Grok Imagine)
-│   ⊃ Default model: google/gemini-3.1-flash-image-preview
-│   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image Preview
+│   ⊃ Default model: google/gemini-3.1-flash-image
+│   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image
 │
 ├── Supported Providers
 │   ⊃ OpenAI, Anthropic, Google, Meta, xAI, Mistral
@@ -672,7 +674,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ----------------------------------- | -------------------------------- | ------------------------------------------------ |
 | Form submissions, in-app mutations  | Server Actions                   | Integrated with caching, progressive enhancement |
 | Public API, webhooks, large uploads | Route Handlers                   | REST semantics, streaming support                |
-| Scheduled tasks                     | Cron Jobs + Vercel Functions     | Reliable scheduling                              |
+| Scheduled tasks                     | Vercel Schedules (beta)          | Timezones, private targets; replaces legacy Cron Jobs |
 
 ### AI Features
 
@@ -684,7 +686,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Chat interface | AI SDK `useChat` + `streamText` + AI Gateway + AI Elements | Streaming UI, provider-agnostic |
 | Chat UI components (messages, tools, reasoning) | AI Elements (`npx ai-elements`) | Pre-built, handles UIMessage parts |
 | Custom chat rendering (no AI Elements) | Manual `message.parts` iteration | Full control over rendering |
-| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
+| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
 | Image generation (image-only models) | `generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
@@ -739,7 +741,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Long-running with I/O waits | Fluid Compute (default) | Shared instances, Active CPU pricing, waitUntil |
 | AI streaming responses | Streaming Functions | SSE, zero config |
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
-| Scheduled execution | Cron Jobs | vercel.json schedule config |
+| Scheduled execution (cron or one-time) | Vercel Schedules (`schedules` in vercel.json, `@vercel/schedules`) | Private function, path, or queue targets; timezones; per-environment state; replaces Cron Jobs |
 | Background jobs, buffering, fan-out to consumers | Vercel Queues (`@vercel/queue`) | Durable topics, at-least-once delivery, retries; Workflows for multi-step logic |
 | Always-on worker (queue consumer, Celery/Sidekiq/BullMQ, job runner) | Vercel Daemons (`daemons` in vercel.json) | Dockerfile-built, fixed instances per region, no inbound traffic; beta, production only |
 
@@ -750,7 +752,7 @@ Choose based on **where** the interception happens and **what** you need to do.
 
 | Mechanism                                                 | Layer                                       | Runtime                         | Use When                                                                                              | Avoid When                                                                      |
 | --------------------------------------------------------- | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Routing Middleware** (`proxy.entrypoint` in vercel.json or `middleware.ts`) | Vercel CDN, before cache                    | Node.js (`proxy` entrypoint) or Edge (`middleware.ts` default; `runtime: 'nodejs'` to switch) | Geo-redirects, A/B routing, header rewriting, defense-in-depth auth checks — any framework            | Heavy computation, database access, or auth as the sole protection layer        |
+| **Routing Middleware** (`proxy.entrypoint` in vercel.json or `middleware.ts`) | Vercel CDN, before cache                    | Node.js or Python (`proxy` entrypoint; must match the app's runtime), Bun (`bunVersion` in vercel.json), or Edge (`middleware.ts` default; `runtime: 'nodejs'` to switch) | Geo-redirects, A/B routing, header rewriting, defense-in-depth auth checks — any framework            | Heavy computation, database access, or auth as the sole protection layer        |
 | **`proxy.ts`** (Next.js 16+)                              | Application layer, replaces `middleware.ts` | Node.js                         | Same use cases as Routing Middleware but you need `node:*` modules, ORM calls, or full Node.js compat | You're not on Next.js 16+; prefer Routing Middleware for non-Next.js frameworks |
 | **Vercel Functions**                                      | Handles the full request                    | Node.js (default), Bun, Python, Rust | API endpoints, streaming and SSE responses, WebSockets, background work with `waitUntil`                   | Rewrites or redirects that must run before the cache (use Routing Middleware)   |
 
@@ -892,8 +894,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | `isLoading` (useChat) | `status === "streaming" \|\| status === "submitted"` | v6 status enum |
 | `onResponse()` callback | Transport configuration | Removed in AI SDK 5 |
 | `body` option (useChat) | Pass data through transport | v6 transport pattern |
-| DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
-| `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
+| DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image'` | Better quality, faster, cheaper |
+| `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image` | Dramatically better quality |
 | `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
@@ -939,8 +941,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
 - Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@latest`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
-- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
-- **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image-preview`; DALL-E 2/3 → use Gemini 3.1 Flash Image Preview.
+- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
+- **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image`; DALL-E 2/3 → use Gemini 3.1 Flash Image.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
 - Use `mcp-to-ai-sdk` CLI to generate static tool definitions from MCP servers for security.
 - Use AI SDK DevTools (`npx @ai-sdk/devtools`) during development for debugging.
@@ -951,7 +953,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Add `.env*.local` to `.gitignore` — these files contain pulled secrets.
 - Use Fluid Compute for long-running functions — extends max duration to 800s on paid plans.
 - Use `waitUntil` (or `after` in Next.js) for background work after sending a response.
-- Configure cron jobs in `vercel.json` and verify with `CRON_SECRET` header.
+- Schedule recurring or one-time work with Vercel Schedules (`schedules` in `vercel.json`, private `function` targets; ⤳ skill: vercel-schedules). Cron Jobs are legacy: existing `crons` keep working (verify them with a `CRON_SECRET` check); migrate them to Schedules.
 - Use `vercel deploy --prebuilt` in CI for fastest deploys (separate build from deploy).
 - For monorepos, use Turborepo with remote caching and `--affected` for efficient CI.
 
@@ -1011,13 +1013,16 @@ This document is part of the **Vercel plugin for Claude Code**. The plugin uses 
 
 ### SessionStart — Baseline injection
 
-On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
+On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. Claude Code caps each hook's output at 10,000 characters, so the hook splits this context at `##` sections into parts of at most 9,000 characters, and `hooks.json` runs it once per part. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
 
 Deeper `vercel.md` guidance is now loaded later in small topic chunks when prompt or tool-time skill matching shows it is relevant. Chunking is deduped per session so the same Vercel topic is not repeated on every prompt.
 
 **Hook config** (`hooks/hooks.json`):
 ```json
-"SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\"" }] }]
+"SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [
+  { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 1/2" },
+  { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 2/2" }
+] }]
 ````
 
 ### PreToolUse — Skill-map matching

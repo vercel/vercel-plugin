@@ -36,7 +36,7 @@ retrieval:
     - provider agent skills
 chainTo:
   -
-    pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
+    pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|@prisma/orm-postgres|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
     targetSkill: vercel-storage
     message: 'Database/storage integration detected — loading Storage guidance (Neon, Upstash, Supabase, Prisma Postgres, Mongo, …), connection pooling, and serverless patterns.'
   -
@@ -111,7 +111,7 @@ Steps 1–2 need only `vercel login`, no provider account — always run them fi
 - **CLI** (run `vercel integration <cmd> --help`; don't enumerate from memory): `categories` · `discover --category <slug>` · `guide <name> --framework <nextjs|remix|astro|nuxtjs|sveltekit>` · `add <name>` · `accept-terms <name>` (team-level install without provisioning; interactive only) · `installations` (team-level installs) · `list` / `update` / `remove --yes` / `balance <name>` · `resource claim` (turn a sandbox marketplace resource into a real one; `add --no-claim` skips the offer in CI) · `env ls` / `env pull --yes`. `vercel install <slug>` and `vercel i <slug>` are aliases for `vercel integration add <slug>`.
 - **Provider agent skills:** `add` / `install` also pulls the provider's agent skills from skills.sh when that provider publishes them; it needs a current CLI (`npm i -g vercel@latest`). **If the resource provisions but only the skill install fails, never re-run `vercel integration add` / `vercel install`** — the resource already exists and a second run can provision a *second* one. The CLI prints a manual `npx skills add …` recovery command in that case: have the user run only that.
 - **Removal:** `vercel integration resource remove <resource>` (alias `vercel integration-resource remove` / `vercel ir rm`) deletes the resource permanently; it refuses while projects are connected unless `--disconnect-all` detaches them first. `vercel integration remove <integration>` uninstalls the integration and fails while it still has resources. Run either one (with or without `--yes`) only after the user explicitly approves removing that named resource or integration.
-- Never echo secret values (`env ls` shows names only). CI / non-interactive: `--yes`, `--format=json`, `--no-claim`.
+- Never echo secret values (`env ls` shows names only). CI / non-interactive: `--yes`, `--json`, `--no-claim`.
 
 ## Cross-References
 

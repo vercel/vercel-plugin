@@ -61,6 +61,7 @@ Use this to route to the correct reference file:
 - **Connectors (`vercel connect`)** → `references/connectors.md`
 - **Routing rules** → `references/routing.md`
 - **Firewall (WAF rules, IP blocks, rate limiting)** → `references/firewall.md`
+- **Security Review vulnerabilities or security checks (`vercel security`)** → `references/security.md`
 - **Access a preview deployment** → use `vercel curl` (see `references/monitoring-and-debugging.md`)
 - **CLI command is unavailable or output is missing required fields** → use `vercel api` after first-class CLI paths are unavailable or insufficient (see `references/advanced.md`)
 - **Node.js backends (Express, Hono, etc.)** → `references/node-backends.md`

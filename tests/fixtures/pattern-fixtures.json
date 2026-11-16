@@ -2,10 +2,10 @@
   "$schema": "Pattern fixture dry-run: maps file paths and bash commands to expected skill matches",
   "fixtures": [
     {
-      "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions, services, daemons)",
+      "description": "vercel.json triggers multiple skills (routing, deploy, cli, functions, services, daemons, schedules)",
       "type": "path",
       "input": "vercel.json",
-      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions", "vercel-services", "daemons"]
+      "expectedSkills": ["routing-middleware", "deployments-cicd", "vercel-cli", "vercel-functions", "vercel-services", "daemons", "vercel-schedules"]
     },
     {
       "description": "middleware.ts triggers routing-middleware and auth",
@@ -160,7 +160,7 @@
     {
       "description": "vercel ai-gateway budgets triggers ai-gateway and vercel-cli",
       "type": "bash",
-      "input": "vercel ai-gateway budgets set team --limit 500 --refresh-period monthly",
+      "input": "vercel ai-gateway budgets set team --amount 500 --refresh-period monthly",
       "expectedSkills": ["ai-gateway", "vercel-cli"]
     },
     {

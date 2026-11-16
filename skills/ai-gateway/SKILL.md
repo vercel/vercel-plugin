@@ -163,12 +163,12 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 
 | Command | What it does |
 | --- | --- |
-| `api-keys create/list/inspect/remove` | Create and manage AI Gateway API keys, with budgets, spend alerts, expiry, and restriction exemptions |
+| `api-keys create/list/inspect/revoke` | Create and manage AI Gateway API keys, with budgets, spend alerts, expiry, and restriction exemptions. `revoke` needs CLI 64.6+; older CLIs use `remove` |
 | `budgets set/list/inspect/remove` | Set metered spend limits for the team, a project, a user, or an API key |
 | `budgets set/inspect/remove --default`, `budgets list --defaults` | Set per-scope default limits covering projects, keys, or members without a custom budget. Needs CLI 59.13+; the older `budgets defaults` group is deprecated |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
-| `virtual-models create/list/inspect/edit/remove/restore` | Manage reusable, team-scoped model configurations addressed as `vmc/<slug>` |
-| `rules add/list/edit/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. REST CRUD exists under `https://api.vercel.com/ai-gateway/rules` |
+| `virtual-models create/list/inspect/update/delete/restore` | Manage reusable, team-scoped model configurations addressed as `vmc/<slug>`. `update` needs CLI 64.4+ and `delete` 64.6+; older CLIs use `edit` and `remove` |
+| `rules add/list/update/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. `update` needs CLI 64.4+; older CLIs use `edit`. REST CRUD exists under `https://api.vercel.com/ai-gateway/rules` |
 | `setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
 
@@ -181,7 +181,7 @@ Use the CLI for credential and spend management when the user is working from a 
 | Ask a coding agent to make one Gateway request, or handle first-request credentials, compatible SDKs, or migration | [references/setup.md](references/setup.md) |
 | Provider selection, model fallbacks, caching, BYOK, or timeouts | [references/routing.md](references/routing.md) |
 | Reusable model configuration, a `vmc/<slug>`, or provider options for a client that cannot send them | [references/virtual-models.md](references/virtual-models.md) |
-| Typed decisions (formerly evaluation) through AI SDK, `POST /v1/evaluate`, the OpenAI-compatible `POST /v1/decisions`, or the TypeSafe-compatible API | [references/evaluation.md](references/evaluation.md) |
+| Typed decisions (formerly evaluation) through AI SDK, the OpenAI-compatible `POST /v1/decisions`, the deprecated `POST /v1/evaluate`, or the TypeSafe-compatible API | [references/evaluation.md](references/evaluation.md) |
 | Credits, budgets, reporting, Logs, or request debugging | [references/spend-observability.md](references/spend-observability.md) |
 | Route Claude Code, Codex, OpenCode, Pi, or another coding agent's own model traffic through Gateway | [references/coding-agents.md](references/coding-agents.md) |
 
@@ -195,13 +195,13 @@ Read each relevant reference before editing. A task can require more than one.
 | Python using AI SDK for Python | Use `ai.get_model('provider/model')` and the current Python SDK docs |
 | Existing OpenAI SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh/v1` |
 | Existing Anthropic SDK | Keep the SDK and point `baseURL` or `base_url` to `https://ai-gateway.vercel.sh` |
-| Evaluation over provider-neutral HTTP | Send Gateway's evaluation request shape to `POST https://ai-gateway.vercel.sh/v1/evaluate` |
+| Decisions over provider-neutral HTTP | Send the OpenAI-compatible Decisions request shape to `POST https://ai-gateway.vercel.sh/v1/decisions`; `POST /v1/evaluate` is deprecated |
 | Existing TypeSafe evaluation client | Keep `@typesafe-ai/sdk` and point `baseURL` to `https://ai-gateway.vercel.sh/typesafe` |
 | Provider-neutral HTTP | Use an AI Gateway compatible endpoint, such as Chat Completions or OpenResponses |
 | Existing direct-provider AI SDK integration | Replace the provider instance with a live AI Gateway `provider/model` string, then remove provider credentials only after verifying the gateway path |
 | Coding agent | Use `vercel ai-gateway setup`; inspect its help before claiming agent support. Use a Virtual Model when the agent needs reusable routing or provider options it cannot send per request |
 
-AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, realtime sessions, and decisions (formerly evaluation). Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Decisions are available through AI SDK (`experimental_decide` in `ai` 7.0.128+, or the deprecated `experimental_evaluate` alias on earlier AI SDK 7 releases), `POST /v1/evaluate`, the OpenAI-compatible `POST /v1/decisions`, and a TypeSafe-compatible API under `/typesafe`; they are not available through Chat Completions, Responses, or the Anthropic- or Cohere-compatible endpoints. Read [references/evaluation.md](references/evaluation.md) before choosing a surface. Read the relevant modality or API page instead of translating one request shape from memory.
+AI Gateway also supports OpenAI Responses, Anthropic Messages, OpenResponses, Cohere Rerank, embeddings, image and video generation, speech, transcription, realtime sessions, and decisions (formerly evaluation). Modality pages under <https://vercel.com/docs/ai-gateway/modalities> cover each request shape, including background jobs for long-running video generation. Decisions are available through AI SDK (`experimental_decide` in `ai` 7.0.128+, or the deprecated `experimental_evaluate` alias on earlier AI SDK 7 releases), the OpenAI-compatible `POST /v1/decisions`, the deprecated `POST /v1/evaluate`, and a TypeSafe-compatible API under `/typesafe`; they are not available through Chat Completions, Responses, or the Anthropic- or Cohere-compatible endpoints. Read [references/evaluation.md](references/evaluation.md) before choosing a surface. Read the relevant modality or API page instead of translating one request shape from memory.
 
 ## Minimal AI SDK request
 
@@ -253,7 +253,7 @@ Only spend credits, create keys, change budgets, change routing rules, or write 
 ## Routing invariants
 
 - Model IDs use the exact `provider/model` strings returned by `/v1/models`.
-- `order` controls provider preference, `only` restricts providers, and `sort` ranks providers by a supported metric.
+- Default routing already fails over across providers. Add `order` (preference), `only` (hard filter, no failover outside it), or `sort` (one-metric ranking) only for a stated requirement.
 - `models` lists fallback models after the primary model.
 - `caching: 'auto'` manages provider prompt-cache markers. It is not an HTTP response cache.
 - `providerTimeouts` applies to BYOK provider attempts. Streaming requests clear it at the first stream chunk; non-streaming requests time the complete response.

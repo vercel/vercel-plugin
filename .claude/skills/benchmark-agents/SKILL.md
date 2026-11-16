@@ -171,7 +171,7 @@ echo -n "components.json: "; test -f "$base/components.json" && echo YES || echo
 
 ### Image generation model
 ```bash
-# Should use gemini-3.1-flash-image-preview, NOT dall-e-3 or older gemini models
+# Should use gemini-3.1-flash-image, NOT dall-e-3 or older gemini models
 grep -rn "gemini.*image\|dall-e\|experimental_generateImage\|result\.files" "$base/workflows/" "$base/app/" 2>/dev/null | grep "\.ts"
 ```
 
@@ -205,7 +205,7 @@ head -5 "$wf"   # Should show: import { getWritable } from "workflow"
 
 ### DON'T:
 - "use Vercel Workflow SDK with getWritable"
-- "use gateway('google/gemini-3.1-flash-image-preview')"
+- "use gateway('google/gemini-3.1-flash-image')"
 - "install npx ai-elements"
 - "add withWorkflow to next.config.ts"
 

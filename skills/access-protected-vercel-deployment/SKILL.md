@@ -90,7 +90,7 @@ vc curl https://my-app.vercel.app/api/health
 vc curl https://app.example.com/api/health
 vc curl my-app.vercel.app/api/users -X POST \
   -H "Content-Type: application/json" \
-  -d '{"name":"Ada"}'
+  --data '{"name":"Ada"}'
 vc curl /api/health
 ```
 

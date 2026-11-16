@@ -24,14 +24,14 @@ If you omit `--group`, the command is interactive and lets you select a group. I
 # Interactive selection
 vercel microfrontends inspect-group
 
-# JSON output for scripting/agents
-vercel mf inspect-group --group="My Group" --format=json
+# JSON output for scripting/agents (`--json` needs CLI 58.1+; older CLIs use `--format=json`)
+vercel mf inspect-group --group="My Group" --json
 
 # With a custom config filename
-vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --format=json
+vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --json
 ```
 
-> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --format=json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
+> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
 
 ## Adding Microfrontends
 
@@ -76,7 +76,7 @@ vercel microfrontends delete-group
 vercel mf delete-group --group="My Group"
 ```
 
-**Dashboard:** remove all projects from the group first — the option to delete the group then becomes available in **Settings** → **Microfrontends**.
+**Dashboard:** in team **Settings** → **Microfrontends** (or the default app's **Microfrontends** settings), open the group's menu and select **Delete Group** — no need to remove projects first.
 
 ## Fallback Environment
 
@@ -87,7 +87,7 @@ Controls where requests are routed when a microfrontend isn't built for a specif
 | Setting | Behavior |
 |---|---|
 | `Same Environment` | Falls back to a deployment in the same environment for the other project. Vercel auto-generates Preview deployments on the production branch. |
-| `Production` | Falls back to the promoted Production deployment of the other project. |
+| `Production` | Falls back to the promoted Production deployment of the other project. In a custom environment, only when the other project has no custom environment with the same name. |
 | Custom environment name | Falls back to a deployment in the specified custom environment. |
 
 ### Fallback behavior matrix
@@ -98,7 +98,7 @@ Controls where requests are routed when a microfrontend isn't built for a specif
 | Preview | Production | Preview | Production |
 | Preview | `staging` | Preview | `staging` |
 | `staging` | Same Environment | `staging` | `staging` |
-| `staging` | Production | `staging` | Production |
+| `staging` | Production | `staging` | `staging` if the project has one, otherwise Production |
 
 Configure in **Settings** → Microfrontends group → **Fallback Environment**.
 

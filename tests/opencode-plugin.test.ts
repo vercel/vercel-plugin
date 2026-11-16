@@ -291,16 +291,26 @@ describe("MCP", () => {
 });
 
 describe("session-start context", () => {
+  /** Joined output of every inject-claude-md invocation hooks.json registers. */
   async function runInjectClaudeMdHook(directory: string, env: Record<string, string> = {}): Promise<string> {
-    const proc = Bun.spawn([NODE_BIN, join(ROOT, "hooks", "inject-claude-md.mjs")], {
-      stdin: new TextEncoder().encode(JSON.stringify({ session_id: "s" })),
-      env: { ...(process.env as Record<string, string>), CLAUDE_PROJECT_ROOT: directory, ...env },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const stdout = await new Response(proc.stdout).text();
-    await proc.exited;
-    return stdout;
+    const hooksJson = JSON.parse(readFileSync(join(ROOT, "hooks", "hooks.json"), "utf-8"));
+    const invocations: string[][] = hooksJson.hooks.SessionStart
+      .flatMap((group: { hooks: { command: string }[] }) => group.hooks)
+      .map((hook: { command: string }) => hook.command.split('/hooks/inject-claude-md.mjs"'))
+      .filter((split: string[]) => split.length === 2)
+      .map(([, args]: string[]) => args.split(" ").filter(Boolean));
+    const outputs: string[] = [];
+    for (const args of invocations) {
+      const proc = Bun.spawn([NODE_BIN, join(ROOT, "hooks", "inject-claude-md.mjs"), ...args], {
+        stdin: new TextEncoder().encode(JSON.stringify({ session_id: "s" })),
+        env: { ...(process.env as Record<string, string>), CLAUDE_PROJECT_ROOT: directory, ...env },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      outputs.push(await new Response(proc.stdout).text());
+      await proc.exited;
+    }
+    return outputs.filter(Boolean).join("\n\n");
   }
 
   async function setupWithSession(directory: string, deps = createDeps().deps, extraSessions: FakeSession[] = []) {

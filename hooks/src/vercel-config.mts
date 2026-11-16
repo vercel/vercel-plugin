@@ -45,6 +45,9 @@ const KEY_SKILL_MAP: Record<string, string[]> = {
 
   // Daemons
   daemons: ["daemons"],
+
+  // Schedules
+  schedules: ["vercel-schedules"],
 };
 
 /**
@@ -57,6 +60,7 @@ export const VERCEL_JSON_SKILLS = new Set([
   "routing-middleware",
   "vercel-services",
   "vercel-functions",
+  "vercel-schedules",
 ]);
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 ---
 name: flags-sdk
-description: "Implement feature flags in Next.js or SvelteKit code with the Flags SDK (`flags` npm package). Use when installing or configuring the SDK, declaring flags with `flag()`, wiring a provider adapter (`@flags-sdk/vercel`, Statsig, LaunchDarkly, PostHog, GrowthBook, Global Config, OpenFeature, and others), using `identify`, `dedupe`, or `evaluate`, keeping pages static with precompute, setting up Flags Explorer, or encrypting flag values. For planning a flag, Vercel Flags rollouts and experiments, the `vercel flags` CLI, or other frameworks, use the `vercel-flags` skill."
+description: "Implement feature flags in Next.js or SvelteKit code with the Flags SDK (`flags` npm package). Use when installing or configuring the SDK, declaring flags with `flag()`, reading a connected same-team project's flags through Project Connections (`createVercelAdapter({ projectId })`), wiring a provider adapter (`@flags-sdk/vercel`, Statsig, LaunchDarkly, PostHog, GrowthBook, Global Config, OpenFeature, and others), using `identify`, `dedupe`, or `evaluate`, keeping pages static with precompute, setting up Flags Explorer, or encrypting flag values. For planning a flag, Vercel Flags rollouts and experiments, the `vercel flags` CLI, or other frameworks, use the `vercel-flags` skill."
 summary: "Flags SDK guidance for Next.js and SvelteKit — declare flags with flag(), connect provider adapters, precompute static variants, and set up the Flags Explorer endpoint."
 metadata:
   priority: 6
@@ -68,6 +68,7 @@ retrieval:
   intents:
     - declare a feature flag in code
     - connect a flag provider adapter
+    - read flags from a connected project
     - precompute flags for static pages
     - set up flags explorer
   entities:
@@ -183,7 +184,7 @@ Check the project state to adapt commands and decide which steps you can skip:
 - you created the project's first flag; activating Vercel Flags creates a `FLAGS_SECRET` per environment
 - local evaluation fails with an authentication error; the SDK refreshes an expired token through the linked project, re-pulling is the fallback
 
-SDK keys (`FLAGS`) are only for apps outside Vercel, custom environments, or flags of another project ([SDK Keys](https://vercel.com/docs/flags/vercel-flags/dashboard/sdk-keys)). If `FLAGS_SECRET` is still missing after the pull, generate it per [FLAGS_SECRET](#flags_secret).
+Use SDK keys (`FLAGS`) for apps outside Vercel or to select an environment explicitly ([SDK Keys](https://vercel.com/docs/flags/vercel-flags/dashboard/sdk-keys)). To read another same-team project's flags on Vercel, use [Project Connections](references/providers.md#project-connections) with your project's OIDC token. If `FLAGS_SECRET` is still missing after the pull, generate it per [FLAGS_SECRET](#flags_secret).
 
 ## Create a flag
 
@@ -250,7 +251,7 @@ Use this flow when the flag was created in the dashboard or by someone else, for
 
 ## Vercel Flags adapter
 
-`@flags-sdk/vercel` connects `flag()` declarations to Vercel Flags. `vercelAdapter` authenticates with the project's Vercel OIDC token and evaluates the configuration of the current environment; SDK keys (`FLAGS`) are for manual authentication only: apps outside Vercel, custom environments, or flags of another project ([SDK Keys](https://vercel.com/docs/flags/vercel-flags/dashboard/sdk-keys)). Activating Vercel Flags creates a `FLAGS_SECRET` per environment for Flags Explorer.
+`@flags-sdk/vercel` connects `flag()` declarations to Vercel Flags. `vercelAdapter` authenticates with the project's Vercel OIDC token and evaluates the configuration of the current environment. Use `@flags-sdk/vercel` version 1.6.0 or later and `createVercelAdapter({ projectId })` for a connected same-team project's flags; see [Project Connections](references/providers.md#project-connections). SDK keys (`FLAGS`) are for manual authentication, such as apps outside Vercel or selecting an environment explicitly. Activating Vercel Flags creates a `FLAGS_SECRET` per environment for Flags Explorer.
 
 For user targeting, attribute types, custom adapter configuration, sharing a `@vercel/flags-core` client, and the Flags Explorer endpoint, see [references/providers.md — Vercel](references/providers.md#vercel).
 

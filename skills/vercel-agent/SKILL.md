@@ -1,6 +1,6 @@
 ---
 name: vercel-agent
-description: Vercel Agent guidance — dashboard and Slack chat, code review, production investigation, approved actions, and product installation. Use when configuring or working with Vercel's AI assistant.
+description: Vercel Agent guidance — dashboard and Slack chat, code review, Security Review, production investigation, approved actions, and product installation. Use when configuring or working with Vercel's AI assistant.
 metadata:
   priority: 4
   docs:
@@ -28,10 +28,12 @@ retrieval:
     - set up vercel agent
     - automate code review
     - investigate incident
+    - read security review findings
     - configure ai tools
   entities:
     - Vercel Agent
     - code review
+    - Security Review
     - incident investigation
     - approved actions
 chainTo:
@@ -49,7 +51,7 @@ You are an expert in Vercel Agent — AI-powered development tools built into th
 
 Vercel Agent is an AI assistant built into Vercel. It uses project, deployment, log, metric, configuration, usage, and repository context to answer questions, investigate production issues, review code, install supported products, and propose approved actions.
 
-Dashboard chat, Slack chat, Investigations, and Code Review are in public beta for Pro and Enterprise teams.
+Dashboard chat, Slack chat, Investigations, Code Review, and Security Review are in public beta for Pro and Enterprise teams.
 
 ## Capabilities
 
@@ -66,6 +68,10 @@ Dashboard chat, Slack chat, Investigations, and Code Review are in public beta f
 - Generates and validates patches in **Vercel Sandbox** (secure execution)
 - Supports inline suggestions and full patch proposals
 
+### Security Review
+- Reviews code for security vulnerabilities and reports findings to the team's **Vulnerabilities** dashboard and as a GitHub check
+- Read and triage findings with `vercel security vulnerabilities` (see the vercel-cli skill's `references/security.md`)
+
 ### Investigation
 - Analyzes anomaly alerts, failed deployments, runtime errors, cost issues, and performance issues using project logs and metrics.
 - Observability Plus includes 10 investigations per billing cycle. Additional investigations are billed by token use.
@@ -79,7 +85,7 @@ Dashboard chat, Slack chat, Investigations, and Code Review are in public beta f
 ## Pricing
 
 - Paid Vercel Agent work uses the underlying provider inference rate with no markup, plus a Vercel Token Rate of $0.25 per million input, output, and cached tokens.
-- Chat and Slack include a limited number of simple requests during the public beta.
+- Chat and Slack share 50 free messages per team member per day during the beta (resets 00:00 UTC); approving a proposed plan is charged even with free messages left.
 - Observability Plus includes 10 investigations per billing cycle.
 - Installation has no Agent charge, though installed products retain their normal usage charges.
 
@@ -99,3 +105,5 @@ Select **Agent** in the top-right corner of the Vercel dashboard to start a conv
 - 📖 docs: https://vercel.com/docs/agent
 - 📖 pricing: https://vercel.com/docs/agent/pricing
 - 📖 permissions: https://vercel.com/docs/agent/chat/permissions
+- 📖 security review: https://vercel.com/docs/agent/security-review/usage
+- 📖 CLI: https://vercel.com/docs/cli/security

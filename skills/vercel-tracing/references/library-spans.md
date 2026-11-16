@@ -31,7 +31,7 @@ import { registerTelemetry } from 'ai';
 import { setTracerProvider } from 'flags';
 
 export function register() {
-  registerOTel({ serviceName: 'checkout' });
+  registerOTel({ serviceName: process.env.VERCEL_PROJECT_NAME });
   registerTelemetry(new OpenTelemetry());
   setTracerProvider(trace);
 }
@@ -49,9 +49,9 @@ import { registerOTel } from '@vercel/otel';
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { PgInstrumentation } = await import('@opentelemetry/instrumentation-pg');
-    registerOTel({ serviceName: 'checkout', instrumentations: ['auto', new PgInstrumentation()] });
+    registerOTel({ serviceName: process.env.VERCEL_PROJECT_NAME, instrumentations: ['auto', new PgInstrumentation()] });
   } else {
-    registerOTel({ serviceName: 'checkout' });
+    registerOTel({ serviceName: process.env.VERCEL_PROJECT_NAME });
   }
 }
 ```

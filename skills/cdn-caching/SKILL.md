@@ -141,7 +141,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
 
 Reach for the Vercel CLI. `vercel metrics` gives aggregate numbers (requires [Observability Plus](https://vercel.com/docs/observability/observability-plus)); `vercel logs requests` shows per-request CDN behavior (status, cache result, path), and `vercel logs` shows the runtime logs a request produced.
 
-Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--prod` (equivalent to `--filter 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). Run `vercel metrics schema <metric>` to discover dimensions; use `--format json` for machine-readable output. With `-g`, remember **`--limit` is per time bucket** — omit `-g` when you need totals across the whole window.
+Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.7+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format json`). Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
 
 ### Cache hit rate
 
@@ -151,18 +151,18 @@ Start here for an overall picture of how well caching is working.
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --prod --group-by cache_result --since 24h
+  --environment production --group-by cache_result --since 24h
 ```
 
 **Step 2 — where misses concentrate.** Split the `MISS` bucket (and optionally `STALE`) by `path_type`, then by `route` or `request_path`:
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --prod -f "cache_result:MISS" \
+  --environment production -q "cache_result:MISS" \
   --group-by path_type --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --prod -f "cache_result:MISS AND path_type:prerender" \
+  --environment production -q "cache_result:MISS AND path_type:prerender" \
   --group-by request_path --since 24h
 ```
 
@@ -177,8 +177,8 @@ Once you know hit rate, quantify ISR spend and whether revalidation — not traf
 **Utilization vs. ISR billing.** **Utilization** is `vercel.request.count` — total request volume. **ISR cost** is billed separately in 8 KB units: `read_units` when the regional CDN misses and falls through to the ISR cache, and `write_units` when a revalidation/regeneration produces changed output (unchanged content incurs none). The regional CDN shields ISR heavily — most requests never touch the ISR layer, so **read_units will be far below request count**. Do not compare read_units to write_units as a utilization check; focus on **write_units** (revalidation cost) and how they relate to total traffic.
 
 ```bash
-vercel metrics vercel.request.count -S <team> -p <project> -a sum --since 24h
-vercel metrics vercel.isr_operation.write_units -S <team> -p <project> -a sum --since 24h
+vercel metrics vercel.request.count -S <team> -p <project> --aggregation sum --since 24h
+vercel metrics vercel.isr_operation.write_units -S <team> -p <project> --aggregation sum --since 24h
 ```
 
 **Write utilization = cache serves ÷ ISR writes** — cached reads per regeneration.
@@ -186,11 +186,11 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> -a sum --
 ```bash
 # numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --prod -f "cache_result:(HIT OR STALE)" \
-  --group-by route -a sum --since 24h
+  --environment production -q "cache_result:(HIT OR STALE)" \
+  --group-by route --aggregation sum --since 24h
 # denominator: ISR writes
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  --prod --group-by route -a sum --since 24h
+  --environment production --group-by route --aggregation sum --since 24h
 ```
 
 High is good; near or below ~1 means you regenerate about as fast as the page is read (wasted writes) → lengthen the revalidate interval or move time-based to on-demand tag revalidation.
@@ -199,10 +199,10 @@ High is good; near or below ~1 means you regenerate about as fast as the page is
 
 ```bash
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  -a sum --group-by route --since 24h
+  --aggregation sum --group-by route --since 24h
 
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  -a sum --group-by request_path --since 24h
+  --aggregation sum --group-by request_path --since 24h
 ```
 
 **Regeneration vs. serving.** Group write units by `path_type` — concentration in `background_func` confirms revalidation (not per-request dynamic work) is the cost driver.
@@ -213,14 +213,14 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
 
 ```bash
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  -a sum --group-by cache_tags --since 24h
+  --aggregation sum --group-by cache_tags --since 24h
 ```
 
 - **What triggered revalidation** — group `vercel.request.count` by `triggering_tag` to see which tags fire most often (`triggering_tag` is on request count only, not ISR operation metrics. It is one of the tags that triggered the page to be stale):
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "triggering_tag:*" --group-by triggering_tag --since 24h
+  -q "triggering_tag:*" --group-by triggering_tag --since 24h
 ```
 
 Tags with a large blast radius that revalidate frequently are the usual root cause of high write_units. Prefer granular tags (`product-${id}`) and on-demand invalidation over short time-based intervals for event-driven content.
@@ -235,13 +235,13 @@ Before tuning headers or revalidate intervals, confirm what's left after those t
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "cache_result:BYPASS" --group-by bot_category --since 24h
+  -q "cache_result:BYPASS" --group-by bot_category --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "cache_result:BYPASS" --group-by user_agent --since 24h
+  -q "cache_result:BYPASS" --group-by user_agent --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -f "cache_result:BYPASS" --group-by request_method --since 24h
+  -q "cache_result:BYPASS" --group-by request_method --since 24h
 ```
 
 The **Firewall/WAF** with the `vercel-firewall` skill can be used to manage verified SEO crawlers, block abusive bots, and rate-limit junk traffic before it distorts your hit-rate picture.

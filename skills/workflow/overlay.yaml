@@ -344,7 +344,7 @@ validate:
     skipIfFileContains: "use step"
   -
     pattern: getWritable\(\)
-    message: 'getWritable() must only be called inside "use step" functions — workflow sandbox scope does not support it'
+    message: 'getWritable() streams cannot be written in workflow sandbox scope — pass the stream to a "use step" function or call getWritable() inside the step'
     severity: recommended
     skipIfFileContains: "use step"
   -

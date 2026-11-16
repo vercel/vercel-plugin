@@ -27,9 +27,9 @@ metadata:
 validate:
   -
     pattern: 'cron:\s*[''"]|from\s+[''"](node-cron)[''"]|cron\.schedule\('
-    message: 'Manual cron scheduling detected. Use Vercel Cron Jobs (vercel.json crons) for platform-native scheduled tasks.'
+    message: 'Manual cron scheduling detected. Use Vercel Schedules (beta), not legacy Cron Jobs.'
     severity: recommended
-    skipIfFileContains: 'vercel\.json.*crons|@vercel/cron'
+    skipIfFileContains: 'vercel\.json.*(crons|schedules)|@vercel/schedules'
 retrieval:
   aliases:
     - deploy
@@ -66,7 +66,7 @@ vercel
 vercel deploy
 ```
 
-Preview deployments are created automatically for every push to a non-production branch when using Git integration. They provide a unique URL for testing.
+Git pushes to non-production branches make previews. A project's first deploy goes to production. To undo it, ask the user, then run `vercel remove <id> --yes`.
 
 ### Production Deployment
 

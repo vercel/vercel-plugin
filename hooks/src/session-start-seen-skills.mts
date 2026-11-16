@@ -29,11 +29,12 @@ interface SessionStartSeenSkillsInput {
   conversation_id?: string;
   cursor_version?: string;
   hook_event_name?: string;
+  source?: string;
   [key: string]: unknown;
 }
 
-/** Events where previously-injected skills are no longer in the context window. */
-const CONTEXT_CLEARING_EVENTS = new Set(["clear", "compact"]);
+/** Sources where previously-injected skills are no longer in the context window. */
+const CONTEXT_CLEARING_SOURCES = new Set(["clear", "compact"]);
 
 export function parseSessionStartSeenSkillsInput(raw: string): SessionStartSeenSkillsInput | null {
   try {
@@ -84,9 +85,9 @@ function main(): void {
   }
 
   // Claude Code: reset dedup state on clear/compact so skills get re-injected.
-  const hookEvent = input?.hook_event_name ?? "";
+  const source = input?.source ?? "";
   const sessionId = input?.session_id ?? "";
-  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(hookEvent) && !!sessionId;
+  const resetTriggered = CONTEXT_CLEARING_SOURCES.has(source) && !!sessionId;
 
   let removedFiles = 0;
   let removedDirs = 0;
@@ -98,7 +99,7 @@ function main(): void {
   }
 
   log.debug("session-start-seen-skills:decision", {
-    event: hookEvent || "unknown",
+    source: source || "unknown",
     sessionId: sessionId || "none",
     resetTriggered,
     removedFiles,
