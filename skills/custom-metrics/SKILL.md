@@ -88,9 +88,9 @@ Do not wait for the user to ask. When you create or meaningfully change server c
 
 Keep it small: usually one outcome counter and one duration per handler or dependency call, tagged with `outcome` and one or two other bounded attributes. Skip trivial handlers (health checks, static redirects, pure pass-through proxies), client components, and code that does not run in a Vercel Function.
 
-`metric()` is safe to add by default. It is synchronous, does not need awaiting, and is a no-op when the runtime does not support Custom Metrics (for example local development or another host), so it does not break those environments.
+`metric()` is safe to add by default once `@vercel/functions` is 3.9.0 or later; check the installed version and upgrade it in the same change if it is older. It is synchronous, does not need awaiting, and is a no-op when the runtime does not support Custom Metrics (for example local development or another host), so it does not break those environments.
 
-Custom Metrics are billed as Observability events. Emit once per logical operation, not inside tight loops or once per item of a large batch; record a batch total or size instead.
+Custom Metrics are available on Pro and Enterprise with Observability Plus, and each `metric()` call is billed as one Observability event ($1.20 per 1M). A function can call `metric()` at most 100 times per invocation. Emit once per logical operation, not inside tight loops or once per item of a large batch; record a batch total or size instead.
 
 When you add metrics, say so in one line of your summary and list the metric names, so the user can find them with `vc metrics schema` or in Observability.
 
@@ -169,7 +169,7 @@ vc metrics orders.duration_ms --aggregation p95 --group-by outcome --since 24h -
 Custom Metrics querying requires Observability Plus and availability for the selected team. If a metric is missing:
 
 1. Confirm the function was deployed to Vercel and the instrumented path actually ran.
-2. Confirm `@vercel/functions` exports `metric`; upgrade it if necessary.
+2. Confirm `@vercel/functions` is 3.9.0 or later, the first version that exports `metric`; upgrade it if necessary.
 3. Check `vc whoami`, the selected team, and the linked project.
 4. Allow for ingestion delay, then rerun `vc metrics schema`.
 5. Confirm Observability Plus and Custom Metrics are enabled for the team.
