@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { formatOutput, type HookPlatform } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
 import { hasSessionStartActivationMarkers, isGreenfieldDirectory } from "./session-start-activation.mjs";
+import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 
 interface InjectClaudeMdInput {
   session_id?: string;
@@ -100,6 +101,10 @@ interface ContextBlock {
 
 const FENCE_PATTERN = /^ {0,3}(```|~~~)/;
 const LIST_ITEM_PATTERN = /^(?:[-*+]|\d+[.)])\s/;
+
+function toLineFeeds(text: string): string {
+  return text.replace(/\r\n?/g, "\n");
+}
 
 function trimBlankLines(text: string): string {
   return text.replace(/^(?:[ \t]*\n)+/, "").trimEnd();
@@ -208,9 +213,9 @@ export function buildInjectClaudeMdOutputs(
   budget = INJECT_CLAUDE_MD_PART_BUDGET,
 ): string[] {
   const blocks: ContextBlock[] = buildInjectClaudeMdParts(content, env, null, greenfield)
-    .map((text) => ({ text, continuationHeader: null }));
+    .map((text) => ({ text: toLineFeeds(text), continuationHeader: null }));
   if (knowledgeUpdate !== null) {
-    blocks.push(...knowledgeUpdateBlocks(knowledgeUpdate, budget));
+    blocks.push(...knowledgeUpdateBlocks(toLineFeeds(knowledgeUpdate), budget));
   }
   return packBlocks(blocks, budget);
 }
@@ -254,11 +259,6 @@ function resolveInjectClaudeMdProjectRoot(env: NodeJS.ProcessEnv = process.env):
   return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
 
-function stripFrontmatter(content: string): string {
-  const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
-  return match ? match[1].trim() : content.trim();
-}
-
 function main(): void {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
@@ -280,7 +280,7 @@ function main(): void {
   }
   const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
   const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
-  const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
+  const knowledgeUpdate = knowledgeUpdateRaw !== null ? extractFrontmatter(knowledgeUpdateRaw).body.trim() : null;
   const outputs = buildInjectClaudeMdOutputs(
     thinSessionContext,
     process.env,

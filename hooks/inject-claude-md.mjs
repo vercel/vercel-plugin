@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import { formatOutput } from "./compat.mjs";
 import { pluginRoot, safeReadFile } from "./hook-env.mjs";
 import { hasSessionStartActivationMarkers, isGreenfieldDirectory } from "./session-start-activation.mjs";
+import { extractFrontmatter } from "./skill-map-frontmatter.mjs";
 var INJECT_CLAUDE_MD_PART_BUDGET = 9e3;
 var PART_FLAG = "--part";
 var PART_SEPARATOR = "\n\n";
@@ -48,6 +49,9 @@ function buildInjectClaudeMdParts(content, env = process.env, knowledgeUpdate = 
 }
 var FENCE_PATTERN = /^ {0,3}(```|~~~)/;
 var LIST_ITEM_PATTERN = /^(?:[-*+]|\d+[.)])\s/;
+function toLineFeeds(text) {
+  return text.replace(/\r\n?/g, "\n");
+}
 function trimBlankLines(text) {
   return text.replace(/^(?:[ \t]*\n)+/, "").trimEnd();
 }
@@ -121,9 +125,9 @@ function packBlocks(blocks, budget) {
   return parts;
 }
 function buildInjectClaudeMdOutputs(content, env = process.env, knowledgeUpdate = null, greenfield = env.VERCEL_PLUGIN_GREENFIELD === "true", budget = INJECT_CLAUDE_MD_PART_BUDGET) {
-  const blocks = buildInjectClaudeMdParts(content, env, null, greenfield).map((text) => ({ text, continuationHeader: null }));
+  const blocks = buildInjectClaudeMdParts(content, env, null, greenfield).map((text) => ({ text: toLineFeeds(text), continuationHeader: null }));
   if (knowledgeUpdate !== null) {
-    blocks.push(...knowledgeUpdateBlocks(knowledgeUpdate, budget));
+    blocks.push(...knowledgeUpdateBlocks(toLineFeeds(knowledgeUpdate), budget));
   }
   return packBlocks(blocks, budget);
 }
@@ -150,10 +154,6 @@ function formatInjectClaudeMdOutput(platform, content) {
 function resolveInjectClaudeMdProjectRoot(env = process.env) {
   return env.CLAUDE_PROJECT_ROOT ?? env.CURSOR_PROJECT_DIR ?? process.cwd();
 }
-function stripFrontmatter(content) {
-  const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
-  return match ? match[1].trim() : content.trim();
-}
 function main() {
   const input = parseInjectClaudeMdInput(readFileSync(0, "utf8"));
   const platform = detectInjectClaudeMdPlatform(input);
@@ -175,7 +175,7 @@ function main() {
   }
   const thinSessionContext = safeReadFile(join(pluginRoot(), "vercel-session.md"));
   const knowledgeUpdateRaw = safeReadFile(join(pluginRoot(), "skills", "knowledge-update", "SKILL.md"));
-  const knowledgeUpdate = knowledgeUpdateRaw !== null ? stripFrontmatter(knowledgeUpdateRaw) : null;
+  const knowledgeUpdate = knowledgeUpdateRaw !== null ? extractFrontmatter(knowledgeUpdateRaw).body.trim() : null;
   const outputs = buildInjectClaudeMdOutputs(
     thinSessionContext,
     process.env,
