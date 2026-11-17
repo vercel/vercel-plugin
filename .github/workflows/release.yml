@@ -1,0 +1,87 @@
+name: Release
+
+# Publishes a GitHub Release (and its `v<version>` tag) whenever the plugin
+# version in package.json changes on main.
+#
+# Downstream marketplaces can then follow published releases instead of every
+# commit on main. For example, Anthropic's claude-plugins-official bump
+# workflow can track an entry by `releases/latest` when it is listed under
+# `releases-only` in that repo's `.github/bump-tracking.json`.
+#
+# The run is idempotent: if the tag for the current version already exists,
+# it does nothing. Use workflow_dispatch to publish a release for the current
+# version on main (for example, to backfill the first release).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read and verify plugin version
+        id: version
+        run: |
+          set -euo pipefail
+          version=$(jq -r '.version' package.json)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=package.json::Expected a semver version, got '$version'"
+            exit 1
+          fi
+
+          # Every harness manifest must ship the same version as package.json,
+          # so the release tag matches what each marketplace installs.
+          mismatch=0
+          for manifest in .claude-plugin/plugin.json .cursor-plugin/plugin.json \
+            .plugin/plugin.json .kimi-plugin/plugin.json .antigravity-plugin/plugin.json; do
+            manifest_version=$(jq -r '.version' "$manifest")
+            if [[ "$manifest_version" != "$version" ]]; then
+              echo "::error file=$manifest::version is '$manifest_version', expected '$version' (package.json)"
+              mismatch=1
+            fi
+          done
+          if [[ "$mismatch" -ne 0 ]]; then
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing release tag
+        id: existing
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists; nothing to release."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish GitHub Release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes \
+            --latest
