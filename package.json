@@ -26,7 +26,6 @@
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.70",
     "@types/node": "^25.3.5",
-    "@vercel/sandbox": "^1.8.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },
