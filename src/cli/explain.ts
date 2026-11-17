@@ -13,7 +13,7 @@
  */
 
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, isAbsolute } from "node:path";
 import {
   compileSkillPatterns,
   matchPathWithReason,
@@ -84,18 +84,11 @@ export interface ExplainOptions {
 // Detect whether target looks like a bash command vs a file path
 // ---------------------------------------------------------------------------
 
-function detectTargetType(target: string, toolName?: string): "file" | "bash" {
-  // Explicit tool name takes precedence
+function detectTargetType(target: string, targetPath: string, toolName?: string): "file" | "bash" {
   if (toolName === "Bash") return "bash";
   if (toolName === "Read" || toolName === "Edit" || toolName === "Write") return "file";
-  // If it contains spaces and starts with a known CLI tool, treat as bash
-  if (/\s/.test(target) && /^(vercel|npm|npx|bun|pnpm|yarn|node|git)\b/.test(target)) {
-    return "bash";
-  }
-  // If it looks like a flag-bearing command
-  if (/\s--?\w/.test(target)) return "bash";
-  // Default: file path
-  return "file";
+  if (existsSync(targetPath)) return "file";
+  return /\s/.test(target.trim()) ? "bash" : "file";
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +114,8 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
     throw new Error(`Skill map validation failed: ${validation.errors.join(", ")}`);
   }
 
-  const targetType = detectTargetType(target, opts.toolName);
+  const targetPath = isAbsolute(target) ? target : join(projectRoot, target);
+  const targetType = detectTargetType(target, targetPath, opts.toolName);
 
   // Compile patterns using the shared engine
   const compiled = compileSkillPatterns(skillMap);
@@ -129,10 +123,9 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
   // Resolve file content for import matching
   let fileContent = opts.fileContent || "";
   if (targetType === "file" && !fileContent) {
-    const resolvedPath = target.startsWith("/") ? target : join(projectRoot, target);
     try {
-      if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) {
-        fileContent = readFileSync(resolvedPath, "utf-8");
+      if (existsSync(targetPath) && statSync(targetPath).isFile()) {
+        fileContent = readFileSync(targetPath, "utf-8");
       }
     } catch {
       // Ignore — import matching just won't fire
@@ -175,8 +168,7 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
 
   // vercel.json key-aware routing adjustments
   if (targetType === "file" && isVercelJsonPath(target)) {
-    const resolvedPath = target.startsWith("/") ? target : join(projectRoot, target);
-    const resolved = existsSync(resolvedPath) ? resolveVercelJsonSkills(resolvedPath) : null;
+    const resolved = existsSync(targetPath) ? resolveVercelJsonSkills(targetPath) : null;
 
     if (resolved && resolved.relevantSkills.size > 0) {
       for (const entry of matchedEntries) {
