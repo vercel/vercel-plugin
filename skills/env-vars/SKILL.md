@@ -217,7 +217,7 @@ import { getVercelOidcToken } from '@vercel/oidc'
 // AI Gateway uses OIDC by default — no manual token handling needed
 import { gateway } from 'ai'
 const result = await generateText({
-  model: gateway('openai/gpt-5.2'),
+  model: gateway(process.env.AI_GATEWAY_MODEL!), // an ID from https://ai-gateway.vercel.sh/v1/models
   prompt: 'Hello',
 })
 ```

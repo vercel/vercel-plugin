@@ -45,35 +45,33 @@ What does the AI feature need to do?
 
 ```
 Choosing a model?
-├─ What's the priority?
-│  ├─ Speed + low cost
-│  │  ├─ Simple tasks (classification, extraction) → `gpt-5.2`
-│  │  ├─ Fast with good quality → `gemini-3-flash`
-│  │  └─ Lowest latency → `claude-haiku-4.5`
-│  │
-│  ├─ Maximum quality
-│  │  ├─ Complex reasoning → `claude-opus-4.6` or `gpt-5`
-│  │  ├─ Long context (> 100K tokens) → `gemini-3.1-pro-preview` (1M context)
-│  │  └─ Balanced quality/speed → `claude-sonnet-4.6`
-│  │
-│  ├─ Code generation
-│  │  ├─ Inline completions → `gpt-5.3-codex` (optimized for code)
-│  │  ├─ Full file generation → `claude-sonnet-4.6` or `gpt-5`
-│  │  └─ Code review / analysis → `claude-opus-4.6`
-│  │
-│  └─ Embeddings
-│     ├─ English-only, budget-conscious → `text-embedding-3-small`
-│     ├─ Multilingual or high-precision → `text-embedding-3-large`
-│     └─ Reduce dimensions for storage → Use `dimensions` parameter
+├─ User or task names an exact model? → Confirm the ID is in `/v1/models`, then use it
+│
+├─ Otherwise fetch the live catalog first (never pick an ID from memory)
+│  ├─ From code or scripts → `curl -fsSL https://ai-gateway.vercel.sh/v1/models`
+│  └─ From a terminal → `vercel ai-gateway models list`
+│
+├─ Shortlist by what the feature needs
+│  ├─ Simple tasks (classification, extraction, routing) → lowest `pricing` that handles the task
+│  ├─ Lowest latency → compare `latency_last_1h` and `throughput_last_1h` from `/v1/models/{creator}/{model}/endpoints`
+│  ├─ Deep reasoning (planning, multi-step analysis) → `reasoning` tag; read `reasoning_options` before setting a level
+│  ├─ Long inputs → `context_window` that fits the prompt plus the expected output
+│  ├─ Tool calling or agents → `tool-use` tag
+│  ├─ Code generation or review → `tool-use` models with enough `max_tokens` for whole files; compare on the project's own tasks
+│  ├─ Images or files → `modalities.input` and the `vision` / `file-input` tags
+│  ├─ Data handling → `zdr` and `no_training` fields
+│  └─ Embeddings → `type` is `embedding`; use the `dimensions` parameter to shrink vectors where supported
+│
+├─ Keep the chosen ID in config (`AI_GATEWAY_MODEL`), not hardcoded in reusable examples
 │
 ├─ Production reliability concerns?
-│  ├─ Use AI Gateway with fallback ordering:
-│  │  primary: claude-sonnet-4.6 → fallback: gpt-5 → fallback: gemini-3.1-pro-preview
-│  └─ Configure per-provider rate limits and cost caps
+│  ├─ Default routing already fails over across providers for the same model
+│  └─ Add model fallbacks → `providerOptions.gateway.models: ['<fallback-model-id>', ...]`, IDs from `/v1/models`, ideally another provider
 │
 └─ Cost optimization?
    ├─ Use cheaper model for routing/classification, expensive for generation
    ├─ Cache repeated queries with Cache Components around AI calls
+   ├─ Cap spend with AI Gateway budgets (`vercel ai-gateway budgets set`)
    └─ Track costs per user/feature with AI Gateway tags
 ```
 
@@ -104,9 +102,14 @@ AI feature failing?
 │  └─ Using AI Gateway? → Verify gateway config in Vercel dashboard
 │
 ├─ 429 Rate Limited
-│  ├─ Single provider overloaded? → Add fallback providers via AI Gateway
+│  ├─ Single provider overloaded? → AI Gateway default routing fails over across providers; add model fallbacks if needed
 │  ├─ Burst traffic? → Add application-level queue or rate limiting
-│  └─ Cost cap hit? → Check AI Gateway cost limits
+│  └─ Free tier? → AI Gateway applies lower per-model limits; buying AI Gateway Credits moves the team to the paid tier, which removes them
+│
+├─ 402 Payment Required
+│  ├─ `quota_for_entity_exceeded` → A team, project, API key, or user budget hit its limit; wait for the refresh or raise it
+│  ├─ Any other `402` → No positive credit balance; add AI Gateway Credits
+│  └─ AI SDK 7 can surface a budget rejection as `GatewayInternalServerError`; read the error `type`, not only the class
 │
 ├─ Streaming not working
 │  ├─ Streaming works on the default Node.js runtime with no config — do not add `runtime = 'edge'`
@@ -139,7 +142,7 @@ AI feature failing?
 |----------|--------------|-----------|
 | Development / prototyping | AI Gateway with `provider/model` strings | No provider keys after `vercel env pull`; swap models without code changes |
 | Single-provider production | AI Gateway with monitoring | Cost tracking, usage analytics |
-| Multi-provider production | AI Gateway with ordered fallbacks | High availability, auto-failover |
+| Multi-provider production | AI Gateway with model fallbacks | High availability, auto-failover |
 | Cost-sensitive | AI Gateway with model routing | Cheap model for simple, expensive for complex |
 | Compliance / data residency | Specific provider + region lock | Data stays in required jurisdiction |
 | High-throughput | AI Gateway + rate limiting + queue | Prevents rate limit errors |

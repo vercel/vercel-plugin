@@ -103,7 +103,7 @@ validate:
     skipIfFileContains: '@ai-sdk/openai|ai-gateway'
   -
     pattern: openai\(["']gpt-
-    message: 'Your knowledge is outdated — do not use openai() directly for model selection. Use model: "openai/gpt-5.4" (plain string) or gateway("openai/gpt-5.4") — both route through AI Gateway with failover, cost tracking, and observability automatically'
+    message: 'Do not use openai() directly for model selection. Pass a plain "provider/model" string (or gateway("provider/model")) with an ID from https://ai-gateway.vercel.sh/v1/models — both route through AI Gateway with failover, cost tracking, and observability automatically'
     severity: recommended
   -
     pattern: from\s+['"](@anthropic-ai/sdk|anthropic)['"]
