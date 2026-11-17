@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, test, expect } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { extractFrontmatter } from "../hooks/skill-map-frontmatter.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const HOOK_SCRIPT = join(ROOT, "hooks", "inject-claude-md.mjs");
@@ -79,7 +80,7 @@ async function runHook(
 
 /** The knowledge-update skill body without frontmatter, as the hook injects it. */
 function readKnowledgeUpdateBody(path: string): string {
-  return readFileSync(path, "utf-8").replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+  return extractFrontmatter(readFileSync(path, "utf-8")).body.replace(/\r\n?/g, "\n").trim();
 }
 
 /** Non-blank lines, without the "(continued)" headers that open a continued part or section. */
@@ -324,6 +325,32 @@ describe("inject-claude-md", () => {
       expect(output.startsWith("# Vercel Knowledge Updates (2099-01-01) (continued)\n\n")).toBe(true);
     }
     expect(lines.filter((line) => line === "## Common outdated knowledge in LLMs (continued)").length).toBeGreaterThan(0);
+  });
+
+  test("a knowledge update saved with CRLF line endings or a BOM is injected like the LF file", async () => {
+    const corrections = numberedBullets("Correction", 48);
+    const products = numberedBullets("Product", 12);
+    const script = fixturePlugin(grownKnowledgeUpdate(corrections, products));
+    const skillPath = join(script, "..", "..", "skills", "knowledge-update", "SKILL.md");
+    const lf = readFileSync(skillPath, "utf-8");
+    const invocations = Array.from({ length: 6 }, (_, i) => ["--part", `${i + 1}/6`]);
+    const cursorPayload = { conversation_id: "inject-line-endings-cursor", cursor_version: "1.0.0", workspace_roots: [ROOT] };
+    const run = async () => ({
+      claude: await runSessionStart({ session_id: "inject-line-endings" }, { CLAUDE_PROJECT_ROOT: ROOT }, invocations, script),
+      cursor: await runHook(cursorPayload, undefined, ["--part", "1/2"], script),
+    });
+
+    const expected = await run();
+    expect(expected.claude.outputs.filter(Boolean).length).toBeGreaterThan(1);
+    expect(expected.claude.stdout).not.toContain("name: knowledge-update");
+
+    for (const variant of [lf.replaceAll("\n", "\r\n"), `\uFEFF${lf.replaceAll("\n", "\r\n")}`, `\uFEFF${lf}`]) {
+      writeFileSync(skillPath, variant);
+      const actual = await run();
+      expect(actual.claude.code).toBe(0);
+      expect(actual.claude.outputs).toEqual(expected.claude.outputs);
+      expect(actual.cursor.stdout).toBe(expected.cursor.stdout);
+    }
   });
 
   test("content that needs more parts than hooks.json runs is printed in the last part, not dropped", async () => {
