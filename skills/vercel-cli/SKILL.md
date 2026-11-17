@@ -100,7 +100,7 @@ The Vercel CLI (`vercel` or `vc`) deploys, manages, and develops projects on the
 
 The installed CLI help is the source of truth for obscure or newly added flags. If a command example here is not enough, check `vercel <command> --help` before acting instead of guessing.
 
-To find the command for a task, run `vercel help search "<task>" --with-help`, for example `vercel help search "add a domain" --with-help`. It lists up to 10 matching commands with their summaries, then prints the help page of the first one. If the first one is a group, its page lists the commands in the group. It works offline without a login, and prints JSON with `--json`. If the installed CLI does not have `help search`, start from `vercel --help`.
+To find the command for a task, run `vercel help search "<task>" --with-help`, for example `vercel help search "add a domain" --with-help`. It lists up to 10 matching commands with their summaries, then prints the help page of the first one. If the first one is a group, its page lists the commands in the group. After the commands, the list can have up to 5 API endpoints, each as a `vercel api` command with a `<PLACEHOLDER>` for each required input. Use one when no command in the list does the task. It works offline without a login, and prints JSON with `--json`. If the installed CLI does not have `help search`, start from `vercel --help`.
 
 Parse only stdout for URLs and JSON. Warnings, progress, and `--help` print to stderr; merge streams only when searching help text. Some help commands exit 2 after printing usage, so treat printed usage as a successful help read.
 
