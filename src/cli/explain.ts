@@ -13,7 +13,7 @@
  */
 
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, isAbsolute } from "node:path";
 import {
   compileSkillPatterns,
   matchPathWithReason,
@@ -114,7 +114,7 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
     throw new Error(`Skill map validation failed: ${validation.errors.join(", ")}`);
   }
 
-  const targetPath = target.startsWith("/") ? target : join(projectRoot, target);
+  const targetPath = isAbsolute(target) ? target : join(projectRoot, target);
   const targetType = detectTargetType(target, targetPath, opts.toolName);
 
   // Compile patterns using the shared engine
@@ -168,8 +168,7 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
 
   // vercel.json key-aware routing adjustments
   if (targetType === "file" && isVercelJsonPath(target)) {
-    const resolvedPath = target.startsWith("/") ? target : join(projectRoot, target);
-    const resolved = existsSync(resolvedPath) ? resolveVercelJsonSkills(resolvedPath) : null;
+    const resolved = existsSync(targetPath) ? resolveVercelJsonSkills(targetPath) : null;
 
     if (resolved && resolved.relevantSkills.size > 0) {
       for (const entry of matchedEntries) {
