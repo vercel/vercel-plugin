@@ -790,7 +790,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 3. vercel env pull (pulls VERCEL_OIDC_TOKEN + gateway env vars to .env.local)
 4. npm install ai @ai-sdk/react (core SDK + React hooks — `@ai-sdk/react` is required for `useChat`)
 5. npx ai-elements (install chat UI components — Message, Conversation, PromptInput)
-6. Code: model: 'anthropic/claude-sonnet-4.6' (plain string routes through AI Gateway automatically)
+6. Code: model: process.env.AI_GATEWAY_MODEL (a plain "provider/model" string routes through AI Gateway automatically; set it to an ID from https://ai-gateway.vercel.sh/v1/models)
 7. Server: convertToModelMessages(messages) → streamText → toUIMessageStreamResponse()
 8. Client: useChat({ transport: new DefaultChatTransport({ api: '/api/chat' }) })
 9. Next.js (App Router) → AI SDK + AI Elements → AI Gateway (OIDC auth)
@@ -896,7 +896,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | `body` option (useChat) | Pass data through transport | v6 transport pattern |
 | DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image'` | Better quality, faster, cheaper |
 | `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image` | Dramatically better quality |
-| `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
+| `gpt-4o` | A current model ID from `https://ai-gateway.vercel.sh/v1/models` | Superseded by newer generations |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
 | `next export` | `output: "export"` in next.config | CLI command removed |
@@ -929,7 +929,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### AI SDK 7
 
-- **Default to AI Gateway** — pass `"provider/model"` strings directly (e.g., `model: 'anthropic/claude-sonnet-4.6'`) — they route through the AI Gateway automatically. The `gateway()` wrapper from `'ai'` is optional and only needed when using `providerOptions.gateway` for routing/failover/tags. Do NOT install or import direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) unless you need provider-specific features not exposed through the gateway.
+- **Default to AI Gateway** — pass `"provider/model"` strings directly (an ID returned by `https://ai-gateway.vercel.sh/v1/models`, kept in config such as `AI_GATEWAY_MODEL`) — they route through the AI Gateway automatically. The `gateway()` wrapper from `'ai'` is optional and only needed when using `providerOptions.gateway` for routing/failover/tags. Do NOT install or import direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) unless you need provider-specific features not exposed through the gateway.
 - **Install `@ai-sdk/react` for React hooks** — `useChat`, `useCompletion`, and `useObject` live in `@ai-sdk/react` (not `ai`). Always `npm install ai @ai-sdk/react` together for React/Next.js projects.
 - **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 - **For AI projects, set up a Vercel project first** — run `vercel link` (or create via dashboard) → enable AI Gateway in dashboard → `vercel env pull` to get OIDC credentials locally. Do NOT manually create `.env.local` with provider-specific API keys like `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
@@ -942,7 +942,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
 - Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@latest`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
 - **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
-- **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image`; DALL-E 2/3 → use Gemini 3.1 Flash Image.
+- **Outdated models**: `gpt-4o` → pick a current model from `https://ai-gateway.vercel.sh/v1/models`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image`; DALL-E 2/3 → use Gemini 3.1 Flash Image.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
 - Use `mcp-to-ai-sdk` CLI to generate static tool definitions from MCP servers for security.
 - Use AI SDK DevTools (`npx @ai-sdk/devtools`) during development for debugging.
