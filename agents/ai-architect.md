@@ -104,7 +104,12 @@ AI feature failing?
 ├─ 429 Rate Limited
 │  ├─ Single provider overloaded? → AI Gateway default routing fails over across providers; add model fallbacks if needed
 │  ├─ Burst traffic? → Add application-level queue or rate limiting
-│  └─ Cost cap hit? → Check AI Gateway cost limits
+│  └─ Free tier? → AI Gateway applies lower per-model limits; buying AI Gateway Credits moves the team to the paid tier, which removes them
+│
+├─ 402 Payment Required
+│  ├─ `quota_for_entity_exceeded` → A team, project, API key, or user budget hit its limit; wait for the refresh or raise it
+│  ├─ Any other `402` → No positive credit balance; add AI Gateway Credits
+│  └─ AI SDK 7 can surface a budget rejection as `GatewayInternalServerError`; read the error `type`, not only the class
 │
 ├─ Streaming not working
 │  ├─ Streaming works on the default Node.js runtime with no config — do not add `runtime = 'edge'`
