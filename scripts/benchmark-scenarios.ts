@@ -1,9 +1,6 @@
 /**
- * Single source of truth for benchmark scenarios.
- *
- * Both scripts/benchmark-runner.ts (local WezTerm) and
- * .claude/skills/benchmark-sandbox/sandbox-runner.ts (Vercel Sandbox)
- * import from this module — no duplication, no regex+eval fallbacks.
+ * Benchmark scenarios. Each scenario has a prompt and the skills that the
+ * prompt must trigger.
  */
 
 export interface BenchmarkProject {
