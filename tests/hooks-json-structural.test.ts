@@ -73,6 +73,19 @@ describe("hooks.json lightweight default", () => {
     expect(hasVerificationObserver).toBe(false);
   });
 
+  test("every SessionStart hook sets a short timeout instead of inheriting the 600s default", () => {
+    const sessionStartHooks = (hooksJson.hooks.SessionStart ?? []).flatMap((group) => group.hooks);
+
+    expect(sessionStartHooks.length).toBeGreaterThan(0);
+    for (const hook of sessionStartHooks) {
+      expect({ command: hook.command, timeout: hook.timeout }).toEqual({
+        command: hook.command,
+        timeout: expect.any(Number),
+      });
+      expect(hook.timeout).toBeLessThanOrEqual(15);
+    }
+  });
+
   test("does not register subagent bootstrap hooks by default", () => {
     expect(hooksJson.hooks.SubagentStart ?? []).toEqual([]);
     expect(hooksJson.hooks.SubagentStop ?? []).toEqual([]);

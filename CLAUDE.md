@@ -26,10 +26,10 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 
 | Event | Hook | Matcher | Timeout |
 |-------|------|---------|---------|
-| SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | 15s |
 | PostToolUse | `posttooluse-skill-telemetry.mjs` | `Skill` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
