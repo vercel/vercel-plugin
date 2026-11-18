@@ -19,6 +19,9 @@ metadata:
       - 'bot protection'
       - 'system bypass'
       - 'rate limit rule'
+      - 'ai bots'
+      - 'ai crawler'
+      - 'verified bot'
     allOf:
       - [firewall, vercel]
       - [waf, vercel]
@@ -180,6 +183,7 @@ Conditions within a group are **AND'd**. Multiple groups (separated by `--or`) a
 - **Client**: `ip_address` (IP or CIDR), `user_agent`, `geo_country`, `geo_continent`, `geo_country_region`, `geo_city`, `geo_as_number`
 - **Headers / cookies / queries** — require `key`: `header`, `cookie`, `query`
 - **TLS fingerprints**: `ja4_digest` (all plans), `ja3_digest` (Enterprise only)
+- **Bots**: `bot_name`, `bot_category` (public beta, priority projects only; see [Bot management](#bot-management))
 - **Rate limit grouping**: `rate_limit_api_id`
 
 ### Actions
@@ -218,6 +222,42 @@ When the user asks for firewall help on a project — or asks "what rate limits 
 Method scoping matters — `GET /api/foo` and `POST /api/foo` will likely need different rate limits. Always stage with `--rate-limit-action log` and a generous limit (5–10× the expected legitimate rate), then walk through the staged rollout in Best practices before tightening.
 
 For more sophisticated counting (custom buckets, hashing identifiers from headers/cookies, sliding windows from your own code) point the user at the **Rate Limiting SDK**: https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting-sdk.
+
+## Bot management
+
+| Goal | Use |
+| --- | --- |
+| Scripts and non-browser clients site-wide | **Bot Protection** managed rule (`off`/`log`/`challenge`, all plans) |
+| AI crawlers and assistants | **AI Bots** managed rule; per category on CLI 65.7+: `rules update ai-bots --category ai-crawlers --action deny` |
+| A bot category or named bot | Custom rule on `bot_category` / `bot_name` (public beta, priority projects) |
+| Signup, checkout, AI routes called by the app's frontend | **BotID** in code — see the `botid` skill |
+| Active flood | Attack Mode (user enables it) |
+
+- **Verified bots** (confirmed by IP, reverse DNS or Web Bot Auth) skip Bot Protection and Attack Mode. AI Bots and custom rules still apply. A UA that only claims to be a bot isn't verified
+- **`bypass`** custom rules also skip the managed bot rules — keep them narrow
+- **Challenge** is a JS check, not a CAPTCHA; for server or mobile API callers it acts like `deny`
+
+```bash
+vercel firewall bot-management                              # managed bot rule actions + unknown bot traffic
+vercel firewall traffic list --dimension bot --since 24h    # top verified bots
+vercel firewall rules update bot-protection --action log --yes   # off | log | challenge
+vercel firewall rules update bot-id --action deep-analysis --yes # basic | deep-analysis (billed, Pro+)
+```
+
+`bot-protection`, `ai-bots` and `bot-id` are reserved project-level slugs: only `rules update --action` works on them. Start Bot Protection on `log` and review before `challenge`.
+
+### Bot name and category rules
+
+Public beta, priority projects only — the CLI refuses them elsewhere. They match Vercel's verified identity, not the UA. Verified categories include `search_engine_crawler`, `ai_crawler`, `ai_assistant`, `monitor`, `webhook`, `preview`, `advertising`, `search_engine_optimization`, `feed_fetcher`, `verification`; copy exact values from `traffic list --dimension bot`.
+
+```bash
+vercel firewall rules add "Throttle feed fetchers" \
+  --condition '{"type":"bot_category","op":"eq","value":"feed_fetcher"}' \
+  --action rate_limit --rate-limit-window 60 --rate-limit-requests 30 \
+  --rate-limit-action log --yes
+```
+
+Blocking `search_engine_crawler` removes the site from search; call that out before staging.
 
 ## IP blocks
 
@@ -352,7 +392,7 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
 - **Don't over-block.** User agents, JA4, and IP addresses may collide with real users far more than they look like they will:
   - **JA4 fingerprints are shared across millions of clients.** A single Chrome point release, a single iOS version, or a popular mobile SDK all produce the same JA4. "Block this JA4" can silently take out an entire browser cohort. Before recommending a JA4 rule, run it through the staged log → preview → log-prod → block flow above and have the user confirm the dashboard shows only attacker behavior (high request rate, suspicious paths, anomalous geos) — not just "this JA4 hit `/login` once."
-  - **User-agent substring rules over-match constantly.** `sub` matches like `crawler`, `bot`, `python`, `curl`, or `headless` will block legitimate tools (uptime monitors, link previewers, SEO auditors, partner integrations, the user's own CI). For known-good crawlers (Googlebot, Bingbot, Slack/Discord/X unfurlers, etc.) prefer Vercel's verified-bot signals over UA strings, and pair UA conditions with another condition (path, geo, rate) so a single UA token can't take down a whole class of clients.
+  - **User-agent substring rules over-match constantly.** `sub` matches like `crawler`, `bot`, `python`, `curl`, or `headless` will block legitimate tools (uptime monitors, link previewers, SEO auditors, partner integrations, the user's own CI). For known-good crawlers (Googlebot, Bingbot, Slack/Discord/X unfurlers, etc.) prefer Vercel's verified-bot signals over UA strings (`bot_name` / `bot_category` on priority projects, otherwise the managed bot rules, which already let verified bots through), and pair UA conditions with another condition (path, geo, rate) so a single UA token can't take down a whole class of clients.
   - **Sanity-check before staging.** Before adding a block, ask the user: "Does this fingerprint also match Chrome on macOS / our mobile app / a partner's webhook?" If you don't know, the answer is "log first, decide later."
 
 ## External reverse proxies

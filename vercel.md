@@ -726,7 +726,8 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ---------------------------------- | ----------------------------- | ------------------------------------------- |
 | DDoS protection                    | Vercel Firewall (automatic)   | Always on, all plans                        |
 | Custom traffic rules               | WAF rules engine              | Framework-aware, 300ms propagation          |
-| Bot blocking                       | BotID + bot protection ruleset | Kasada-powered detection; managed ruleset challenges non-browser traffic |
+| Site-wide bot blocking             | Bot Protection + AI Bots managed rules, bot name/category rules | Managed rules challenge non-browser traffic; verified bots pass |
+| Bots on signup, checkout, AI routes | BotID (`checkBotId()`) ⤳ skill: botid | Invisible per-route challenge; Kasada-powered Deep Analysis |
 | Rate limiting                      | WAF rate limiting             | Per-endpoint control                        |
 | OWASP protection                   | Managed rulesets (Enterprise) | Industry-standard rules                     |
 | Compliance isolation (SOC2, HIPAA) | Secure Compute                | Dedicated infrastructure, no shared tenancy |
