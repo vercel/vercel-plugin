@@ -1,6 +1,6 @@
 ---
 name: ai-gateway
-description: Vercel AI Gateway guidance for setup, model discovery, authentication, routing, fallbacks, virtual models, evaluation models, BYOK, budgets, spend reporting, observability, compatible APIs, and coding-agent configuration. Use when adding AI Gateway to an app, migrating provider calls, choosing models or providers, centralizing model configuration, evaluating application state, debugging gateway requests, or running `vercel ai-gateway` commands.
+description: Vercel AI Gateway guidance for setup, model discovery, authentication, routing, fallbacks, virtual models, evaluation models, BYOK, budgets, spend reporting, observability, compatible APIs, and coding-agent configuration. Use when adding AI Gateway to an app, migrating provider calls, choosing models or providers, centralizing model configuration, evaluating application state, debugging gateway requests, benchmarking AI Gateway against another route to the same model, or running `vercel ai-gateway` commands.
 summary: Set up and operate Vercel AI Gateway with current models, virtual models, evaluation, authentication, routing, spend controls, and verification.
 metadata:
   priority: 7
@@ -98,6 +98,8 @@ retrieval:
     - virtual model
     - evaluation model
     - typesafe compatibility
+    - gateway benchmark
+    - gateway latency comparison
   intents:
     - add Vercel AI Gateway to an application
     - route AI models across providers
@@ -116,6 +118,8 @@ retrieval:
     - add tool calling or function calling across API formats
     - get structured JSON output matching a schema
     - send images or PDFs to a model
+    - benchmark AI Gateway latency, throughput, or cost against a direct provider integration
+    - audit a benchmark that shows a gap between AI Gateway and another route
   entities:
     - AI Gateway
     - AI Gateway Credits
@@ -183,6 +187,7 @@ Use the CLI for credential and spend management when the user is working from a 
 | Reusable model configuration, a `vmc/<slug>`, or provider options for a client that cannot send them | [references/virtual-models.md](references/virtual-models.md) |
 | Typed decisions (formerly evaluation) through AI SDK, the OpenAI-compatible `POST /v1/decisions`, the deprecated `POST /v1/evaluate`, or the TypeSafe-compatible API | [references/evaluation.md](references/evaluation.md) |
 | Credits, budgets, reporting, Logs, or request debugging | [references/spend-observability.md](references/spend-observability.md) |
+| Benchmark AI Gateway against a direct provider integration or another route, or audit a benchmark that already ran | [references/benchmarking.md](references/benchmarking.md) |
 | Route Claude Code, Codex, OpenCode, Pi, or another coding agent's own model traffic through Gateway | [references/coding-agents.md](references/coding-agents.md) |
 
 Read each relevant reference before editing. A task can require more than one.
