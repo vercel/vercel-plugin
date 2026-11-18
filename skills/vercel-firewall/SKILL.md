@@ -222,66 +222,39 @@ For more sophisticated counting (custom buckets, hashing identifiers from header
 
 ## Bot management
 
-Pick the layer by what the user is trying to stop:
-
 | Goal | Use |
 | --- | --- |
-| Non-browser clients (scripts, `curl` pretending to be Chrome) hitting pages site-wide | **Bot Protection** managed rule: `off`, `log`, or `challenge`. All plans. Verified bots are never evaluated. |
-| AI crawlers or AI assistants reading the site | **AI Bots** managed rule. All plans. On CLI 65.7+ each category has its own action: `rules update ai-bots --category ai-crawlers --action deny` (`allow`, `log`, `deny`; also `ai-assistants`). |
-| One named bot or a whole category, allowed, logged, challenged, rate limited, or denied | Custom rule on `bot_name` / `bot_category` (below). |
-| Bots on specific routes the app's own frontend calls (signup, checkout, AI inference, server actions) | **BotID**, in code. Use the `botid` skill. Deep Analysis is the `bot-id` setting here. |
-| An active flood right now | Attack Mode, which challenges everything except verified bots (user must enable it). |
+| Scripts and non-browser clients site-wide | **Bot Protection** managed rule (`off`/`log`/`challenge`, all plans) |
+| AI crawlers and assistants | **AI Bots** managed rule; per category on CLI 65.7+: `rules update ai-bots --category ai-crawlers --action deny` |
+| A bot category or named bot | Custom rule on `bot_category` / `bot_name` (public beta, priority projects) |
+| Signup, checkout, AI routes called by the app's frontend | **BotID** in code — see the `botid` skill |
+| Active flood | Attack Mode (user enables it) |
 
-How they fit together:
-
-- **Verified bots** are bots Vercel has confirmed by IP range, reverse DNS, or Web Bot Auth signatures, listed in the [verified bots directory](https://vercel.com/docs/bot-management#verified-bots-directory). Bot Protection and Attack Mode let them through. AI Bots still applies to the AI ones, and custom rules apply to all of them.
-- A user agent that only **claims** to be a bot isn't verified, so Bot Protection evaluates it like any other client.
-- A custom rule with `bypass` skips the managed bot rules too, which is how to let trusted unverified automation through. Keep it narrow (see [Best practices](#best-practices)).
-- Challenge is a JavaScript browser check, not a CAPTCHA. Clients that can't run JavaScript fail it, so on API routes called by servers or mobile apps `challenge` acts like `deny`.
-- Bot Protection loses accuracy behind an external reverse proxy (see [External reverse proxies](#external-reverse-proxies)).
-
-### See what's there first
+- **Verified bots** (confirmed by IP, reverse DNS or Web Bot Auth) skip Bot Protection and Attack Mode. AI Bots and custom rules still apply. A UA that only claims to be a bot isn't verified
+- **`bypass`** custom rules also skip the managed bot rules — keep them narrow
+- **Challenge** is a JS check, not a CAPTCHA; for server or mobile API callers it acts like `deny`
 
 ```bash
-vercel firewall bot-management                                   # managed bot rule actions + top unknown bot traffic
-vercel firewall traffic list --dimension bot --since 24h --json  # top verified bots by requests
-vercel firewall traffic inspect bot <name> --group-by path       # where one bot goes
+vercel firewall bot-management                              # managed bot rule actions + unknown bot traffic
+vercel firewall traffic list --dimension bot --since 24h    # top verified bots
+vercel firewall rules update bot-protection --action log --yes   # off | log | challenge
+vercel firewall rules update bot-id --action deep-analysis --yes # basic | deep-analysis (billed, Pro+)
 ```
 
-The dashboard has the same view on the project's **Firewall → Bot Management** page, where a bot or category can be drilled into and turned into a rule.
+`bot-protection`, `ai-bots` and `bot-id` are reserved project-level slugs: only `rules update --action` works on them. Start Bot Protection on `log` and review before `challenge`.
 
-### Change managed bot rules
+### Bot name and category rules
 
-`bot-protection`, `ai-bots`, and `bot-id` are reserved rule slugs. `rules update --action` is the only change they accept; `add`, `remove`, `enable`, `disable`, and `move` refuse them. They're project-level only, never `--team-level`. Changes stage like any rule.
-
-```bash
-vercel firewall rules update bot-protection --action log --yes        # off | log | challenge
-vercel firewall rules update bot-id --action deep-analysis --yes      # basic | deep-analysis (billed, Pro+)
-```
-
-Turn Bot Protection on in `log` first and review the logged traffic before moving to `challenge`. Deep Analysis is billed per `checkBotId()` call and does nothing until the app calls it, so confirm the user wants it and that BotID is installed.
-
-### Custom rules on bot name and category
-
-`bot_name` and `bot_category` match the bot Vercel identified for the request, not the user agent string, so they can't be spoofed by setting a header. **They're in public beta for priority projects**; on other projects the CLI refuses the condition. Don't suggest them for a project that isn't a priority project; fall back to the managed rules, or a UA condition paired with something else.
-
-Categories for verified bots include `search_engine_crawler`, `ai_crawler`, `ai_assistant`, `monitor`, `webhook`, `preview`, `advertising`, `search_engine_optimization`, `feed_fetcher`, and `verification`. Take exact name and category values from `traffic list --dimension bot` or the Bot Management page rather than guessing the spelling.
+Public beta, priority projects only — the CLI refuses them elsewhere. They match Vercel's verified identity, not the UA. Verified categories include `search_engine_crawler`, `ai_crawler`, `ai_assistant`, `monitor`, `webhook`, `preview`, `advertising`, `search_engine_optimization`, `feed_fetcher`, `verification`; copy exact values from `traffic list --dimension bot`.
 
 ```bash
-# Rate limit feed readers instead of blocking them
 vercel firewall rules add "Throttle feed fetchers" \
   --condition '{"type":"bot_category","op":"eq","value":"feed_fetcher"}' \
   --action rate_limit --rate-limit-window 60 --rate-limit-requests 30 \
   --rate-limit-action log --yes
-
-# Keep SEO tools off an expensive search page
-vercel firewall rules add "No SEO bots on search" \
-  --condition '{"type":"bot_category","op":"eq","value":"search_engine_optimization"}' \
-  --condition '{"type":"path","op":"pre","value":"/search"}' \
-  --action log --yes
 ```
 
-Roll these out like any rule: `log`, review, then enforce. Blocking `search_engine_crawler` or a search engine by name removes the site from that search engine, so call that out before staging it.
+Blocking `search_engine_crawler` removes the site from search; call that out before staging.
 
 ## IP blocks
 
