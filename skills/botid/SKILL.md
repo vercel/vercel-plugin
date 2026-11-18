@@ -74,7 +74,7 @@ It works per route, in your code. It is the right tool when the route is called 
 - **Page views and crawlable content.** Use the Bot Protection managed ruleset or custom rules (see the `vercel-firewall` skill).
 - **Public APIs called by other servers, webhooks, CLIs or `curl`.** Those requests never run the client script, so `checkBotId()` reports every one of them as a bot. Use API keys, rate limits, or WAF rules instead.
 
-There are no BotID headers or scores to read in proxy or middleware. The verdict only comes from `checkBotId()` in the handler that serves the protected route.
+There's no bot score header to read. The verdict comes from calling `checkBotId()` in the server code that handles the protected request; it sends the request's challenge headers to Vercel and returns the result. It needs the Vercel request context and an OIDC token, so it only works on Vercel deployments, not self-hosted or `next start`.
 
 ## Levels and pricing
 
@@ -115,7 +115,7 @@ Other frameworks add the rewrites to `vercel.json`. Copy them from https://verce
 
 ### 3. Declare protected routes on the client
 
-List every route you'll call `checkBotId()` in. `path` and `method` must match the request the browser makes. `*` matches one or more path segments (`/team/*/activate`, `/api/user/*`). For a server action, list the **page** it's invoked from (for example `/dashboard`) with `POST`.
+List every route you'll call `checkBotId()` in. `path` and `method` must match the request the browser makes. `*` matches any characters, including `/` and nothing at all, so `/api/user/*` covers `/api/user/` and `/api/user/a/b`. `method: '*'` matches any method. For a server action, list the **page** it's invoked from (for example `/dashboard`) with `POST`.
 
 ```ts
 // instrumentation-client.ts (Next.js 15.3+)
@@ -199,7 +199,7 @@ By default `checkBotId()` only accepts requests from the host that served the ch
 
 - **Locally** (`NODE_ENV=development`) the client skips the challenge and `checkBotId()` returns a human verdict. To exercise your blocking branch, pass `developmentOptions: { bypass: 'BAD-BOT' }` (or `'HUMAN'`, `'GOOD-BOT'`). Remove it or leave it; it only applies in development.
 - **On a deployment**, test from the app's own UI or a `fetch` in the browser console on a page that loaded the script. `curl`, Postman, or opening the route in the address bar will be reported as a bot. That's expected, not a bug.
-- **Monitor** checks on the project's Firewall → Bot Management page, or with `vercel firewall bot-management`.
+- **Monitor** check results on the project's Firewall → Bot Management page. `vercel firewall bot-management` shows whether Deep Analysis is on, not check results.
 
 ## Troubleshooting
 
@@ -208,6 +208,8 @@ By default `checkBotId()` only accepts requests from the host that served the ch
 | Every request is a bot in production | Route missing from `protect`, or `path`/`method` don't match the real request. Or the caller isn't a browser running your frontend. |
 | Every request is human in production | `checkBotId()` isn't called in the handler that serves the route, or its result is ignored. |
 | Works locally, fails on deploy | Config wrapper (`withBotId`, Nuxt module, or `vercel.json` rewrites) missing, so the challenge script 404s. |
+| `VERCEL_OIDC_TOKEN is not set` or "Must be deployed on Vercel" | Running a production build outside Vercel. `checkBotId()` only works on Vercel deployments. |
+| Misconfiguration warning in logs naming a path and method | The request reached `checkBotId()` without challenge headers. Add the logged `{ path, method }` to `protect`, or it was a direct non-browser request. |
 | Fails only for some routes after enabling per-route levels | `checkLevel` differs between the client entry and the server call. |
 | Legitimate agent blocked | Allow it by `verifiedBotName`, or use a separate authenticated route. |
 
