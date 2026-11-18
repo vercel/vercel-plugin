@@ -1,7 +1,7 @@
 ---
 name: botid
 description: "Protect specific routes and server actions from bots in code with Vercel BotID (`botid` npm package). Use when installing BotID, calling `initBotId()` or `checkBotId()`, mounting `<BotIdClient />`, gating signup, login, checkout or AI inference endpoints, allowing verified bots such as ChatGPT agents through, enabling Deep Analysis, or debugging a route that always reports a bot. For site-wide bot rules (Bot Protection, AI Bots, custom rules on bot name or category), use the `vercel-firewall` skill."
-summary: "Vercel BotID in code: framework config, initBotId() protect list, checkBotId() in the handler, verified bots, Deep Analysis, and local testing."
+summary: "Vercel BotID in code: initBotId() protect list, checkBotId() in the handler, verified bots, Deep Analysis, and local testing."
 metadata:
   priority: 6
   docs:
@@ -22,9 +22,12 @@ metadata:
       - 'checkbotid'
       - 'initbotid'
       - 'botidclient'
-      - 'deep analysis'
       - 'invisible captcha'
     allOf:
+      - ['deep analysis', bot]
+      - [captcha, login]
+      - [captcha, signup]
+      - [captcha, form]
       - [bot, signup]
       - [bot, checkout]
       - [bot, login]
@@ -37,8 +40,6 @@ metadata:
       - 'bots'
       - 'captcha'
     noneOf:
-      - 'chat bot'
-      - 'chatbot'
       - 'slack bot'
       - 'discord bot'
       - 'telegram bot'
@@ -60,7 +61,6 @@ retrieval:
     - checkBotId
     - initBotId
     - BotIdClient
-    - withBotId
     - Deep Analysis
     - Kasada
 ---
@@ -84,18 +84,7 @@ You are an expert in Vercel BotID — invisible, per-route bot protection added 
 npm i botid
 ```
 
-Wrap the framework config so the challenge script is served from your domain:
-
-```ts
-// next.config.ts
-import { withBotId } from 'botid/next/config';
-export default withBotId({});
-
-// nuxt.config.ts
-export default defineNuxtConfig({ modules: ['botid/nuxt'] });
-```
-
-Other frameworks add rewrites to `vercel.json`; copy them from the [get started guide](https://vercel.com/docs/botid/get-started), as the paths are fixed IDs.
+No config wrapper or rewrites needed: Vercel routes BotID requests automatically. Remove any old `withBotId`, `botid/nuxt` or BotID `vercel.json` rewrites.
 
 ### Client: declare protected routes
 
@@ -161,7 +150,6 @@ For a trusted service not in the directory, use a separate authenticated route o
 
 - **Always a bot**: route missing from `protect`, `path`/`method` mismatch, or a non-browser caller. The logged misconfiguration warning names the `{ path, method }` to add
 - **Always human**: `checkBotId()` not called in the handler, or its result ignored
-- **Fails only when deployed**: config wrapper or `vercel.json` rewrites missing, so the script 404s
 - **`VERCEL_OIDC_TOKEN is not set`**: running outside Vercel
 
 ## When to Use

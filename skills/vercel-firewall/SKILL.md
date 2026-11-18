@@ -19,6 +19,9 @@ metadata:
       - 'bot protection'
       - 'system bypass'
       - 'rate limit rule'
+      - 'ai bots'
+      - 'ai crawler'
+      - 'verified bot'
     allOf:
       - [firewall, vercel]
       - [waf, vercel]
