@@ -135,7 +135,7 @@ For a trusted service not in the directory, use a separate authenticated route o
 
 ## Advanced Options
 
-- **Deep Analysis**: dashboard Firewall → Rules → **Vercel BotID Deep Analysis**, or `vercel firewall rules update bot-id --action deep-analysis` (staged; `basic` reverts). Billed, so confirm with the user and let them publish
+- **Deep Analysis**: dashboard Security → Rules → **Vercel BotID Deep Analysis**, or `vercel firewall rules update bot-id --action deep-analysis` (staged; `basic` reverts). Billed, so confirm with the user and let them publish
 - **Per-route level**: `advancedOptions.checkLevel: 'deepAnalysis' | 'basic'` (1.4.5+) on **both** the `protect` entry and `checkBotId()`; a mismatch fails verification
 - **Separate frontend host**: `checkBotId({ advancedOptions: { extraAllowedHosts: ['app.example.com'] } })`
 - **Check once per visit**: [verify on page load](https://vercel.com/docs/botid/verify-on-page-load) and issue a signed cookie only when `isHuman && !bypassed`. It's a bearer credential; keep auth, rate limits and CSRF protection
@@ -144,7 +144,7 @@ For a trusted service not in the directory, use a separate authenticated route o
 
 - **Local** (`NODE_ENV=development`): returns human. Force a verdict with `checkBotId({ developmentOptions: { bypass: 'BAD-BOT' } })` (or `'HUMAN'`, `'GOOD-BOT'`)
 - **Deployed**: test from the app UI or a `fetch` on a page that loaded the script. `curl`, Postman and the address bar are reported as bots, as expected
-- **Monitor**: Firewall traffic view, filtered to BotID; Observability Plus adds metrics
+- **Monitor**: Security → Traffic, filtered to BotID; Observability Plus adds metrics
 
 ## Common Pitfalls
 
