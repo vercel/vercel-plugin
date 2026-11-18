@@ -340,6 +340,7 @@ back into the repository.
 - v0 (agentic intelligence, GitHub integration)
 - Vercel CLI (cache management, MCP integration, marketplace discovery)
 - Protected deployment access (`vc curl`, local OIDC tokens, Trusted Sources)
+- Vercel Firewall and BotID (WAF rules, managed bot rules, rate limiting, per-route bot checks)
 - Vercel Observability (Analytics, Speed Insights, Drains)
 - Vercel Marketplace (one-click integrations, unified billing)
 - Agent Browser (browser automation for dev server verification and testing)

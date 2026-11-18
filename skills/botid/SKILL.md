@@ -135,7 +135,9 @@ initBotId({
 - **SvelteKit:** call `initBotId()` from `init()` in `src/hooks.client.ts`.
 - **Other frameworks:** call `initBotId()` during client start-up, before the first protected request.
 
-The request has to be made by `fetch` or XHR from a page where the script has loaded. A plain HTML form submission with no JavaScript isn't covered.
+The request has to be made by `fetch` or XHR from a page where the script has loaded. Traditional HTML forms that post with `action` and `method` aren't supported: submit with `fetch` in an `onSubmit` handler, or use a server action ([Form submissions](https://vercel.com/docs/botid/form-submissions)).
+
+To avoid a check on every request, run one BotID-protected request on page load and issue a short-lived signed cookie that later requests validate ([Verify visitors on page load](https://vercel.com/docs/botid/verify-on-page-load)). Only issue it when `isHuman` is true and `bypassed` is false, and keep auth, rate limits and CSRF protection in place: the cookie is a bearer credential.
 
 ### 4. Check on the server, before the expensive work
 
@@ -180,13 +182,13 @@ if (isBot && !allowedAgent) {
 }
 ```
 
-Only allow the bots the route actually needs. For a trusted service that isn't in the directory, don't weaken the check; give it its own authenticated route or a WAF bypass rule scoped to its IPs.
+Only allow the bots the route actually needs. For a trusted service that isn't in the directory, don't weaken the check; give it its own authenticated route or a WAF bypass rule scoped to its IPs. Traffic a WAF bypass rule lets through comes back from `checkBotId()` with `bypassed: true`.
 
 ## Deep Analysis
 
 Deep Analysis is a project setting. It's off by default and needs Pro or Enterprise.
 
-- **Dashboard:** Project → Firewall → Bot Management → Configure → Vercel BotID Deep Analysis.
+- **Dashboard:** Project → Firewall → Rules → enable **Vercel BotID Deep Analysis**.
 - **CLI:** `vercel firewall rules update bot-id --action deep-analysis --yes` stages it, and `basic` turns it back off. Like other firewall changes it only goes live when published, so hand the publish step to the user (see the `vercel-firewall` skill). This is a billed setting, so confirm with the user before staging it.
 
 To mix levels per route, set `advancedOptions.checkLevel` (`'deepAnalysis'` or `'basic'`, botid 1.4.5+) on **both** the client `protect` entry and the matching `checkBotId()` call. If they don't match, verification fails.
@@ -199,7 +201,7 @@ By default `checkBotId()` only accepts requests from the host that served the ch
 
 - **Locally** (`NODE_ENV=development`) the client skips the challenge and `checkBotId()` returns a human verdict. To exercise your blocking branch, pass `developmentOptions: { bypass: 'BAD-BOT' }` (or `'HUMAN'`, `'GOOD-BOT'`). Remove it or leave it; it only applies in development.
 - **On a deployment**, test from the app's own UI or a `fetch` in the browser console on a page that loaded the script. `curl`, Postman, or opening the route in the address bar will be reported as a bot. That's expected, not a bug.
-- **Monitor** check results on the project's Firewall → Bot Management page. `vercel firewall bot-management` shows whether Deep Analysis is on, not check results.
+- **Monitor** checks on the project's Firewall traffic view by selecting BotID in the traffic filter; Observability Plus adds metrics. `vercel firewall bot-management` shows whether Deep Analysis is on, not check results.
 
 ## Troubleshooting
 
@@ -216,4 +218,4 @@ By default `checkBotId()` only accepts requests from the host that served the ch
 ## Related
 
 - Site-wide bot rules, the AI Bots ruleset, and custom rules on `bot_name` / `bot_category`: `vercel-firewall` skill.
-- Docs: [BotID](https://vercel.com/docs/botid), [Get started](https://vercel.com/docs/botid/get-started), [Advanced configuration](https://vercel.com/docs/botid/advanced-configuration), [Verified bots](https://vercel.com/docs/botid/verified-bots), [Local development](https://vercel.com/docs/botid/local-development-behavior).
+- Docs: [BotID](https://vercel.com/docs/botid), [Get started](https://vercel.com/docs/botid/get-started), [Advanced configuration](https://vercel.com/docs/botid/advanced-configuration), [Verified bots](https://vercel.com/docs/botid/verified-bots), [Local development](https://vercel.com/docs/botid/local-development-behavior), [Form submissions](https://vercel.com/docs/botid/form-submissions), [Verify on page load](https://vercel.com/docs/botid/verify-on-page-load).
