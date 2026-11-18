@@ -268,9 +268,9 @@ Turn Bot Protection on in `log` first and review the logged traffic before movin
 Categories for verified bots include `search_engine_crawler`, `ai_crawler`, `ai_assistant`, `monitor`, `webhook`, `preview`, `advertising`, `search_engine_optimization`, `feed_fetcher`, and `verification`. Take exact name and category values from `traffic list --dimension bot` or the Bot Management page rather than guessing the spelling.
 
 ```bash
-# Rate limit one crawler instead of blocking it
-vercel firewall rules add "Throttle GPTBot" \
-  --condition '{"type":"bot_name","op":"eq","value":"gptbot"}' \
+# Rate limit feed readers instead of blocking them
+vercel firewall rules add "Throttle feed fetchers" \
+  --condition '{"type":"bot_category","op":"eq","value":"feed_fetcher"}' \
   --action rate_limit --rate-limit-window 60 --rate-limit-requests 30 \
   --rate-limit-action log --yes
 
