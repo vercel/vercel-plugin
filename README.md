@@ -64,7 +64,7 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (38 skills)
+### Skills (39 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -73,6 +73,7 @@ A text-form relational graph covering:
 | `ai-sdk`                | AI SDK 7 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                       |
 | `auth`                  | Authentication integrations — Clerk, Better Auth, Descope, Auth0 setup for Next.js with Marketplace provisioning                     |
 | `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands                                         |
+| `botid`                 | Vercel BotID in code — `initBotId()` protect list, `checkBotId()` in handlers, verified bots, Deep Analysis, local testing             |
 | `build-agents`          | Default eve-first agent builder — create AI agents, agent apps, tools, channels, schedules, and Slack agents                         |
 | `cdn-caching`           | Diagnose cache hit rate, stale content, revalidation behavior, per-request cache reasons, and ISR read/write cost across CDN/ISR/PPR |
 | `chat-sdk`              | Multi-platform chat bots — Slack, Telegram, Teams, Discord, Google Chat, GitHub, Linear                                              |
@@ -96,7 +97,7 @@ A text-form relational graph covering:
 | `vercel-agent`          | Vercel Agent chat (dashboard, Slack), code review, investigations, approved actions, product installation                            |
 | `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace                                         |
 | `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
-| `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
+| `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot management (Bot Protection, AI Bots, bot name/category rules), and IP controls        |
 | `vercel-flags`          | Vercel Flags — plan flags, choose an integration, `vercel flags` CLI, rollouts, A/B tests, `@vercel/flags-core`, safe retirement       |
 | `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, legacy Cron Jobs, configuration                  |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
@@ -278,7 +279,7 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 38 skills
+├── skills/                          # 39 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
