@@ -382,7 +382,7 @@ import {
   refreshActiveSessionMarker,
   trackDauActiveToday
 } from "./telemetry.mjs";
-import { writeSessionAgentHarness } from "./skill-telemetry.mjs";
+import { resolveTelemetrySessionId, writeSessionAgentHarness } from "./skill-telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
   { file: "vercel.json", skills: ["vercel-cli", "deployments-cicd", "vercel-functions"] },
@@ -843,6 +843,12 @@ async function main() {
   refreshActiveSessionMarker();
   if (sessionId && isDauTelemetryEnabled()) {
     writeSessionAgentHarness(sessionId, agentHarness);
+    const telemetrySessionId = resolveTelemetrySessionId(sessionId);
+    try {
+      if (telemetrySessionId) setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY_SESSION_ID", telemetrySessionId);
+    } catch (error) {
+      logCaughtError(log, "session-start-profiler:telemetry-session-env-failed", error, { platform });
+    }
   }
   const greenfield = checkGreenfield(projectRoot);
   const shouldActivate = greenfield !== null || !existsSync(projectRoot) || hasSessionStartActivationMarkers(projectRoot);
