@@ -304,7 +304,7 @@ There is no rollback story to plan for: Node.js is a superset of what the functi
 ### Node.js (the default)
 - Full Node.js runtime, all npm packages available
 - Default for Next.js route handlers, Server Actions, Server Components, and any file in `/api`
-- **Node.js 24 LTS is GA** for builds and functions (V8 13.6, global `URLPattern`, Undici v7, npm v11). **Node.js 20 is deprecated on October 1, 2026** — move off `nodejs20.x`
+- **Node.js 26 LTS is GA and the default for new projects** for builds and functions (V8 14.6, Temporal API, HTTP/2 by default for built-in `fetch`; set `VERCEL_FETCH_DISABLE_H2=1` to keep HTTP/1.1). Existing projects move to 26 on their next deployment only if `engines.node` allows it (e.g. `>=20`). Available versions: 26.x, 24.x, 22.x. **Node.js 20 was deprecated on October 1, 2026**: new deployments that target `nodejs20.x` fail (already-deployed functions keep running), so move off it. Prebuilt deploys of Node.js 26 functions need Vercel CLI 65.8.0+
 - Duration: 300s default on every plan; 800s max on Pro/Enterprise; 1800s with the extended-duration beta
 
 ### Bun
@@ -480,9 +480,9 @@ To change the project-wide default: Settings → Functions → **Function Max Du
 Pro and Enterprise teams can run individual functions for up to **1800s**. Requirements, all of which are load-bearing:
 
 - **Per-function configuration only.** Durations above 800s must be set in code or in `vercel.json` for that function. **Project-level defaults above 800s are not supported** during the beta — raising the dashboard default will not get you to 1800s.
-- **Supported runtimes only**: `nodejs22.x`, `nodejs24.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
+- **Supported runtimes only**: `nodejs22.x`, `nodejs24.x`, `nodejs26.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
 - **Fluid Compute must be enabled** (default for new projects).
-- **Secure Compute and Static IPs do not support durations above 800s** during the beta. If the project uses either, you are capped at 800s.
+- **Secure Compute and Static IPs support durations above 800s**; BYOC does not during the beta. If the project uses BYOC, you are capped at 800s.
 
 ```ts
 // app/api/long-task/route.ts
@@ -549,7 +549,7 @@ vercel env add VERCEL_SUPPORT_LARGE_FUNCTIONS   # value: 1  (use 0 to disable)
 The environment variable always takes precedence over the project default, in both directions.
 
 - **Only functions that exceed the standard limit use the large-function path** — everything under 250 MB keeps the normal, faster path, so enabling it is not a global performance trade.
-- **Not supported with Secure Compute or Static IPs.**
+- **Supported with Secure Compute and Static IPs; not yet supported with BYOC.**
 
 ### Shrinking a bundle first
 
@@ -617,7 +617,7 @@ Deploy with `vercel deploy` or a Git push. During the build, the image is built 
 - **`SIGTERM` with a 30-second grace period** on scale-down (regular functions get 500 ms). Use it to drain.
 - **Logs are not per-request.** `stdout`/`stderr` are broadcast to all inflight requests of the instance, so correlate with your own request IDs.
 - **Same Function limits and Active CPU pricing** apply for size, memory, and duration.
-- **Secure Compute and Static IPs are not supported** with custom container images. If you need either, deploy that part without a container.
+- **Secure Compute and Static IPs are supported** with custom container images; BYOC is not yet. If you need BYOC, deploy that part without a container.
 - **Local dev**: `vercel dev` runs the image and requires the `docker` CLI plus a running daemon.
 
 ### Multiple services in one project
@@ -925,8 +925,8 @@ What you **cannot** put here:
 │  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
 │  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
 │  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
-│  │   ├─ Runtimes: nodejs22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
-│  │   └─ Blocked if the project uses Secure Compute or Static IPs
+│  │   ├─ Runtimes: nodejs22/24/26.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   └─ Blocked if the project uses BYOC (Secure Compute and Static IPs are fine)
 │  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
 ├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
 ├─ Client disconnected before the function finished?
