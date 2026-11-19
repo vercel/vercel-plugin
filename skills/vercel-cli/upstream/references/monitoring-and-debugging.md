@@ -107,6 +107,8 @@ at `Building` unless the user only asked to start the deployment.
 
 **Use `vercel curl` to access preview deploys.** It handles deployment protection automatically — no need to disable protection or manage bypass secrets.
 
+If the project has no Protection Bypass for Automation secret, `vercel curl` creates one. The secret stays on the project until someone revokes it (project Settings → Deployment Protection, or `vercel project protection disable --protection-bypass`). A new secret can take a few seconds to work, so the CLI waits for it. If the CLI warns that the new secret is not active yet and the response is the protection page, run the same command again after a few seconds.
+
 ```bash
 vercel curl /api/health --deployment $PREVIEW_URL
 vercel curl /api/data --deployment $PREVIEW_URL -- -X POST -d '{"key":"value"}'
