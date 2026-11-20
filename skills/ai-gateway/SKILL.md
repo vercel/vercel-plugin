@@ -152,6 +152,8 @@ Before implementing:
    curl -fsSL https://ai-gateway.vercel.sh/v1/models
    ```
 
+   This unauthenticated list omits team-scoped `private/<slug>` private models. When the task uses one, repeat the request with `-H "Authorization: Bearer $AI_GATEWAY_API_KEY"` and confirm the model appears in that authenticated response.
+
 4. If the code uses the `ai` package, load the `ai-sdk` skill when available. Read version-matched docs under `node_modules/ai/docs/` and source under `node_modules/ai/src/`. If the skill is not installed, use those bundled files directly.
 5. Run `vercel ai-gateway <command> --help` before documenting or scripting CLI flags.
 
@@ -168,6 +170,7 @@ The `vercel ai-gateway` command manages gateway resources for the current team. 
 | `budgets set/inspect/remove --default`, `budgets list --defaults` | Set per-scope default limits covering projects, keys, or members without a custom budget. Needs CLI 59.13+; the older `budgets defaults` group is deprecated |
 | `models list` / `models endpoints <model>` | List the model catalog and one model's provider endpoints from the CLI |
 | `virtual-models create/list/inspect/update/delete/restore` | Manage reusable, team-scoped model configurations addressed as `vmc/<slug>`. `update` needs CLI 64.4+ and `delete` 64.6+; older CLIs use `edit` and `remove` |
+| `private-inference providers create` / `private-inference models create` | Register a team-scoped private endpoint and the models it serves, called as `private/<slug>`. Needs CLI 65.16.0+ |
 | `rules add/list/update/remove` | Manage routing rules; the CLI marks rules beta, so check `--help` before relying on them. `update` needs CLI 64.4+; older CLIs use `edit`. REST CRUD exists under `https://api.vercel.com/ai-gateway/rules` |
 | `setup` | Configure supported coding agents; see [references/coding-agents.md](references/coding-agents.md) |
 | `leaderboard` | Explore public, anonymized usage leaderboards; rarely needed for implementation work |
@@ -267,6 +270,7 @@ Read [references/routing.md](references/routing.md) before adding any of these f
 ## Verification checklist
 
 - [ ] A direct model ID exists in the full live model response, or a Virtual Model exists for the authenticated team and resolves as `vmc/<slug>`.
+- [ ] A `private/<slug>` model, when used, appears in an authenticated `/v1/models` response; unauthenticated responses omit private models.
 - [ ] The selected API or SDK supports the requested modality and feature.
 - [ ] Authentication works in the actual runtime, including `.env.local` loading where relevant.
 - [ ] The example prints or returns a result instead of discarding the response.
