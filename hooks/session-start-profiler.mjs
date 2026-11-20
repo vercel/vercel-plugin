@@ -364,6 +364,7 @@ import {
   readFileSync,
   readdirSync
 } from "fs";
+import { homedir } from "os";
 import { delimiter, join, resolve } from "path";
 import { execFileSync, execSync } from "child_process";
 import { createRequire } from "module";
@@ -561,6 +562,8 @@ var NPM_VIEW_ARGS = "view vercel version".split(" ");
 var SPAWN_STDIO = "ignore pipe ignore".split(" ");
 var EXEC_SYNC_TIMEOUT_MS = 3e3;
 var NUMERIC_VERSION_RE = /\d+(?:\.\d+)*/;
+var RELEASE_VERSION_RE = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/;
+var DISPLAY_VERSION_RE = /\d{1,5}(?:\.\d{1,5}){1,3}/;
 var WINDOWS_EXECUTABLE_EXTENSIONS = (process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean);
 var WINDOWS_SPAWNABLE_EXTENSIONS = ".EXE;.COM;.CMD;.BAT".split(";");
 var WINDOWS_SHELL_SCRIPT_RE = /\.(?:cmd|bat)$/i;
@@ -586,8 +589,16 @@ function binaryNeedsShell(binaryPath, platform = process.platform) {
 function buildShellCommand(binaryPath, args) {
   return [`"${binaryPath}"`, ...args].join(" ");
 }
+function versionCheckCwd() {
+  return homedir();
+}
+function parseLatestVersion(output) {
+  const version = output.trim();
+  return RELEASE_VERSION_RE.test(version) ? version : null;
+}
 function runBinarySync(binaryPath, args) {
   const options = {
+    cwd: versionCheckCwd(),
     timeout: EXEC_SYNC_TIMEOUT_MS,
     encoding: "utf-8",
     stdio: SPAWN_STDIO,
@@ -603,7 +614,7 @@ function resolveBinaryFromPath(binaryName) {
     const pathEntries = (process.env.PATH || "").split(delimiter).filter(Boolean);
     for (const pathEntry of pathEntries) {
       for (const candidateName of getBinaryPathCandidates(binaryName)) {
-        const candidatePath = join(pathEntry, candidateName);
+        const candidatePath = resolve(pathEntry, candidateName);
         try {
           accessSync(candidatePath, fsConstants.X_OK);
           return candidatePath;
@@ -670,12 +681,18 @@ function checkVercelCli() {
   }
   let latestVersion;
   try {
-    latestVersion = runBinarySync(npmBinary, NPM_VIEW_ARGS);
+    latestVersion = parseLatestVersion(runBinarySync(npmBinary, NPM_VIEW_ARGS));
   } catch (error) {
     logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
       command: npmBinary,
       args: NPM_VIEW_ARGS.join(" "),
       currentVersion
+    });
+    return { installed: true, currentVersion, needsUpdate: false };
+  }
+  if (!latestVersion) {
+    log.debug("session-start-profiler:npm-latest-version-check-skipped", {
+      reason: "unexpected-output"
     });
     return { installed: true, currentVersion, needsUpdate: false };
   }
@@ -817,9 +834,12 @@ function buildSessionStartProfilerUserMessages(greenfield, cliStatus) {
       ].join("\n")
     );
   } else if (cliStatus.needsUpdate) {
+    const currentVersion = cliStatus.currentVersion?.match(DISPLAY_VERSION_RE)?.[0];
+    const latestVersion = cliStatus.latestVersion?.match(DISPLAY_VERSION_RE)?.[0];
+    const versions = currentVersion && latestVersion ? ` (${currentVersion} \u2192 ${latestVersion})` : "";
     messages.push(
       [
-        `IMPORTANT: The Vercel CLI is outdated (${cliStatus.currentVersion} \u2192 ${cliStatus.latestVersion}).`,
+        `IMPORTANT: The Vercel CLI is outdated${versions}.`,
         "Strongly recommend the user upgrade with `npm i -g vercel@latest` or `pnpm add -g vercel@latest` for best compatibility.",
         "The latest version includes significant agentic features and improvements that will greatly enhance their development experience."
       ].join("\n")
@@ -929,9 +949,11 @@ export {
   logBrokenSkillFrontmatterSummary,
   normalizeDetectedAgentHarness,
   normalizeSessionStartSessionId,
+  parseLatestVersion,
   parseSessionStartInput,
   profileBootstrapSignals,
   profileProject,
   resolveBinaryFromPath,
-  resolveSessionStartProjectRoot
+  resolveSessionStartProjectRoot,
+  versionCheckCwd
 };

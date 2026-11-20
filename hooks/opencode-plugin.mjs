@@ -17,7 +17,9 @@ import {
   buildShellCommand,
   checkGreenfield,
   compareVersionSegments,
-  resolveBinaryFromPath
+  parseLatestVersion,
+  resolveBinaryFromPath,
+  versionCheckCwd
 } from "./session-start-profiler.mjs";
 import { extractFrontmatter, parseSkillFrontmatter } from "./skill-map-frontmatter.mjs";
 import {
@@ -92,7 +94,12 @@ ${trimmed}` : template;
 var execFileAsync = promisify(execFile);
 var execAsync = promisify(exec);
 async function runBinary(binaryPath, args) {
-  const options = { timeout: CLI_EXEC_TIMEOUT_MS, encoding: "utf-8", windowsHide: true };
+  const options = {
+    cwd: versionCheckCwd(),
+    timeout: CLI_EXEC_TIMEOUT_MS,
+    encoding: "utf-8",
+    windowsHide: true
+  };
   const { stdout } = binaryNeedsShell(binaryPath) ? await execAsync(buildShellCommand(binaryPath, args), options) : await execFileAsync(binaryPath, args, options);
   return stdout.trim();
 }
@@ -111,11 +118,12 @@ async function checkVercelCliAsync() {
   if (!npmBinary) return { installed: true, currentVersion, needsUpdate: false };
   let latestVersion;
   try {
-    latestVersion = await runBinary(npmBinary, NPM_VIEW_ARGS);
+    latestVersion = parseLatestVersion(await runBinary(npmBinary, NPM_VIEW_ARGS));
   } catch (error) {
     logCaughtError(log, "opencode-plugin:npm-latest-version-check-failed", error, { command: npmBinary });
     return { installed: true, currentVersion, needsUpdate: false };
   }
+  if (!latestVersion) return { installed: true, currentVersion, needsUpdate: false };
   const comparison = currentVersion && latestVersion ? compareVersionSegments(currentVersion, latestVersion) : null;
   const needsUpdate = comparison === null ? !!(currentVersion && latestVersion && currentVersion !== latestVersion) : comparison < 0;
   return { installed: true, currentVersion, latestVersion, needsUpdate };

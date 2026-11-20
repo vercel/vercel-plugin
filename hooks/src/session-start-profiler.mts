@@ -332,6 +332,10 @@ export const NPM_VIEW_ARGS: string[] = "view vercel version".split(" ");
 const SPAWN_STDIO = "ignore pipe ignore".split(" ") as ("ignore" | "pipe")[];
 const EXEC_SYNC_TIMEOUT_MS = 3_000;
 const NUMERIC_VERSION_RE = /\d+(?:\.\d+)*/;
+// `npm view vercel version` prints one release version, for example `62.7.0`.
+const RELEASE_VERSION_RE = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/;
+// The numeric part of a version, for text that the model reads.
+const DISPLAY_VERSION_RE = /\d{1,5}(?:\.\d{1,5}){1,3}/;
 const WINDOWS_EXECUTABLE_EXTENSIONS = (process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM")
   .split(";")
   .filter(Boolean);
@@ -389,9 +393,30 @@ export function buildShellCommand(binaryPath: string, args: string[]): string {
   return [`"${binaryPath}"`, ...args].join(" ");
 }
 
-/** Run a resolved binary and return its trimmed stdout. */
+/**
+ * The directory that the version checks run in. npm reads the `.npmrc` of the
+ * project that contains its working directory. The session's project is not
+ * trusted input, so the checks run in the home directory, where npm reads
+ * only the user's own configuration.
+ */
+export function versionCheckCwd(): string {
+  return homedir();
+}
+
+/**
+ * The version that `npm view vercel version` printed, or `null` if the output
+ * is not one release version. The version goes into text that the model
+ * reads, so other output is not used.
+ */
+export function parseLatestVersion(output: string): string | null {
+  const version = output.trim();
+  return RELEASE_VERSION_RE.test(version) ? version : null;
+}
+
+/** Run a resolved binary outside the project and return its trimmed stdout. */
 function runBinarySync(binaryPath: string, args: string[]): string {
   const options = {
+    cwd: versionCheckCwd(),
     timeout: EXEC_SYNC_TIMEOUT_MS,
     encoding: "utf-8" as const,
     stdio: SPAWN_STDIO,
@@ -410,7 +435,10 @@ export function resolveBinaryFromPath(binaryName: string): string | null {
     const pathEntries = (process.env.PATH || "").split(delimiter).filter(Boolean);
     for (const pathEntry of pathEntries) {
       for (const candidateName of getBinaryPathCandidates(binaryName)) {
-        const candidatePath = join(pathEntry, candidateName);
+        // An absolute path, so the binary is the same one in any working
+        // directory. A relative PATH entry resolves against the process
+        // directory, as the access check below does.
+        const candidatePath = resolve(pathEntry, candidateName);
         try {
           accessSync(candidatePath, fsConstants.X_OK);
           return candidatePath;
@@ -498,14 +526,20 @@ function checkVercelCli(): VercelCliStatus {
   }
 
   // 2. Fetch latest version from npm registry
-  let latestVersion: string | undefined;
+  let latestVersion: string | null;
   try {
-    latestVersion = runBinarySync(npmBinary, NPM_VIEW_ARGS);
+    latestVersion = parseLatestVersion(runBinarySync(npmBinary, NPM_VIEW_ARGS));
   } catch (error) {
     logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
       command: npmBinary,
       args: NPM_VIEW_ARGS.join(" "),
       currentVersion,
+    });
+    return { installed: true, currentVersion, needsUpdate: false };
+  }
+  if (!latestVersion) {
+    log.debug("session-start-profiler:npm-latest-version-check-skipped", {
+      reason: "unexpected-output",
     });
     return { installed: true, currentVersion, needsUpdate: false };
   }
@@ -728,9 +762,13 @@ export function buildSessionStartProfilerUserMessages(
       ].join("\n"),
     );
   } else if (cliStatus.needsUpdate) {
+    // Only the numeric part of each version goes into the message.
+    const currentVersion = cliStatus.currentVersion?.match(DISPLAY_VERSION_RE)?.[0];
+    const latestVersion = cliStatus.latestVersion?.match(DISPLAY_VERSION_RE)?.[0];
+    const versions = currentVersion && latestVersion ? ` (${currentVersion} → ${latestVersion})` : "";
     messages.push(
       [
-        `IMPORTANT: The Vercel CLI is outdated (${cliStatus.currentVersion} → ${cliStatus.latestVersion}).`,
+        `IMPORTANT: The Vercel CLI is outdated${versions}.`,
         "Strongly recommend the user upgrade with `npm i -g vercel@latest` or `pnpm add -g vercel@latest` for best compatibility.",
         "The latest version includes significant agentic features and improvements that will greatly enhance their development experience.",
       ].join("\n"),
