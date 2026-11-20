@@ -158,15 +158,6 @@ Rules are evaluated in priority order (top to bottom). Reorder to control which 
 
 NOTE: When using `update` with `--condition`, it will overwrite all conditions listed in the rule. Make sure to specify all conditions when editing a rule.
 
-### AI Bots categories
-
-The AI Bots managed ruleset has separate AI Crawlers and AI Assistants categories, each with its own action. On CLI 66.4+ change them with `managed-rulesets update ai-bots --group <category>` (see [Managed rulesets](#managed-rulesets)). Older CLIs (65.7+) use `rules update ai-bots --category`, which still works; its actions are `allow`, `log` and `deny`. Either way the change stages a draft.
-
-```bash
-vercel firewall rules update ai-bots --category ai-crawlers   --action deny  --yes   # CLI 65.7+ before 66.4
-vercel firewall rules update ai-bots --category ai-assistants --action allow --yes
-```
-
 ### Condition format
 
 Each `--condition` is a JSON object:
@@ -238,7 +229,7 @@ For more sophisticated counting (custom buckets, hashing identifiers from header
 | Goal | Use |
 | --- | --- |
 | Scripts and non-browser clients site-wide | **Bot Protection** managed rule (`off`/`log`/`challenge`, all plans) |
-| AI crawlers and assistants | **AI Bots** managed rule; per category on CLI 66.4+: `managed-rulesets update ai-bots --group ai-crawlers --action deny` |
+| AI crawlers and assistants | **AI Bots** managed rule, per category: `managed-rulesets update ai-bots --group ai-crawlers --action deny` |
 | A bot category or named bot | Custom rule on `bot_category` / `bot_name` (priority projects) |
 | Signup, checkout, AI routes called by the app's frontend | **BotID** in code — see the `botid` skill |
 | Active flood | Attack Mode (user enables it) |
@@ -250,11 +241,11 @@ For more sophisticated counting (custom buckets, hashing identifiers from header
 ```bash
 vercel firewall bot-management                              # managed bot rule actions + unknown bot traffic
 vercel firewall traffic list --dimension bot --since 24h    # top verified bots
-vercel firewall managed-rulesets update bot-protection --action log --yes   # off | log | challenge (CLI 66.4+)
+vercel firewall managed-rulesets update bot-protection --action log --yes   # off | log | challenge
 vercel firewall rules update bot-id --action deep-analysis --yes            # basic | deep-analysis (billed, Pro+)
 ```
 
-`bot-protection`, `ai-bots` and `bot-id` are reserved project-level slugs: `rules add`, `remove`, `enable`, `disable` and `move` refuse them. Change Bot Protection and AI Bots with `managed-rulesets update` (see [Managed rulesets](#managed-rulesets)); older CLIs use `rules update`, which still works. BotID stays on `rules update bot-id`. Start Bot Protection on `log` and review before `challenge`.
+`bot-protection`, `ai-bots` and `bot-id` are reserved project-level slugs: `rules add`, `remove`, `enable`, `disable` and `move` refuse them. Change Bot Protection and AI Bots with `managed-rulesets update` (see [Managed rulesets](#managed-rulesets)). BotID stays on `rules update bot-id`. Start Bot Protection on `log` and review before `challenge`.
 
 ### Bot name and category rules
 
@@ -271,7 +262,7 @@ Blocking `search_engine_crawler` removes the site from search; call that out bef
 
 ## Managed rulesets
 
-[WAF managed rulesets](https://vercel.com/docs/vercel-firewall/vercel-waf/managed-rulesets) are Vercel-maintained rule sets: `owasp` (OWASP Core Ruleset, alias `crs`), `bot-protection` (Bot Protection) and `ai-bots` (AI Bots). `managed-rulesets` needs CLI 65.16+, and 66.4+ for `bot-protection` and `ai-bots`; on older CLIs change those two with `rules update` (see [AI Bots categories](#ai-bots-categories)), which keeps working. BotID isn't a managed ruleset: use `rules update bot-id`. Changes are staged, and `--yes` only stages: the user approves the publish (see [Publishing](#publishing)).
+[WAF managed rulesets](https://vercel.com/docs/vercel-firewall/vercel-waf/managed-rulesets) are Vercel-maintained rule sets: `owasp` (OWASP Core Ruleset, alias `crs`), `bot-protection` (Bot Protection) and `ai-bots` (AI Bots). `managed-rulesets` needs CLI 65.16+. Bot Protection and AI Bots need 66.4+; older CLIs use `rules update` (`--category` for AI Bots), which still works. BotID isn't a managed ruleset: use `rules update bot-id`. Changes are staged, and `--yes` only stages: the user approves the publish (see [Publishing](#publishing)).
 
 ```bash
 vercel firewall managed-rulesets list                  # rulesets the team can use, with each rule group's action
