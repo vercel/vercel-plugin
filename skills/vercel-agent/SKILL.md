@@ -59,8 +59,8 @@ Dashboard chat, Slack chat, Investigations, Code Review, and Security Review are
 
 - Start conversations from the **Agent** button in the Vercel dashboard.
 - Connect Slack to ask questions and investigate issues from supported conversations.
-- Vercel Agent is read-only by default. When a task requires a write, it presents a scoped plan and waits for approval.
-- Approved work can make a supported change directly or open a pull request, depending on the task.
+- Vercel Agent is read-only by default. When a task requires changes to Vercel resources, it presents a scoped plan and waits for approval. The one exception is a temporary share link it creates, then revokes, to open a protected preview deployment. In Chat, GitHub pull requests need no plan approval, but Vercel Agent is designed to create or update one only when you ask for a fix or a pull request, or accept its offer to open one.
+- Vercel Agent can make a supported change directly or open a pull request, depending on the task.
 
 ### Code Review
 - Automatic PR analysis triggered on push or via `@vercel` mention in PR comments
