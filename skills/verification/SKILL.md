@@ -5,7 +5,7 @@ summary: "Verify full user story: browser + server + data flow + env"
 metadata:
   priority: 7
   docs:
-    - "https://vercel.com/docs/projects/project-configuration"
+    - "https://vercel.com/docs/project-configuration"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns: []
   bashPatterns:
