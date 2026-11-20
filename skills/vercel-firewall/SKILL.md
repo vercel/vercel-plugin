@@ -42,6 +42,7 @@ retrieval:
     - ip allowlist
     - traffic filtering
     - verified bots
+    - owasp core ruleset
   intents:
     - protect from ddos
     - block malicious traffic
@@ -64,18 +65,18 @@ retrieval:
 
 # Vercel Firewall
 
-You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, IP blocks, system bypass, Attack Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
+You are an expert in the Vercel Firewall including the `vercel firewall` CLI, Vercel WAF and platform-level protections (custom rules, managed rulesets, IP blocks, system bypass, Attack Mode, system mitigations). You follow all the [best practices](#best-practices) outlined below.
 
 ## Core Knowledge
 
-- **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with IP blocks and custom rules. Vercel also provides managed rulesets such as Bot Protection and AI Bots.
+- **Vercel ships a multi-layered firewall**, not just a CDN. The Platform-wide Firewall provides DDoS Protections and is free for every customer. Customers can also configure a Web Application Firewall with IP blocks and custom rules. Vercel also provides managed rulesets such as OWASP Core Ruleset, Bot Protection and AI Bots.
 - **Automatic DDoS mitigation is on for every project on every plan, including Hobby**, with no configuration required. It covers L3/L4/L7 attacks.
 - **Vercel does not bill for traffic blocked by DDoS mitigations or WAF.** Usage is only incurred for requests served before mitigation kicked in or not classified as an attack. You do not pay for requests or bandwidth for denies, challenges, or rate-limits from WAF custom rules or managed rules.
 - **Custom rules** allows the user to define their own Firewall rules. Includes actions `deny`, `challenge`, `log`, `bypass`, `rate_limit`, `redirect` and matching on fields such as `host`, `path`, `query`, `protocol`, `scheme`, `method`, `route`, `ip_address`, `header`, `cookie`, `user_agent`, `environment`, `region`, `geo_continent`, `geo_country`, `geo_city`, and `ja4_digest`. See https://vercel.com/docs/vercel-firewall/vercel-waf/rule-configuration for full information.
 
 ## Overview
 
-Project must be linked first (`vercel link`).
+Commands act on the linked project (`vercel link`). Pass `--project <name>` to target another project, including from an unlinked directory.
 
 ```bash
 vercel firewall overview                  # active rules, blocks, bypasses, attack-mode, drafts
@@ -84,7 +85,7 @@ vercel firewall diff                      # show unpublished draft changes
 vercel firewall diff --json
 ```
 
-`rules` and `ip-blocks` changes are **staged** as drafts — run `vercel firewall publish --yes` to make them live. `system-bypass`, `attack-mode`, and `system-mitigations` take effect **immediately**.
+`rules`, `managed-rulesets` and `ip-blocks` changes are **staged** as drafts. `vercel firewall publish` makes them live (see [Publishing](#publishing)). `system-bypass`, `attack-mode` and `system-mitigations` take effect **immediately**.
 
 ## Custom rules
 
@@ -157,6 +158,15 @@ Rules are evaluated in priority order (top to bottom). Reorder to control which 
 
 NOTE: When using `update` with `--condition`, it will overwrite all conditions listed in the rule. Make sure to specify all conditions when editing a rule.
 
+### AI Bots categories
+
+The AI Bots managed ruleset has separate AI Crawlers and AI Assistants categories, each with its own action. On CLI 66.4+ change them with `managed-rulesets update ai-bots --group <category>` (see [Managed rulesets](#managed-rulesets)). Older CLIs (65.7+) use `rules update ai-bots --category`, which still works; its actions are `allow`, `log` and `deny`. Either way the change stages a draft.
+
+```bash
+vercel firewall rules update ai-bots --category ai-crawlers   --action deny  --yes   # CLI 65.7+ before 66.4
+vercel firewall rules update ai-bots --category ai-assistants --action allow --yes
+```
+
 ### Condition format
 
 Each `--condition` is a JSON object:
@@ -183,7 +193,7 @@ Conditions within a group are **AND'd**. Multiple groups (separated by `--or`) a
 - **Client**: `ip_address` (IP or CIDR), `user_agent`, `geo_country`, `geo_continent`, `geo_country_region`, `geo_city`, `geo_as_number`
 - **Headers / cookies / queries** — require `key`: `header`, `cookie`, `query`
 - **TLS fingerprints**: `ja4_digest` (all plans), `ja3_digest` (Enterprise only)
-- **Bots**: `bot_name`, `bot_category` (public beta, priority projects only; see [Bot management](#bot-management))
+- **Bots**: `bot_name`, `bot_category` (priority projects only; see [Bot management](#bot-management))
 - **Rate limit grouping**: `rate_limit_api_id`
 
 ### Actions
@@ -228,8 +238,8 @@ For more sophisticated counting (custom buckets, hashing identifiers from header
 | Goal | Use |
 | --- | --- |
 | Scripts and non-browser clients site-wide | **Bot Protection** managed rule (`off`/`log`/`challenge`, all plans) |
-| AI crawlers and assistants | **AI Bots** managed rule; per category on CLI 65.7+: `rules update ai-bots --category ai-crawlers --action deny` |
-| A bot category or named bot | Custom rule on `bot_category` / `bot_name` (public beta, priority projects) |
+| AI crawlers and assistants | **AI Bots** managed rule; per category on CLI 66.4+: `managed-rulesets update ai-bots --group ai-crawlers --action deny` |
+| A bot category or named bot | Custom rule on `bot_category` / `bot_name` (priority projects) |
 | Signup, checkout, AI routes called by the app's frontend | **BotID** in code — see the `botid` skill |
 | Active flood | Attack Mode (user enables it) |
 
@@ -240,15 +250,15 @@ For more sophisticated counting (custom buckets, hashing identifiers from header
 ```bash
 vercel firewall bot-management                              # managed bot rule actions + unknown bot traffic
 vercel firewall traffic list --dimension bot --since 24h    # top verified bots
-vercel firewall rules update bot-protection --action log --yes   # off | log | challenge
-vercel firewall rules update bot-id --action deep-analysis --yes # basic | deep-analysis (billed, Pro+)
+vercel firewall managed-rulesets update bot-protection --action log --yes   # off | log | challenge (CLI 66.4+)
+vercel firewall rules update bot-id --action deep-analysis --yes            # basic | deep-analysis (billed, Pro+)
 ```
 
-`bot-protection`, `ai-bots` and `bot-id` are reserved project-level slugs: only `rules update --action` works on them. Start Bot Protection on `log` and review before `challenge`.
+`bot-protection`, `ai-bots` and `bot-id` are reserved project-level slugs: `rules add`, `remove`, `enable`, `disable` and `move` refuse them. Change Bot Protection and AI Bots with `managed-rulesets update` (see [Managed rulesets](#managed-rulesets)); older CLIs use `rules update`, which still works. BotID stays on `rules update bot-id`. Start Bot Protection on `log` and review before `challenge`.
 
 ### Bot name and category rules
 
-Public beta, priority projects only — the CLI refuses them elsewhere. They match Vercel's verified identity, not the UA. Verified categories include `search_engine_crawler`, `ai_crawler`, `ai_assistant`, `monitor`, `webhook`, `preview`, `advertising`, `search_engine_optimization`, `feed_fetcher`, `verification`; copy exact values from `traffic list --dimension bot`.
+Priority projects only. The CLI refuses them elsewhere. They match Vercel's verified identity, not the UA. Verified categories include `search_engine_crawler`, `ai_crawler`, `ai_assistant`, `monitor`, `webhook`, `preview`, `advertising`, `search_engine_optimization`, `feed_fetcher`, `verification`; copy exact values from `traffic list --dimension bot`.
 
 ```bash
 vercel firewall rules add "Throttle feed fetchers" \
@@ -258,6 +268,27 @@ vercel firewall rules add "Throttle feed fetchers" \
 ```
 
 Blocking `search_engine_crawler` removes the site from search; call that out before staging.
+
+## Managed rulesets
+
+[WAF managed rulesets](https://vercel.com/docs/vercel-firewall/vercel-waf/managed-rulesets) are Vercel-maintained rule sets: `owasp` (OWASP Core Ruleset, alias `crs`), `bot-protection` (Bot Protection) and `ai-bots` (AI Bots). `managed-rulesets` needs CLI 65.16+, and 66.4+ for `bot-protection` and `ai-bots`; on older CLIs change those two with `rules update` (see [AI Bots categories](#ai-bots-categories)), which keeps working. BotID isn't a managed ruleset: use `rules update bot-id`. Changes are staged, and `--yes` only stages: the user approves the publish (see [Publishing](#publishing)).
+
+```bash
+vercel firewall managed-rulesets list                  # rulesets the team can use, with each rule group's action
+vercel firewall managed-rulesets list --json
+vercel firewall managed-rulesets enable  owasp --yes   # OWASP starts with its default rule groups
+vercel firewall managed-rulesets disable owasp --yes
+vercel firewall managed-rulesets update owasp --group sqli --action deny --yes
+vercel firewall managed-rulesets update owasp --group php  --action off  --yes
+vercel firewall managed-rulesets update bot-protection --action challenge --yes              # no groups: off, log or challenge
+vercel firewall managed-rulesets update ai-bots --group ai-crawlers --action deny --yes      # a category change turns AI Bots on
+```
+
+- `--group` takes a rule group ID from `list`, such as `sqli` or `xss` for OWASP. Underscores in catalog IDs become hyphens (`ai_crawlers` → `ai-crawlers`).
+- `--action` takes the ruleset's actions plus `off`: `log`, `deny` or `off` for OWASP. Bot Protection takes `off`, `log` or `challenge` with no `--group`. AI Bots takes `off`, `log` or `deny` (`allow` also means `off`), per category with `--group` when the team has categories.
+- A rule group can only be changed while its ruleset is on, so enable the ruleset first. Bot Protection and AI Bots categories can be changed while off, which turns them on when published; the other AI Bots categories then run their saved action.
+- If OWASP isn't on the team's plan yet, turning it on is refused and the CLI asks the user to add it from the project's Firewall page in the dashboard first. Follow the error; the CLI can't buy it.
+- As with new custom rules, start rule groups and Bot Protection on `log`, review traffic, then move to `deny` or `challenge`. OWASP groups can match legitimate requests (rich text, code snippets, unusual query strings).
 
 ## IP blocks
 
@@ -314,10 +345,13 @@ vercel firewall system-mitigations resume --yes
 ## Publishing
 
 ```bash
-vercel firewall diff                      # review staged changes
-vercel firewall publish --yes             # push drafts to production
-vercel firewall discard --yes             # throw away drafts
+vercel firewall diff                                       # review staged changes
+vercel firewall publish                                    # push drafts to production; prompts for approval
+vercel firewall publish --project my-app --confirm-name my-app  # approve by naming the project
+vercel firewall discard --yes                              # throw away drafts
 ```
+
+From CLI 65.10, `publish` is approved by naming its target with `--confirm-name`. `--yes` still works for people and scripts, with a deprecation warning, but **agents can't approve with `--yes`**. Run without approval, an agent gets a `confirmation_required` error with a preview of what goes live and, in `next[]`, the command to run once the user approves. That command includes `--effects-digest`, so drafts added after the preview don't go live under the old approval. Older CLIs use `publish --yes`.
 
 ## Querying firewall traffic from the CLI
 
@@ -331,6 +365,7 @@ vercel firewall traffic list --action deny --dimension rule --json
 - `traffic list` reports requests by action plus top lists across 10 dimensions: `ip`, `ja4`, `asn`, `user-agent`, `path`, `rule`, `host`, `bot`, `country`, `action`. Use `--dimension` to choose which top lists to include.
 - `traffic inspect <dimension> <value>` (e.g. `vercel firewall traffic inspect rule rule_abc123 --group-by ip`) drills into one value with a breakdown by a second dimension.
 - `--since`/`--until` accept `1h`, `24h`, `3d`, `7d`, etc., or an ISO date; `--json` is best for programmatic review.
+- `-q, --query <KQL>` narrows either command (repeatable, ANDed), using the schema's camelCase dimension names such as `clientIp` or `wafRuleId`. Older CLIs call it `--filter`.
 - `--since` must fall inside your plan's retention, or the query requires Observability Plus. Shortening the window with `--until` does not help if `--since` is already too far back.
 
 For an **active-attack triage** lens — "is something happening right now?" — narrow the window:
@@ -346,7 +381,7 @@ Also available: `vercel firewall status` (config in evaluation order), `vercel f
 
 The firewall sits in front of every request. A misconfigured rule can block real users, kill SEO crawlers, or break checkout. Treat changes like a production database migration: stage, review, and let the user pull the trigger.
 
-- **Roll new rules out in stages, not in one shot.** A new rule's blast radius is unpredictable until real traffic hits it. Walk every meaningful rule through the stages below, asking the user to `vercel firewall publish --yes` between each. Don't skip stages even if a rule "obviously" matches only attackers — common JA4s and user agents collide with real users far more often than they look like they will.
+- **Roll new rules out in stages, not in one shot.** A new rule's blast radius is unpredictable until real traffic hits it. Walk every meaningful rule through the stages below, asking the user to run `vercel firewall publish` between each. Don't skip stages even if a rule "obviously" matches only attackers — common JA4s and user agents collide with real users far more often than they look like they will.
   1. **Log everywhere.** Add the rule with `--action log` so it records hits to the Firewall dashboard but blocks nothing.
 
      ```bash
@@ -377,12 +412,13 @@ The firewall sits in front of every request. A misconfigured rule can block real
 
   4. **Block in production.** Once the user is satisfied with the production log data, edit to `deny` / `challenge` and have them publish. Keep the dashboard URL handy for the first 24h in case you need to roll back with `--action log` or `rules disable`.
 
-- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **ask the user to run `vercel firewall publish --yes` themselves** — don't push to production on their behalf. Use `discard --yes` only if the user asks to abandon staged changes.
+- **Stage drafts; let the user publish.** Mutating commands (`rules add/update/enable/disable/remove/move`, `managed-rulesets enable/disable/update`, `ip-blocks block/unblock`) only stage. Run `vercel firewall diff` to show what will change, then **let the user approve the publish**. Don't push to production on their behalf. Either ask them to run `vercel firewall publish` themselves, or run it, show them the preview it returns and run the `next[]` command only after they approve. Use `discard --yes` only if the user asks to abandon staged changes.
 
 - **Don't run commands the CLI blocks for agents.** Surface what the user needs to do instead:
   - `vercel firewall rules add --ai "..."` and `vercel firewall rules add` (wizard) — TTY-only. Use `--condition` flags or `--data`.
   - `vercel firewall attack-mode enable` — requires explicit interactive confirmation; have the user run it.
   - `vercel firewall system-mitigations pause` — pauses platform DDoS protection across the project; have the user run it and resume ASAP.
+  - `vercel project priority enable` — when a rule is refused because the project isn't a Priority project, the CLI points here (`vercel buy pro` on Hobby). It's a paid upgrade agents can't confirm; have the user decide and run it.
 
 - **Inspect before recommending publish.** A `deny` with a loose condition (e.g., `path` starts with `/`) blocks the entire site. Always `vercel firewall rules inspect "Name"` and `vercel firewall diff` before handing the publish step to the user.
 
