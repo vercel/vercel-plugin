@@ -278,7 +278,7 @@ vercel firewall managed-rulesets update ai-bots --group ai-crawlers --action den
 - `--group` takes a rule group ID from `list`, such as `sqli` or `xss` for OWASP. Underscores in catalog IDs become hyphens (`ai_crawlers` → `ai-crawlers`).
 - `--action` takes the ruleset's actions plus `off`: `log`, `deny` or `off` for OWASP. Bot Protection takes `off`, `log` or `challenge` with no `--group`. AI Bots takes `off`, `log` or `deny` (`allow` also means `off`), per category with `--group` when the team has categories.
 - A rule group can only be changed while its ruleset is on, so enable the ruleset first. Bot Protection and AI Bots categories can be changed while off, which turns them on when published; the other AI Bots categories then run their saved action.
-- If OWASP isn't on the team's plan yet, turning it on is refused and the CLI asks the user to add it from the project's Firewall page in the dashboard first. Follow the error; the CLI can't buy it.
+- If OWASP isn't on the team's plan yet, turning it on is refused and the CLI asks the user to add it from the project's Firewall page in the dashboard first. Follow the error; the CLI can't buy it. On Pro, OWASP needs a priority project: `enable`, `update` and `publish` fail and suggest `vercel project priority enable`, a paid upgrade the user has to run.
 - As with new custom rules, start rule groups and Bot Protection on `log`, review traffic, then move to `deny` or `challenge`. OWASP groups can match legitimate requests (rich text, code snippets, unusual query strings).
 
 ## IP blocks
