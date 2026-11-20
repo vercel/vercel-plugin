@@ -40,7 +40,9 @@ function extractUpstreamBody(upstreamPath: string): string {
 function buildSkill(skillName: string): BuildResult {
   const skillDir = join(SKILLS_DIR, skillName);
   const overlayPath = join(skillDir, "overlay.yaml");
-  const upstreamSkillPath = join(skillDir, "upstream", "SKILL.md");
+  // Not named SKILL.md: a second SKILL.md with the same `name:` under skills/
+  // makes the claude.ai marketplace reject the plugin.
+  const upstreamSkillPath = join(skillDir, "upstream", "UPSTREAM.md");
   const outputPath = join(skillDir, "SKILL.md");
 
   const result: BuildResult = {
