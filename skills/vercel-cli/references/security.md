@@ -14,9 +14,20 @@ vercel security vulnerabilities inspect my-app/12                 # summary, des
 
 Each vulnerability has a reference, `<project>/<number>` or `<owner>/<repo>/<number>`. `inspect`, `dismiss`, and `reopen` accept the reference or the vulnerability ID.
 
-`list` is the default subcommand. Filter with `--project`, `--environment`, `--git-branch`, `--severity`, `--status` (default `open`; `all` for every status), and `--query`. Results are paginated: follow the printed next-page command, or pass the `pagination.next` cursor from `--json` output to `--next`. List output omits descriptions and fixes, so `inspect` a vulnerability before acting on it.
+`list` is the default subcommand. Filter with `--project`, `--repository`, `--environment`, `--git-branch`, `--severity`, `--status` (default `open`; `all` for every status), and `--query`. Results are paginated: follow the printed next-page command, or pass the `pagination.next` cursor from `--json` output to `--next`. List output omits descriptions and fixes, so `inspect` a vulnerability before acting on it.
 
 If Security Review isn't enabled for the team, the command fails and says so. Which vulnerabilities you can see and change depends on the team role.
+
+### Start from a pull request
+
+Security Review adds a GitHub check to each commit it reviews. On private and internal repositories, it also posts each vulnerability as a comment on the branch's open pull request. Treat a check or comment as a pointer to a vulnerability. Before fixing it, read the vulnerability from the CLI, which has the full description, the suggested fix, and the current status:
+
+```bash
+vercel security vulnerabilities --repository my-org/my-app --git-branch my-feature   # open, on the pull request's head branch
+vercel security vulnerabilities inspect my-app/12
+```
+
+`--repository` takes `<owner>/<repo>` and includes projects deployed from that repository. `inspect` each listed vulnerability, or go straight to `inspect` when the check or comment gives a reference or vulnerability ID.
 
 ### Fix a vulnerability
 
