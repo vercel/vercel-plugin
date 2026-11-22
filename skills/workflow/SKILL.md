@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Vercel Workflow SDK expert guidance. Use when building durable workflows, long-running tasks, API routes or agents that need pause/resume, retries, step-based execution, or crash-safe orchestration with Vercel Workflow.
+description: "Vercel Workflow: durable scheduled agent tasks, pause/resume, retries and crash-safe steps. Make retried side effects idempotent; use Queues for event buffering."
 metadata:
   priority: 9
   docs:

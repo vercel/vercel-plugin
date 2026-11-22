@@ -1,6 +1,6 @@
 ---
 name: build-agents
-description: "Default guidance for building AI agents. Use for generic requests to build, create, scaffold, design, architect, or implement an AI agent, agent app, tool-calling agent, durable agent, multi-agent system, or scheduled agent."
+description: "Choose a framework and build durable or tool-calling agents. Route schedule setup to vercel-schedules; confirm before enabling schedules. Use framework-specific guidance."
 summary: "Default guidance for building AI agents: eve is a great default choice — run init, then read the shipped docs."
 metadata:
   priority: 10

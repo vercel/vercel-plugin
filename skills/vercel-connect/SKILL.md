@@ -1,6 +1,6 @@
 ---
 name: vercel-connect
-description: Vercel Connect expert guidance for securely obtaining scoped credentials for third-party services on behalf of apps or users. Use when wiring up provider API access, OAuth, API-key services, MCP servers, triggers, framework adapters, eve agent connections, or provider tokens for Passport-authenticated users.
+description: "Use Vercel Connect/OIDC for scoped provider OAuth, API keys, MCP, Eve and Passport-authenticated users. Separate app/user grants and protect tokens."
 metadata:
   priority: 5
   docs:

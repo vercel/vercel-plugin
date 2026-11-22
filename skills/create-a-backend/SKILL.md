@@ -1,6 +1,6 @@
 ---
 name: create-a-backend
-description: Backend architecture guidance. Use when planning, building, or migrating an API or backend; choosing between Functions, Services, containers, Daemons, Workflow, Queues, and Marketplace databases; or selecting a supported backend framework or runtime.
+description: "Choose a Vercel backend or API architecture: Functions, Services, containers, Daemons, Workflow, Queues, Marketplace databases, or supported runtimes."
 summary: Match backend workloads to the right architecture
 metadata:
   priority: 7

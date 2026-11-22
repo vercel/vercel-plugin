@@ -1,6 +1,6 @@
 ---
 name: vercel-agent
-description: Vercel Agent guidance — dashboard and Slack chat, code review, Security Review, production investigation, approved actions, and product installation. Use when configuring or working with Vercel's AI assistant.
+description: "Use Vercel Agent in dashboard or Slack for code review, Security Review, production investigation and installation. Confirm scope before approved actions."
 metadata:
   priority: 4
   docs:

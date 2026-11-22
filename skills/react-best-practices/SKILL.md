@@ -1,6 +1,6 @@
 ---
 name: react-best-practices
-description: Vercel's React and Next.js performance rules (70 rules in 8 categories ordered by impact - eliminating waterfalls, bundle size, server-side performance, client-side data fetching, re-renders, rendering performance, JavaScript performance, and advanced patterns). Use when writing, reviewing, or refactoring React components, Next.js pages, or data fetching for performance. Not an accessibility or TypeScript style guide.
+description: "Review or refactor React/Next.js performance: waterfalls, bundles, server and client data fetching, re-renders and rendering. Route accessibility and TS style elsewhere."
 metadata:
   priority: 4
   docs:

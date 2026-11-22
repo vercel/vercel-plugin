@@ -1,6 +1,6 @@
 ---
 name: eve
-description: "eve framework guidance for durable AI agents and agent-powered applications. Use when creating, editing, or debugging an eve project, when the user explicitly asks for eve, or when the build-agents skill has selected eve as the default framework. Covers eve's filesystem-first runtime, durable sessions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, frontend clients, and Agent Runs observability. Do not use for incidental agent mentions, generic agent-building prompts, or established non-eve stacks unless the user asks for comparison or migration."
+description: "Eve projects or build-agents handoff: durable agents and Vercel agent-runs production traces. Generic requests go to build-agents. Compare or migrate only by request."
 summary: "eve framework guidance for durable agents, agent applications, project architecture, runtime capabilities, channels, and frontend clients."
 metadata:
   priority: 8

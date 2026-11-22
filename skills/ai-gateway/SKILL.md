@@ -1,6 +1,6 @@
 ---
 name: ai-gateway
-description: Vercel AI Gateway guidance for setup, model discovery, authentication, routing, fallbacks, virtual models, evaluation models, BYOK, budgets, spend reporting, observability, compatible APIs, and coding-agent configuration. Use when adding AI Gateway to an app, migrating provider calls, choosing models or providers, centralizing model configuration, evaluating application state, debugging gateway requests, or running `vercel ai-gateway` commands.
+description: "Configure Vercel AI Gateway models, routing, fallbacks, BYOK and budgets. Keep provider keys private and verify spend limits."
 summary: Set up and operate Vercel AI Gateway with current models, virtual models, evaluation, authentication, routing, spend controls, and verification.
 metadata:
   priority: 7

@@ -1,6 +1,6 @@
 ---
 name: access-protected-vercel-deployment
-description: Access and test Vercel deployments protected by Vercel Authentication, SSO, or Deployment Protection. Use when curl, agent-browser, Playwright, or another automated request reaches a Vercel login or protection page; when a protected preview or production URL returns 401 or 403; when TRUSTED_SOURCES_ENVIRONMENT_MISMATCH appears; or when choosing between `vercel curl` and the `x-vercel-trusted-oidc-idp-token` header.
+description: "Vercel Preview SSO/401/403: use authorized access. Trusted Sources OIDC uses x-vercel-trusted-oidc-idp-token. Keep protection enabled and tokens secret."
 summary: Access protected Vercel URLs with vercel curl or a short-lived OIDC token
 metadata:
   priority: 8

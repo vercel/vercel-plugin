@@ -1,6 +1,6 @@
 ---
 name: vercel-services
-description: Configure and troubleshoot Vercel Services for multiple frontends and backends in one project. Use when composing a polyglot or multi-service application on one Vercel deployment; defining the `services` key, service-targeted rewrites, or service bindings in `vercel.json`; or running all services with `vercel dev`.
+description: "Compose multiple frontends and backends in one Vercel project with services, rewrites, bindings and vercel dev."
 summary: Compose multiple frontends and backends in one Vercel project (Beta)
 metadata:
   priority: 7

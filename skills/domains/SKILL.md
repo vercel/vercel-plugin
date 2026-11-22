@@ -1,6 +1,6 @@
 ---
 name: domains
-description: Search, register, connect, transfer, and renew domain names on Vercel using the CLI or Domains Registrar API. Use for domain availability and pricing, custom domains, DNS records, nameservers, ownership verification, and domain orders.
+description: "Search, register, connect, transfer or renew Vercel domains and manage DNS. Confirm paid orders, transfers and live DNS changes."
 summary: Search domains without authentication; manage registration, project assignment, DNS, transfers, and renewals with Vercel CLI or API.
 metadata:
   priority: 7

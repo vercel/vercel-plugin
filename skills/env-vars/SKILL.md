@@ -1,6 +1,6 @@
 ---
 name: env-vars
-description: Vercel environment variable expert guidance. Use when working with .env files, vercel env commands, Secret or Config variable types, OIDC tokens, or managing environment-specific configuration.
+description: "Vercel env pull, env add and .env files: check linked team, project and Preview scope. Handle OIDC and secrets without exposing values."
 metadata:
   priority: 7
   docs:

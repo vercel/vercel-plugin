@@ -1,6 +1,6 @@
 ---
 name: vercel-storage
-description: Vercel storage expert guidance — Blob, Global Config (formerly Edge Config), and Marketplace storage (Neon Postgres, Upstash Redis). Use when choosing, configuring, or using data storage with Vercel applications.
+description: "Choose Vercel Blob, Edge Config or Marketplace databases. Verify access, retention and environment before changing stored data."
 metadata:
   priority: 7
   docs:

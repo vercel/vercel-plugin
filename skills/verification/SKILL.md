@@ -1,6 +1,6 @@
 ---
 name: verification
-description: "Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: browser → API → data → response. Triggers on dev server start and 'why isn't this working' signals."
+description: "Verify the full browser-to-API-to-data flow. Use authorized environments and test data, and report gaps in what was exercised."
 summary: "Verify full user story: browser + server + data flow + env"
 metadata:
   priority: 7

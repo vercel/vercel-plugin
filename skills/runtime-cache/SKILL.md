@@ -1,6 +1,6 @@
 ---
 name: runtime-cache
-description: Vercel Runtime Cache API guidance — ephemeral per-region key-value cache with tag-based invalidation. Shared across Functions, Routing Middleware, and Builds. Use when implementing caching strategies beyond framework-level caching.
+description: "Vercel Runtime Cache for Functions, Routing Middleware and Builds. Plan regional, ephemeral caching and tag invalidation. Get authorization before invalidating cache."
 metadata:
   priority: 6
   docs:

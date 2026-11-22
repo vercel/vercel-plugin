@@ -1,6 +1,6 @@
 ---
 name: vercel-functions
-description: Vercel Functions expert guidance — Node.js/Bun/Python runtimes, Fluid Compute, long-duration (30 min) functions, large functions (5 GB bundles), Docker/OCI container images, plan limits, streaming, WebSockets, and legacy Cron Jobs (new scheduled work belongs to vercel-schedules). Use when configuring, debugging, or optimizing server-side code running on Vercel.
+description: "Configure Vercel Functions: Node.js/Bun/Python, Fluid Compute, containers and streaming. Check plan limits; send new schedules to vercel-schedules and keep legacy Cron separate."
 summary: "Vercel Functions run on Fluid Compute with Node.js as the default runtime — strongly prefer it over `runtime = 'edge'` (Vercel recommends migrating off Edge, and Next.js 16.3+ no longer supports it). Duration: 300s default on every plan including Hobby, 800s max on Pro/Enterprise, 1800s (30 min) per-function in the extended beta; beyond that use Vercel Workflow. Bundles: 250 MB standard (500 MB Python), 5 GB via the large functions beta (`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`). Request/response bodies cap at 4.5 MB. Memory is dashboard-only (Standard 2 GB/1 vCPU, Performance 4 GB/2 vCPU; Hobby fixed). Docker works: add `Dockerfile.vercel` to run an OCI image as an autoscaling, stateless, scale-to-zero Function."
 metadata:
   priority: 8

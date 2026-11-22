@@ -1,6 +1,6 @@
 ---
 name: queues
-description: Vercel Queues guidance — durable topics with at-least-once delivery, independent consumer groups, retries, delays, and idempotency keys via @vercel/queue (JS) or vercel-queue (Python). Use when deferring background work, buffering traffic, fanning out events, or choosing between Queues and Workflows.
+description: "Vercel Queues: buffer events, fan-out, groups, retries and idempotency for at-least-once delivery. Use Workflow for durable steps and pause/resume."
 summary: "Vercel Queues (beta) publishes JSON messages to durable topics with `send()` from `@vercel/queue`; consumers are Vercel Functions exported with `handleCallback()` and registered in vercel.json under `functions.<path>.experimentalTriggers` as `{ type: 'queue/v2beta', topic: '<name>' }`. Delivery is at-least-once with automatic retries; use Workflows instead for multi-step durable logic."
 metadata:
   priority: 6

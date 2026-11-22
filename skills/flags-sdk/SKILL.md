@@ -1,6 +1,6 @@
 ---
 name: flags-sdk
-description: "Implement feature flags in Next.js or SvelteKit code with the Flags SDK (`flags` npm package). Use when installing or configuring the SDK, declaring flags with `flag()`, reading a connected same-team project's flags through Project Connections (`createVercelAdapter({ projectId })`), wiring a provider adapter (`@flags-sdk/vercel`, Statsig, LaunchDarkly, PostHog, GrowthBook, Global Config, OpenFeature, and others), using `identify`, `dedupe`, or `evaluate`, keeping pages static with precompute, setting up Flags Explorer, or encrypting flag values. For planning a flag, Vercel Flags rollouts and experiments, the `vercel flags` CLI, or other frameworks, use the `vercel-flags` skill."
+description: "Implement Next.js/SvelteKit flags with flag(), provider adapters or same-team Project Connections. Protect keys. Route planning, rollouts and CLI to vercel-flags."
 summary: "Flags SDK guidance for Next.js and SvelteKit — declare flags with flag(), connect provider adapters, precompute static variants, and set up the Flags Explorer endpoint."
 metadata:
   priority: 6

@@ -1,6 +1,6 @@
 ---
 name: auth
-description: Authentication integration guidance — Clerk (native Vercel Marketplace), Better Auth, Descope, and Auth0 setup for Next.js applications, plus Sign in with Vercel, Vercel Passport, and Vercel KMS. Covers server config, route handlers, proxy.ts auth patterns, sign-in/sign-up flows, and Marketplace provisioning. Use when implementing user authentication, sessions, protected routes, or protecting deployments.
+description: "Integrate Next.js authentication, sessions and protected routes with Clerk, Better Auth, Descope or Auth0. Verify authorization server-side."
 metadata:
   priority: 6
   docs:
