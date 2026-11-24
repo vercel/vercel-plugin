@@ -18,6 +18,7 @@ import {
   compileSkillPatterns,
   matchPathWithReason,
   matchBashWithReason,
+  stripHeredocBodies,
   matchImportWithReason,
   rankEntries,
 } from "../../hooks/patterns.mjs";
@@ -152,7 +153,8 @@ export function explain(target: string, projectRoot: string, options?: ExplainOp
         reason = matchImportWithReason(fileContent, entry.compiledImports);
       }
     } else {
-      reason = matchBashWithReason(target, entry.compiledBash);
+      // Match what the hook does: heredoc bodies are data, not commands (#158)
+      reason = matchBashWithReason(stripHeredocBodies(target), entry.compiledBash);
     }
 
     if (reason) {

@@ -573,6 +573,112 @@ export function matchBashWithReason(
   return null;
 }
 
+interface HeredocOp { word: string; dash: boolean }
+interface HeredocWord { word: string; end: number }
+
+const HEREDOC_WORD_END = /[\s|&;()<>]/;
+// The only delimiters the stripper trusts, after quote removal. Anything else
+// makes stripHeredocBodies keep the whole command (stripping less is always safe).
+const SURE_DELIMITER = /^[A-Za-z0-9_.-]+$/;
+
+/**
+ * Read the delimiter after a heredoc operator, or null when it is not one we are
+ * sure of: a bare word, '...' or "..." with no backslash inside, joined pieces of
+ * those, or one leading backslash on a bare word (<<\EOF). An all-digit word is
+ * null too: bash reads <<1 as a real heredoc.
+ */
+function readHeredocWord(line: string, start: number): HeredocWord | null {
+  let word = "", i = start;
+  const lead = line[i] === "\\";
+  if (lead) i++;
+  while (i < line.length && !HEREDOC_WORD_END.test(line[i])) {
+    const c = line[i];
+    if (c === "'" || c === '"') {
+      const close = lead ? -1 : line.indexOf(c, i + 1);
+      if (close < 0) return null;
+      const inner = line.slice(i + 1, close);
+      if (inner.includes("\\")) return null;
+      word += inner; i = close + 1; continue;
+    }
+    if (!/[A-Za-z0-9_.-]/.test(c)) return null;
+    word += c; i++;
+  }
+  return SURE_DELIMITER.test(word) && !/^[0-9]+$/.test(word) ? { word, end: i } : null;
+}
+
+interface ScanState { quote: string; arithmeticDepth: number; braceDepth: number }
+const FRESH_SCAN: ScanState = { quote: "", arithmeticDepth: 0, braceDepth: 0 };
+
+/**
+ * Heredoc operators on one line; the state holds the quote, arithmetic and
+ * parameter expansion left open by earlier command lines. joinedAfter is the
+ * character before a backslash-newline that joined this line to the last one (null
+ * when it began a line). sure is false when an operator's delimiter is not one we trust.
+ */
+function findHeredocOps(line: string, state: ScanState, joinedAfter: string | null): { ops: HeredocOp[]; state: ScanState; sure: boolean } {
+  const ops: HeredocOp[] = [];
+  let { quote, arithmeticDepth, braceDepth } = state;
+  const next = (): ScanState => ({ quote, arithmeticDepth, braceDepth });
+  // A # is a comment only at a word start: after whitespace or ; & | ( ), or at a line start that was not joined to a word.
+  const joinedWord = joinedAfter !== null && /^[^\s;&|()]$/.test(joinedAfter);
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === "\\" && quote !== "'") { i++; continue; }
+    if (quote !== "'") {
+      if (c === "$" && line[i + 1] === "{") { braceDepth++; i++; continue; }
+      if (c === "}" && braceDepth > 0) { braceDepth--; continue; }
+    }
+    if (quote) { if (c === quote) quote = ""; continue; }
+    if (c === "'" || c === '"') { quote = c; continue; }
+    if (c === "#" && braceDepth === 0 && (i === 0 ? !joinedWord : /[\s;&|()]/.test(line[i - 1]))) break;
+    if (c === "(" && line[i + 1] === "(") { arithmeticDepth++; i++; continue; }
+    if (c === ")" && line[i + 1] === ")" && arithmeticDepth > 0) { arithmeticDepth--; i++; continue; }
+    if (arithmeticDepth > 0 || braceDepth > 0 || c !== "<" || line[i + 1] !== "<") continue;
+    if (line[i + 2] === "<") { i += 2; continue; }
+    let j = i + 2;
+    const dash = line[j] === "-";
+    if (dash) j++;
+    while (line[j] === " " || line[j] === "\t") j++;
+    const parsed = readHeredocWord(line, j);
+    if (!parsed) return { ops, state: next(), sure: false };
+    ops.push({ word: parsed.word, dash }); i = parsed.end - 1;
+  }
+  return { ops, state: next(), sure: true };
+}
+
+/**
+ * Remove heredoc body lines; several heredocs on one line are consumed in order.
+ * A command line that ends with an odd backslash or an open quote continues.
+ * If any heredoc operator has a delimiter we are not sure of, the whole command is returned unchanged.
+ */
+export function stripHeredocBodies(command: string): string {
+  if (!command.includes("<<")) return command;
+  const out: string[] = [], pending: HeredocOp[] = [];
+  let continued = false, joinedAfter: string | null = null, state = FRESH_SCAN;
+  for (const line of command.split("\n")) {
+    if (!continued && pending.length > 0) {
+      const { word, dash } = pending[0];
+      const terminator = (dash ? line.replace(/^\t+/, "") : line).replace(/\r$/, "");
+      if (terminator !== word) continue;
+      pending.shift();
+    } else {
+      const scan = findHeredocOps(line, state, joinedAfter);
+      if (!scan.sure) return command;
+      pending.push(...scan.ops);
+      const end = line.endsWith("\r") ? line.length - 1 : line.length;
+      let backslashes = 0;
+      for (let i = end - 1; i >= 0 && line[i] === "\\"; i--) backslashes++;
+      const open = scan.state;
+      const joined = backslashes % 2 === 1;
+      joinedAfter = joined ? (end >= 2 ? line[end - 2] : "") : null;
+      continued = joined || open.quote !== "" || open.arithmeticDepth > 0 || open.braceDepth > 0;
+      state = continued ? scan.state : FRESH_SCAN;
+    }
+    out.push(line);
+  }
+  return pending.length > 0 ? command : out.join("\n");
+}
+
 /**
  * Parse comma-delimited likely-skill slugs from env var into a Set.
  */
