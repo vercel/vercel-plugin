@@ -1,6 +1,6 @@
 # Experimental Services
 
-The [Experimental Services docs](https://vercel.com/docs/services/experimental) describe `experimentalServices` as the earlier configuration model: new projects use `services`, and `experimentalServices` remains available while you migrate. A project on it has an `experimentalServices` key in `vercel.json`, with entries that use `entrypoint` and `routePrefix`:
+The [Experimental Services docs](https://vercel.com/docs/services/experimental) describe `experimentalServices` as the earlier configuration model: new projects use `services`, and `experimentalServices` remains available while you migrate, but only for projects created before July 6, 2026: Vercel rejects deployments that use it in a project created on or after that date. A project on it has an `experimentalServices` key in `vercel.json`, with entries that use `entrypoint` and `routePrefix`:
 
 ```json filename="vercel.json"
 {
