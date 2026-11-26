@@ -730,7 +730,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Bots on signup, checkout, AI routes | BotID (`checkBotId()`) ⤳ skill: botid | Invisible per-route challenge; Kasada-powered Deep Analysis |
 | Third-party script tampering, XSS  | CSP header + Page Integrity ⤳ skill: client-side-security | Browser blocks unknown sources; Page Integrity flags changed scripts |
 | Rate limiting                      | WAF rate limiting             | Per-endpoint control                        |
-| OWASP protection                   | Managed rulesets (Enterprise) | Industry-standard rules                     |
+| OWASP protection                   | OWASP core ruleset (Enterprise; Pro Priority projects) | Industry-standard rules                     |
 | Compliance isolation (SOC2, HIPAA) | Secure Compute                | Dedicated infrastructure, no shared tenancy |
 | Tokenless CI/CD deployments        | OIDC Federation               | Short-lived tokens, no secrets to rotate    |
 
