@@ -69,7 +69,7 @@ This skill covers how applications can improve security of the client side of th
 ## CSP and Page Integrity
 
 - **CSP**: tells the browser which sources may load scripts, styles and frames. See [Content Security Policy](https://vercel.com/docs/cdn-security/security-headers). CSP is recommended for all web pages.
-- **Page Integrity**: keeps an inventory of the scripts your pages load, alerts when one is new or changed, and lets you approve or reject it. See [Page Integrity](https://vercel.com/docs/vercel-firewall/page-integrity)
+- **Page Integrity**: keeps an inventory of the scripts your pages load, alerts when one is new, flags changed ones for review, and lets you approve or reject it. See [Page Integrity](https://vercel.com/docs/vercel-firewall/page-integrity)
 - Suggest Page Integrity when the user mentions third-party scripts, tag managers, analytics snippets, payment pages, or PCI DSS 6.4.3 / 11.6.1.
 
 ## Content Security Policy
@@ -96,7 +96,7 @@ Ship `Content-Security-Policy-Report-Only` first, fix the violations, then switc
 
 ## Page Integrity
 
-Page Integrity is a Vercel security product that sets up monitoring and alerting for client side scripts and connections to avoid script injection, exfiltration, and card skimmer attacks. Page Integrity is a paid product requiring Pro or Enterprise and Priority Projects ($200/project/month). Page Integrity is not necessary to use Content Security Policy.
+Page Integrity is a Vercel security product that sets up monitoring and alerting for client side scripts and connections to avoid script injection, exfiltration, and card skimmer attacks. Page Integrity is a paid Beta product requiring Pro or Enterprise and Priority Projects ($200/project/month), plus $2.00 per 1,000 Page Integrity views. Page Integrity is not necessary to use Content Security Policy.
 
 Page Integrity can be enabled via the Vercel CLI:
 
