@@ -6,30 +6,29 @@ How [Deployment Protection](https://vercel.com/docs/deployment-protection) and [
 
 ## Deployment Protection and microfrontends
 
-Each URL is protected by the [Deployment Protection](https://vercel.com/docs/deployment-protection) settings of the project it belongs to, so protection for the microfrontend experience as a whole is determined by the **default application**:
+Every domain in the group uses [microfrontends routing](https://vercel.com/docs/microfrontends/routing#domains-that-use-microfrontends-routing), including a child application's production domains, branch URLs, and deployment URLs, so protection for the microfrontend experience as a whole is determined by the **default application**:
 
-- Requests to a **microfrontend host** (a domain of the default application) are verified **only** by the **default application's** Deployment Protection.
-- Requests **directly to a child application** (a child domain) are verified **only** by that **child application's** Deployment Protection.
+- Requests to **every path**, including paths served by a child application and requests to a child application's domain, are verified **only** by the **default application's** Deployment Protection.
+- Exception: a child application with **Microfrontends Routing** disabled (Settings → Microfrontends) serves every path itself, and its domains are verified **only** by that **child application's** Deployment Protection and WAF.
 
-This applies to all [protection methods](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments) and [bypass methods](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection), including [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication), [Password Protection](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/password-protection), [Trusted IPs](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/trusted-ips), [Shareable Links](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/sharable-links), [Protection Bypass for Automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation), [Deployment Protection Exceptions](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/deployment-protection-exceptions), and [OPTIONS Allowlist](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/options-allowlist).
+This applies to [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication), [Password Protection](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/password-protection), [Trusted IPs](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/trusted-ips), and [OPTIONS Allowlist](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/options-allowlist). For [Protection Bypass for Automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation), child-app paths accept the secrets of both the default and the child application; default-app paths accept only the default application's secrets.
 
 ### Recommended configuration
 
-- **Default app**: use [Standard Protection](https://vercel.com/docs/deployment-protection) so end users can reach the microfrontend through the default app's URL.
-- **Child apps**: enable protection for **all deployments** so they aren't directly accessible. Child content is served through the default app's URL.
+- **Default app**: its Deployment Protection controls the whole microfrontend; e.g. use [Standard Protection](https://vercel.com/docs/deployment-protection) so end users can access production domains while preview deployments stay protected.
 
-This works because Vercel routes to child apps within a single request at the network layer (see [Routing](https://vercel.com/docs/microfrontends/routing)) — not a rewrite that issues a separate request to the child's URL. Deployment protection on a child app therefore applies only when the child's URL is accessed directly.
+This works because Vercel routes to child apps within a single request at the network layer (see [Routing](https://vercel.com/docs/microfrontends/routing)) — not a rewrite that issues a separate request to the child's URL. A child app's Deployment Protection settings therefore don't restrict access to its paths.
 
 ### Passport
 
-Passport is configured only on the **default application**; its configuration protects every child path. Child applications cannot have an independent [Passport](https://vercel.com/docs/passport) connection while they belong to the group — remove a child from the group first to configure Passport on it directly. Direct requests to a child application's domain do not use the default application's Passport configuration and need another Deployment Protection method. The default application handles the `/.well-known/vercel/passport/callback` request before application routing, so neither application needs to implement the callback path.
+Passport is configured only on the **default application**; its configuration protects every path on every domain in the group. Child applications cannot have an independent [Passport](https://vercel.com/docs/passport) connection while they belong to the group — remove a child from the group first to configure Passport on it directly. Domains of a child application with Microfrontends Routing disabled don't use the default application's Passport configuration and need another Deployment Protection method. The default application handles the `/.well-known/vercel/passport/callback` request before application routing, so neither application needs to implement the callback path.
 
 ## Vercel Firewall and microfrontends
 
 - The [platform-wide firewall](https://vercel.com/docs/vercel-firewall#platform-wide-firewall) is applied to all requests.
 - The customizable [Web Application Firewall (WAF)](https://vercel.com/docs/vercel-firewall/vercel-waf) of both the default application and the relevant child application is applied to a request:
-  - Requests to a **microfrontend host** are verified by the **default application's** WAF; requests to child paths are **additionally** verified by the **child application's** WAF.
-  - Requests **directly to a child application** are verified **only** by the **child application's** WAF.
+  - Requests to any domain in the group are verified by the **default application's** WAF; requests to child paths are **additionally** verified by the **child application's** WAF.
+  - Requests to default-app paths are verified **only** by the **default application's** WAF, even on a child application's domain.
 
 This covers the entire [Vercel WAF](https://vercel.com/docs/vercel-firewall/vercel-waf), including [Custom Rules](https://vercel.com/docs/vercel-firewall/vercel-waf/custom-rules), [IP Blocking](https://vercel.com/docs/vercel-firewall/vercel-waf/ip-blocking), [WAF Managed Rulesets](https://vercel.com/docs/vercel-firewall/vercel-waf/managed-rulesets), and [Attack Mode](https://vercel.com/docs/vercel-firewall/attack-mode).
 
