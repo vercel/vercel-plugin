@@ -109,7 +109,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `REVALIDATED` | Foreground revalidation after a delete (or `Pragma: no-cache`)   |
   | `BYPASS`      | Caching skipped (`no-store`, `private`, cookies, etc.)           |
 
-- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Eleven values: four for MISS, three map to BYPASS, three for STALE, one for REVALIDATED:
+- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cacheResult` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Eleven values: four for MISS, three map to BYPASS, three for STALE, one for REVALIDATED:
 
   | `cacheReason`        | Refines  | Meaning                                                                       |
   | --------------------- | -------- | ----------------------------------------------------------------------------- |
@@ -125,7 +125,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `stale_error`         | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
   | Tag-based deletion    | REVALIDATED | Tag deleted (`dangerouslyDeleteByTag` / `revalidateTag(tag)` with no profile / dashboard purge by tag); foreground regen |
 
-  A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from the dashboard Logs "Reason" row, find matching requests with `vercel logs requests --query 'cacheReason:stale_error'` (needs Observability Plus or a Priority project), or aggregate with `vercel metrics vercel.request.count --group-by cache_reason` — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
+  A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from the dashboard Logs "Reason" row, find matching requests with `vercel logs requests --query 'cacheReason:stale_error'` (needs Observability Plus or a Priority project), or aggregate with `vercel metrics vercel.request.count --group-by cacheReason` — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
 
 - **PPR state** (`ppr_state`) — for a Partial Prerendering route, _how much_ of the response was prerendered versus computed per request. Only set on `partial_prerender` serves; blank for plain `prerender` / `func` / `static` routes and for cases the proxy can't classify (cold shell miss, `BYPASS`). Three states:
 
@@ -135,35 +135,35 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | Partial     | A static shell serves from cache + a postponed hole the function resumes per request  |
   | Dynamic     | The whole body is postponed and rendered by the function per request                  |
 
-  A **Partial** serve that still invokes the function is _not_ a cache miss — the cached shell serves immediately while the function fills only the dynamic holes. Read `ppr_state` from the dashboard Logs panel, filter on `pprState` with `vercel logs requests --query` (needs Observability Plus or a Priority project), or aggregate with `vercel metrics vercel.request.count --group-by ppr_state`. Like `cacheReason`, the `x-vercel-ppr-state` header is internal-only and not visible via `curl`.
+  A **Partial** serve that still invokes the function is _not_ a cache miss — the cached shell serves immediately while the function fills only the dynamic holes. Read `ppr_state` from the dashboard Logs panel, filter on `pprState` with `vercel logs requests --query` (needs Observability Plus or a Priority project), or aggregate with `vercel metrics vercel.request.count --group-by pprState`. Like `cacheReason`, the `x-vercel-ppr-state` header is internal-only and not visible via `curl`.
 
 ## Investigating cache issues
 
 Reach for the Vercel CLI. `vercel metrics` gives aggregate numbers (requires [Observability Plus](https://vercel.com/docs/observability/observability-plus)); `vercel logs requests` shows per-request CDN behavior (status, cache result, path), and `vercel logs` shows the runtime logs a request produced.
 
-Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.7+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format json`). Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
+Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.7+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format json`). Since CLI 59.12, `vercel metrics` queries the Observability metrics API by default, which names dimensions in camelCase (`cacheResult`, `requestPath`, `cacheTags`) and counts requests with the `count` aggregation (the default for `vercel.request.count`; `--aggregation sum` is rejected there). Before 59.12 the CLI queries the legacy API, which uses snake_case names (`cache_result`, `request_path`) and OData filters; `FF_LEGACY_METRICS=1` switches back to it only on CLI 59.12–65.11 (65.12 removed the flag). Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
 
 ### Cache hit rate
 
 Start here for an overall picture of how well caching is working.
 
-**Step 1 — overall split.** Group `vercel.request.count` by `cache_result`. Treat `HIT`, `STALE`, and `PRERENDER` as cache-served; focus investigation on `MISS`. Exclude `BYPASS` and `(not set)` when computing a hit rate over _cacheable_ traffic (see [Debugging BYPASS traffic](#debugging-bypass-traffic)). `STALE` means stale-while-revalidate is working — dig into revalidation frequency in [Analyzing ISR costs](#analyzing-isr-costs), not here.
+**Step 1 — overall split.** Group `vercel.request.count` by `cacheResult`. Treat `HIT`, `STALE`, and `PRERENDER` as cache-served; focus investigation on `MISS`. Exclude `BYPASS` and `(not set)` when computing a hit rate over _cacheable_ traffic (see [Debugging BYPASS traffic](#debugging-bypass-traffic)). `STALE` means stale-while-revalidate is working — dig into revalidation frequency in [Analyzing ISR costs](#analyzing-isr-costs), not here.
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --environment production --group-by cache_result --since 24h
+  --environment production --group-by cacheResult --since 24h
 ```
 
-**Step 2 — where misses concentrate.** Split the `MISS` bucket (and optionally `STALE`) by `path_type`, then by `route` or `request_path`:
+**Step 2 — where misses concentrate.** Split the `MISS` bucket (and optionally `STALE`) by `pathType`, then by `route` or `requestPath`:
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --environment production -q "cache_result:MISS" \
-  --group-by path_type --since 24h
+  --environment production -q "cacheResult:MISS" \
+  --group-by pathType --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --environment production -q "cache_result:MISS AND path_type:prerender" \
-  --group-by request_path --since 24h
+  --environment production -q "cacheResult:MISS AND pathType:prerender" \
+  --group-by requestPath --since 24h
 ```
 
 **What to expect:** `prerender` routes (static shells, ISR pages) should show a high share of `HIT`/`PRERENDER`. A `prerender` path with a disproportionate `MISS` count is your short list for per-path header inspection (`curl` above) and code review.
@@ -177,7 +177,7 @@ Once you know hit rate, quantify ISR spend and whether revalidation — not traf
 **Utilization vs. ISR billing.** **Utilization** is `vercel.request.count` — total request volume. **ISR cost** is billed separately in 8 KB units: `read_units` when the regional CDN misses and falls through to the ISR cache, and `write_units` when a revalidation/regeneration produces changed output (unchanged content incurs none). The regional CDN shields ISR heavily — most requests never touch the ISR layer, so **read_units will be far below request count**. Do not compare read_units to write_units as a utilization check; focus on **write_units** (revalidation cost) and how they relate to total traffic.
 
 ```bash
-vercel metrics vercel.request.count -S <team> -p <project> --aggregation sum --since 24h
+vercel metrics vercel.request.count -S <team> -p <project> --since 24h
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> --aggregation sum --since 24h
 ```
 
@@ -186,8 +186,8 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> --aggrega
 ```bash
 # numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
 vercel metrics vercel.request.count -S <team> -p <project> \
-  --environment production -q "cache_result:(HIT OR STALE)" \
-  --group-by route --aggregation sum --since 24h
+  --environment production -q "cacheResult:(HIT OR STALE)" \
+  --group-by route --since 24h
 # denominator: ISR writes
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
   --environment production --group-by route --aggregation sum --since 24h
@@ -195,32 +195,32 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
 
 High is good; near or below ~1 means you regenerate about as fast as the page is read (wasted writes) → lengthen the revalidate interval or move time-based to on-demand tag revalidation.
 
-**Which routes revalidate most.** Break write units down by `route` and `request_path` to find paths that regenerate often relative to traffic:
+**Which routes revalidate most.** Break write units down by `route` and `requestPath` to find paths that regenerate often relative to traffic:
 
 ```bash
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
   --aggregation sum --group-by route --since 24h
 
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  --aggregation sum --group-by request_path --since 24h
+  --aggregation sum --group-by requestPath --since 24h
 ```
 
-**Regeneration vs. serving.** Group write units by `path_type` — concentration in `background_func` confirms revalidation (not per-request dynamic work) is the cost driver.
+**Regeneration vs. serving.** Group write units by `pathType` — concentration in `background_func` confirms revalidation (not per-request dynamic work) is the cost driver.
 
 **Time-based vs. tag-based revalidation.** Time-based intervals regenerate on a schedule whether or not content changed — often inefficient. Tag-based on-demand revalidation is usually better, but an **overly broad tag** has a large blast radius: one invalidate drops every entry that carries it.
 
-- **Tag blast radius** — group write units by `cache_tags`. If many _unrelated_ routes show near-identical write counts, a shared hot tag is invalidating them in lockstep (e.g. every blog post rewriting at the same rate because they share one broad `blogPost` tag):
+- **Tag blast radius** — group write units by `cacheTags`. If many _unrelated_ routes show near-identical write counts, a shared hot tag is invalidating them in lockstep (e.g. every blog post rewriting at the same rate because they share one broad `blogPost` tag):
 
 ```bash
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  --aggregation sum --group-by cache_tags --since 24h
+  --aggregation sum --group-by cacheTags --since 24h
 ```
 
-- **What triggered revalidation** — group `vercel.request.count` by `triggering_tag` to see which tags fire most often (`triggering_tag` is on request count only, not ISR operation metrics. It is one of the tags that triggered the page to be stale):
+- **What triggered revalidation** — group `vercel.request.count` by `triggeringTag` to see which tags fire most often (`triggeringTag` is on request count only, not ISR operation metrics. It is one of the tags that triggered the page to be stale):
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -q "triggering_tag:*" --group-by triggering_tag --since 24h
+  -q "triggeringTag:*" --group-by triggeringTag --since 24h
 ```
 
 Tags with a large blast radius that revalidate frequently are the usual root cause of high write_units. Prefer granular tags (`product-${id}`) and on-demand invalidation over short time-based intervals for event-driven content.
@@ -235,13 +235,13 @@ Before tuning headers or revalidate intervals, confirm what's left after those t
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -q "cache_result:BYPASS" --group-by bot_category --since 24h
+  -q "cacheResult:BYPASS" --group-by botCategory --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -q "cache_result:BYPASS" --group-by user_agent --since 24h
+  -q "cacheResult:BYPASS" --group-by clientUserAgent --since 24h
 
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -q "cache_result:BYPASS" --group-by request_method --since 24h
+  -q "cacheResult:BYPASS" --group-by requestMethod --since 24h
 ```
 
 The **Firewall/WAF** with the `vercel-firewall` skill can be used to manage verified SEO crawlers, block abusive bots, and rate-limit junk traffic before it distorts your hit-rate picture.
