@@ -173,10 +173,10 @@ name=exp-parser
 : "${SBX_PROJECT:?set SBX_PROJECT to your project name}"
 
 # Read a sandbox file to stdout without changing its bytes.
-sandbox read --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "${name}:/vercel/sandbox/cand/package.json"
+sandbox read --scope "$SBX_SCOPE" --project "$SBX_PROJECT" "$name" /vercel/sandbox/cand/package.json
 
 # Write a script from stdin and make it executable.
-sandbox write --scope "$SBX_SCOPE" --project "$SBX_PROJECT" --mode 755 "${name}:/vercel/sandbox/check.sh" <<'SCRIPT'
+sandbox write --scope "$SBX_SCOPE" --project "$SBX_PROJECT" --mode 755 "$name" /vercel/sandbox/check.sh <<'SCRIPT'
 #!/bin/sh
 cd /vercel/sandbox/cand
 npm test

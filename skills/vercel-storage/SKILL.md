@@ -461,7 +461,7 @@ const db = client.db('myapp')
 const users = await db.collection('users').find({}).toArray()
 ```
 
-Install via Vercel Marketplace: `vercel integration add mongodb-atlas`
+Install via Vercel Marketplace: `vercel integration add mongodbatlas`
 
 ### Convex
 

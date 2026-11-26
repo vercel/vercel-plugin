@@ -8,7 +8,7 @@
 
 | Source | What it checks |
 | --- | --- |
-| Vercel ([native](https://vercel.com/docs/deployment-checks#native-deployment-checks)) | Runs the `lint` and `typecheck` (or `type-check`, `check-types`) scripts from `package.json`, skipping a check with no matching script. Each check can be limited to specific environments |
+| Vercel ([native](https://vercel.com/docs/deployment-checks#native-deployment-checks)) | Runs the `lint` and `typecheck` (or `type-check`, `check-types`) scripts from `package.json`, skipping a check with no matching script, plus Vercel-provided checks such as Microfrontends Config Present and Flag Definitions Present. Each check can be limited to specific environments |
 | GitHub | Commit statuses and GitHub Actions check runs on the deployed commit. Requires Vercel for GitHub |
 | Integrations | Marketplace integrations for testing, monitoring, and observability |
 
