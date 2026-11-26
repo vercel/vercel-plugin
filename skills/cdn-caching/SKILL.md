@@ -141,7 +141,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
 
 Reach for the Vercel CLI. `vercel metrics` gives aggregate numbers (requires [Observability Plus](https://vercel.com/docs/observability/observability-plus)); `vercel logs requests` shows per-request CDN behavior (status, cache result, path), and `vercel logs` shows the runtime logs a request produced.
 
-Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.7+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format json`). Since CLI 59.12, `vercel metrics` queries the Observability metrics API by default, which names dimensions in camelCase (`cacheResult`, `requestPath`; set `FF_LEGACY_METRICS=1` to fall back to the legacy API and its snake_case names). The `pprState`, `cache_tags`, and `triggering_tag` names below aren't confirmed against the new schema, so check them with `vercel metrics schema vercel.request.count` (or `vercel metrics schema vercel.isr_operation`) before you run them. Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
+Metrics need to be queried by team and project (`-S <team> -p <project>`). Filter production with `--environment production` (equivalent to `--query 'environment:production'`; the CLI's filter syntax is KQL — the older OData `eq`/`and` syntax is deprecated). `--query`/`-q` needs Vercel CLI 65.4+ (older CLIs use `--filter`/`-f`), and `--environment` needs 64.7+ (older CLIs use `--prod`). Run `vercel metrics schema <metric>` to discover dimensions; use `--json` for machine-readable output (CLI 58.1+; older CLIs use `--format json`). Since CLI 59.12, `vercel metrics` queries the Observability metrics API by default, which names dimensions in camelCase (`cacheResult`, `requestPath`, `cacheTags`) and counts requests with the `count` aggregation (the default for `vercel.request.count`; `--aggregation sum` is rejected there). Before 59.12 the CLI queries the legacy API, which uses snake_case names (`cache_result`, `request_path`) and OData filters; `FF_LEGACY_METRICS=1` switches back to it only on CLI 59.12–65.11 (65.12 removed the flag). Remember **`--limit` is per time bucket** — with no `--granularity`, the CLI still picks a bucket size for the range.
 
 ### Cache hit rate
 
@@ -177,7 +177,7 @@ Once you know hit rate, quantify ISR spend and whether revalidation — not traf
 **Utilization vs. ISR billing.** **Utilization** is `vercel.request.count` — total request volume. **ISR cost** is billed separately in 8 KB units: `read_units` when the regional CDN misses and falls through to the ISR cache, and `write_units` when a revalidation/regeneration produces changed output (unchanged content incurs none). The regional CDN shields ISR heavily — most requests never touch the ISR layer, so **read_units will be far below request count**. Do not compare read_units to write_units as a utilization check; focus on **write_units** (revalidation cost) and how they relate to total traffic.
 
 ```bash
-vercel metrics vercel.request.count -S <team> -p <project> --aggregation sum --since 24h
+vercel metrics vercel.request.count -S <team> -p <project> --since 24h
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> --aggregation sum --since 24h
 ```
 
@@ -187,7 +187,7 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> --aggrega
 # numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
 vercel metrics vercel.request.count -S <team> -p <project> \
   --environment production -q "cacheResult:(HIT OR STALE)" \
-  --group-by route --aggregation sum --since 24h
+  --group-by route --since 24h
 # denominator: ISR writes
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
   --environment production --group-by route --aggregation sum --since 24h
@@ -209,18 +209,18 @@ vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
 
 **Time-based vs. tag-based revalidation.** Time-based intervals regenerate on a schedule whether or not content changed — often inefficient. Tag-based on-demand revalidation is usually better, but an **overly broad tag** has a large blast radius: one invalidate drops every entry that carries it.
 
-- **Tag blast radius** — group write units by `cache_tags`. If many _unrelated_ routes show near-identical write counts, a shared hot tag is invalidating them in lockstep (e.g. every blog post rewriting at the same rate because they share one broad `blogPost` tag):
+- **Tag blast radius** — group write units by `cacheTags`. If many _unrelated_ routes show near-identical write counts, a shared hot tag is invalidating them in lockstep (e.g. every blog post rewriting at the same rate because they share one broad `blogPost` tag):
 
 ```bash
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
-  --aggregation sum --group-by cache_tags --since 24h
+  --aggregation sum --group-by cacheTags --since 24h
 ```
 
-- **What triggered revalidation** — group `vercel.request.count` by `triggering_tag` to see which tags fire most often (`triggering_tag` is on request count only, not ISR operation metrics. It is one of the tags that triggered the page to be stale):
+- **What triggered revalidation** — group `vercel.request.count` by `triggeringTag` to see which tags fire most often (`triggeringTag` is on request count only, not ISR operation metrics. It is one of the tags that triggered the page to be stale):
 
 ```bash
 vercel metrics vercel.request.count -S <team> -p <project> \
-  -q "triggering_tag:*" --group-by triggering_tag --since 24h
+  -q "triggeringTag:*" --group-by triggeringTag --since 24h
 ```
 
 Tags with a large blast radius that revalidate frequently are the usual root cause of high write_units. Prefer granular tags (`product-${id}`) and on-demand invalidation over short time-based intervals for event-driven content.
