@@ -16,7 +16,7 @@ If you omit `--group`, the command is interactive and lets you select a group. I
 |---|---|
 | `--group` | Name, slug, or ID of the microfrontends group to inspect |
 | `--config-file-name` | Custom microfrontends config file path/name relative to the default app root (must end with `.json` or `.jsonc`) |
-| `--format` | Output format. Use `json` for machine-readable output |
+| `--json` | Output the group and project metadata as JSON (CLI 58.1+; older CLIs use `--format=json`) |
 
 ### Examples
 
@@ -25,13 +25,13 @@ If you omit `--group`, the command is interactive and lets you select a group. I
 vercel microfrontends inspect-group
 
 # JSON output for scripting/agents (`--json` needs CLI 58.1+; older CLIs use `--format=json`)
-vercel mf inspect-group --group="My Group" --json
+vercel microfrontends inspect-group --group="My Group" --json
 
 # With a custom config filename
-vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --json
+vercel microfrontends inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --json
 ```
 
-> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
+> **Tip for agents:** After the user creates a group, run `vercel microfrontends inspect-group --group="<name>" --json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
 
 ## Adding Microfrontends
 
@@ -40,7 +40,7 @@ vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jso
 ```bash
 vercel microfrontends add-to-group
 # or with flags:
-vercel mf add-to-group --group="My Group" --default-route=/docs
+vercel microfrontends add-to-group --group="My Group" --default-route=/docs
 ```
 
 **Dashboard:** Settings → Microfrontends → find the group → **Add to Group**.
@@ -73,7 +73,7 @@ This action is not reversible. You can delete a group even with projects still i
 ```bash
 vercel microfrontends delete-group
 # or pre-select the group with a flag:
-vercel mf delete-group --group="My Group"
+vercel microfrontends delete-group --group="My Group"
 ```
 
 **Dashboard:** in team **Settings** → **Microfrontends** (or the default app's **Microfrontends** settings), open the group's menu and select **Delete Group** — no need to remove projects first.
