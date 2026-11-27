@@ -26,6 +26,7 @@ import {
   compileSkillPatterns,
   matchPathWithReason,
   matchBashWithReason,
+  stripHeredocBodies,
   matchImportWithReason,
   rankEntries,
   buildDocsBlock
@@ -250,9 +251,10 @@ function matchSkills(toolName, toolInput, compiledSkills, logger) {
     }
   } else if (toolName === "Bash") {
     const command = toolInput.command || "";
+    const matchText = stripHeredocBodies(command);
     for (const entry of compiledSkills) {
       l.trace("pattern-eval-start", { skill: entry.skill, target: redactCommand(command), patternCount: entry.compiledBash.length });
-      const reason = matchBashWithReason(command, entry.compiledBash);
+      const reason = matchBashWithReason(matchText, entry.compiledBash);
       l.trace("pattern-eval-result", { skill: entry.skill, matched: !!reason, reason: reason || null });
       if (reason) {
         matchedEntries.push(entry);

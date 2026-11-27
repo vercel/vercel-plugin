@@ -89,6 +89,22 @@ describe("explain bash matching", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("deployments-cicd");
   });
+
+  test("'vercel env pull' inside a heredoc body does not match env-vars (#158)", async () => {
+    const command = "cat > notes.md <<'EOF'\nRun vercel env pull .env.local first.\nEOF";
+    const { stdout, exitCode } = await runCli("explain", command, "--json");
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.targetType).toBe("bash");
+    expect(result.matches.map((m: { skill: string }) => m.skill)).not.toContain("env-vars");
+  });
+
+  test("'vercel env pull' outside a heredoc matches env-vars", async () => {
+    const { stdout, exitCode } = await runCli("explain", "vercel env pull .env.local", "--json");
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.matches.map((m: { skill: string }) => m.skill)).toContain("env-vars");
+  });
 });
 
 // ---------------------------------------------------------------------------
