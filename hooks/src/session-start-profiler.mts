@@ -40,7 +40,7 @@ import {
   trackDauActiveToday,
   type AgentHarness,
 } from "./telemetry.mjs";
-import { writeSessionAgentHarness } from "./skill-telemetry.mjs";
+import { resolveTelemetrySessionId, writeSessionAgentHarness } from "./skill-telemetry.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -762,6 +762,14 @@ async function main(): Promise<void> {
   // Later hooks (skill telemetry) tag their events with this harness.
   if (sessionId && isDauTelemetryEnabled()) {
     writeSessionAgentHarness(sessionId, agentHarness);
+    // The Vercel CLI sends this ID with its telemetry, linking the commands an
+    // agent runs to this session's skill events.
+    const telemetrySessionId = resolveTelemetrySessionId(sessionId);
+    try {
+      if (telemetrySessionId) setSessionEnv(platform, "VERCEL_PLUGIN_TELEMETRY_SESSION_ID", telemetrySessionId);
+    } catch (error) {
+      logCaughtError(log, "session-start-profiler:telemetry-session-env-failed", error, { platform });
+    }
   }
 
   // Greenfield check — seed defaults and skip repository exploration.

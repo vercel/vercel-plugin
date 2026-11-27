@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -490,6 +490,42 @@ describe("harness detection", () => {
     const harnessFile = join(tmpdir(), `vercel-plugin-${onSession}-agent-harness.txt`);
     expect(existsSync(harnessFile)).toBe(true);
     expect(readFileSync(harnessFile, "utf-8").trim()).toBe("claude-code");
+  });
+
+  test("session-start profiler exports the session's telemetry ID for the Vercel CLI unless telemetry is off", () => {
+    const envFile = join(tempHome, "claude-env.sh");
+    const run = (input: Record<string, unknown>, env: Record<string, string | undefined>) =>
+      spawnSync(NODE_BIN, ["--import", join(ROOT, "tests", "_stub-fetch.mjs"), PROFILER_PATH], {
+        input: JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd: tempHome, ...input }),
+        encoding: "utf-8",
+        env: buildEnv({ ...env, CLAUDE_PROJECT_ROOT: tempHome }),
+      });
+    const exported = () =>
+      [...readFileSync(envFile, "utf-8").matchAll(/^export VERCEL_PLUGIN_TELEMETRY_SESSION_ID="(.*)"$/gm)].map((m) => m[1]);
+
+    const claudeSession = newSessionId("profiler-env");
+    writeFileSync(envFile, "");
+    expect(run({ session_id: claudeSession }, { CLAUDE_ENV_FILE: envFile }).status).toBe(0);
+    // A resumed session gets the same ID.
+    expect(run({ session_id: claudeSession, source: "resume" }, { CLAUDE_ENV_FILE: envFile }).status).toBe(0);
+    const ids = exported();
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(ids[0]);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    // The same ID tags this session's skill events.
+    const idFile = join(tmpdir(), `vercel-plugin-${claudeSession}-telemetry-session-id.txt`);
+    expect(readFileSync(idFile, "utf-8").trim()).toBe(ids[0]);
+
+    writeFileSync(envFile, "");
+    const offSession = newSessionId("profiler-env-off");
+    expect(run({ session_id: offSession }, { CLAUDE_ENV_FILE: envFile, VERCEL_PLUGIN_TELEMETRY: "off" }).status).toBe(0);
+    expect(exported()).toEqual([]);
+
+    const cursorSession = newSessionId("profiler-env-cursor");
+    const cursor = run({ conversation_id: cursorSession, cursor_version: "1.7.0" }, { CLAUDE_ENV_FILE: undefined });
+    expect(cursor.status).toBe(0);
+    const cursorEnv = (JSON.parse(cursor.stdout) as { env?: Record<string, string> }).env ?? {};
+    expect(cursorEnv.VERCEL_PLUGIN_TELEMETRY_SESSION_ID).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
 
