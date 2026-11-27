@@ -82,6 +82,7 @@ export const config: VercelConfig = {
 - **Rolling Releases**: gradual/canary rollout for deployments. GA since June 2025.
 - **Sign in with Vercel**: OAuth provider for third-party apps. GA since November 2025.
 - **Vercel Agent**: dashboard and Slack chat, code reviews, production investigations, installations, and approved actions. Public beta.
+- **Vercel Security Review**: part of Vercel Agent. Reviews pushes to GitHub for security vulnerabilities and reports them in the Vulnerabilities dashboard, as a GitHub check on the commit, and as pull request comments on private and internal repositories. When a Security Review check or pull request comment reports a vulnerability, load the `vercel-cli` skill and fetch the vulnerability with `vercel security vulnerabilities` before fixing it, instead of working from the check or comment text alone. Public beta on Pro and Enterprise. https://vercel.com/docs/agent/security-review
 - **Vercel Passport**: Enterprise deployment protection using your own OIDC identity provider. Generally available since July 2026.
 - **Vercel KMS**: managed signing keys for JWTs and messages, with automatic OIDC authentication from Vercel Functions and public JWKS verification. Beta on all plans.
 - **Vercel Drop**: browser-based deployment for a file, folder, or `.zip`, with no Git or CLI setup.
